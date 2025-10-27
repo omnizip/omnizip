@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+#
+# Copyright (C) 2024 Ribose Inc.
+#
+# This file is part of Omnizip.
+#
+# Omnizip is a pure Ruby port of 7-Zip compression algorithms.
+# Based on the 7-Zip LZMA SDK by Igor Pavlov.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# See the COPYING file for the complete text of the license.
+#
+
+require_relative "../lib/omnizip"
+
+begin
+  Omnizip::Cli.start(ARGV)
+rescue StandardError => e
+  warn "Error: #{e.message}"
+  exit 1
+end
