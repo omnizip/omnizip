@@ -189,6 +189,105 @@ Or install it yourself as:
 $ gem install omnizip
 ----
 
+[[api-options]]
+== API Options
+
+Omnizip provides two APIs to suit different needs:
+
+[[rubyzip-compatibility]]
+=== Option A: Rubyzip Compatibility (Drop-in Replacement)
+
+Use Omnizip as a drop-in replacement for the `zip` gem (rubyzip) with zero code changes:
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+# Use familiar rubyzip syntax
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt') { 'Content' }
+end
+
+Zip::File.open('archive.zip') do |zip|
+  content = zip.read('file.txt')
+end
+----
+
+**When to use:**
+
+* Migrating from rubyzip to Omnizip
+* Maintaining existing codebases
+* Need familiar ZIP API
+
+**Features:**
+
+* Complete `Zip::File`, `Zip::Entry`, `Zip::OutputStream`, `Zip::InputStream` compatibility
+* All error classes aliased (`Zip::Error`, etc.)
+* Same method signatures as rubyzip
+
+[[native-omnizip-api]]
+=== Option B: Native Omnizip API (Convenience Methods)
+
+Use Omnizip's streamlined native API for cleaner, more Ruby-idiomatic code:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# High-level convenience methods
+Omnizip.compress_file('input.txt', 'output.zip')
+Omnizip.compress_directory('folder/', 'backup.zip')
+Omnizip.extract_archive('archive.zip', 'output/')
+Omnizip.list_archive('archive.zip')
+
+# Or use detailed control with Omnizip::Zip namespace
+Omnizip::Zip::File.create('custom.zip') do |zip|
+  zip.add('file.txt') { 'Content' }
+end
+----
+
+**When to use:**
+
+* Starting new projects
+* Want simple one-liner operations
+* Prefer modern Ruby idioms
+* Need advanced compression features
+
+**Features:**
+
+* Simple convenience methods for common tasks
+* Native error handling
+* Advanced compression options (LZMA2, filters, etc.)
+* Clean, readable code
+
+[[both-apis-together]]
+=== Using Both APIs Together
+
+Both APIs work seamlessly on the same archives:
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+# Create with rubyzip API
+Zip::File.create('data.zip') do |zip|
+  zip.add('config.yml') { 'config data' }
+end
+
+# Modify with native API
+Omnizip.add_to_archive('data.zip', 'extra.txt', 'source.txt')
+
+# Read with either API
+zip_content = Zip::File.open('data.zip') { |z| z.read('config.yml') }
+native_content = Omnizip.read_from_archive('data.zip', 'extra.txt')
+----
+
+**Examples:**
+
+* link:examples/quick_start_rubyzip.rb[Rubyzip Compatibility Demo]
+* link:examples/quick_start_native.rb[Native API Demo]
+* link:examples/api_comparison.rb[Side-by-Side Comparison]
+
 [[cli-usage]]
 == Command-line interface
 
