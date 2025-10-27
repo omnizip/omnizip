@@ -131,9 +131,12 @@ module Omnizip
       end
     end
 
-    desc "compress INPUT OUTPUT", "Compress a file"
+    desc "compress INPUT OUTPUT", "Compress a file or stream"
     long_desc <<~DESC
       Compress INPUT file and write the result to OUTPUT file.
+
+      Use '-' for INPUT to read from stdin or OUTPUT to write to stdout.
+      This enables Unix pipeline integration for streaming workflows.
 
       The compression algorithm and level can be specified with options.
       By default, LZMA compression is used with level 5.
@@ -143,23 +146,41 @@ module Omnizip
         $ omnizip compress input.txt output.lzma
 
         $ omnizip compress input.txt output.lzma --level 9 --verbose
+
+        $ cat input.txt | omnizip compress - output.zip --format zip
+
+        $ omnizip compress input.txt - --format zip > output.zip
+
+        $ cat data.txt | omnizip compress - - --format zip > out.zip
     DESC
     option :algorithm, type: :string, default: "lzma",
                        desc: "Compression algorithm to use"
+    option :format, type: :string, default: nil,
+                    desc: "Archive format (zip, 7z) - enables pipe mode"
     option :level, type: :numeric, default: 5,
                    desc: "Compression level (1-9)"
+    option :entry_name, type: :string, default: nil,
+                        desc: "Entry name in archive (pipe mode only)"
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
     def compress(input, output)
-      Commands::CompressCommand.new(options).run(input, output)
+      # Pipe mode: use streaming compression
+      if Omnizip::Pipe.stdin?(input) || Omnizip::Pipe.stdout?(output)
+        compress_pipe(input, output)
+      else
+        Commands::CompressCommand.new(options).run(input, output)
+      end
     rescue StandardError => e
       handle_error(e)
     end
 
-    desc "decompress INPUT OUTPUT", "Decompress a file"
+    desc "decompress INPUT OUTPUT", "Decompress a file or stream"
     long_desc <<~DESC
-      Decompress INPUT file and write the result to OUTPUT file.
+      Decompress INPUT file and write the result to OUTPUT file or directory.
+
+      Use '-' for INPUT to read from stdin. If OUTPUT is a directory,
+      extracts all files. If OUTPUT is '-', streams first file to stdout.
 
       The algorithm will be auto-detected from the compressed file,
       or can be explicitly specified with the --algorithm option.
@@ -169,6 +190,12 @@ module Omnizip
         $ omnizip decompress output.lzma restored.txt
 
         $ omnizip decompress output.lzma restored.txt --verbose
+
+        $ cat archive.zip | omnizip decompress - extracted/
+
+        $ omnizip decompress - - < archive.zip > output.txt
+
+        $ cat archive.zip | omnizip decompress - extracted/ --verbose
     DESC
     option :algorithm, type: :string,
                        desc: "Decompression algorithm (auto-detect if omitted)"
@@ -176,7 +203,12 @@ module Omnizip
                      aliases: "-v",
                      desc: "Enable verbose output"
     def decompress(input, output)
-      Commands::DecompressCommand.new(options).run(input, output)
+      # Pipe mode: use streaming decompression
+      if Omnizip::Pipe.stdin?(input) || Omnizip::Pipe.stdout?(output)
+        decompress_pipe(input, output)
+      else
+        Commands::DecompressCommand.new(options).run(input, output)
+      end
     rescue StandardError => e
       handle_error(e)
     end
@@ -212,6 +244,54 @@ module Omnizip
     map %w[-v --version] => :version
 
     private
+
+    def compress_pipe(input, output)
+      input_io = input == "-" ? $stdin : File.open(input, "rb")
+      output_io = output == "-" ? $stdout : File.open(output, "wb")
+
+      format = (options[:format] || :zip).to_sym
+      compression = options[:algorithm]&.to_sym
+      entry_name = options[:entry_name] || File.basename(input == "-" ? "stream.dat" : input)
+
+      if options[:verbose]
+        warn "Compressing from #{input == '-' ? 'stdin' : input} to #{output == '-' ? 'stdout' : output}"
+        warn "Format: #{format}, Entry: #{entry_name}"
+      end
+
+      Omnizip::Pipe.compress(
+        input_io,
+        output_io,
+        format: format,
+        compression: compression,
+        entry_name: entry_name,
+        level: options[:level]
+      )
+
+      warn "Compression complete" if options[:verbose]
+    ensure
+      input_io.close if input_io && input != "-"
+      output_io.close if output_io && output != "-"
+    end
+
+    def decompress_pipe(input, output)
+      input_io = input == "-" ? $stdin : File.open(input, "rb")
+
+      if options[:verbose]
+        warn "Decompressing from #{input == '-' ? 'stdin' : input}"
+      end
+
+      if output == "-"
+        # Stream to stdout
+        Omnizip::Pipe.decompress(input_io, output: $stdout)
+      else
+        # Extract to directory
+        Omnizip::Pipe.decompress(input_io, output_dir: output)
+      end
+
+      warn "Decompression complete" if options[:verbose]
+    ensure
+      input_io.close if input_io && input != "-"
+    end
 
     def handle_error(error)
       warn CliOutputFormatter.format_error(error)
