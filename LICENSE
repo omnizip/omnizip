@@ -1,0 +1,12 @@
+GNU LESSER GENERAL PUBLIC LICENSE
+Version 2.1, February 1999
+
+This project is a pure Ruby port of 7-Zip compression algorithms.
+
+The original 7-Zip source code is licensed under the GNU LGPL 2.1 license.
+This Ruby implementation maintains compatibility with that license.
+
+Copyright (C) 2024 Ribose Inc.
+Copyright (C) 1999-2024 Igor Pavlov (7-Zip original implementation)
+
+See the COPYING file for the complete text of the GNU LGPL 2.1 license.
