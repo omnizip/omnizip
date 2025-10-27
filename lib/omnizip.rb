@@ -83,6 +83,18 @@ Omnizip::FilterRegistry.register(:"bcj-ia64", Omnizip::Filters::BcjIa64)
 require_relative "omnizip/formats/seven_zip"
 require_relative "omnizip/formats/zip"
 
+# Rubyzip-compatible API
+require_relative "omnizip/zip/entry"
+require_relative "omnizip/zip/file"
+require_relative "omnizip/zip/output_stream"
+require_relative "omnizip/zip/input_stream"
+
+# Streaming and in-memory operations (v1.2)
+require_relative "omnizip/buffer"
+require_relative "omnizip/pipe"
+require_relative "omnizip/chunked"
+require_relative "omnizip/temp"
+
 # Performance profiling components
 require_relative "omnizip/profiler"
 require_relative "omnizip/profiler/method_profiler"
@@ -91,3 +103,6 @@ require_relative "omnizip/profiler/report_generator"
 
 # CLI components (cli.rb will require output_formatter itself)
 require_relative "omnizip/cli"
+
+# Convenience methods for native API
+require_relative "omnizip/convenience"
