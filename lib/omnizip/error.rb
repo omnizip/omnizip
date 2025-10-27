@@ -39,6 +39,10 @@ module Omnizip
   class IOError < Error
   end
 
+  # Error raised when checksum validation fails
+  class ChecksumError < Error
+  end
+
   # Error raised when optimization strategy is not found
   class OptimizationNotFound < Error
   end

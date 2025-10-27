@@ -81,6 +81,7 @@ Omnizip::FilterRegistry.register(:"bcj-ia64", Omnizip::Filters::BcjIa64)
 
 # Archive format support
 require_relative "omnizip/formats/seven_zip"
+require_relative "omnizip/formats/zip"
 
 # Performance profiling components
 require_relative "omnizip/profiler"
