@@ -6,6 +6,9 @@ require_relative "parser"
 require_relative "models/stream_info"
 require_relative "models/file_entry"
 require_relative "stream_decompressor"
+require_relative "split_archive_reader"
+require_relative "header_encryptor"
+require_relative "encrypted_header"
 require "fileutils"
 
 module Omnizip
@@ -25,16 +28,54 @@ module Omnizip
           @file_path = file_path
           @entries = []
           @stream_info = nil
+          @split_reader = nil
         end
 
         # Open and parse .7z archive
         #
         # @raise [RuntimeError] if file cannot be opened or parsed
         def open
-          File.open(@file_path, "rb") do |io|
-            parse_archive(io)
+          # Check if this is a split archive
+          if split_archive?
+            @split_reader = SplitArchiveReader.new(@file_path)
+            @split_reader.open
+            @header = @split_reader.header
+            @entries = @split_reader.entries
+            @stream_info = @split_reader.stream_info
+          else
+            File.open(@file_path, "rb") do |io|
+              parse_archive(io)
+            end
           end
           self
+        end
+
+        # Check if archive is split
+        #
+        # @return [Boolean] true if split across multiple volumes
+        def split?
+          @split_reader&.split? || false
+        end
+
+        # Get total number of volumes (for split archives)
+        #
+        # @return [Integer] Number of volumes
+        def total_volumes
+          @split_reader&.total_volumes || 1
+        end
+
+        # Get volume size (for split archives)
+        #
+        # @return [Integer] Volume size in bytes
+        def volume_size
+          @split_reader&.volume_size || File.size(@file_path)
+        end
+
+        # Get list of volumes (for split archives)
+        #
+        # @return [Array<String>] Volume paths
+        def volumes
+          @split_reader&.volumes || [@file_path]
         end
 
         # List all files in archive
@@ -50,6 +91,12 @@ module Omnizip
         # @param output_path [String] Destination path
         # @raise [RuntimeError] if entry not found or extraction fails
         def extract_entry(entry_name, output_path)
+          # Delegate to split reader if available
+          if @split_reader
+            @split_reader.extract_entry(entry_name, output_path)
+            return
+          end
+
           entry = @entries.find { |e| e.name == entry_name }
           raise "Entry not found: #{entry_name}" unless entry
 
@@ -97,6 +144,20 @@ module Omnizip
           !@header.nil? && @header.valid?
         end
 
+        # Check if headers are encrypted
+        #
+        # @return [Boolean] true if headers are encrypted
+        def encrypted?
+          !@encrypted_header.nil?
+        end
+
+        # Check if can decrypt headers (password provided)
+        #
+        # @return [Boolean] true if password available for encrypted headers
+        def can_decrypt?
+          encrypted? && !@password.nil?
+        end
+
         private
 
         # Parse .7z archive structure
@@ -111,12 +172,41 @@ module Omnizip
                   @header.next_header_offset)
           next_header_data = io.read(@header.next_header_size)
 
+          # Check if header is encrypted
+          if next_header_data.getbyte(0) == PropertyId::ENCODED_HEADER
+            next_header_data = decrypt_header(next_header_data)
+          end
+
           # Parse metadata
           parser = Parser.new(next_header_data)
           @stream_info, @entries = parse_metadata(parser)
 
           # Map entries to their folders/streams
           map_entries_to_streams
+        end
+
+        # Decrypt encrypted header
+        #
+        # @param encrypted_data [String] Encrypted header bytes
+        # @return [String] Decrypted header data
+        # @raise [RuntimeError] if password not provided
+        def decrypt_header(encrypted_data)
+          # Parse encrypted header structure
+          @encrypted_header = EncryptedHeader.from_binary(encrypted_data)
+
+          unless @password
+            raise "Archive headers are encrypted. Password required to access."
+          end
+
+          # Decrypt using password
+          encryptor = HeaderEncryptor.new(@password)
+          encryptor.decrypt(
+            @encrypted_header.encrypted_data,
+            @encrypted_header.salt,
+            @encrypted_header.iv
+          )
+        rescue OpenSSL::Cipher::CipherError => e
+          raise "Failed to decrypt headers: incorrect password (#{e.message})"
         end
 
         # Parse archive metadata
@@ -235,6 +325,13 @@ module Omnizip
         rescue StandardError => e
           warn "Extraction failed for #{entry.name}: #{e.message}"
           raise
+        end
+
+        # Check if file path indicates a split archive
+        #
+        # @return [Boolean] true if appears to be split
+        def split_archive?
+          @file_path =~ /\.\d{3}$/ || @file_path =~ /\.[a-z]{2,}$/
         end
       end
     end

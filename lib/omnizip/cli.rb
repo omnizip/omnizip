@@ -23,9 +23,67 @@ require_relative "commands/list_command"
 require_relative "commands/archive_create_command"
 require_relative "commands/archive_extract_command"
 require_relative "commands/archive_list_command"
+require_relative "commands/profile_list_command"
+require_relative "commands/profile_show_command"
+require_relative "commands/metadata_command"
+require_relative "commands/archive_verify_command"
+require_relative "commands/archive_repair_command"
 require_relative "cli/output_formatter"
 
 module Omnizip
+  # Profile commands subcommand group
+  class ProfileCommands < Thor
+    class << self
+      def exit_on_failure?
+        true
+      end
+    end
+
+    desc "list", "List available compression profiles"
+    long_desc <<~DESC
+      List all available compression profiles with their descriptions.
+
+      Examples:
+
+        $ omnizip profile list
+
+        $ omnizip profile list --verbose
+    DESC
+    option :verbose, type: :boolean, default: false,
+                     aliases: "-v",
+                     desc: "Show detailed information"
+    def list
+      Omnizip::Commands::ProfileListCommand.new(options).run
+    rescue StandardError => e
+      handle_error(e)
+    end
+
+    desc "show PROFILE", "Show profile details"
+    long_desc <<~DESC
+      Show detailed information about a specific compression profile.
+
+      PROFILE is the name of the profile to show.
+
+      Examples:
+
+        $ omnizip profile show maximum
+
+        $ omnizip profile show fast
+    DESC
+    def show(profile_name)
+      Omnizip::Commands::ProfileShowCommand.new(options).run(profile_name)
+    rescue StandardError => e
+      handle_error(e)
+    end
+
+    private
+
+    def handle_error(error)
+      warn Omnizip::CliOutputFormatter.format_error(error)
+      exit 1
+    end
+  end
+
   # Archive commands subcommand group
   class ArchiveCommands < Thor
     class << self
@@ -41,6 +99,8 @@ module Omnizip
       OUTPUT is the path to the .7z archive to create.
       INPUT can be one or more files or directories to archive.
 
+      For split archives, OUTPUT should end with .001 (e.g., backup.7z.001).
+
       Examples:
 
         $ omnizip archive create archive.7z file1.txt file2.txt
@@ -50,7 +110,13 @@ module Omnizip
 
         $ omnizip archive create archive.7z file.txt --no-solid \\
           --filters bcj_x86
+
+        $ omnizip archive create backup.7z.001 large_data/ --volume-size 100M
+
+        $ omnizip archive create backup.7z.001 files/ --volume-size 4.7GB
     DESC
+    option :profile, type: :string,
+                     desc: "Compression profile (fast, balanced, maximum, text, binary, archive, auto)"
     option :algorithm, type: :string, default: "lzma2",
                        desc: "Compression algorithm (lzma, lzma2, ppmd7, bzip2)"
     option :level, type: :numeric, default: 5,
@@ -59,6 +125,14 @@ module Omnizip
                    desc: "Use solid compression (default: true)"
     option :filters, type: :string,
                      desc: "Filter chain (e.g., bcj_x86,delta)"
+    option :volume_size, type: :string,
+                         desc: "Volume size for split archives (e.g., 100M, 650MB, 4.7GB)"
+    option :password, type: :string,
+                      desc: "Password for header encryption"
+    option :encrypt_headers, type: :boolean, default: false,
+                            desc: "Encrypt archive headers (hides filenames)"
+    option :preserve_ntfs_streams, type: :boolean, default: false,
+                                  desc: "Preserve NTFS alternate data streams (Windows only)"
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
@@ -68,22 +142,48 @@ module Omnizip
       handle_error(e)
     end
 
-    desc "extract ARCHIVE [OUTPUT_DIR]", "Extract .7z archive"
+    desc "extract ARCHIVE [OUTPUT_DIR]", "Extract archive"
     long_desc <<~DESC
-      Extract a .7z archive to a directory.
+      Extract a .7z, .zip, or .rar archive to a directory.
 
-      ARCHIVE is the path to the .7z archive to extract.
+      ARCHIVE is the path to the archive to extract.
       OUTPUT_DIR is the directory to extract to (default: current directory).
+
+      Pattern extraction options allow selective extraction of files.
 
       Examples:
 
-        $ omnizip archive extract archive.7z
+        $ omnizip archive extract archive.zip
 
-        $ omnizip archive extract archive.7z output/ --verbose
+        $ omnizip archive extract archive.zip output/ --verbose
+
+        $ omnizip archive extract archive.zip output/ --pattern '**/*.txt'
+
+        $ omnizip archive extract archive.zip output/ \\
+          --pattern '*.txt' --pattern '*.md'
+
+        $ omnizip archive extract archive.zip output/ \\
+          --pattern '**/*' --exclude '**/*.tmp' --exclude '**/test/**'
+
+        $ omnizip archive extract archive.zip output/ \\
+          --regex '\\.log$'
+
+        $ omnizip archive extract archive.zip output/ \\
+          --pattern 'src/**/*.rb' --flatten
     DESC
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
+    option :pattern, type: :array,
+                     desc: "Include pattern(s) for selective extraction"
+    option :exclude, type: :array,
+                     desc: "Exclude pattern(s) for selective extraction"
+    option :regex, type: :string,
+                   desc: "Regular expression pattern for selective extraction"
+    option :flatten, type: :boolean, default: false,
+                     desc: "Extract all files to output root (ignore paths)"
+    option :count, type: :boolean, default: false,
+                   desc: "Count matches without extracting"
     def extract(archive, output_dir = nil)
       Omnizip::Commands::ArchiveExtractCommand.new(options).run(archive,
                                                                 output_dir)
@@ -91,23 +191,81 @@ module Omnizip
       handle_error(e)
     end
 
-    desc "list ARCHIVE", "List .7z archive contents"
+    desc "list ARCHIVE", "List archive contents"
     long_desc <<~DESC
-      List the contents of a .7z archive.
+      List the contents of a .7z, .zip, or .rar archive.
 
-      ARCHIVE is the path to the .7z archive to list.
+      ARCHIVE is the path to the archive to list.
+
+      Pattern filtering options allow listing only matching files.
 
       Examples:
 
-        $ omnizip archive list archive.7z
+        $ omnizip archive list archive.zip
 
-        $ omnizip archive list archive.7z --verbose
+        $ omnizip archive list archive.zip --verbose
+
+        $ omnizip archive list archive.zip --pattern '**/*.rb'
+
+        $ omnizip archive list archive.zip --pattern '*.txt' --count
     DESC
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
+    option :pattern, type: :array,
+                     desc: "Include pattern(s) for filtering"
+    option :exclude, type: :array,
+                     desc: "Exclude pattern(s) for filtering"
+    option :count, type: :boolean, default: false,
+                   desc: "Show count of matches"
     def list(archive)
       Omnizip::Commands::ArchiveListCommand.new(options).run(archive)
+    rescue StandardError => e
+      handle_error(e)
+    end
+
+    desc "metadata ARCHIVE [PATTERN]", "View or edit archive metadata"
+    long_desc <<~DESC
+      View or edit metadata for archives and entries.
+
+      ARCHIVE is the path to the archive.
+      PATTERN is an optional entry name or glob pattern.
+
+      Examples:
+
+        # View archive metadata
+        $ omnizip archive metadata archive.zip --show
+
+        # View entry metadata
+        $ omnizip archive metadata archive.zip file.txt --show
+
+        # Set archive comment
+        $ omnizip archive metadata archive.zip --comment "My backup"
+
+        # Set entry comment
+        $ omnizip archive metadata archive.zip file.txt --comment "Important"
+
+        # Set modification time
+        $ omnizip archive metadata archive.zip file.txt --set-mtime now
+
+        # Set permissions
+        $ omnizip archive metadata archive.zip '*.rb' --chmod 755
+    DESC
+    option :show, type: :boolean, default: false,
+                  desc: "Show metadata (read-only)"
+    option :comment, type: :string,
+                     desc: "Set comment"
+    option :set_mtime, type: :string,
+                       desc: "Set modification time (e.g., 'now', '2024-01-01')"
+    option :chmod, type: :string,
+                   desc: "Set Unix permissions (e.g., '755', '0644')"
+    option :set_attribute, type: :string,
+                          desc: "Set attribute flag (readonly, hidden, system, archive)"
+    option :verbose, type: :boolean, default: false,
+                     aliases: "-v",
+                     desc: "Enable verbose output"
+    def metadata(archive, pattern = nil)
+      Omnizip::Commands::MetadataCommand.new(options).run(archive, pattern)
     rescue StandardError => e
       handle_error(e)
     end
@@ -238,8 +396,75 @@ module Omnizip
       puts "Pure Ruby implementation of LZMA compression"
     end
 
+    desc "profile SUBCOMMAND ...ARGS", "Manage compression profiles"
+    subcommand "profile", ProfileCommands
+
     desc "archive SUBCOMMAND ...ARGS", "Manage .7z archives"
     subcommand "archive", ArchiveCommands
+    desc "convert SOURCE TARGET", "Convert archive between formats"
+    long_desc <<~DESC
+      Convert an archive from one format to another.
+
+      SOURCE is the path to the source archive (ZIP, 7z, or RAR).
+      TARGET is the path to the target archive (ZIP or 7z).
+      Note: RAR can only be a source (read-only), not a target.
+
+      Examples:
+
+        $ omnizip convert archive.zip archive.7z
+
+        $ omnizip convert archive.7z backup.zip
+
+        $ omnizip convert archive.zip archive.7z --compression lzma2 --level 9
+
+        $ omnizip convert archive.zip archive.7z --no-solid
+    DESC
+    option :compression, type: :string,
+                        desc: "Compression algorithm (lzma, lzma2, ppmd7, bzip2)"
+    option :level, type: :numeric, default: 5,
+                   desc: "Compression level (1-9)"
+    option :filter, type: :string,
+                    desc: "Filter to apply (bcj-x86, delta, etc.)"
+    option :solid, type: :boolean, default: true,
+                   desc: "Use solid compression for 7z (default: true)"
+    option :preserve_metadata, type: :boolean, default: true,
+                              desc: "Preserve metadata (default: true)"
+    option :delete_source, type: :boolean, default: false,
+                          desc: "Delete source after conversion"
+    option :verbose, type: :boolean, default: false,
+                     aliases: "-v",
+                     desc: "Enable verbose output"
+    def convert(source, target)
+      require_relative "converter"
+
+      puts "Converting #{source} to #{target}..." if options[:verbose]
+
+      result = Omnizip::Converter.convert(
+        source,
+        target,
+        compression: options[:compression]&.to_sym,
+        compression_level: options[:level],
+        filter: options[:filter]&.to_sym,
+        solid: options[:solid],
+        preserve_metadata: options[:preserve_metadata],
+        delete_source: options[:delete_source]
+      )
+
+      puts "Conversion complete!"
+      puts "Source: #{result.source_path} (#{format_bytes(result.source_size)})"
+      puts "Target: #{result.target_path} (#{format_bytes(result.target_size)})"
+      puts "Size change: #{result.size_reduction.round(1)}%"
+      puts "Duration: #{result.duration.round(2)}s"
+      puts "Entries: #{result.entry_count}"
+
+      if result.warnings?
+        puts "\nWarnings:"
+        result.warnings.each { |w| puts "  - #{w}" }
+      end
+    rescue StandardError => e
+      handle_error(e)
+    end
+
 
     map %w[-v --version] => :version
 
@@ -296,6 +521,16 @@ module Omnizip
     def handle_error(error)
       warn CliOutputFormatter.format_error(error)
       exit 1
+    end
+
+    def format_bytes(bytes)
+      return "0 B" if bytes.zero?
+
+      units = %w[B KB MB GB TB]
+      exp = (Math.log(bytes) / Math.log(1024)).to_i
+      exp = [exp, units.size - 1].min
+
+      "%.1f %s" % [bytes.to_f / (1024**exp), units[exp]]
     end
   end
 end

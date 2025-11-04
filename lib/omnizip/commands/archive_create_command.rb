@@ -40,11 +40,22 @@ module Omnizip
       def run(output_file, *inputs)
         validate_inputs(output_file, inputs)
 
-        algorithm = (options[:algorithm] || "lzma2").to_sym
-        level = options[:level] || 5
-        solid = options.fetch(:solid, true)
-        verbose = options[:verbose] || false
-        filters = parse_filters(options[:filters])
+        # Apply profile settings if specified
+        opts = options.dup
+        if opts[:profile]
+          first_file = find_first_file(inputs)
+          opts = apply_profile(first_file, opts)
+        end
+
+        algorithm = (opts[:algorithm] || "lzma2").to_sym
+        level = opts[:level] || 5
+        solid = opts.fetch(:solid, true)
+        verbose = opts[:verbose] || false
+        filters = parse_filters(opts[:filters])
+        volume_size = parse_volume_size(opts[:volume_size])
+        password = opts[:password]
+        encrypt_headers = opts[:encrypt_headers] || false
+        preserve_ntfs_streams = opts[:preserve_ntfs_streams] || false
 
         if verbose
           CliOutputFormatter.verbose_puts(
@@ -56,9 +67,27 @@ module Omnizip
             "Solid: #{solid}",
             true
           )
+          if volume_size
+            CliOutputFormatter.verbose_puts(
+              "Volume size: #{format_bytes(volume_size)}",
+              true
+            )
+          end
           unless filters.empty?
             CliOutputFormatter.verbose_puts(
               "Filters: #{filters.join(", ")}",
+              true
+            )
+          end
+          if encrypt_headers
+            CliOutputFormatter.verbose_puts(
+              "Header encryption: enabled",
+              true
+            )
+          end
+          if preserve_ntfs_streams && Omnizip::Platform.supports_ntfs_streams?
+            CliOutputFormatter.verbose_puts(
+              "NTFS streams: preserving",
               true
             )
           end
@@ -67,16 +96,22 @@ module Omnizip
         start_time = Time.now
 
         create_archive(output_file, inputs, algorithm, level, solid,
-                       filters, verbose)
+                       filters, volume_size, password, encrypt_headers,
+                       preserve_ntfs_streams, verbose)
 
         elapsed = Time.now - start_time
 
-        archive_size = File.size(output_file)
+        archive_size = calculate_archive_size(output_file, volume_size)
 
         if verbose
           puts ""
           puts "Archive created successfully"
-          puts "Archive size: #{format_bytes(archive_size)}"
+          if volume_size
+            puts "Total size: #{format_bytes(archive_size)}"
+            puts "Volumes: #{count_volumes(output_file)}"
+          else
+            puts "Archive size: #{format_bytes(archive_size)}"
+          end
           puts "Time elapsed: #{elapsed.round(2)}s"
         else
           puts "Created: #{output_file}"
@@ -114,14 +149,19 @@ module Omnizip
       end
 
       def create_archive(output_file, inputs, algorithm, level, solid,
-                         filters, verbose)
-        writer = Formats::SevenZip::Writer.new(
-          output_file,
+                         filters, volume_size, password, encrypt_headers,
+                         preserve_ntfs_streams, verbose)
+        writer_opts = {
           algorithm: algorithm,
           level: level,
           solid: solid,
           filters: filters
-        )
+        }
+        writer_opts[:volume_size] = volume_size if volume_size
+        writer_opts[:password] = password if password
+        writer_opts[:encrypt_headers] = encrypt_headers if encrypt_headers
+
+        writer = Formats::SevenZip::Writer.new(output_file, writer_opts)
 
         inputs.each do |input|
           if File.directory?(input)
@@ -157,6 +197,77 @@ module Omnizip
         end
 
         format("%.2f %s", size, units[unit_idx])
+      end
+
+      def apply_profile(file_path, options)
+        profile_spec = options.delete(:profile)
+        return options unless profile_spec
+
+        # Get the profile
+        profile = case profile_spec
+                  when "auto"
+                    file_path ? Omnizip::Profile.detect(file_path) : Omnizip::Profile.get(:balanced)
+                  else
+                    Omnizip::Profile.get(profile_spec.to_sym) || Omnizip::Profile.get(:balanced)
+                  end
+
+        # Apply profile to options
+        profile.apply_to(options)
+      end
+
+      def find_first_file(inputs)
+        inputs.each do |input|
+          return input if File.file?(input)
+
+          # Check directories for first file
+          if File.directory?(input)
+            Dir.foreach(input) do |entry|
+              next if entry == "." || entry == ".."
+
+              full_path = File.join(input, entry)
+              return full_path if File.file?(full_path)
+            end
+          end
+        end
+        nil
+      end
+
+      def parse_volume_size(size_str)
+        return nil if size_str.nil? || size_str.empty?
+
+        require_relative "../models/split_options"
+        Omnizip::Models::SplitOptions.parse_volume_size(size_str)
+      end
+
+      def calculate_archive_size(output_file, volume_size)
+        if volume_size
+          # Count all volumes
+          base = output_file.sub(/\.\d{3}$/, "")
+          total = 0
+          volume_num = 1
+          loop do
+            volume_path = format("%s.%03d", base, volume_num)
+            break unless File.exist?(volume_path)
+
+            total += File.size(volume_path)
+            volume_num += 1
+          end
+          total
+        else
+          File.size(output_file)
+        end
+      end
+
+      def count_volumes(output_file)
+        base = output_file.sub(/\.\d{3}$/, "")
+        count = 0
+        loop do
+          volume_path = format("%s.%03d", base, count + 1)
+          break unless File.exist?(volume_path)
+
+          count += 1
+        end
+        count
       end
     end
   end

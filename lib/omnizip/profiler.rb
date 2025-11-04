@@ -26,7 +26,10 @@ module Omnizip
       return yield unless enabled
 
       profiler = @profilers[profiler_type]
-      raise ArgumentError, "Unknown profiler type: #{profiler_type}" unless profiler
+      unless profiler
+        raise ArgumentError,
+              "Unknown profiler type: #{profiler_type}"
+      end
 
       result = profiler.profile(operation_name, &block)
       @report.add_result(result)
@@ -34,7 +37,8 @@ module Omnizip
     end
 
     # Profile a method call with automatic naming
-    def profile_method(object, method_name, *args, profiler_type: :method, **kwargs)
+    def profile_method(object, method_name, *args, profiler_type: :method,
+                       **kwargs)
       operation_name = "#{object.class}##{method_name}"
       profile(operation_name, profiler_type: profiler_type) do
         object.public_send(method_name, *args, **kwargs)
@@ -92,7 +96,9 @@ module Omnizip
       end
 
       # GC pressure bottlenecks
-      high_gc = report.results.select { |r| r.gc_pressure && r.gc_pressure > 1.0 }
+      high_gc = report.results.select do |r|
+        r.gc_pressure && r.gc_pressure > 1.0
+      end
       high_gc.each do |op|
         bottlenecks << {
           type: :gc,
@@ -115,7 +121,7 @@ module Omnizip
         suggestions << Models::OptimizationSuggestion.new(
           title: "Optimize hot path: #{hot_op.operation_name}",
           description: "Operation consuming #{hot_op.total_time}s " \
-                      "(#{((hot_op.total_time / report.total_execution_time) * 100).round(1)}% of total time)",
+                       "(#{((hot_op.total_time / report.total_execution_time) * 100).round(1)}% of total time)",
           severity: :high,
           category: :hotpath,
           impact_estimate: hot_op.total_time / report.total_execution_time,

@@ -15,9 +15,9 @@ module Omnizip
       # Generate a human-readable text report
       def generate_text_report
         lines = []
-        lines << "=" * 80
+        lines << ("=" * 80)
         lines << "PERFORMANCE PROFILING REPORT"
-        lines << "=" * 80
+        lines << ("=" * 80)
         lines << "Profile: #{report.profile_name}"
         lines << "Timestamp: #{report.timestamp}"
         lines << ""
@@ -56,12 +56,13 @@ module Omnizip
 
       def generate_summary_section
         lines = []
-        lines << "-" * 80
+        lines << ("-" * 80)
         lines << "SUMMARY"
-        lines << "-" * 80
-        lines << format("Total Execution Time: %.3fs", report.total_execution_time)
+        lines << ("-" * 80)
+        lines << format("Total Execution Time: %.3fs",
+                        report.total_execution_time)
         lines << format("Total Memory Allocated: %s",
-                       format_bytes(report.total_memory_allocated))
+                        format_bytes(report.total_memory_allocated))
         lines << format("Total GC Runs: %d", report.total_gc_runs)
         lines << format("Operations Profiled: %d", report.results.size)
         lines << ""
@@ -72,19 +73,19 @@ module Omnizip
         return [] if report.results.empty?
 
         lines = []
-        lines << "-" * 80
+        lines << ("-" * 80)
         lines << "DETAILED RESULTS"
-        lines << "-" * 80
+        lines << ("-" * 80)
         lines << format("%-40s %12s %15s %10s",
-                       "Operation", "Time (s)", "Memory", "Calls")
-        lines << "-" * 80
+                        "Operation", "Time (s)", "Memory", "Calls")
+        lines << ("-" * 80)
 
         report.results.sort_by(&:total_time).reverse.each do |result|
           lines << format("%-40s %12.3f %15s %10d",
-                         truncate(result.operation_name, 40),
-                         result.total_time || 0.0,
-                         format_bytes(result.memory_allocated || 0),
-                         result.call_count || 0)
+                          truncate(result.operation_name, 40),
+                          result.total_time || 0.0,
+                          format_bytes(result.memory_allocated || 0),
+                          result.call_count || 0)
         end
         lines << ""
         lines
@@ -94,15 +95,15 @@ module Omnizip
         return [] if report.hot_paths.empty?
 
         lines = []
-        lines << "-" * 80
+        lines << ("-" * 80)
         lines << "HOT PATHS (>10% execution time)"
-        lines << "-" * 80
+        lines << ("-" * 80)
 
         report.hot_paths.each do |hot_path|
           lines << format("  %s: %.3fs (%.1f%%)",
-                         hot_path[:operation],
-                         hot_path[:time],
-                         hot_path[:percentage])
+                          hot_path[:operation],
+                          hot_path[:time],
+                          hot_path[:percentage])
         end
         lines << ""
         lines
@@ -112,26 +113,26 @@ module Omnizip
         return [] if report.bottlenecks.empty?
 
         lines = []
-        lines << "-" * 80
+        lines << ("-" * 80)
         lines << "PERFORMANCE BOTTLENECKS"
-        lines << "-" * 80
+        lines << ("-" * 80)
 
         report.bottlenecks.group_by { |b| b[:type] }.each do |type, bottlenecks|
           lines << "\n#{type.to_s.upcase} Bottlenecks:"
           bottlenecks.each do |bottleneck|
             lines << format("  [%s] %s",
-                           bottleneck[:severity].to_s.upcase,
-                           bottleneck[:operation])
+                            bottleneck[:severity].to_s.upcase,
+                            bottleneck[:operation])
 
             case type
             when :memory
               lines << format("    Memory: %s",
-                             format_bytes(bottleneck[:allocated]))
+                              format_bytes(bottleneck[:allocated]))
             when :cpu
               lines << format("    Time: %.3fs", bottleneck[:time])
             when :gc
               lines << format("    GC Pressure: %.2f runs/s",
-                             bottleneck[:gc_pressure])
+                              bottleneck[:gc_pressure])
             end
           end
         end

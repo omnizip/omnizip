@@ -55,6 +55,10 @@ module Omnizip
         # Unix permissions
         UNIX_DIR_PERMISSIONS = 0o755 << 16
         UNIX_FILE_PERMISSIONS = 0o644 << 16
+        UNIX_SYMLINK_PERMISSIONS = 0o120777 << 16
+
+        # Unix extra field tag (Info-ZIP)
+        UNIX_EXTRA_FIELD_TAG = 0x7875
 
         # Size limits
         ZIP64_LIMIT = 0xFFFFFFFF

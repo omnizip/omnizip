@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "constants"
+require_relative "unix_extra_field"
 
 module Omnizip
   module Formats
@@ -92,6 +93,19 @@ module Omnizip
         # Set Unix permissions in external attributes
         def unix_permissions=(perms)
           @external_attributes = (perms << 16) | (external_attributes & 0xFFFF)
+        end
+
+        # Check if this is a symbolic link
+        def symlink?
+          (unix_permissions & 0o170000) == 0o120000
+        end
+
+        # Get link target from Unix extra field
+        def link_target
+          return nil unless symlink?
+
+          unix_field = UnixExtraField.find_in_extra_field(extra_field)
+          unix_field&.link_target
         end
 
         # Serialize to binary format

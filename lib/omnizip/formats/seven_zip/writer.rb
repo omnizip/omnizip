@@ -5,6 +5,10 @@ require_relative "file_collector"
 require_relative "stream_compressor"
 require_relative "header_writer"
 require_relative "models/file_entry"
+require_relative "split_archive_writer"
+require_relative "header_encryptor"
+require_relative "encrypted_header"
+require_relative "../../models/split_options"
 
 module Omnizip
   module Formats
@@ -24,13 +28,17 @@ module Omnizip
         # @option options [Integer] :level (5) 1-9
         # @option options [Boolean] :solid (true)
         # @option options [Array<Symbol>] :filters ([])
+        # @option options [Integer] :volume_size Volume size for split archives
+        # @option options [String] :password Password for header encryption
+        # @option options [Boolean] :encrypt_headers (false) Encrypt headers
         def initialize(output_path, options = {})
           @output_path = output_path
           @options = {
             algorithm: :lzma2,
             level: 5,
             solid: true,
-            filters: []
+            filters: [],
+            encrypt_headers: false
           }.merge(options)
           @collector = FileCollector.new
           @entries = []
@@ -67,9 +75,14 @@ module Omnizip
           # Collect files
           @entries = @collector.collect_files
 
-          # Open output file
-          File.open(@output_path, "wb") do |io|
-            write_archive(io)
+          # Check if split archive requested
+          if @options[:volume_size]
+            write_split_archive
+          else
+            # Open output file
+            File.open(@output_path, "wb") do |io|
+              write_archive(io)
+            end
           end
         end
 
@@ -194,7 +207,59 @@ module Omnizip
             entries: @entries
           }
 
-          header_writer.write_next_header(header_options)
+          next_header = header_writer.write_next_header(header_options)
+
+          # Encrypt headers if requested
+          if @options[:encrypt_headers]
+            next_header = encrypt_header(next_header)
+          end
+
+          next_header
+        end
+
+        # Encrypt header data
+        #
+        # @param header_data [String] Unencrypted header
+        # @return [String] Encrypted header with metadata
+        def encrypt_header(header_data)
+          unless @options[:password]
+            raise "Password required for header encryption"
+          end
+
+          encryptor = HeaderEncryptor.new(@options[:password])
+          result = encryptor.encrypt(header_data)
+
+          # Create encrypted header structure
+          encrypted_header = EncryptedHeader.new(
+            encrypted_data: result[:data],
+            salt: result[:salt],
+            iv: result[:iv],
+            original_size: result[:size]
+          )
+
+          encrypted_header.to_binary
+        end
+
+        # Write split archive
+        def write_split_archive
+          split_options = Omnizip::Models::SplitOptions.new
+          split_options.volume_size = @options[:volume_size]
+
+          writer = SplitArchiveWriter.new(@output_path, @options, split_options)
+
+          # Add all collected files
+          @entries = @collector.collect_files
+          @entries.each do |entry|
+            if entry.directory?
+              # Directories are already in entries
+              next
+            elsif entry.source_path
+              writer.add_file(entry.source_path, entry.name)
+            end
+          end
+
+          writer.write
+          @entries = writer.entries
         end
       end
     end

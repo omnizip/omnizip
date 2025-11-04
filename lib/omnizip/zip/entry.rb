@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../formats/zip/central_directory_header"
+require_relative "../metadata/entry_metadata"
 
 module Omnizip
   module Zip
@@ -90,6 +91,20 @@ module Omnizip
       # Set Unix permissions
       def unix_perms=(perms)
         header.unix_permissions = perms
+      end
+
+      # Get metadata for this entry
+      # @return [Omnizip::Metadata::EntryMetadata] Entry metadata
+      def metadata
+        @metadata ||= Omnizip::Metadata::EntryMetadata.new(self)
+      end
+
+      # Save metadata changes
+      # Marks the entry as modified so changes are written on archive close
+      def save_metadata
+        # Changes are already applied to the header
+        # This is a convenience method for the API
+        metadata.reset_modified
       end
 
       # Extract this entry to a destination path

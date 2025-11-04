@@ -1,0 +1,71 @@
+= Test Fixtures from PeaZip
+
+== Source
+
+These test fixtures are from the PeaZip project.
+
+* Project: PeaZip
+* URL: https://peazip.github.io/
+* Repository: https://github.com/peazip/PeaZip
+* License: GNU LGPL
+* Author: Giorgio Tani
+
+== Attribution
+
+Copyright (C) 2006-2023 Giorgio Tani
+
+PeaZip is free software released under GNU LGPL license.
+
+These test files are used with permission under the GNU LGPL license
+for archive format compatibility testing.
+
+== License
+
+GNU Lesser General Public License (LGPL)
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+== Files Included
+
+=== Encrypted Archives
+
+* `encrypted/aes256.zip` - AES-256 encrypted ZIP
+* `encrypted/twofish.7z` - Twofish encrypted 7z
+* `encrypted/zcrypt.zip` - ZipCrypto encrypted
+* `encrypted/password_protected.rar` - RAR with password
+
+=== Multi-Format Tests
+
+* `multi_format/various.zip` - ZIP format test
+* `multi_format/various.7z` - 7z format test
+* `multi_format/various.tar.gz` - TAR+GZ test
+* `multi_format/various.tar.bz2` - TAR+BZ2 test
+
+=== Special Cases
+
+* `special_cases/long_filename.zip` - Long filename handling
+* `special_cases/unicode_names.7z` - Unicode filenames
+* `special_cases/nested_archives.zip` - Archives within archives
+* `special_cases/empty_files.zip` - Empty file handling
+
+== Usage in Omnizip
+
+PeaZip test cases help verify Omnizip handles real-world archives
+created by popular GUI archiving tools, including edge cases and
+various encryption methods used in production environments.
+
+== Modifications
+
+None. These are standard test archives created with PeaZip or sourced
+from the PeaZip test suite.

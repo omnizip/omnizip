@@ -5,6 +5,8 @@ require_relative "constants"
 require_relative "local_file_header"
 require_relative "central_directory_header"
 require_relative "end_of_central_directory"
+require_relative "unix_extra_field"
+require_relative "../../link_handler"
 
 module Omnizip
   module Formats
@@ -22,15 +24,65 @@ module Omnizip
         end
 
         # Add a file to the archive
-        def add_file(file_path, archive_path = nil)
+        def add_file(file_path, archive_path = nil, preserve_links: true)
           archive_path ||= File.basename(file_path)
 
           if File.directory?(file_path)
             add_directory(archive_path)
+          elsif preserve_links && LinkHandler.symlink?(file_path)
+            add_symlink(archive_path, LinkHandler.read_link_target(file_path))
+          elsif preserve_links && LinkHandler.hardlink?(file_path)
+            # For hard links, we add as regular file but track inode
+            data = File.binread(file_path)
+            add_data(archive_path, data, File.stat(file_path))
           else
             data = File.binread(file_path)
             add_data(archive_path, data, File.stat(file_path))
           end
+        end
+
+        # Add a symbolic link to the archive
+        def add_symlink(archive_path, target)
+          unless LinkHandler.symlink_supported?
+            warn "Warning: Symbolic links not supported on #{RUBY_PLATFORM}, storing as regular file"
+            add_data(archive_path, target)
+            return
+          end
+
+          entry = create_entry(
+            filename: archive_path,
+            uncompressed_data: target,
+            symlink: true,
+            symlink_target: target
+          )
+
+          @entries << entry
+        end
+
+        # Add a hard link to the archive
+        def add_hardlink(archive_path, target_path)
+          unless LinkHandler.hardlink_supported?
+            warn "Warning: Hard links not supported on #{RUBY_PLATFORM}, storing as regular file"
+            # Store the target file content instead
+            if File.exist?(target_path)
+              data = File.binread(target_path)
+              add_data(archive_path, data, File.stat(target_path))
+            else
+              add_data(archive_path, "")
+            end
+            return
+          end
+
+          # For hard links, we store the first occurrence as a regular file
+          # and subsequent ones reference the original
+          entry = create_entry(
+            filename: archive_path,
+            uncompressed_data: "",
+            hardlink: true,
+            hardlink_target: target_path
+          )
+
+          @entries << entry
         end
 
         # Add a directory to the archive
@@ -133,7 +185,16 @@ module Omnizip
         private
 
         # Create an entry hash
-        def create_entry(filename:, uncompressed_data:, directory: false, stat: nil)
+        def create_entry(
+          filename:,
+          uncompressed_data:,
+          directory: false,
+          stat: nil,
+          symlink: false,
+          symlink_target: nil,
+          hardlink: false,
+          hardlink_target: nil
+        )
           now = Time.now
 
           {
@@ -145,6 +206,10 @@ module Omnizip
             compressed_size: 0,
             uncompressed_size: uncompressed_data.bytesize,
             crc32: 0,
+            symlink: symlink,
+            symlink_target: symlink_target,
+            hardlink: hardlink,
+            hardlink_target: hardlink_target,
           }
         end
 
@@ -169,8 +234,20 @@ module Omnizip
         def create_central_header(entry, compression_method, local_header_offset)
           mtime = entry[:mtime]
 
+          # Build extra field for links
+          extra_field = ""
+          if entry[:symlink] && entry[:symlink_target]
+            unix_field = UnixExtraField.for_symlink(entry[:symlink_target])
+            extra_field = unix_field.to_binary
+          elsif entry[:hardlink] && entry[:hardlink_target]
+            unix_field = UnixExtraField.for_hardlink
+            extra_field = unix_field.to_binary
+          end
+
           external_attrs = if entry[:directory]
                             UNIX_DIR_PERMISSIONS | ATTR_DIRECTORY
+                          elsif entry[:symlink]
+                            UNIX_SYMLINK_PERMISSIONS
                           elsif entry[:stat]
                             (entry[:stat].mode & 0o777) << 16
                           else
@@ -191,7 +268,8 @@ module Omnizip
             internal_attributes: 0,
             external_attributes: external_attrs,
             local_header_offset: local_header_offset,
-            filename: entry[:filename]
+            filename: entry[:filename],
+            extra_field: extra_field
           )
         end
 

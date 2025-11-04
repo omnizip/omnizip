@@ -1,0 +1,66 @@
+= Test Fixtures from ZipXtract
+
+== Source
+
+These test fixtures are from the ZipXtract project.
+
+* Project: ZipXtract
+* Repository: https://github.com/VOIDX66/ZipXtract
+* License: Apache License 2.0
+* Author: VOIDX66
+
+== Attribution
+
+Copyright 2024 VOIDX66
+
+These test files are used under the Apache License 2.0 for
+ZIP extraction compatibility testing.
+
+== License
+
+Apache License 2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+== Files Included
+
+=== Android Test Cases
+
+* `android_test_cases/assets.zip` - Android asset packaging
+* `android_test_cases/apk_structure.zip` - APK-like structure
+* `android_test_cases/large_entries.zip` - Large file handling on Android
+
+=== Multipart Archives
+
+* `multipart/split_basic.z01` - First part of split archive
+* `multipart/split_basic.z02` - Second part
+* `multipart/split_basic.zip` - Final part
+* `multipart/spanned.zip` - Spanned archive test
+
+=== Edge Cases
+
+* `edge_cases/zero_length.zip` - Zero-length file entries
+* `edge_cases/no_central_dir.zip` - Missing central directory
+* `edge_cases/duplicate_names.zip` - Duplicate filenames
+* `edge_cases/backward_compat.zip` - Backward compatibility tests
+
+== Usage in Omnizip
+
+ZipXtract test cases ensure Omnizip correctly handles ZIP files
+in mobile/Android scenarios and various multi-part archive patterns
+commonly encountered in real-world applications.
+
+== Modifications
+
+None. These are standard test archives from the ZipXtract test suite
+or created to match ZipXtract test scenarios.

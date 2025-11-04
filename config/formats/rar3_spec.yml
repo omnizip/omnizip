@@ -1,0 +1,91 @@
+# RAR v3 Format Specification
+# Based on RAR 3.x archive format
+
+format:
+  name: "RAR3"
+  version: "3.0"
+  extension: ".rar"
+
+  # RAR 3.x signature: "Rar!\x1A\x07\x00"
+  magic_bytes: [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]
+
+  block_types:
+    marker: 0x72        # Archive marker block
+    archive: 0x73       # Archive header block
+    file: 0x74          # File header block
+    comment: 0x75       # Comment header block
+    old_auth: 0x76      # Old-style authentication block
+    old_subblock: 0x77  # Old-style subblock
+    recovery: 0x78      # Recovery record block
+    auth: 0x79          # Authentication block
+    subblock: 0x7A      # Subblock
+    terminator: 0x7B    # Archive end block
+
+  archive_flags:
+    volume: 0x0001           # Archive volume
+    comment: 0x0002          # Archive comment present
+    lock: 0x0004             # Archive locked
+    solid: 0x0008            # Solid archive
+    new_naming: 0x0010       # New volume naming scheme
+    auth_info: 0x0020        # Authenticity information present
+    recovery: 0x0040         # Recovery record present
+    encrypted: 0x0080        # Block headers encrypted
+    first_volume: 0x0100     # First volume
+
+  file_flags:
+    split_before: 0x0001     # File continued from previous volume
+    split_after: 0x0002      # File continued in next volume
+    encrypted: 0x0004        # File encrypted
+    comment: 0x0008          # File comment present
+    solid: 0x0010            # Information from previous files used
+    dictionary_mask: 0x00E0  # Dictionary size (bits 5-7)
+    large_file: 0x0100       # file64 operations
+    unicode: 0x0200          # Filename is Unicode
+    salt: 0x0400             # Salt present
+    version: 0x0800          # Version flag
+    ext_time: 0x1000         # Extended time field present
+    ext_flags: 0x2000        # Extended flags field
+
+  compression_methods:
+    store: 0x30              # No compression
+    fastest: 0x31            # Fastest compression
+    fast: 0x32               # Fast compression
+    normal: 0x33             # Normal compression
+    good: 0x34               # Good compression
+    best: 0x35               # Best compression
+
+  host_os:
+    msdos: 0                 # MS DOS
+    os2: 1                   # OS/2
+    win32: 2                 # Windows
+    unix: 3                  # Unix
+    macos: 4                 # Mac OS
+    beos: 5                  # BeOS
+
+  dictionary_sizes:
+    64k: 0                   # 64 KB
+    128k: 1                  # 128 KB
+    256k: 2                  # 256 KB
+    512k: 3                  # 512 KB
+    1024k: 4                 # 1024 KB (1 MB)
+    2048k: 5                 # 2048 KB (2 MB)
+    4096k: 6                 # 4096 KB (4 MB)
+    auto: 7                  # Auto-detect
+
+  encryption:
+    supported: true
+    algorithms:
+      - aes128
+      - aes256
+    key_derivation: pbkdf2
+    salt_size: 8
+
+  features:
+    recovery_records: true
+    solid_archives: true
+    multivolume: true
+    file_comments: true
+    archive_comments: true
+    unicode_filenames: true
+    large_files: true        # > 4 GB
+    extended_timestamps: true

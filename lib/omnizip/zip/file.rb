@@ -4,6 +4,8 @@ require "fileutils"
 require_relative "entry"
 require_relative "../formats/zip/reader"
 require_relative "../formats/zip/writer"
+require_relative "../extraction"
+require_relative "../metadata/archive_metadata"
 
 module Omnizip
   module Zip
@@ -209,6 +211,61 @@ module Omnizip
         else
           matching
         end
+      end
+
+      # Extract files matching a pattern
+      # @param pattern [String, Regexp, Array] Pattern(s) to match
+      # @param dest [String] Destination directory
+      # @param options [Hash] Extraction options
+      # @option options [Boolean] :preserve_paths Keep directory structure
+      # @option options [Boolean] :flatten Extract all to destination root
+      # @option options [Boolean] :overwrite Overwrite existing files
+      # @return [Array<String>] Paths of extracted files
+      def extract_matching(pattern, dest, options = {})
+        Omnizip::Extraction.extract_matching(self, pattern, dest, options)
+      end
+
+      # Extract files matching a pattern to memory
+      # @param pattern [String, Regexp, Array] Pattern(s) to match
+      # @return [Hash<String, String>] Hash of filename => content
+      def extract_matching_to_memory(pattern)
+        Omnizip::Extraction.extract_to_memory_matching(self, pattern)
+      end
+
+      # List files matching a pattern
+      # @param pattern [String, Regexp, Array] Pattern(s) to match
+      # @return [Array<Entry>] Matching entries
+      def list_matching(pattern)
+        Omnizip::Extraction.list_matching(self, pattern)
+      end
+
+      # Count files matching a pattern
+      # @param pattern [String, Regexp, Array] Pattern(s) to match
+      # @return [Integer] Number of matches
+      def count_matching(pattern)
+        Omnizip::Extraction.count_matching(self, pattern)
+      end
+
+      # Extract with a filter chain
+      # @param filter [Omnizip::Extraction::FilterChain] Filter chain
+      # @param dest [String] Destination directory
+      # @param options [Hash] Extraction options
+      # @return [Array<String>] Paths of extracted files
+      def extract_with_filter(filter, dest, options = {})
+        Omnizip::Extraction.extract_with_filter(self, filter, dest, options)
+      end
+
+      # Get archive metadata
+      # @return [Omnizip::Metadata::ArchiveMetadata] Archive metadata
+      def metadata
+        @archive_metadata ||= Omnizip::Metadata::ArchiveMetadata.new(self)
+      end
+
+      # Save metadata changes
+      # Marks the archive as modified so changes are written on close
+      def save_metadata
+        @modified = true
+        metadata.reset_modified
       end
 
       # Commit changes to disk

@@ -23,6 +23,8 @@ require_relative "omnizip/models/compression_options"
 require_relative "omnizip/models/performance_result"
 require_relative "omnizip/models/profile_report"
 require_relative "omnizip/models/optimization_suggestion"
+require_relative "omnizip/models/progress_options"
+require_relative "omnizip/models/eta_result"
 require_relative "omnizip/algorithm"
 require_relative "omnizip/algorithm_registry"
 require_relative "omnizip/format_registry"
@@ -82,6 +84,20 @@ Omnizip::FilterRegistry.register(:"bcj-ia64", Omnizip::Filters::BcjIa64)
 # Archive format support
 require_relative "omnizip/formats/seven_zip"
 require_relative "omnizip/formats/zip"
+require_relative "omnizip/formats/rar"
+
+# Container formats (Weeks 7-10)
+require_relative "omnizip/formats/tar"
+require_relative "omnizip/formats/gzip"
+require_relative "omnizip/formats/bzip2_file"
+require_relative "omnizip/formats/xz"
+
+# ISO 9660 CD-ROM format (Weeks 11-14)
+require_relative "omnizip/formats/iso"
+
+# Platform-specific features (Weeks 11-14)
+require_relative "omnizip/platform"
+require_relative "omnizip/platform/ntfs_streams"
 
 # Rubyzip-compatible API
 require_relative "omnizip/zip/entry"
@@ -94,6 +110,32 @@ require_relative "omnizip/buffer"
 require_relative "omnizip/pipe"
 require_relative "omnizip/chunked"
 require_relative "omnizip/temp"
+
+# File type detection (v1.3)
+require_relative "omnizip/file_type"
+
+# Compression profiles (v1.3)
+require_relative "omnizip/profile"
+
+# Progress tracking and ETA calculation (v1.3)
+require_relative "omnizip/eta"
+require_relative "omnizip/progress"
+
+# Metadata editing (v1.3 Phase 2 Week 6)
+require_relative "omnizip/metadata"
+
+# Password support (v1.3 Phase 2 Week 7)
+require_relative "omnizip/password"
+
+# Format conversion (v1.3 Phase 2 Week 8)
+require_relative "omnizip/converter"
+
+# Link handler for symbolic and hard links (v2.0 Phase 1 Weeks 2-3)
+require_relative "omnizip/link_handler"
+
+# Parallel processing (v2.0 Phase 4 Weeks 11-12)
+require_relative "omnizip/models/parallel_options"
+require_relative "omnizip/parallel"
 
 # Performance profiling components
 require_relative "omnizip/profiler"

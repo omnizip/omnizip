@@ -1,0 +1,102 @@
+# RAR v5 Format Specification
+# Based on RAR 5.x archive format
+
+format:
+  name: "RAR5"
+  version: "5.0"
+  extension: ".rar"
+
+  # RAR 5.x signature: "Rar!\x1A\x07\x01\x00"
+  magic_bytes: [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]
+
+  block_types:
+    main_header: 0x01        # Main archive header
+    file_header: 0x02        # File header
+    service_header: 0x03     # Service header
+    encryption_header: 0x04  # Archive encryption header
+    end_marker: 0x05         # End of archive marker
+
+  main_header_flags:
+    volume: 0x0001           # Archive is volume
+    volume_number: 0x0002    # Volume number field present
+    solid: 0x0004            # Solid archive
+    recovery: 0x0008         # Recovery record present
+    locked: 0x0010           # Archive locked
+
+  file_header_flags:
+    directory: 0x0001        # Entry is a directory
+    time_present: 0x0002     # Time field present
+    crc32_present: 0x0004    # CRC32 field present
+    unpacked_size_unknown: 0x0008  # Unpacked size is unknown
+
+  encryption_flags:
+    password_check: 0x0001   # Check password present
+    use_mac: 0x0002          # Use MAC
+
+  compression_methods:
+    store: 0               # No compression
+    fastest: 1             # Fastest compression
+    fast: 2                # Fast compression
+    normal: 3              # Normal compression
+    good: 4                # Good compression
+    best: 5                # Best compression (maximum)
+
+  # RAR 5 uses BLAKE2sp for checksums
+  checksum:
+    algorithm: blake2sp
+    size: 32  # bytes
+
+  host_os:
+    windows: 0             # Windows
+    unix: 1                # Unix/Linux
+
+  dictionary_sizes:
+    128k: 0                # 128 KB
+    256k: 1                # 256 KB
+    512k: 2                # 512 KB
+    1024k: 3               # 1024 KB (1 MB)
+    2048k: 4               # 2048 KB (2 MB)
+    4096k: 5               # 4096 KB (4 MB)
+    8192k: 6               # 8192 KB (8 MB)
+    16384k: 7              # 16384 KB (16 MB)
+    32768k: 8              # 32768 KB (32 MB)
+    65536k: 9              # 65536 KB (64 MB)
+    131072k: 10            # 131072 KB (128 MB)
+    262144k: 11            # 262144 KB (256 MB)
+    524288k: 12            # 524288 KB (512 MB)
+    1048576k: 13           # 1048576 KB (1024 MB / 1 GB)
+
+  encryption:
+    supported: true
+    algorithms:
+      - aes256
+    key_derivation: pbkdf2
+    kdf_iterations: 262144  # PBKDF2 iterations
+    salt_size: 16          # bytes
+
+  compression_features:
+    solid_archives: true
+    multivolume: true
+    recovery_records: true
+    unicode_filenames: true  # UTF-8 encoding
+    large_files: true        # No size limitations
+    extended_timestamps: true
+    64bit_sizes: true
+
+  # RAR 5 specific features
+  advanced_features:
+    blake2_checksums: true
+    improved_compression: true
+    better_unicode: true
+    optional_crc32: true
+    extended_time_format: true
+
+  # Extra record types
+  extra_records:
+    encryption: 0x01
+    hash: 0x02
+    time: 0x03
+    version: 0x04
+    redirection: 0x05
+    owner: 0x06
+    service: 0x07

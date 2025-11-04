@@ -1,0 +1,47 @@
+= Test Fixtures from 7-Zip
+
+== Source
+
+These test fixtures are from the 7-Zip project.
+
+* Project: 7-Zip
+* URL: https://www.7-zip.org/
+* Source: https://github.com/mcmilk/7-Zip
+* License: GNU LGPL + unRAR license restriction
+* Author: Igor Pavlov
+
+== Attribution
+
+Copyright (C) 1999-2023 Igor Pavlov
+
+These test files are used with permission under the GNU LGPL license
+for compatibility testing with the 7-Zip archive format.
+
+== License
+
+7-Zip source code is licensed under the GNU LGPL license.
+
+The 7-Zip license contains the following sections:
+
+* 7-Zip Extra is licensed under the BSD 3-clause license
+* unRAR source code is licensed under a mixed license with limitations
+  on commercial distribution of modified versions
+
+See the 7-Zip distribution for full license texts.
+
+== Files Included
+
+* `simple_lzma.7z` - Basic LZMA compression
+* `simple_lzma2.7z` - LZMA2 compression
+* `with_directory.7z` - Directory structure
+* `multi_file.7z` - Multiple files
+* `simple_copy.7z` - Store method (no compression)
+
+== Usage in Omnizip
+
+These fixtures verify Omnizip can correctly read and write 7z archives
+compatible with the official 7-Zip implementation.
+
+== Modifications
+
+None. These are standard test archives created with 7-Zip.

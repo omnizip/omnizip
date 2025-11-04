@@ -7,6 +7,8 @@ module Omnizip
     # @param input_path [String] Path to input file
     # @param output_path [String] Path to output ZIP file
     # @param options [Hash] Compression options
+    # @option options [Symbol, Omnizip::Profile::CompressionProfile] :profile
+    #   Compression profile (:fast, :balanced, :maximum, :text, :binary, :archive, :auto)
     # @option options [Symbol] :compression Compression method (:deflate, :bzip2, :lzma, :zstandard)
     # @option options [Integer] :level Compression level (1-9)
     # @option options [Boolean] :chunked Use chunked processing for large files
@@ -19,9 +21,14 @@ module Omnizip
     #   Omnizip.compress_file('document.txt', 'document.zip')
     #   Omnizip.compress_file('image.png', 'image.zip', compression: :lzma, level: 9)
     #   Omnizip.compress_file('huge.dat', 'huge.zip', chunked: true, max_memory: 128.megabytes)
+    #   Omnizip.compress_file('data.txt', 'data.zip', profile: :fast)
+    #   Omnizip.compress_file('app.exe', 'app.zip', profile: :auto)
     def compress_file(input_path, output_path, **options)
       raise Errno::ENOENT, "Input file not found: #{input_path}" unless ::File.exist?(input_path)
       raise ArgumentError, "Input is a directory: #{input_path}" if ::File.directory?(input_path)
+
+      # Apply profile settings if specified
+      options = apply_profile(input_path, options) if options[:profile]
 
       # Use chunked processing for large files if requested
       if options[:chunked]
@@ -40,6 +47,8 @@ module Omnizip
     # @param input_dir [String] Path to input directory
     # @param output_path [String] Path to output ZIP file
     # @param options [Hash] Compression options
+    # @option options [Symbol, Omnizip::Profile::CompressionProfile] :profile
+    #   Compression profile (:fast, :balanced, :maximum, etc.)
     # @option options [Symbol] :compression Compression method
     # @option options [Integer] :level Compression level (1-9)
     # @option options [Boolean] :recursive Include subdirectories (default: true)
@@ -51,9 +60,16 @@ module Omnizip
     #   Omnizip.compress_directory('project/', 'backup.zip')
     #   Omnizip.compress_directory('src/', 'src.zip', compression: :lzma2, level: 9)
     #   Omnizip.compress_directory('large/', 'backup.zip', max_memory: 256.megabytes)
+    #   Omnizip.compress_directory('src/', 'backup.7z', profile: :maximum)
     def compress_directory(input_dir, output_path, recursive: true, **options)
       raise Errno::ENOENT, "Input directory not found: #{input_dir}" unless ::File.exist?(input_dir)
       raise ArgumentError, "Input is not a directory: #{input_dir}" unless ::File.directory?(input_dir)
+
+      # Apply profile settings if specified (use first file for auto-detection)
+      if options[:profile]
+        first_file = find_first_file(input_dir)
+        options = apply_profile(first_file, options)
+      end
 
       Omnizip::Zip::File.create(output_path) do |zip|
         add_directory_contents(zip, input_dir, "", recursive: recursive)
@@ -185,6 +201,54 @@ module Omnizip
     end
 
     private
+
+    # Apply compression profile to options
+    #
+    # @param file_path [String, nil] File path for auto-detection
+    # @param options [Hash] Compression options
+    # @return [Hash] Updated options with profile settings
+    def apply_profile(file_path, options)
+      profile_spec = options.delete(:profile)
+      return options unless profile_spec
+
+      # Get the profile
+      profile = case profile_spec
+                when :auto
+                  # Auto-detect based on file
+                  file_path ? Omnizip::Profile.detect(file_path) : Omnizip::Profile.get(:balanced)
+                when Symbol
+                  # Get by name
+                  Omnizip::Profile.get(profile_spec) || Omnizip::Profile.get(:balanced)
+                when Omnizip::Profile::CompressionProfile
+                  # Use the profile directly
+                  profile_spec
+                else
+                  Omnizip::Profile.get(:balanced)
+                end
+
+      # Apply profile to options
+      profile.apply_to(options)
+    end
+
+    # Find first file in directory for profile detection
+    #
+    # @param dir_path [String] Directory path
+    # @return [String, nil] Path to first file or nil
+    def find_first_file(dir_path)
+      Dir.foreach(dir_path) do |entry|
+        next if entry == "." || entry == ".."
+
+        full_path = ::File.join(dir_path, entry)
+        return full_path if ::File.file?(full_path)
+
+        # Check subdirectories
+        if ::File.directory?(full_path)
+          result = find_first_file(full_path)
+          return result if result
+        end
+      end
+      nil
+    end
 
     # Recursively add directory contents to archive
     def add_directory_contents(zip, base_dir, relative_path, recursive: true)

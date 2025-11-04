@@ -15,7 +15,7 @@ module Omnizip
         gc_stat_before = GC.stat
         objspace_before = ObjectSpace.count_objects
 
-        result = yield
+        yield
 
         objspace_after = ObjectSpace.count_objects
         gc_stat_after = GC.stat
@@ -26,12 +26,13 @@ module Omnizip
 
         # Calculate memory metrics
         total_allocated = gc_stat_after[:total_allocated_objects] -
-                         gc_stat_before[:total_allocated_objects]
+                          gc_stat_before[:total_allocated_objects]
         total_freed = gc_stat_after[:total_freed_objects] -
-                     gc_stat_before[:total_freed_objects]
+                      gc_stat_before[:total_freed_objects]
 
         # Object allocation delta
-        object_delta = objspace_after[:TOTAL] - objspace_before[:TOTAL]
+        objspace_after[:TOTAL]
+        objspace_before[:TOTAL]
 
         # Estimate memory based on object allocations
         # Average Ruby object is ~40 bytes
@@ -47,7 +48,6 @@ module Omnizip
         )
       ensure
         GC.enable
-        result
       end
 
       def reset!

@@ -1,0 +1,84 @@
+= Test Fixtures from libarchive
+
+== Source
+
+These test fixtures are from the libarchive project.
+
+* Project: libarchive
+* URL: https://www.libarchive.org/
+* Repository: https://github.com/libarchive/libarchive
+* License: BSD 2-Clause License
+* Maintainer: Tim Kientzle and contributors
+
+== Attribution
+
+Copyright (c) 2003-2023 Tim Kientzle and contributors
+All rights reserved.
+
+These test fixtures are from the libarchive project and are used
+under the BSD 2-Clause license for compatibility testing.
+
+== License
+
+BSD 2-Clause License
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+== Files Included
+
+=== TAR Format
+
+* `tar/basic.tar` - Standard TAR archive
+* `tar/gnu_sparse.tar` - GNU sparse file
+* `tar/pax_format.tar` - PAX extended format
+* `tar/with_links.tar` - Symbolic and hard links
+* `tar/longnames.tar` - Long filename handling
+
+=== CPIO Format
+
+* `cpio/newc.cpio` - New ASCII format (SVR4)
+* `cpio/crc.cpio` - CRC format
+* `cpio/odc.cpio` - Old portable format
+* `cpio/binary.cpio` - Binary format
+
+=== ISO Format
+
+* `iso/basic.iso` - Basic ISO 9660
+* `iso/rockridge.iso` - Rock Ridge extensions
+* `iso/joliet.iso` - Joliet long filenames
+* `iso/udf.iso` - UDF filesystem
+
+=== RAR Format
+
+* `rar/basic_rar3.rar` - RAR version 3 archive
+* `rar/basic_rar5.rar` - RAR version 5 archive
+
+== Usage in Omnizip
+
+These fixtures ensure Omnizip maintains compatibility with standard
+archive formats as implemented by libarchive, a widely-used library
+that serves as the reference implementation for many formats.
+
+== Modifications
+
+None. These are standard test archives from the libarchive test suite
+or generated using libarchive tools.

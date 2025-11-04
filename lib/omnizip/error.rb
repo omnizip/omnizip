@@ -46,4 +46,61 @@ module Omnizip
   # Error raised when optimization strategy is not found
   class OptimizationNotFound < Error
   end
+
+  # Error raised when progress tracking fails
+  class ProgressError < Error
+  end
+
+  # Error raised when ETA calculation fails
+  class ETAError < Error
+  end
+
+  # Error raised when RAR write is attempted without license
+  class NotLicensedError < Error
+    def initialize(message = default_message)
+      super(message)
+    end
+
+    private
+
+    def default_message
+      <<~MSG
+        RAR creation requires a licensed copy of WinRAR.
+
+        To use RAR creation:
+        1. Purchase a WinRAR license from https://www.rarlab.com/
+        2. Install WinRAR on your system
+        3. Confirm license ownership when prompted
+
+        Alternatively, use 7z format which provides similar compression
+        with no licensing restrictions:
+
+          Omnizip::Formats::SevenZip.create('archive.7z') do |sz|
+            sz.add_directory('files/')
+          end
+      MSG
+    end
+  end
+
+  # Error raised when RAR executable is not found
+  class RarNotAvailableError < Error
+    def initialize(message = default_message)
+      super(message)
+    end
+
+    private
+
+    def default_message
+      <<~MSG
+        WinRAR executable not found.
+
+        Please install WinRAR:
+        - Windows: Download from https://www.rarlab.com/
+        - Linux: Install 'rar' package (requires license)
+        - macOS: Install via Homebrew: brew install rar (requires license)
+
+        After installation, ensure 'rar' or 'Rar.exe' is in your PATH.
+      MSG
+    end
+  end
 end

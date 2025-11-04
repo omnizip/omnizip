@@ -14,7 +14,7 @@ module Omnizip
         start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         gc_stat_before = GC.stat
 
-        result = yield
+        yield
 
         end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         gc_stat_after = GC.stat
@@ -31,8 +31,6 @@ module Omnizip
           gc_runs: gc_runs,
           call_count: @call_counts[operation_name]
         )
-      ensure
-        result
       end
 
       def reset!

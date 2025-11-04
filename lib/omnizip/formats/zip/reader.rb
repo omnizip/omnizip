@@ -4,6 +4,8 @@ require_relative "constants"
 require_relative "local_file_header"
 require_relative "central_directory_header"
 require_relative "end_of_central_directory"
+require_relative "unix_extra_field"
+require_relative "../../link_handler"
 
 module Omnizip
   module Formats
@@ -40,18 +42,20 @@ module Omnizip
         end
 
         # Extract all files to a directory
-        def extract_all(output_dir)
+        def extract_all(output_dir, preserve_links: true, dereference_links: false)
           entries.each do |entry|
-            extract_entry(entry, output_dir)
+            extract_entry(entry, output_dir, preserve_links: preserve_links, dereference_links: dereference_links)
           end
         end
 
         # Extract a specific entry
-        def extract_entry(entry, output_dir)
+        def extract_entry(entry, output_dir, preserve_links: true, dereference_links: false)
           output_path = File.join(output_dir, entry.filename)
 
           if entry.directory?
             FileUtils.mkdir_p(output_path)
+          elsif preserve_links && !dereference_links && entry.symlink?
+            extract_symlink(entry, output_dir)
           else
             FileUtils.mkdir_p(File.dirname(output_path))
 
@@ -99,10 +103,34 @@ module Omnizip
           end
         end
 
+        # Extract a symbolic link
+        def extract_symlink(entry, output_dir)
+          output_path = File.join(output_dir, entry.filename)
+
+          unless LinkHandler.symlink_supported?
+            warn "Warning: Symbolic links not supported on #{RUBY_PLATFORM}, extracting as regular file"
+            extract_entry(entry, output_dir, preserve_links: false)
+            return
+          end
+
+          target = entry.link_target
+          unless target
+            warn "Warning: No link target found for #{entry.filename}, skipping"
+            return
+          end
+
+          FileUtils.mkdir_p(File.dirname(output_path))
+
+          # Remove existing file/link if present
+          FileUtils.rm_f(output_path) if File.exist?(output_path) || File.symlink?(output_path)
+
+          LinkHandler.create_symlink(target, output_path)
+        end
+
         # List all entries in the archive
-        def list_entries
+        def list_entries(show_links: false)
           entries.map do |entry|
-            {
+            info = {
               filename: entry.filename,
               compressed_size: entry.compressed_size,
               uncompressed_size: entry.uncompressed_size,
@@ -110,6 +138,13 @@ module Omnizip
               crc32: entry.crc32,
               directory: entry.directory?,
             }
+
+            if show_links && entry.symlink?
+              info[:symlink] = true
+              info[:link_target] = entry.link_target
+            end
+
+            info
           end
         end
 

@@ -12,3 +12,6 @@ gem "rubocop-performance"
 gem "rubocop-rake"
 gem "rubocop-rspec"
 gem "thor"
+
+# Parallel processing with Fractor
+gem "fractor"

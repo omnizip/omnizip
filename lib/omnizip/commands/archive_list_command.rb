@@ -18,6 +18,7 @@
 
 require_relative "../cli/output_formatter"
 require_relative "../formats/seven_zip/reader"
+require_relative "../extraction"
 
 module Omnizip
   module Commands
@@ -40,8 +41,11 @@ module Omnizip
         validate_input(archive_file)
 
         verbose = options[:verbose] || false
+        patterns = Array(options[:pattern]) if options[:pattern]
+        excludes = Array(options[:exclude]) if options[:exclude]
+        count_only = options[:count] || false
 
-        list_archive(archive_file, verbose)
+        list_archive(archive_file, verbose, patterns, excludes, count_only)
       end
 
       private
@@ -57,52 +61,88 @@ module Omnizip
               "Archive not readable: #{archive_file}"
       end
 
-      def list_archive(archive_file, verbose)
-        reader = Formats::SevenZip::Reader.new(archive_file).open
+      def list_archive(archive_file, verbose, patterns, excludes, count_only)
+        archive = if archive_file.end_with?(".zip")
+                   Omnizip::Zip::File.open(archive_file)
+                 elsif archive_file.end_with?(".rar")
+                   Formats::Rar::Reader.new(archive_file).open
+                 else
+                   Formats::SevenZip::Reader.new(archive_file).open
+                 end
+
+        entries = if patterns || excludes
+                   filter_entries(archive, patterns, excludes)
+                 else
+                   archive.respond_to?(:entries) ? archive.entries : archive.to_a
+                 end
+
+        if count_only
+          puts "Matches: #{entries.size}"
+          return
+        end
 
         puts "Archive: #{archive_file}"
         puts ""
 
         if verbose
-          display_detailed_listing(reader)
+          display_detailed_listing_filtered(entries)
         else
-          display_simple_listing(reader)
+          display_simple_listing_filtered(entries)
         end
 
         puts ""
-        summary_stats(reader)
+        summary_stats_filtered(entries)
       rescue StandardError => e
         raise Omnizip::CompressionError,
               "Failed to list archive: #{e.message}"
       end
 
-      def display_simple_listing(reader)
+      def filter_entries(archive, patterns, excludes)
+        filter = Extraction::FilterChain.new
+
+        # Add include patterns
+        if patterns
+          patterns.each { |pattern| filter.include_pattern(pattern) }
+        end
+
+        # Add exclude patterns
+        if excludes
+          excludes.each { |pattern| filter.exclude_pattern(pattern) }
+        end
+
+        entries = archive.respond_to?(:entries) ? archive.entries : archive.to_a
+        filter.filter(entries)
+      end
+
+      def display_simple_listing_filtered(entries)
         puts "Contents:"
         puts ""
 
-        reader.entries.each do |entry|
-          type_indicator = entry.directory? ? "D" : "F"
-          puts "  [#{type_indicator}] #{entry.name}"
+        entries.each do |entry|
+          type_indicator = entry_directory?(entry) ? "D" : "F"
+          name = entry_name(entry)
+          puts "  [#{type_indicator}] #{name}"
         end
       end
 
-      def display_detailed_listing(reader)
+      def display_detailed_listing_filtered(entries)
         puts "Type       Size         Compressed   Modified             Name"
         puts "-" * 80
 
-        reader.entries.each do |entry|
-          type = entry.directory? ? "Dir" : "File"
-          size = entry.directory? ? "-" : format_bytes(entry.size)
-          compressed = if entry.directory? || !entry.has_stream?
+        entries.each do |entry|
+          type = entry_directory?(entry) ? "Dir" : "File"
+          size = entry_directory?(entry) ? "-" : format_bytes(entry_size(entry))
+          compressed = if entry_directory?(entry) || !entry_has_stream?(entry)
                          "-"
                        else
-                         format_bytes(entry.compressed_size || 0)
+                         format_bytes(entry_compressed_size(entry) || 0)
                        end
-          mtime = if entry.mtime
-                    entry.mtime.strftime("%Y-%m-%d %H:%M:%S")
+          mtime = if entry_mtime(entry)
+                    entry_mtime(entry).strftime("%Y-%m-%d %H:%M:%S")
                   else
                     "-"
                   end
+          name = entry_name(entry)
 
           puts format(
             "%-10s %-12s %-12s %-20s %s",
@@ -110,18 +150,16 @@ module Omnizip
             size,
             compressed,
             mtime,
-            entry.name
+            name
           )
         end
       end
 
-      def summary_stats(reader)
-        total_files = reader.entries.count { |e| !e.directory? }
-        total_dirs = reader.entries.count(&:directory?)
-        total_size = reader.entries.sum { |e| e.size || 0 }
-        total_compressed = reader.entries.sum do |e|
-          e.compressed_size || 0
-        end
+      def summary_stats_filtered(entries)
+        total_files = entries.count { |e| !entry_directory?(e) }
+        total_dirs = entries.count { |e| entry_directory?(e) }
+        total_size = entries.sum { |e| entry_size(e) || 0 }
+        total_compressed = entries.sum { |e| entry_compressed_size(e) || 0 }
 
         puts "Summary:"
         puts "  Files: #{total_files}"
@@ -153,6 +191,31 @@ module Omnizip
         else
           format("%.0f %s", size, units[unit_idx])
         end
+      end
+
+      # Helper methods to handle different entry types
+      def entry_name(entry)
+        entry.respond_to?(:name) ? entry.name : entry.to_s
+      end
+
+      def entry_directory?(entry)
+        entry.respond_to?(:directory?) && entry.directory?
+      end
+
+      def entry_size(entry)
+        entry.respond_to?(:size) ? entry.size : 0
+      end
+
+      def entry_compressed_size(entry)
+        entry.respond_to?(:compressed_size) ? entry.compressed_size : nil
+      end
+
+      def entry_has_stream?(entry)
+        entry.respond_to?(:has_stream?) ? entry.has_stream? : true
+      end
+
+      def entry_mtime(entry)
+        entry.respond_to?(:mtime) ? entry.mtime : nil
       end
     end
   end
