@@ -38,6 +38,7 @@ require_relative "omnizip/algorithms/ppmd7"
 require_relative "omnizip/algorithms/ppmd8"
 require_relative "omnizip/algorithms/bzip2"
 require_relative "omnizip/algorithms/deflate"
+require_relative "omnizip/algorithms/deflate64"
 require_relative "omnizip/algorithms/zstandard"
 
 # Filter components

@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 require_relative "../algorithm"
-require_relative "deflate64/constants"
-require_relative "deflate64/encoder"
-require_relative "deflate64/decoder"
 
 module Omnizip
   module Algorithms
@@ -14,7 +11,6 @@ module Omnizip
     # - Better compression for large files
     # - ZIP compression method 9
     class Deflate64 < Algorithm
-      include Deflate64::Constants
 
       # Algorithm metadata
       def self.metadata
@@ -22,7 +18,7 @@ module Omnizip
           name: "Deflate64",
           type: :compression,
           streaming_supported: true,
-          dictionary_size: DICTIONARY_SIZE,
+          dictionary_size: Constants::DICTIONARY_SIZE,
           compression_method: 9,
           description: "Enhanced Deflate with 64KB window"
         }
@@ -35,7 +31,7 @@ module Omnizip
       # @param options [Hash] Compression options
       # @option options [Integer] :level Compression level (1-9)
       def compress(input, output, options = {})
-        encoder = Deflate64::Encoder.new(output, options)
+        encoder = Encoder.new(output, options)
         encoder.compress(input)
       end
 
@@ -45,7 +41,7 @@ module Omnizip
       # @param output [IO] Output stream
       # @param options [Hash] Decompression options
       def decompress(input, output, options = {})
-        decoder = Deflate64::Decoder.new(input)
+        decoder = Decoder.new(input)
         decoder.decompress(output)
       end
 
@@ -60,7 +56,7 @@ module Omnizip
       #
       # @return [Integer] 64KB
       def self.dictionary_size
-        DICTIONARY_SIZE
+        Constants::DICTIONARY_SIZE
       end
 
       # Get compression method ID for ZIP format
@@ -72,6 +68,11 @@ module Omnizip
     end
   end
 end
+
+# Load nested classes after main class is defined
+require_relative "deflate64/constants"
+require_relative "deflate64/encoder"
+require_relative "deflate64/decoder"
 
 # Register algorithm
 Omnizip::AlgorithmRegistry.register(:deflate64, Omnizip::Algorithms::Deflate64)

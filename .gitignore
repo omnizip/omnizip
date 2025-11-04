@@ -27,3 +27,4 @@ Gemfile.lock
 benchmark/data/
 benchmark/results/
 *.dat
+_site
