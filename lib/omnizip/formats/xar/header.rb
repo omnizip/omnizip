@@ -31,8 +31,9 @@ module Omnizip
           raise ArgumentError, "Header data too short (#{data.bytesize} bytes)" if data.bytesize < HEADER_SIZE
 
           magic = data[0, 4].unpack1("N")
-          header_size = data[4, 2].unpack1("v")  # little-endian
-          version = data[6, 2].unpack1("v")      # little-endian
+          # XAR spec: All binary values are big-endian (network byte order)
+          header_size = data[4, 2].unpack1("n")  # big-endian
+          version = data[6, 2].unpack1("n")      # big-endian
           toc_compressed_size = data[8, 8].unpack1("Q>") # big-endian uint64
           toc_uncompressed_size = data[16, 8].unpack1("Q>") # big-endian uint64
           checksum_algorithm = data[24, 4].unpack1("N")

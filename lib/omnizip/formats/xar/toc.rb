@@ -36,14 +36,19 @@ module Omnizip
 
         # Decompress TOC data
         #
-        # @param compressed_data [String] GZIP-compressed data
+        # @param compressed_data [String] Zlib-compressed data
         # @param expected_size [Integer, nil] Expected size for validation
         # @return [String] Decompressed XML
         def self.decompress(compressed_data, expected_size = nil)
-          zlib = Zlib::Inflate.new(-Zlib::MAX_WBITS) # Raw deflate
-          result = zlib.inflate(compressed_data)
-          zlib.finish
-          zlib.close
+          # XAR TOC is zlib compressed (with zlib headers, 0x78xx)
+          # Try zlib format first (most common), then fall back to raw deflate
+          result = begin
+            # Try standard zlib format (with header)
+            Zlib::Inflate.inflate(compressed_data)
+          rescue Zlib::DataError
+            # Fall back to raw deflate for non-conforming implementations
+            Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(compressed_data)
+          end
 
           if expected_size && result.bytesize != expected_size
             raise ArgumentError, "TOC size mismatch: #{result.bytesize} != #{expected_size}"

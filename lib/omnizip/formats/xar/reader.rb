@@ -118,9 +118,11 @@ module Omnizip
           return nil unless @file
 
           @file.seek(@heap_offset + entry.data_offset)
-          compressed_data = @file.read(entry.data_length)
+          # data_size is the archived size in heap (what to read)
+          # data_length is the extracted size (decompressed size)
+          compressed_data = @file.read(entry.data_size)
 
-          decompress_data(compressed_data, entry.data_encoding, entry.data_size)
+          decompress_data(compressed_data, entry.data_encoding, entry.data_length)
         end
 
         # Extract all entries to directory
@@ -206,9 +208,9 @@ module Omnizip
           @toc = Toc.parse(compressed_toc, @header.toc_uncompressed_size)
           @entries = @toc.entries
 
-          # Calculate heap offset (after header + compressed TOC + TOC checksum)
+          # Calculate heap offset (after header + compressed TOC)
+          # The TOC checksum is stored at the beginning of the heap, not after it
           @heap_offset = @header.header_size + @header.toc_compressed_size
-          @heap_offset += @header.checksum_size if @header.checksum?
         end
 
         # Decompress data based on encoding
@@ -235,14 +237,40 @@ module Omnizip
 
         # Decompress gzip data
         #
-        # @param data [String] Gzip compressed data
+        # @param data [String] Zlib compressed data (XAR uses zlib, not actual gzip)
         # @return [String] Decompressed data
         def decompress_gzip(data)
-          zlib = Zlib::Inflate.new(-Zlib::MAX_WBITS)
-          result = zlib.inflate(data)
-          zlib.finish
-          zlib.close
-          result
+          # XAR "gzip" compression is actually zlib format (with 0x78xx header)
+          # Try different decompression methods for robustness
+
+          # Method 1: Standard zlib format (with header)
+          begin
+            result = Zlib::Inflate.inflate(data)
+            return result
+          rescue Zlib::Error
+            # Continue to next method
+          end
+
+          # Method 2: Raw deflate (some implementations may use this)
+          begin
+            inf = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+            result = inf.inflate(data)
+            inf.finish
+            inf.close
+            return result
+          rescue Zlib::Error
+            # Continue to next method
+          end
+
+          # Method 3: Raw deflate without finish (for truncated data)
+          begin
+            inf = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+            result = inf.inflate(data)
+            inf.close
+            return result
+          rescue Zlib::Error => e
+            raise "Failed to decompress data: #{e.message}"
+          end
         end
 
         # Decompress bzip2 data
