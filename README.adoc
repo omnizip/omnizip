@@ -280,6 +280,93 @@ All 7-Zip test suites pass (50/50, 100%):
 
 Pure Ruby implementation is 10-60x slower than native 7-Zip, which is an acceptable trade-off for maximum portability across all Ruby platforms (MRI, JRuby, TruffleRuby).
 
+==== XAR Format Support (v0.4.0)
+
+Omnizip provides complete XAR (eXtensible ARchive) format support. XAR is primarily used on macOS for software packages (.pkg files), OS installers, and software distribution.
+
+**Status**: ✅ **Full Support** - Complete XAR format implementation
+
+**What Works**:
+
+* ✅ XAR container format (binary header, compressed XML TOC, heap)
+* ✅ Multiple compression algorithms (gzip, bzip2, lzma, xz, none)
+* ✅ Multiple checksum algorithms (MD5, SHA1, SHA256, SHA384, SHA512)
+* ✅ Extended attributes (xattrs)
+* ✅ Hardlinks and symlinks
+* ✅ Device nodes and FIFOs
+* ✅ Directory structures
+* ✅ File metadata (permissions, timestamps, ownership)
+* ✅ libarchive compatibility
+
+**Usage**:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create XAR archive
+Omnizip::Formats::Xar.create('archive.xar') do |xar|
+  xar.add_file('document.pdf')
+  xar.add_directory('resources/')
+end
+
+# Create with options
+Omnizip::Formats::Xar.create('archive.xar',
+  compression: 'gzip',       # Options: gzip, bzip2, lzma, xz, none
+  toc_checksum: 'sha1',      # Options: sha1, md5, sha256, none
+  file_checksum: 'sha1'      # Options: sha1, md5, sha256, none
+) do |xar|
+  xar.add_data("content", "file.txt")
+end
+
+# Extract XAR archive
+Omnizip::Formats::Xar.extract('archive.xar', 'output/')
+
+# List contents
+entries = Omnizip::Formats::Xar.list('archive.xar')
+entries.each { |e| puts "#{e.name} (#{e.size} bytes)" }
+
+# Get archive info
+info = Omnizip::Formats::Xar.info('archive.xar')
+puts "Format: XAR version #{info[:header][:version]}"
+puts "Files: #{info[:file_count]}"
+----
+
+**Architecture**:
+
+The XAR implementation follows clean object-oriented design:
+
+* `Formats::Xar::Reader` - Public API for reading XAR files
+* `Formats::Xar::Writer` - Public API for writing XAR files
+* `Formats::Xar::Header` - Binary header parsing and generation
+* `Formats::Xar::Toc` - XML Table of Contents handling
+* `Formats::Xar::Entry` - File entry model with metadata
+
+**XAR Format Structure**:
+
+```
++-------------------+
+| Header (28 bytes) |  Magic, sizes, checksum type
++-------------------+
+| Compressed TOC    |  GZIP-compressed XML
++-------------------+
+| TOC Checksum      |  SHA1 (20 bytes) or MD5 (16 bytes)
++-------------------+
+| File Data Heap    |  Compressed file contents
++-------------------+
+```
+
+**libarchive Compatibility**:
+
+All libarchive XAR test cases pass, including:
+
+* ✅ Regular files with various compression methods
+* ✅ Hardlinks and symlinks
+* ✅ Character and block devices
+* ✅ Directories and FIFOs
+* ✅ Extended attributes
+* ✅ Various checksum algorithms
+
 === Preprocessing Filters
 
 * **BCJ Filters** - Branch-Call-Jump filters for executables (x86, ARM, ARM64, PPC, SPARC, IA-64)
@@ -297,6 +384,7 @@ See link:readme-docs/preprocessing-filters.adoc[Preprocessing Filters Guide] for
 * **TAR** - Full read/write with POSIX extensions
 * **ISO 9660** - Full read/write with Rock Ridge/Joliet
 * **CPIO** - Full read/write (newc, CRC formats)
+* **XAR** - Full read/write with XML TOC, gzip/bzip2/lzma compression (v0.4.0)
 * **GZIP/XZ/BZIP2** - Single file compression formats
 
 See link:readme-docs/archive-formats.adoc[Archive Formats Documentation] for complete details.
