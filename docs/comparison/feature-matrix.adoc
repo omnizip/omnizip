@@ -1,0 +1,694 @@
+---
+title: Feature Comparison Matrix
+nav_order: 1
+parent: Comparison
+---
+
+== Archive Utility Feature Comparison
+
+Comprehensive comparison of Omnizip against other archive utilities to help users make informed decisions.
+
+== Feature Matrix
+
+[cols="20,10,10,10,10,10,10,10",options="header"]
+|===
+|Feature |Omnizip |rubyzip |7-Zip |WinRAR |PeaZip |libarchive |Info-ZIP
+
+|**Platform & Implementation**
+|
+|
+|
+|
+|
+|
+|
+
+|Pure Ruby
+|✅
+|✅
+|❌ (C++)
+|❌ (C++)
+|❌ (C++)
+|❌ (C)
+|❌ (C)
+
+|No Dependencies
+|✅
+|✅
+|❌
+|❌
+|❌
+|❌
+|❌
+
+|Cross-Platform
+|✅
+|✅
+|✅
+|Windows
+|✅
+|✅
+|✅
+
+|License
+|LGPL 2.1
+|MIT
+|LGPL
+|Proprietary
+|LGPL
+|BSD
+|BSD
+
+|**Supported Formats**
+|
+|
+|
+|
+|
+|
+|
+
+|ZIP Format
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|7z Format
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|RAR Format (Read)
+|✅
+|❌
+|Partial
+|✅
+|✅
+|✅
+|❌
+
+|RAR Format (Write)
+|❌
+|❌
+|❌
+|✅
+|❌
+|❌
+|❌
+
+|TAR Format
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|ISO Format
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|CPIO Format
+|✅
+|❌
+|✅
+|❌
+|✅
+|✅
+|❌
+
+|**Compression Algorithms**
+|
+|
+|
+|
+|
+|
+|
+
+|LZMA
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|LZMA2
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|Deflate
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Deflate64
+|✅
+|❌
+|✅
+|✅
+|✅
+|❌
+|❌
+
+|BZip2
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|PPMd7
+|✅
+|❌
+|✅
+|✅
+|✅
+|❌
+|❌
+
+|PPMd8
+|✅
+|❌
+|✅
+|✅
+|✅
+|❌
+|❌
+
+|Zstandard
+|✅
+|❌
+|✅
+|❌
+|✅
+|✅
+|❌
+
+|**Preprocessing Filters**
+|
+|
+|
+|
+|
+|
+|
+
+|BCJ x86
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ2 (4-stream)
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ ARM
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ ARM64
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ PPC
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ SPARC
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|BCJ IA-64
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|Delta Filter
+|✅
+|❌
+|✅
+|❌
+|✅
+|❌
+|❌
+
+|**Encryption & Security**
+|
+|
+|
+|
+|
+|
+|
+
+|AES-256
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|Password Protection
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Header Encryption
+|✅ (7z)
+|❌
+|✅
+|✅
+|✅
+|Partial
+|❌
+
+|CRC32
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|CRC64
+|✅
+|❌
+|✅
+|✅
+|✅
+|❌
+|❌
+
+|SHA-256
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|**Archive Features**
+|
+|
+|
+|
+|
+|
+|
+
+|Solid Archives
+|✅
+|❌
+|✅
+|✅
+|✅
+|❌
+|❌
+
+|Multi-Volume
+|Planned
+|❌
+|✅
+|✅
+|✅
+|Partial
+|✅
+
+|Self-Extracting
+|Planned
+|❌
+|✅
+|✅
+|✅
+|❌
+|✅
+
+|File Attributes
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Timestamps
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Symbolic Links
+|✅
+|Partial
+|✅
+|✅
+|✅
+|✅
+|Partial
+
+|Hard Links
+|✅
+|❌
+|✅
+|✅
+|✅
+|✅
+|❌
+
+|**Large File Support**
+|
+|
+|
+|
+|
+|
+|
+
+|ZIP64 (>4GB)
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Large Archives
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+
+|Streaming Support
+|✅
+|✅
+|Partial
+|Partial
+|❌
+|✅
+|Partial
+
+|**API & Integration**
+|
+|
+|
+|
+|
+|
+|
+
+|Ruby API
+|Excellent
+|Good
+|CLI Only
+|CLI Only
+|CLI Only
+|C API
+|CLI Only
+
+|Command Line
+|✅
+|❌
+|✅
+|✅
+|✅
+|CLI Only
+|✅
+
+|Rubyzip Compatible
+|✅
+|N/A
+|N/A
+|N/A
+|N/A
+|N/A
+|N/A
+
+|Documented API
+|Excellent
+|Good
+|Extensive
+|Good
+|Good
+|Good
+|Basic
+
+|Code Examples
+|Extensive
+|Good
+|Many
+|Many
+|Many
+|Many
+|Basic
+
+|**Performance**
+|
+|
+|
+|
+|
+|
+|
+
+|Compression Speed
+|Good (Ruby)
+|Good (Ruby)
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+
+|Decompression Speed
+|Good (Ruby)
+|Good (Ruby)
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+
+|Memory Efficiency
+|Good
+|Good
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+|Excellent
+
+|CPU Usage
+|Moderate
+|Moderate
+|Optimized
+|Optimized
+|Optimized
+|Optimized
+|Optimized
+
+|**Development & Maintenance**
+|
+|
+|
+|
+|
+|
+|
+
+|Active Development
+|✅
+|✅
+|✅
+|✅
+|✅
+|✅
+|⚠️ Limited
+
+|Test Coverage
+|Excellent
+|Good
+|Good
+|Unknown
+|Good
+|Good
+|Basic
+
+|Documentation Quality
+|Excellent
+|Good
+|Extensive
+|Good
+|Good
+|Good
+|Basic
+
+|Community Support
+|Growing
+|Large
+|Very Large
+|Large
+|Medium
+|Large
+|Small
+
+|===
+
+== Legend
+
+* ✅ = Fully supported
+* ❌ = Not supported
+* Partial = Limited support
+* Planned = On roadmap
+* ⚠️ = Limited/Maintenance mode
+
+== Detailed Comparisons
+
+For detailed feature-by-feature comparisons:
+
+* link:vs-rubyzip.html[Omnizip vs rubyzip] - Ruby library comparison
+* link:vs-7zip.html[Omnizip vs 7-Zip] - Native tool comparison
+* link:vs-winrar.html[Omnizip vs WinRAR] - Commercial tool comparison
+* link:vs-peazip.html[Omnizip vs PeaZip] - Open-source alternative
+
+== Performance Notes
+
+**Omnizip Performance:**
+
+* 10-60x slower than native C implementations
+* Excellent for Ruby-native environments
+* Acceptable for moderate file sizes (<100MB)
+* Memory-efficient streaming support
+* No compilation or native dependencies
+
+See link:performance-tuning.html[Performance Tuning] for detailed benchmarks.
+
+== Use Case Decision Matrix
+
+[cols="30,70",options="header"]
+|===
+|Choose This Tool |When You Need
+
+|**Omnizip**
+|Pure Ruby, 7-Zip support, advanced algorithms, rubyzip compatibility, no dependencies
+
+|**rubyzip**
+|Simple ZIP operations, mature Ruby library, existing codebase integration
+
+|**7-Zip**
+|Maximum compression, command-line usage, native performance, multi-format support
+
+|**WinRAR**
+|RAR write support, Windows GUI, commercial support, recovery features
+
+|**PeaZip**
+|Open-source GUI, many formats, file management features, batch operations
+
+|**libarchive**
+|C library integration, many formats, streaming support, production systems
+
+|**Info-ZIP**
+|Traditional ZIP tools, shell scripts, basic operations, legacy systems
+
+|===
+
+== Summary
+
+Omnizip excels in:
+
+* **Pure Ruby implementation** - No compilation or dependencies
+* **Advanced compression** - LZMA2, PPMd, Deflate64 support
+* **7-Zip compatibility** - Full .7z format support in Ruby
+* **Rubyzip compatibility** - Drop-in replacement with enhancements
+* **API quality** - Clean, well-documented Ruby API
+* **Portability** - Runs anywhere Ruby runs
+
+Consider alternatives for:
+
+* **Maximum performance** - Use native tools (7-Zip, WinRAR)
+* **Simple ZIP-only needs** - rubyzip may be sufficient
+* **RAR write support** - WinRAR required
+* **GUI operations** - PeaZip or native tools
+
+== See Also
+
+* link:../getting-started/quick-start.html[Quick Start Guide]
+* link:../guides/migration-rubyzip.html[Migrating from Rubyzip]
+* link:../guides/performance-tuning.html[Performance Tuning]
+* link:../reference/index.html[API Reference]

@@ -1,0 +1,106 @@
+---
+title: TAR Format
+nav_order: 4
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== Purpose
+
+TAR (Tape Archive) is the standard archive format on Unix/Linux systems. It combines multiple files into a single archive without compression, typically paired with external compression tools.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression
+|External (GZIP, BZip2, XZ)
+
+|Encryption
+|None
+
+|POSIX Support
+|Full POSIX.1-1988 and POSIX.1-2001
+
+|Large Files
+|Yes (with extensions)
+
+|Best For
+|Unix backups, software packaging, source distribution
+|===
+
+== Common TAR Variants
+
+[cols="1,2,2"]
+|===
+|Extension |Compression |Typical Use
+
+|`.tar`
+|None
+|Intermediate archives
+
+|`.tar.gz` / `.tgz`
+|GZIP (Deflate)
+|Source distributions
+
+|`.tar.bz2` / `.tbz2`
+|BZip2
+|Better compression
+
+|`.tar.xz` / `.txz`
+|XZ (LZMA2)
+|Maximum compression
+|===
+
+== Basic Usage
+
+=== Create TAR Archive
+
+[source,ruby]
+----
+# Create uncompressed TAR
+Omnizip::Archive.create('backup.tar', format: :tar) do |archive|
+  archive.add_directory('project/')
+end
+
+# Create TAR.GZ
+Omnizip.compress_directory('project/', 'backup.tar.gz',
+  format: :tar_gzip,
+  level: 6
+)
+
+# Create TAR.XZ
+Omnizip.compress_directory('project/', 'backup.tar.xz',
+  format: :tar_xz,
+  level: 6
+)
+----
+
+=== Extract TAR Archive
+
+[source,ruby]
+----
+# Extract TAR.GZ
+Omnizip.extract_archive('backup.tar.gz', 'output/')
+
+# Extract TAR.XZ
+Omnizip.extract_archive('backup.tar.xz', 'output/')
+----
+
+== POSIX Features
+
+Omnizip supports extended POSIX features:
+
+* **Long filenames** (beyond 100 characters)
+* **Symbolic links**
+* **File permissions**
+* **Ownership information**
+* **Sparse files**
+
+== See Also
+
+* link:gzip-format.html[GZIP Format] - Common TAR compression
+* link:xz-format.html[XZ Format] - Maximum compression for TAR
+* link:../../compatibility.html[Compatibility] - TAR support across tools

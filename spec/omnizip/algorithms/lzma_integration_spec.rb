@@ -13,7 +13,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -27,7 +28,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -41,7 +43,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -57,7 +60,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         # Check compression occurred
@@ -74,7 +78,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -90,7 +95,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -107,7 +113,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         compressed = StringIO.new
         decompressed = StringIO.new
 
-        algorithm.compress(StringIO.new(original), compressed)
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: true, sdk_compatible: true })
         compressed.rewind
 
         algorithm.decompress(compressed, decompressed)
@@ -123,7 +130,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
 
         # First cycle
         compressed1 = StringIO.new
-        algorithm.compress(StringIO.new(original), compressed1)
+        algorithm.compress(StringIO.new(original), compressed1,
+                           { write_size: true, sdk_compatible: true })
         compressed1.rewind
 
         decompressed1 = StringIO.new
@@ -135,7 +143,8 @@ RSpec.describe Omnizip::Algorithms::LZMA do
 
         # Second cycle using result from first
         compressed2 = StringIO.new
-        algorithm.compress(StringIO.new(result1), compressed2)
+        algorithm.compress(StringIO.new(result1), compressed2,
+                           { write_size: true, sdk_compatible: true })
         compressed2.rewind
 
         decompressed2 = StringIO.new
@@ -143,6 +152,69 @@ RSpec.describe Omnizip::Algorithms::LZMA do
         decompressed2.rewind
 
         expect(decompressed2.read).to eq(original)
+      end
+    end
+
+    describe "unknown-size mode (EOS marker)" do
+      it "compresses and decompresses with write_size: false" do
+        original = "Hello, World!"
+        compressed = StringIO.new
+        decompressed = StringIO.new
+
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: false, sdk_compatible: true })
+        compressed.rewind
+
+        algorithm.decompress(compressed, decompressed)
+        decompressed.rewind
+
+        expect(decompressed.read).to eq(original)
+      end
+
+      it "handles empty input with EOS marker" do
+        original = ""
+        compressed = StringIO.new
+        decompressed = StringIO.new
+
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: false, sdk_compatible: true })
+        compressed.rewind
+
+        algorithm.decompress(compressed, decompressed)
+        decompressed.rewind
+
+        expect(decompressed.read).to eq(original)
+      end
+
+      it "handles longer text with EOS marker" do
+        original = "The quick brown fox jumps over the lazy dog. " * 20
+        compressed = StringIO.new
+        decompressed = StringIO.new
+
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: false, sdk_compatible: true })
+        compressed.rewind
+
+        algorithm.decompress(compressed, decompressed)
+        decompressed.rewind
+
+        expect(decompressed.read).to eq(original)
+      end
+
+      it "handles binary data with EOS marker" do
+        original = (0..255).to_a.pack("C*").force_encoding("ASCII-8BIT")
+        compressed = StringIO.new
+        decompressed = StringIO.new
+
+        algorithm.compress(StringIO.new(original), compressed,
+                           { write_size: false, sdk_compatible: true })
+        compressed.rewind
+
+        algorithm.decompress(compressed, decompressed)
+        decompressed.rewind
+
+        result = decompressed.read.force_encoding("ASCII-8BIT")
+        expect(result).to eq(original)
       end
     end
   end

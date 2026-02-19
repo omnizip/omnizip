@@ -52,7 +52,7 @@ module Omnizip
           preserve_metadata: preserve_metadata,
           temp_directory: temp_directory,
           solid: solid,
-          delete_source: delete_source
+          delete_source: delete_source,
         }
       end
 
@@ -69,17 +69,18 @@ module Omnizip
       private
 
       def validate_format(format, type)
-        valid_formats = [:zip, :seven_zip, :"7z"]
+        valid_formats = %i[zip seven_zip 7z]
         return if valid_formats.include?(format)
 
         raise ArgumentError, "Invalid #{type} format: #{format}. " \
-                            "Valid formats: #{valid_formats.join(', ')}"
+                             "Valid formats: #{valid_formats.join(', ')}"
       end
 
       def validate_compression_level
         return if (1..9).cover?(compression_level)
 
-        raise ArgumentError, "Invalid compression level: #{compression_level}. Must be 1-9"
+        raise ArgumentError,
+              "Invalid compression level: #{compression_level}. Must be 1-9"
       end
     end
   end

@@ -58,7 +58,7 @@ module Omnizip
   # Error raised when RAR write is attempted without license
   class NotLicensedError < Error
     def initialize(message = default_message)
-      super(message)
+      super
     end
 
     private
@@ -85,7 +85,7 @@ module Omnizip
   # Error raised when RAR executable is not found
   class RarNotAvailableError < Error
     def initialize(message = default_message)
-      super(message)
+      super
     end
 
     private

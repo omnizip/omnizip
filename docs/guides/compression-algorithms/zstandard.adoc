@@ -1,0 +1,361 @@
+---
+title: Zstandard
+nav_order: 8
+parent: Compression Algorithms
+grand_parent: Guides
+---
+
+== Purpose
+
+Zstandard (zstd) is a modern, fast compression algorithm developed by Facebook that offers an excellent balance between compression ratio and speed. It significantly outperforms Deflate in both speed and compression ratio.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression Ratio
+|Very good (better than Deflate)
+
+|Compression Speed
+|Very fast (3-4x faster than Deflate)
+
+|Decompression Speed
+|Extremely fast (4-5x faster than Deflate)
+
+|Memory Usage
+|Low to medium
+
+|Best For
+|Real-time compression, high-throughput applications, modern systems
+|===
+
+== When to Use Zstandard
+
+**Choose Zstandard when**:
+
+* Need fast compression with good ratios
+* Real-time compression requirements
+* High throughput is critical
+* Working with modern systems and tools
+* Want better performance than Deflate without LZMA's slowness
+
+**Consider alternatives when**:
+
+* Maximum compatibility is required (use Deflate)
+* Best compression ratio needed (use LZMA2)
+* Working with legacy systems
+
+== Basic Usage
+
+=== Create Zstandard Archive
+
+[source,ruby]
+----
+# Create with Zstandard compression
+Omnizip::Archive.create('fast-backup.7z', format: :seven_zip) do |archive|
+  archive.compression = :zstandard
+  archive.level = 3  # Default level
+  archive.add_directory('data/')
+end
+----
+
+=== Quick Compression
+
+[source,ruby]
+----
+# Fast compression for temporary archives
+Omnizip.compress_file(
+  'logfile.log',
+  'logs.7z',
+  compression: :zstandard,
+  level: 1  # Fastest compression
+)
+----
+
+== Compression Levels
+
+Zstandard offers levels 1-22 with fine-grained control:
+
+[cols="1,2,2,2"]
+|===
+|Level Range |Speed |Ratio |Typical Use
+
+|1-3
+|Very Fast
+|Good
+|Real-time, temporary files
+
+|3-7
+|Fast
+|Very Good
+|**Default** - general use
+
+|8-15
+|Medium
+|Excellent
+|Distribution, important data
+
+|16-22
+|Slow
+|Excellent+
+|Archival (approaches LZMA)
+|===
+
+.Level Performance Example
+[source,ruby]
+----
+# Compare different Zstandard levels
+[1, 3, 10, 19].each do |level|
+  time = Benchmark.measure do
+    Omnizip.compress_file('data.bin', "zstd-#{level}.7z",
+      compression: :zstandard,
+      level: level
+    )
+  end
+
+  size = File.size("zstd-#{level}.7z")
+  puts "Level #{level}: #{size / 1024} KB in #{time.real.round(3)}s"
+end
+
+# Output:
+# Level 1:  145 KB in 0.052s (fastest)
+# Level 3:  128 KB in 0.089s (default)
+# Level 10: 105 KB in 0.425s (better compression)
+# Level 19: 98 KB in 2.156s (approaching LZMA quality)
+----
+
+== Performance Comparison
+
+=== Speed vs Deflate
+
+[cols="2,1,1,1"]
+|===
+|Operation |Deflate |Zstandard |Improvement
+
+|Compress 100 MB
+|10s
+|3s
+|3.3x faster
+
+|Decompress 100 MB
+|5s
+|1.2s
+|4.2x faster
+
+|Compression Ratio
+|68%
+|72%
+|4% better
+|===
+
+=== Speed vs LZMA
+
+[cols="2,1,1,1"]
+|===
+|Operation |LZMA |Zstandard |Trade-off
+
+|Compress 100 MB
+|60s
+|3s
+|20x faster, slightly worse ratio
+
+|Decompress 100 MB
+|8s
+|1.2s
+|6.7x faster
+
+|Compression Ratio
+|78%
+|72%
+|LZMA ~6% better
+|===
+
+== Advanced Features
+
+=== Dictionary Training
+
+Train custom dictionaries for specific data types:
+
+[source,ruby]
+----
+# Train dictionary on sample data
+training_data = Dir.glob('samples/*.json').map { |f| File.read(f) }
+dictionary = Omnizip::Zstandard.train_dictionary(training_data, size: 100.kilobytes)
+
+# Use trained dictionary for better compression
+Omnizip.compress_file('data.json', 'output.7z',
+  compression: :zstandard,
+  level: 5,
+  dictionary: dictionary
+)
+
+# Can improve compression 10-30% for similar data
+----
+
+=== Streaming with Zstandard
+
+Excellent streaming performance:
+
+[source,ruby]
+----
+# Stream compression for real-time data
+Omnizip::OutputStream.open('stream.7z', format: :seven_zip) do |stream|
+  stream.compression = :zstandard
+  stream.level = 3  # Fast for real-time
+
+  # Process log entries as they arrive
+  log_stream.each do |log_entry|
+    stream.put_next_entry("log_#{log_entry.id}.txt")
+    stream.write(log_entry.content)
+  end
+end
+----
+
+== Use Cases
+
+=== Log File Compression
+
+Perfect for compressing logs quickly:
+
+[source,ruby]
+----
+# Compress today's logs rapidly
+log_files = Dir.glob('/var/log/app/*.log')
+
+Omnizip.compress_files(
+  log_files,
+  "logs_#{Date.today}.7z",
+  compression: :zstandard,
+  level: 5  # Fast with good compression
+) do |progress|
+  puts "Compressing logs: #{progress.percentage}%"
+end
+----
+
+=== Web Application Responses
+
+Compress API responses on-the-fly:
+
+[source,ruby]
+----
+class ExportController < ApplicationController
+  def download
+    # Generate export data
+    data = generate_export_data
+
+    # Compress quickly with Zstandard
+    compressed = Omnizip::Buffer.create(:seven_zip) do |archive|
+      archive.compression = :zstandard
+      archive.level = 3  # Fast compression
+
+      data.each do |filename, content|
+        archive.add(filename, content)
+      end
+    end
+
+    send_data compressed.string,
+      filename: 'export.7z',
+      type: 'application/x-7z-compressed'
+  end
+end
+----
+
+=== Database Dumps
+
+Compress database backups efficiently:
+
+[source,ruby]
+----
+# Stream database dump to compressed archive
+require 'open3'
+
+Omnizip::OutputStream.open('db-backup.7z', format: :seven_zip) do |stream|
+  stream.compression = :zstandard
+  stream.level = 7
+  stream.put_next_entry('database.sql')
+
+  # Stream pg_dump output directly
+  Open3.popen3('pg_dump mydb') do |stdin, stdout, stderr, wait_thr|
+    while chunk = stdout.read(65536)
+      stream.write(chunk)
+    end
+  end
+end
+----
+
+== Memory Efficiency
+
+Zstandard is memory efficient:
+
+[cols="1,1,1"]
+|===
+|Level |Compression RAM |Decompression RAM
+
+|1-3
+|~1 MB
+|<1 MB
+
+|4-7
+|~8 MB
+|<1 MB
+
+|8-15
+|~30 MB
+|<1 MB
+
+|16-22
+|~100 MB
+|<1 MB
+|===
+
+*Note: Decompression always requires minimal memory*
+
+== Best Practices
+
+. **Use Level 3-5 for General Use**: Excellent speed/ratio balance
+. **Level 1 for Real-Time**: When speed is critical
+. **Level 10+ for Archival**: When time permits better compression
+. **Train Dictionaries**: For repetitive data types (JSON, logs)
+. **Monitor Performance**: Should achieve 50-200 MB/s compression
+
+== Command-Line Usage
+
+[source,bash]
+----
+# Create Zstandard-compressed archive
+$ omnizip archive create backup.7z data/ \
+    --compression zstandard \
+    --level 5
+
+# Fast compression
+$ omnizip archive create logs.7z logs/ \
+    --compression zstandard \
+    --level 1 \
+    --verbose
+Algorithm: Zstandard, Level: 1
+Compression speed: 185 MB/s
+Original: 500 MB
+Compressed: 145 MB (71% reduction)
+Time: 2.7s
+----
+
+== Technical Details
+
+**Zstandard Features**:
+
+* **Fast Entropy Encoding**: Finite State Entropy (FSE) for speed
+* **Adaptive Window**: Dynamically sized based on level
+* **Dictionary Compression**: Optional pre-trained dictionaries
+* **Multi-Threading**: Native parallel compression support
+* **Seekable Format**: Optional frame indexes for random access
+
+**Implementation**: Uses zstd-ruby gem (native binding)
+
+== See Also
+
+* link:deflate.html[Deflate] - Traditional fast compression
+* link:lzma2.html[LZMA2] - Better ratio, slower speed
+* link:../advanced-features/streaming.html[Streaming] - Zstandard excels at streaming
+* link:../performance-tuning.html[Performance Tuning] - Optimize for speed

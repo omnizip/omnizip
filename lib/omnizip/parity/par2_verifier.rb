@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "digest"
-require_relative "par2_creator"
+require_relative "models/packet_registry"
 
 module Omnizip
   module Parity
@@ -9,6 +9,9 @@ module Omnizip
     #
     # Verifies file integrity using PAR2 recovery files and checks
     # if damaged files can be repaired.
+    #
+    # Uses PacketRegistry and packet models for clean object-oriented
+    # architecture.
     #
     # @example Verify files
     #   verifier = Par2Verifier.new('backup.par2')
@@ -26,7 +29,7 @@ module Omnizip
         :repairable,      # Can be repaired with available parity?
         :total_blocks,    # Total number of blocks
         :recovery_blocks, # Number of recovery blocks available
-        keyword_init: true
+        keyword_init: true,
       ) do
         # Check if all files are OK
         #
@@ -68,6 +71,7 @@ module Omnizip
         @metadata = {}
         @file_list = []
         @recovery_blocks = []
+        @block_hashes = {} # Store IFSC block hashes for verification
       end
 
       # Verify files against PAR2 data
@@ -80,12 +84,17 @@ module Omnizip
         damaged_blocks = []
         missing_files = []
 
+        # Track global block position as we iterate through files
+        global_block_idx = 0
+
         # Check each file
         @file_list.each do |file_info|
           file_path = find_file_path(file_info[:filename])
+          num_blocks = (file_info[:size].to_f / @metadata[:block_size]).ceil
 
           if file_path.nil?
             missing_files << file_info[:filename]
+            global_block_idx += num_blocks
             next
           end
 
@@ -93,8 +102,13 @@ module Omnizip
           damage = verify_file(file_path, file_info)
           if damage[:damaged]
             damaged_files << file_info[:filename]
-            damaged_blocks.concat(damage[:blocks])
+            # Convert file-relative indices to global indices
+            damage[:blocks].each do |file_relative_idx|
+              damaged_blocks << (global_block_idx + file_relative_idx)
+            end
           end
+
+          global_block_idx += num_blocks
         end
 
         # Check if repairable
@@ -108,115 +122,105 @@ module Omnizip
           missing_files: missing_files,
           repairable: repairable,
           total_blocks: calculate_total_blocks,
-          recovery_blocks: @recovery_blocks.size
+          recovery_blocks: @recovery_blocks.size,
         )
       end
 
       private
 
-      # Parse PAR2 index file
+      # Parse PAR2 index file using packet models
       def parse_par2_file
+        # Reset state to prevent accumulation if called multiple times
+        @metadata = {}
+        @file_list = []
+        @recovery_blocks = []
+        @block_hashes = {}
+
         File.open(@par2_file, "rb") do |io|
           while !io.eof?
-            packet = read_packet(io)
+            packet = Models::PacketRegistry.read_packet(io)
             break unless packet
 
-            process_packet(packet)
+            process_packet_model(packet)
           end
+        end
+
+        # CRITICAL: Sort file_list by position in Main packet file_ids
+        # The Main packet defines canonical file order for Reed-Solomon matrix
+        # Do NOT sort by file_id string - that breaks recovery!
+        if @metadata[:file_ids]
+          file_id_order = {}
+          @metadata[:file_ids].each_with_index do |fid, idx|
+            file_id_order[fid] = idx
+          end
+          @file_list.sort_by! { |f| file_id_order[f[:file_id]] || 999 }
         end
 
         # Load recovery blocks from volume files
         load_recovery_volumes
       end
 
-      # Read packet from PAR2 file
+      # Process packet using model-based approach
       #
-      # @param io [IO] Input IO
-      # @return [Hash, nil] Packet data or nil if EOF
-      def read_packet(io)
-        # Read packet header
-        magic = io.read(8)
-        return nil unless magic == Par2Creator::PACKET_SIGNATURE
-
-        length = io.read(8).unpack1("Q<")
-        packet_hash = io.read(16)
-        set_id = io.read(16)
-        packet_type = io.read(16)
-
-        # Read packet data
-        data_length = length - 64
-        packet_data = io.read(data_length)
-
-        {
-          magic: magic,
-          length: length,
-          hash: packet_hash,
-          set_id: set_id,
-          type: packet_type,
-          data: packet_data
-        }
-      end
-
-      # Process parsed packet
-      #
-      # @param packet [Hash] Packet data
-      def process_packet(packet)
-        case packet[:type]
-        when Par2Creator::PACKET_TYPE_MAIN
-          process_main_packet(packet[:data])
-        when Par2Creator::PACKET_TYPE_FILE_DESC
-          process_file_desc_packet(packet[:data])
-        when Par2Creator::PACKET_TYPE_IFSC
-          # Input File Slice Checksum packets are used during verification
-          # but we don't need to store them for basic verification
-        when Par2Creator::PACKET_TYPE_RECOVERY
-          # Recovery packets are in volume files
+      # @param packet [Models::Packet] Parsed packet model
+      def process_packet_model(packet)
+        case packet
+        when Models::MainPacket
+          process_main_packet_model(packet)
+        when Models::FileDescriptionPacket
+          process_file_description_packet_model(packet)
+        when Models::IfscPacket
+          process_ifsc_packet_model(packet)
+        when Models::RecoverySlicePacket
+          process_recovery_packet_model(packet)
+        when Models::CreatorPacket
+          # Creator packets are informational only
         end
       end
 
-      # Process main packet
+      # Process main packet model
       #
-      # @param data [String] Packet data
-      def process_main_packet(data)
-        pos = 0
-        @metadata[:set_id] = data[pos, 16]
-        pos += 16
-
-        @metadata[:block_size] = data[pos, 8].unpack1("Q<")
-        pos += 8
-
-        @metadata[:recovery_file_count] = data[pos, 8].unpack1("Q<")
-        pos += 8
-
-        @metadata[:file_count] = data[pos, 8].unpack1("Q<")
+      # @param packet [Models::MainPacket] Main packet
+      def process_main_packet_model(packet)
+        @metadata[:block_size] = packet.block_size
+        @metadata[:file_ids] = packet.file_ids.dup
       end
 
-      # Process file description packet
+      # Process file description packet model
       #
-      # @param data [String] Packet data
-      def process_file_desc_packet(data)
-        pos = 0
-        file_id = data[pos, 16]
-        pos += 16
-
-        hash_full = data[pos, 16]
-        pos += 16
-
-        hash_16k = data[pos, 16]
-        pos += 16
-
-        file_size = data[pos, 8].unpack1("Q<")
-        pos += 8
-
-        # Read filename (null-terminated)
-        filename = data[pos..-1].unpack1("Z*")
+      # @param packet [Models::FileDescriptionPacket] File description packet
+      def process_file_description_packet_model(packet)
+        # Skip packets with incomplete data
+        return if packet.file_id.nil? || packet.filename.nil? || packet.filename.empty?
+        return if packet.file_hash.nil? || packet.length.nil?
 
         @file_list << {
-          file_id: file_id,
-          hash_full: hash_full,
-          hash_16k: hash_16k,
-          size: file_size,
-          filename: filename
+          file_id: packet.file_id,
+          hash_full: packet.file_hash,
+          hash_16k: packet.file_hash_16k,
+          size: packet.length,
+          filename: packet.filename,
+        }
+      end
+
+      # Process IFSC packet model
+      #
+      # Each IFSC packet contains checksums for all blocks of a file
+      #
+      # @param packet [Models::IfscPacket] IFSC packet
+      def process_ifsc_packet_model(packet)
+        # Store block hashes keyed by file_id
+        # Each IFSC packet contains all hashes for one file
+        @block_hashes[packet.file_id] = packet.block_hashes
+      end
+
+      # Process recovery packet model
+      #
+      # @param packet [Models::RecoverySlicePacket] Recovery packet
+      def process_recovery_packet_model(packet)
+        @recovery_blocks << {
+          exponent: packet.exponent,
+          data: packet.recovery_data,
         }
       end
 
@@ -227,7 +231,7 @@ module Omnizip
 
         # Find all volume files
         pattern = File.join(dir_name, "#{base_name}.vol*.par2")
-        volume_files = Dir.glob(pattern).sort
+        volume_files = Dir.glob(pattern)
 
         volume_files.each do |volume_file|
           load_recovery_volume(volume_file)
@@ -240,27 +244,13 @@ module Omnizip
       def load_recovery_volume(volume_file)
         File.open(volume_file, "rb") do |io|
           while !io.eof?
-            packet = read_packet(io)
+            packet = Models::PacketRegistry.read_packet(io)
             break unless packet
 
-            if packet[:type] == Par2Creator::PACKET_TYPE_RECOVERY
-              process_recovery_packet(packet[:data])
-            end
+            # Only process recovery packets from volume files
+            process_packet_model(packet) if packet.is_a?(Models::RecoverySlicePacket)
           end
         end
-      end
-
-      # Process recovery packet
-      #
-      # @param data [String] Packet data
-      def process_recovery_packet(data)
-        exponent = data[0, 4].unpack1("L<")
-        block_data = data[4..-1]
-
-        @recovery_blocks << {
-          exponent: exponent,
-          data: block_data
-        }
       end
 
       # Find file path for filename
@@ -292,23 +282,28 @@ module Omnizip
         File.open(file_path, "rb") do |io|
           # Quick check: file size
           if io.size != file_info[:size]
-            return { damaged: true, blocks: [], size_mismatch: true }
+            damaged = true
+            # Still identify damaged blocks even with size mismatch
+            damaged_blocks = identify_damaged_blocks(io, file_info)
+            return { damaged: damaged, blocks: damaged_blocks,
+                     size_mismatch: true }
           end
 
           # Quick check: first 16KB hash
           first_16k = io.read(16384) || ""
           hash_16k = Digest::MD5.digest(first_16k)
-          if hash_16k != file_info[:hash_16k]
+          if hash_16k == file_info[:hash_16k]
+            # Full check: complete file hash
+            io.rewind
+            hash_full = Digest::MD5.file(file_path).digest
+            if hash_full != file_info[:hash_full]
+              damaged = true
+              # Identify damaged blocks
+              damaged_blocks = identify_damaged_blocks(io, file_info)
+            end
+          else
             damaged = true
-          end
-
-          # Full check: complete file hash
-          io.rewind
-          hash_full = Digest::MD5.file(file_path).digest
-          if hash_full != file_info[:hash_full]
-            damaged = true
-
-            # Identify damaged blocks
+            # Identify damaged blocks when quick check fails
             damaged_blocks = identify_damaged_blocks(io, file_info)
           end
         end
@@ -324,6 +319,7 @@ module Omnizip
       def identify_damaged_blocks(io, file_info)
         damaged = []
         block_idx = 0
+        expected_hashes = @block_hashes[file_info[:file_id]] || []
 
         io.rewind
         while (data = io.read(@metadata[:block_size]))
@@ -332,12 +328,12 @@ module Omnizip
             data += "\x00" * (@metadata[:block_size] - data.bytesize)
           end
 
-          # Check block hash
+          # Check block hash against stored IFSC hash
           block_hash = Digest::MD5.digest(data)
-          # Note: Would need to store block hashes from IFSC packets
-          # For now, mark as potentially damaged
+          if block_idx < expected_hashes.size && block_hash != expected_hashes[block_idx]
+            damaged << block_idx
+          end
 
-          damaged << block_idx
           block_idx += 1
         end
 

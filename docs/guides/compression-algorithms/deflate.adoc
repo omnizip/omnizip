@@ -1,0 +1,319 @@
+---
+title: Deflate
+nav_order: 5
+parent: Compression Algorithms
+grand_parent: Guides
+---
+
+== Purpose
+
+Deflate is the standard ZIP compression algorithm, offering a good balance between compression ratio and speed. It's universally supported and provides fast compression and decompression.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression Ratio
+|Good
+
+|Compression Speed
+|Fast
+
+|Decompression Speed
+|Very fast
+
+|Memory Usage
+|Low
+
+|Compatibility
+|Universal (ZIP standard)
+
+|Best For
+|General use, speed-critical applications, maximum compatibility
+|===
+
+== When to Use Deflate
+
+**Choose Deflate when**:
+
+* Speed is more important than maximum compression
+* Creating ZIP archives for broad compatibility
+* Working with already-compressed data
+* Need fast decompression
+* Memory is limited
+
+**Consider alternatives when**:
+
+* Maximum compression is priority (use LZMA2)
+* Working with text files (use PPMd)
+* Need even faster compression (use Zstandard)
+
+== Basic Usage
+
+=== Create ZIP with Deflate
+
+[source,ruby]
+----
+# Deflate is the default for ZIP
+Omnizip.compress_directory('project/', 'backup.zip')
+
+# Explicit Deflate configuration
+Omnizip::Archive.create('archive.zip', format: :zip) do |archive|
+  archive.compression = :deflate
+  archive.level = 6  # Default level
+  archive.add_directory('files/')
+end
+----
+
+=== Rubyzip-Compatible API
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+# Standard ZIP creation with Deflate
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('readme.txt', 'README.md')
+  zip.add('data.json', 'config/data.json')
+end
+----
+
+== Compression Levels
+
+Deflate supports levels 1-9:
+
+[cols="1,2,2,2"]
+|===
+|Level |Speed |Ratio |Best For
+
+|1
+|Fastest
+|Basic
+|Quick archiving, temporary files
+
+|3
+|Very Fast
+|Moderate
+|Development, testing
+
+|6
+|Fast
+|Good
+|**Default** - balanced performance
+
+|9
+|Slower
+|Best
+|Distribution, long-term storage
+|===
+
+.Level Comparison Example
+[source,ruby]
+----
+[1, 6, 9].each do |level|
+  time = Benchmark.measure do
+    Omnizip.compress_file('data.txt', "output-#{level}.zip",
+      compression: :deflate,
+      level: level
+    )
+  end
+
+  size = File.size("output-#{level}.zip")
+  puts "Level #{level}: #{size} bytes in #{time.real.round(2)}s"
+end
+
+# Output:
+# Level 1: 125 KB in 0.05s (fastest)
+# Level 6: 98 KB in 0.12s (balanced)
+# Level 9: 95 KB in 0.28s (best compression)
+----
+
+== Performance Characteristics
+
+=== Speed Comparison
+
+[cols="2,1,1,1"]
+|===
+|File Size |Compress Time |Decompress Time |Throughput
+
+|1 MB
+|0.1s
+|0.05s
+|~10 MB/s
+
+|10 MB
+|1s
+|0.5s
+|~10 MB/s
+
+|100 MB
+|10s
+|5s
+|~10 MB/s
+
+|1 GB
+|100s
+|50s
+|~10 MB/s
+|===
+
+*Note: Times for level 6 on modern hardware*
+
+=== vs Other Algorithms
+
+[cols="2,1,1,1,1"]
+|===
+|Algorithm |Compress |Decompress |Ratio |When to Choose
+
+|**Deflate**
+|Fast
+|Very Fast
+|Good
+|Speed + compatibility
+
+|LZMA2
+|Slow
+|Fast
+|Excellent
+|Better compression
+
+|Zstandard
+|Very Fast
+|Very Fast
+|Very Good
+|Maximum speed
+
+|PPMd
+|Very Slow
+|Slow
+|Excellent
+|Text files only
+|===
+
+== Advanced Options
+
+=== Window Size
+
+Deflate uses a 32 KB sliding window:
+
+[source,ruby]
+----
+# Standard Deflate (32 KB window)
+Omnizip.compress_file('file.txt', 'output.zip',
+  compression: :deflate,
+  window_size: 32768  # 32 KB (standard)
+)
+
+# For smaller files, smaller window may be faster
+# Dictionary size is fixed at 32 KB for compatibility
+----
+
+=== Strategy Selection
+
+Deflate supports different compression strategies:
+
+[source,ruby]
+----
+# Default strategy (LZ77 + Huffman)
+compression_strategy: :default  # Best for most data
+
+# Filtered (better for image data)
+compression_strategy: :filtered
+
+# Huffman only (faster, less compression)
+compression_strategy: :huffman_only
+
+# RLE (good for repetitive data)
+compression_strategy: :rle
+----
+
+== Common Use Cases
+
+=== Quick Backups
+
+[source,ruby]
+----
+# Fast backup for frequent snapshots
+Omnizip.compress_directory(
+  '/var/www/app/',
+  "backup_#{Date.today}.zip",
+  compression: :deflate,
+  level: 3  # Fast compression
+)
+----
+
+=== Data Distribution
+
+[source,ruby]
+----
+# Package for distribution (broad compatibility)
+Omnizip::Archive.create('release-v1.0.zip', format: :zip) do |archive|
+  archive.compression = :deflate
+  archive.level = 9  # Best compression
+  archive.add_directory('dist/')
+end
+----
+
+=== Web Uploads
+
+Process uploads quickly:
+
+[source,ruby]
+----
+# Handle user uploads efficiently
+uploaded_files.each do |file|
+  Omnizip::Archive.create("#{user_id}-upload.zip", format: :zip) do |archive|
+    archive.compression = :deflate
+    archive.level = 6  # Balanced
+    archive.add_data(file.original_filename, file.read)
+  end
+end
+----
+
+== Compatibility
+
+=== Tool Support
+
+Deflate is supported by all major archive tools:
+
+* **7-Zip**: Full support (read/write)
+* **WinZip**: Native support
+* **WinRAR**: Full support
+* **Info-ZIP**: Native algorithm
+* **macOS Archive Utility**: Native support
+* **Windows Explorer**: Native support
+
+=== Format Support
+
+Deflate works in multiple formats:
+
+* **ZIP**: Primary compression method (method ID 8)
+* **7z**: Available as alternative to LZMA
+* **GZIP**: Single-file compression
+* **PNG**: Image compression
+
+== Technical Specifications
+
+* **Algorithm**: LZ77 dictionary compression + Huffman coding
+* **Window Size**: 32 KB (fixed)
+* **Match Length**: 3-258 bytes
+* **Based On**: Phil Katz's PKZip algorithm
+* **RFC**: RFC 1951 (DEFLATE specification)
+* **Implementation**: Uses Ruby's zlib library (native C)
+
+== Optimization Tips
+
+. **Use Level 6 for General Use**: Good balance of speed and compression
+. **Level 1 for Temporary Files**: When speed matters most
+. **Level 9 for Distribution**: When size matters more than time
+. **Monitor Throughput**: Deflate should process 5-15 MB/s
+. **Consider Deflate64**: For better compression (if compatible)
+
+== See Also
+
+* link:deflate64.html[Deflate64] - Enhanced Deflate with larger window
+* link:zstandard.html[Zstandard] - Modern fast compression
+* link:lzma2.html[LZMA2] - Better compression at cost of speed
+* link:../../compatibility.html[Compatibility] - Deflate support across tools

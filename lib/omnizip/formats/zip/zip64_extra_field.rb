@@ -48,11 +48,14 @@ module Omnizip
         # which fields should be present based on the regular header values
         def self.from_binary(data, needs_uncompressed: false, needs_compressed: false,
                             needs_offset: false, needs_disk: false)
-          tag, size = data.unpack("vv")
+          tag, = data.unpack("vv")
 
-          raise Omnizip::FormatError, "Invalid ZIP64 extra field tag" unless tag == ZIP64_EXTRA_FIELD_TAG
+          unless tag == ZIP64_EXTRA_FIELD_TAG
+            raise Omnizip::FormatError,
+                  "Invalid ZIP64 extra field tag"
+          end
 
-          offset = 4  # After tag and size
+          offset = 4 # After tag and size
           uncompressed_size = nil
           compressed_size = nil
           relative_header_offset = nil
@@ -83,7 +86,7 @@ module Omnizip
             uncompressed_size: uncompressed_size,
             compressed_size: compressed_size,
             relative_header_offset: relative_header_offset,
-            disk_start_number: disk_start_number
+            disk_start_number: disk_start_number,
           )
         end
 

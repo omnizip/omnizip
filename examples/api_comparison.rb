@@ -17,20 +17,20 @@ tmpdir = Dir.mktmpdir("omnizip_comparison")
 # Example 1: Creating an archive
 # =============================================================================
 puts "1. Creating a ZIP archive"
-puts "   " + "=" * 70
+puts "   #{'=' * 70}"
 
 zip1_path = File.join(tmpdir, "compat.zip")
 zip2_path = File.join(tmpdir, "native.zip")
 
 # Rubyzip-compatible approach
 puts "\n   A) Rubyzip-compatible API:"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   require 'omnizip/rubyzip_compat'
+  require 'omnizip/rubyzip_compat'
 
-   Zip::File.open('archive.zip', create: true) do |zip|
-     zip.add('file.txt') { 'Content' }
-   end
+  Zip::File.open('archive.zip', create: true) do |zip|
+    zip.add('file.txt') { 'Content' }
+  end
 CODE
 
 require "omnizip/rubyzip_compat"
@@ -41,13 +41,13 @@ puts "   ✓ Created: #{zip1_path}"
 
 # Native Omnizip approach
 puts "\n   B) Native Omnizip API:"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   require 'omnizip'
+  require 'omnizip'
 
-   Omnizip::Zip::File.create('archive.zip') do |zip|
-     zip.add('file.txt') { 'Content' }
-   end
+  Omnizip::Zip::File.create('archive.zip') do |zip|
+    zip.add('file.txt') { 'Content' }
+  end
 CODE
 
 require "omnizip"
@@ -60,16 +60,16 @@ puts "   ✓ Created: #{zip2_path}"
 # Example 2: Reading an archive
 # =============================================================================
 puts "\n\n2. Reading archive contents"
-puts "   " + "=" * 70
+puts "   #{'=' * 70}"
 
 # Rubyzip-compatible approach
 puts "\n   A) Rubyzip-compatible API:"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   Zip::File.open('archive.zip') do |zip|
-     content = zip.read('file.txt')
-     puts content
-   end
+  Zip::File.open('archive.zip') do |zip|
+    content = zip.read('file.txt')
+    puts content
+  end
 CODE
 
 content1 = Zip::File.open(zip1_path) { |zip| zip.read("file.txt") }
@@ -77,10 +77,10 @@ puts "   ✓ Read: #{content1}"
 
 # Native Omnizip approach
 puts "\n   B) Native Omnizip API (convenience method):"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   content = Omnizip.read_from_archive('archive.zip', 'file.txt')
-   puts content
+  content = Omnizip.read_from_archive('archive.zip', 'file.txt')
+  puts content
 CODE
 
 content2 = Omnizip.read_from_archive(zip2_path, "file.txt")
@@ -90,7 +90,7 @@ puts "   ✓ Read: #{content2}"
 # Example 3: Working with directories
 # =============================================================================
 puts "\n\n3. Compressing a directory"
-puts "   " + "=" * 70
+puts "   #{'=' * 70}"
 
 # Create sample directory
 sample_dir = File.join(tmpdir, "sample")
@@ -104,14 +104,14 @@ zip4_path = File.join(tmpdir, "dir_native.zip")
 
 # Rubyzip-compatible approach
 puts "\n   A) Rubyzip-compatible API (manual iteration):"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   Zip::File.open('backup.zip', create: true) do |zip|
-     Dir.glob('dir/**/*').each do |file|
-       next if File.directory?(file)
-       zip.add(file.sub('dir/', ''), file)
-     end
-   end
+  Zip::File.open('backup.zip', create: true) do |zip|
+    Dir.glob('dir/**/*').each do |file|
+      next if File.directory?(file)
+      zip.add(file.sub('dir/', ''), file)
+    end
+  end
 CODE
 
 Zip::File.open(zip3_path, create: true) do |zip|
@@ -124,13 +124,15 @@ Zip::File.open(zip3_path, create: true) do |zip|
     end
   end
 end
-puts "   ✓ Created with #{Zip::File.open(zip3_path) { |z| z.entries.size }} entries"
+puts "   ✓ Created with #{Zip::File.open(zip3_path) do |z|
+  z.entries.size
+end} entries"
 
 # Native Omnizip approach
 puts "\n   B) Native Omnizip API (one-liner):"
-puts "   " + "-" * 70
+puts "   #{'-' * 70}"
 puts <<~CODE
-   Omnizip.compress_directory('dir/', 'backup.zip')
+  Omnizip.compress_directory('dir/', 'backup.zip')
 CODE
 
 Omnizip.compress_directory(sample_dir, zip4_path)
@@ -140,7 +142,7 @@ puts "   ✓ Created with #{Omnizip.list_archive(zip4_path).size} entries"
 # Example 4: Both APIs work on same archive
 # =============================================================================
 puts "\n\n4. Both APIs can work on the same archive"
-puts "   " + "=" * 70
+puts "   #{'=' * 70}"
 
 shared_zip = File.join(tmpdir, "shared.zip")
 
@@ -166,7 +168,7 @@ puts "   - Native sees: #{Omnizip.list_archive(shared_zip).join(', ')}"
 # =============================================================================
 # Summary
 # =============================================================================
-puts "\n\n" + "=" * 76
+puts "\n\n#{'=' * 76}"
 puts "SUMMARY: Which API should you use?"
 puts "=" * 76
 puts <<~SUMMARY

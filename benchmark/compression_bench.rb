@@ -38,7 +38,7 @@ module Benchmark
       Models::ComparisonResult.new(
         test_name: "#{algorithm}_#{input_type}",
         omnizip_result: omnizip_result,
-        seven_zip_result: seven_zip_result
+        seven_zip_result: seven_zip_result,
       )
     end
 
@@ -75,14 +75,14 @@ module Benchmark
           input_size: input_size,
           input_type: input_type,
           compressed_size: compressed_size,
-          compression_time: time
+          compression_time: time,
         )
       rescue StandardError => e
         Models::BenchmarkResult.new(
           algorithm: algorithm,
           input_size: input_size,
           input_type: input_type,
-          error: e.message
+          error: e.message,
         )
       ensure
         FileUtils.rm_f(compressed_file)
@@ -107,14 +107,14 @@ module Benchmark
           input_size: input_size,
           input_type: input_type,
           compressed_size: compressed_size,
-          compression_time: time
+          compression_time: time,
         )
       rescue StandardError => e
         Models::BenchmarkResult.new(
           algorithm: algorithm,
           input_size: input_size,
           input_type: input_type,
-          error: e.message
+          error: e.message,
         )
       ensure
         FileUtils.rm_f(compressed_file)
@@ -126,7 +126,7 @@ module Benchmark
         algorithm: algorithm,
         input_size: File.size(input_file),
         input_type: input_type,
-        error: "7-Zip not available"
+        error: "7-Zip not available",
       )
     end
 

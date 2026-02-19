@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "fileutils"
 
 module Omnizip
   class Profiler
@@ -43,6 +44,10 @@ module Omnizip
                   else raise ArgumentError, "Unknown format: #{format}"
                   end
 
+        # Create parent directories if they don't exist
+        dir = File.dirname(filename)
+        FileUtils.mkdir_p(dir)
+
         File.write(filename, content)
         puts "Report saved to #{filename}"
       end
@@ -76,8 +81,7 @@ module Omnizip
         lines << ("-" * 80)
         lines << "DETAILED RESULTS"
         lines << ("-" * 80)
-        lines << format("%-40s %12s %15s %10s",
-                        "Operation", "Time (s)", "Memory", "Calls")
+        lines << "Operation                                    Time (s)          Memory      Calls"
         lines << ("-" * 80)
 
         report.results.sort_by(&:total_time).reverse.each do |result|

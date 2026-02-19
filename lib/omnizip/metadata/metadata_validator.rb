@@ -31,7 +31,8 @@ module Omnizip
         max_length = 65_535 # ZIP format limit
         return true if comment.bytesize <= max_length
 
-        raise ArgumentError, "Comment too long: #{comment.bytesize} bytes (max: #{max_length})"
+        raise ArgumentError,
+              "Comment too long: #{comment.bytesize} bytes (max: #{max_length})"
       end
 
       # Validate time value
@@ -62,11 +63,13 @@ module Omnizip
         return true unless perms
 
         unless perms.is_a?(Integer)
-          raise ArgumentError, "Permissions must be an integer, got #{perms.class}"
+          raise ArgumentError,
+                "Permissions must be an integer, got #{perms.class}"
         end
 
         unless (0..0o777).cover?(perms)
-          raise ArgumentError, "Permissions out of range: 0#{perms.to_s(8)} (max: 0777)"
+          raise ArgumentError,
+                "Permissions out of range: 0#{perms.to_s(8)} (max: 0777)"
         end
 
         true
@@ -80,7 +83,8 @@ module Omnizip
 
         max_length = 65_535 # ZIP format limit
         if filename.bytesize > max_length
-          raise ArgumentError, "Filename too long: #{filename.bytesize} bytes (max: #{max_length})"
+          raise ArgumentError,
+                "Filename too long: #{filename.bytesize} bytes (max: #{max_length})"
         end
 
         # Check for invalid characters

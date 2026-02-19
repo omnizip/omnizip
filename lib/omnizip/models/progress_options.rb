@@ -4,29 +4,34 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require "lutaml/model"
-
 module Omnizip
   module Models
     # Model representing progress tracking options.
     #
     # This class encapsulates configuration for progress tracking,
     # including reporter type, update interval, and display preferences.
-    class ProgressOptions < Lutaml::Model::Serializable
-      attribute :reporter, :string, default: -> { "auto" }
-      attribute :update_interval, :float, default: -> { 0.5 }
-      attribute :show_rate, :boolean, default: -> { true }
-      attribute :show_eta, :boolean, default: -> { true }
-      attribute :show_files, :boolean, default: -> { true }
-      attribute :show_bytes, :boolean, default: -> { true }
+    class ProgressOptions
+      attr_accessor :reporter, :update_interval, :show_rate,
+                    :show_eta, :show_files, :show_bytes
 
-      json do
-        map "reporter", to: :reporter
-        map "update_interval", to: :update_interval
-        map "show_rate", to: :show_rate
-        map "show_eta", to: :show_eta
-        map "show_files", to: :show_files
-        map "show_bytes", to: :show_bytes
+      def initialize
+        @reporter = "auto"
+        @update_interval = 0.5
+        @show_rate = true
+        @show_eta = true
+        @show_files = true
+        @show_bytes = true
+      end
+
+      def to_h
+        {
+          reporter: @reporter,
+          update_interval: @update_interval,
+          show_rate: @show_rate,
+          show_eta: @show_eta,
+          show_files: @show_files,
+          show_bytes: @show_bytes,
+        }.compact
       end
     end
   end

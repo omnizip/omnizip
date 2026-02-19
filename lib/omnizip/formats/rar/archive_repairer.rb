@@ -45,7 +45,7 @@ module Omnizip
               "Partial repair: #{@repaired_files.size} files OK, " \
                 "#{@unrepaired_files.size} failed"
             else
-              "Repair failed: #{@errors.join(", ")}"
+              "Repair failed: #{@errors.join(', ')}"
             end
           end
         end
@@ -75,7 +75,7 @@ module Omnizip
             @verifier = ArchiveVerifier.new(input_path)
             verification = @verifier.verify(
               use_recovery: true,
-              verbose: options[:verbose]
+              verbose: options[:verbose],
             )
 
             unless verification.recovery_available

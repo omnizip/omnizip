@@ -1,0 +1,222 @@
+---
+title: Quick Reference
+nav_order: 70
+---
+
+== Quick Reference
+
+Cheat sheet for common Omnizip operations.
+
+=== Command-Line Quick Reference
+
+==== File Compression
+
+[source,bash]
+----
+# Basic compression
+omnizip compress INPUT OUTPUT
+
+# With algorithm and level
+omnizip compress INPUT OUTPUT --algorithm ALGORITHM --level N
+
+# Pipe mode
+cat INPUT | omnizip compress - OUTPUT
+----
+
+==== Archive Operations
+
+[source,bash]
+----
+# Create archive
+omnizip archive create OUTPUT INPUT...
+
+# Extract archive
+omnizip archive extract ARCHIVE [OUTPUT_DIR]
+
+# List contents
+omnizip archive list ARCHIVE
+----
+
+==== Common Options
+
+`--algorithm`:: Compression algorithm (lzma, lzma2, bzip2, ppmd7, deflate, zstandard)
+`--level N`:: Compression level (1-9)
+`--verbose`, `-v`:: Verbose output
+`--help`, `-h`:: Show help
+
+=== Ruby API Quick Reference
+
+==== Convenience Methods
+
+[source,ruby]
+----
+# Compress file
+Omnizip.compress_file('input.txt', 'output.lzma')
+
+# Decompress file
+Omnizip.decompress_file('output.lzma', 'restored.txt')
+
+# Extract archive
+Omnizip.extract_archive('archive.7z', 'output/')
+
+# List archive
+Omnizip.list_archive('archive.7z')
+----
+
+==== Registry Methods
+
+[source,ruby]
+----
+# Get algorithm
+algorithm = Omnizip::AlgorithmRegistry.get(:lzma2).new(level: 9)
+
+# Get format writer
+writer = Omnizip::FormatRegistry.get(:seven_zip).new_writer('archive.7z')
+----
+
+=== Compression Algorithm Quick Reference
+
+[cols="1,1,2,2"]
+|===
+|Algorithm |Option |Speed |Best For
+
+|LZMA
+|--algorithm lzma
+|Slow
+|Maximum compression
+
+|LZMA2
+|--algorithm lzma2 (default)
+|Slow
+|Archives, backups
+
+|BZip2
+|--algorithm bzip2
+|Medium
+|Text files
+
+|PPMd7
+|--algorithm ppmd7
+|Medium
+|Text, documents
+
+|Deflate
+|--algorithm deflate
+|Fast
+|Compatibility
+
+|Zstandard
+|--algorithm zstandard
+|Very Fast
+|Speed-sensitive
+|===
+
+=== Compression Level Quick Reference
+
+[cols="1,1,2"]
+|===
+|Level |Option |Use Case
+
+|1
+|--level 1
+|Fastest, temporary files
+
+|3
+|--level 3
+|Fast, frequent operations
+
+|5
+|--level 5 (default)
+|Balanced, general use
+
+|7
+|--level 7
+|High compression, storage
+
+|9
+|--level 9
+|Maximum compression
+|===
+
+=== Archive Format Quick Reference
+
+[cols="1,2,2"]
+|===
+|Format |Extension |Best For
+
+|7z
+|.7z
+|Maximum compression, solid archives
+
+|ZIP
+|.zip
+|Cross-platform compatibility
+
+|RAR4/RAR5
+|.rar
+|Binary distribution, multi-volume
+
+|TAR
+|.tar
+|Unix backups
+
+|GZIP
+|.gz
+|Single file compression
+
+|XZ
+|.xz
+|System packages
+|===
+
+=== Common Patterns
+
+==== Backup Script
+
+[source,bash]
+----
+#!/bin/bash
+DATE=$(date +%Y%m%d)
+omnizip archive create "backup_${DATE}.7z" \
+  documents/ projects/ \
+  --level 7 --solid
+----
+
+==== Batch Compression
+
+[source,bash]
+----
+for file in *.txt; do
+  omnizip compress "$file" "${file}.lzma" --level 5
+done
+----
+
+==== Ruby Backup Script
+
+[source,ruby]
+----
+require 'omnizip'
+require 'time'
+
+timestamp = Time.now.strftime('%Y%m%d')
+archive_name = "backup_#{timestamp}.7z"
+
+writer = Omnizip::Formats::SevenZip::Writer.new(archive_name,
+  level: 7,
+  solid: true
+)
+
+%w[documents projects].each do |dir|
+  writer.add_directory(dir) if Dir.exist?(dir)
+end
+
+writer.close
+puts "Created #{archive_name}"
+----
+
+=== See Also
+
+* link:../getting-started/quick-start[Quick Start Guide]
+* link:../guides/basic-usage/[Basic Usage Guides]
+* link:../reference/cli/[CLI Reference]
+* link:../reference/api/[API Reference]

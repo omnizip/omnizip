@@ -34,18 +34,18 @@ module Omnizip
       # @param suffix [String] Filename suffix
       # @yield [path] Block called with temp file path
       # @return [Object] Block return value
-      def file(prefix: nil, suffix: "", &block)
+      def file(prefix: nil, suffix: "")
         prefix ||= configuration.prefix
         temp_file = TempFile.new(
           prefix: prefix,
           suffix: suffix,
-          directory: configuration.directory
+          directory: configuration.directory,
         )
 
         registry.track(temp_file)
 
         begin
-          block.call(temp_file.path)
+          yield(temp_file.path)
         ensure
           registry.untrack(temp_file)
           temp_file.unlink unless temp_file.kept?
@@ -60,21 +60,19 @@ module Omnizip
         require "tmpdir"
         prefix ||= configuration.prefix
 
-        Dir.mktmpdir(prefix, configuration.directory) do |dir|
-          block.call(dir)
-        end
+        Dir.mktmpdir(prefix, configuration.directory, &block)
       end
 
       # Create temporary archive with automatic cleanup
       # @param format [Symbol] Archive format (:zip, :seven_zip)
       # @yield [archive] Block called with archive helper
       # @return [Object] Block return value
-      def with_archive(format: :zip, &block)
+      def with_archive(format: :zip)
         suffix = format == :zip ? ".zip" : ".7z"
 
         file(suffix: suffix) do |path|
           archive = ArchiveHelper.new(path, format)
-          block.call(archive)
+          yield(archive)
         end
       end
 
@@ -122,7 +120,7 @@ module Omnizip
       # @param name [String] Entry name
       # @param data [String] Entry data
       def add_file(name, data = nil, &block)
-        data = block.call if block_given?
+        data = yield if block
 
         case format
         when :zip

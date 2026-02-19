@@ -1,0 +1,49 @@
+---
+title: Advanced Features
+nav_order: 30
+parent: Guides
+has_children: true
+---
+
+== Advanced Features Overview
+
+Omnizip provides several advanced features for power users and production deployments.
+
+== Available Features
+
+[cols="1,3"]
+|===
+|Feature |Description
+
+|link:streaming.html[Streaming Operations]
+|Process archives without loading entire files into memory
+
+|link:parallel-processing.html[Parallel Processing]
+|Leverage multiple CPU cores for faster compression
+
+|link:progress-tracking.html[Progress Tracking]
+|Real-time progress monitoring for long operations
+
+|link:encryption.html[Encryption]
+|AES-256 password protection for archives
+|===
+
+== Feature Combinations
+
+These features can be combined for maximum efficiency:
+
+[source,ruby]
+----
+# Combine streaming + parallel + progress
+Omnizip.compress_directory('large_data/', 'backup.7z',
+  parallel: true,
+  threads: 8
+) do |progress|
+  puts "#{progress.percentage}% - #{progress.throughput_mb_s} MB/s"
+end
+----
+
+== See Also
+
+* link:../compression-algorithms/[Compression Algorithms] - Algorithm-specific features
+* link:../performance-tuning.html[Performance Tuning] - Optimize for your workload

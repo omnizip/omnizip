@@ -36,7 +36,7 @@ module Omnizip
             redundancy: @options[:redundancy],
             block_size: @options[:block_size],
             output_dir: @options[:output_dir],
-            progress: progress
+            progress: progress,
           )
 
           created_files.concat(par2_files)
@@ -44,7 +44,7 @@ module Omnizip
 
         report_success(created_files)
         0
-      rescue => e
+      rescue StandardError => e
         report_error(e)
         1
       end
@@ -59,7 +59,7 @@ module Omnizip
           redundancy: 5,
           block_size: Parity::Par2Creator::DEFAULT_BLOCK_SIZE,
           output_dir: nil,
-          verbose: false
+          verbose: false,
         }
       end
 

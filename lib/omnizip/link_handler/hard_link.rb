@@ -21,7 +21,7 @@ module Omnizip
       def serialize
         {
           target: @target,
-          inode: @inode
+          inode: @inode,
         }
       end
 
@@ -31,7 +31,7 @@ module Omnizip
           new(
             target: data[:target] || data["target"],
             path: path,
-            inode: data[:inode] || data["inode"]
+            inode: data[:inode] || data["inode"],
           )
         else
           # Legacy format: just the target path
@@ -60,7 +60,7 @@ module Omnizip
           type: :hardlink,
           target: @target,
           path: @path,
-          inode: @inode
+          inode: @inode,
         }
       end
 

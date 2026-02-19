@@ -1,0 +1,222 @@
+= Command-Line Interface Usage
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document provides comprehensive CLI documentation for using Omnizip from the command line. The CLI is built using Thor and provides commands for compression, decompression, and archive operations.
+
+== General
+
+The `omnizip` command provides utilities for compressing and decompressing files.
+
+The CLI is built using Thor and provides four main commands: `compress`, `decompress`, `list`, and `version`. All commands support a `--verbose` flag for detailed output.
+
+== Available Commands
+
+Get help on available commands:
+
+[source,sh]
+----
+$ omnizip help
+Commands:
+  omnizip archive create ARCHIVE FILES...  # Create an archive
+  omnizip archive extract ARCHIVE [DIR]    # Extract an archive
+  omnizip archive list ARCHIVE             # List archive contents
+  omnizip compress INPUT OUTPUT            # Compress a file
+  omnizip decompress INPUT OUTPUT          # Decompress a file
+  omnizip help [COMMAND]                   # Describe available commands
+  omnizip list                             # List available algorithms
+  omnizip version                          # Display version information
+----
+
+[[compress-command]]
+== Compressing Files
+
+Compress a file using the LZMA algorithm:
+
+[source,sh]
+----
+# Basic compression with default settings (level 5)
+$ omnizip compress input.txt output.lzma
+Compressed: input.txt -> output.lzma
+
+# Compress with maximum compression (level 9)
+$ omnizip compress input.txt output.lzma --level 9
+
+# Compress with verbose output
+$ omnizip compress input.txt output.lzma --level 7 --verbose
+Compressing input.txt to output.lzma...
+Algorithm: lzma, Level: 7
+
+Input size:  1024000 bytes
+Output size: 245760 bytes
+Ratio:       76.0%
+Time:        1.23s
+----
+
+Get detailed help for the compress command:
+
+[source,sh]
+----
+$ omnizip help compress
+Usage:
+  omnizip compress INPUT OUTPUT
+
+Options:
+  [--algorithm=ALGORITHM]  # Compression algorithm to use
+                           # Default: lzma
+  [--level=N]             # Compression level (1-9)
+                          # Default: 5
+  -v, [--verbose]         # Enable verbose output
+
+Description:
+  Compress INPUT file and write the result to OUTPUT file.
+----
+
+[[decompress-command]]
+== Decompressing Files
+
+Decompress a compressed file:
+
+[source,sh]
+----
+# Basic decompression
+$ omnizip decompress output.lzma restored.txt
+Decompressed: output.lzma -> restored.txt
+
+# Decompress with verbose output
+$ omnizip decompress output.lzma restored.txt --verbose
+Decompressing output.lzma to restored.txt...
+Algorithm: lzma (auto-detected)
+
+Output size: 1024000 bytes
+Time:        0.45s
+----
+
+Get detailed help for the decompress command:
+
+[source,sh]
+----
+$ omnizip help decompress
+Usage:
+  omnizip decompress INPUT OUTPUT
+
+Options:
+  [--algorithm=ALGORITHM]  # Decompression algorithm
+                           # (auto-detect if omitted)
+  -v, [--verbose]         # Enable verbose output
+
+Description:
+  Decompress INPUT file and write the result to OUTPUT file.
+----
+
+[[list-command]]
+== Listing Available Algorithms
+
+List all registered compression algorithms:
+
+[source,sh]
+----
+$ omnizip list
+Available compression algorithms:
+
+lzma
+  Description: LZMA compression using range coding and dictionary compression
+  Version: 1.0.0
+----
+
+[[archive-commands]]
+== Archive Operations
+
+=== Creating Archives
+
+Create a .7z archive from multiple files:
+
+[source,sh]
+----
+# Create archive with default settings (LZMA2)
+$ omnizip archive create myfiles.7z file1.txt file2.bin directory/
+
+# Create with specific algorithm
+$ omnizip archive create --algorithm lzma myfiles.7z *.txt
+
+# Create with password protection
+$ omnizip archive create --password secret myfiles.7z sensitive.doc
+
+# Create with filters for executables
+$ omnizip archive create --filter bcj_x86 programs.7z *.exe
+
+# Verbose output
+$ omnizip archive create --verbose archive.7z data/
+Creating archive.7z...
+Adding: data/file1.txt (1.2 MB)
+Adding: data/file2.bin (3.4 MB)
+Algorithm: LZMA2, Compression: Level 5
+Total: 2 files, 4.6 MB → 1.8 MB (60.9% reduction)
+----
+
+=== Extracting Archives
+
+Extract files from a .7z archive:
+
+[source,sh]
+----
+# Extract to current directory
+$ omnizip archive extract myfiles.7z
+
+# Extract to specific directory
+$ omnizip archive extract myfiles.7z output/
+
+# Extract password-protected archive
+$ omnizip archive extract --password secret encrypted.7z
+
+# Verbose extraction
+$ omnizip archive extract --verbose archive.7z
+Extracting archive.7z...
+Extracting: data/file1.txt (1.2 MB)
+Extracting: data/file2.bin (3.4 MB)
+Total: 2 files extracted
+----
+
+=== Listing Archive Contents
+
+View contents of an archive:
+
+[source,sh]
+----
+$ omnizip archive list myfiles.7z
+Archive: myfiles.7z
+Files: 3
+
+Name                    Size        Compressed  Ratio   Modified
+────────────────────────────────────────────────────────────────
+file1.txt               1048576     245760      76.6%   2025-11-15
+file2.bin               3538944     892416      74.8%   2025-11-15
+directory/readme.md     2048        1024        50.0%   2025-11-14
+────────────────────────────────────────────────────────────────
+Total:                  4589568     1139200     75.2%
+----
+
+== Version Information
+
+Display version information:
+
+[source,sh]
+----
+$ omnizip version
+Omnizip v1.0.0
+Pure Ruby implementation of 7-Zip algorithms
+
+# Short form
+$ omnizip -v
+Omnizip v1.0.0
+Pure Ruby implementation of 7-Zip algorithms
+----
+
+== See Also
+
+* link:api-usage.adoc[Library API Usage]
+* link:compression-algorithms.adoc[Compression Algorithms]
+* link:archive-formats.adoc[Archive Formats]
+* link:../README.adoc[Main README]

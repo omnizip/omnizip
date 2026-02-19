@@ -24,7 +24,7 @@ RSpec.describe Omnizip::Filters::Bcj2 do
         filter.encode(data)
       end.to raise_error(
         NotImplementedError,
-        /BCJ2 encoding is not yet implemented/
+        /BCJ2 encoding is not yet implemented/,
       )
     end
   end
@@ -38,7 +38,7 @@ RSpec.describe Omnizip::Filters::Bcj2 do
           filter.decode("invalid data")
         end.to raise_error(
           ArgumentError,
-          /BCJ2 decode requires a Bcj2StreamData object/
+          /BCJ2 decode requires a Bcj2StreamData object/,
         )
       end
     end
@@ -194,7 +194,7 @@ RSpec.describe Omnizip::Filters::Bcj2Encoder do
         encoder.encode
       end.to raise_error(
         NotImplementedError,
-        /BCJ2 encoding is not yet implemented/
+        /BCJ2 encoding is not yet implemented/,
       )
     end
   end

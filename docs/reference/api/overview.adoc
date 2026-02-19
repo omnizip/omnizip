@@ -1,0 +1,188 @@
+---
+title: API Overview
+nav_order: 60
+parent: Reference
+---
+
+== Ruby API Overview
+
+=== General
+
+Omnizip provides a comprehensive Ruby API for all compression and archive operations.
+
+=== Requiring the Library
+
+[source,ruby]
+----
+require 'omnizip'
+----
+
+=== Convenience Methods
+
+==== File Operations
+
+[source,ruby]
+----
+# Compress a file
+Omnizip.compress_file('input.txt', 'output.lzma')
+
+# Decompress a file
+Omnizip.decompress_file('output.lzma', 'restored.txt')
+
+# Extract archive
+Omnizip.extract_archive('archive.7z', 'output/')
+
+# List archive contents
+Omnizip.list_archive('archive.7z')
+----
+
+==== Stream Operations
+
+[source,ruby]
+----
+# Compress streams
+File.open('input.txt', 'rb') do |input|
+  File.open('output.lzma', 'wb') do |output|
+    Omnizip.compress_stream(input, output)
+  end
+end
+
+# Decompress streams
+File.open('output.lzma', 'rb') do |input|
+  File.open('restored.txt', 'wb') do |output|
+    Omnizip.decompress_stream(input, output)
+  end
+end
+----
+
+=== Registry-Based API
+
+==== Algorithm Registry
+
+[source,ruby]
+----
+# List available algorithms
+Omnizip::AlgorithmRegistry.registered.each do |name|
+  puts "Algorithm: #{name}"
+end
+
+# Get algorithm instance
+lzma = Omnizip::AlgorithmRegistry.get(:lzma).new(level: 9)
+
+# Use algorithm
+File.open('input.txt', 'rb') do |input|
+  File.open('output.lzma', 'wb') do |output|
+    lzma.compress(input, output)
+  end
+end
+----
+
+==== Format Registry
+
+[source,ruby]
+----
+# List available formats
+Omnizip::FormatRegistry.registered.each do |name|
+  puts "Format: #{name}"
+end
+
+# Create format-specific writer
+writer = Omnizip::FormatRegistry.get(:seven_zip).new_writer('archive.7z')
+writer.add_file('document.txt')
+writer.close
+----
+
+=== Archive Operations
+
+==== Creating Archives
+
+[source,ruby]
+----
+# 7z archive
+writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
+writer.add_file('document.txt')
+writer.add_directory('photos/')
+writer.close
+
+# ZIP archive
+writer = Omnizip::Formats::Zip::Writer.new('archive.zip')
+writer.add_file('document.txt')
+writer.close
+----
+
+==== Extracting Archives
+
+[source,ruby]
+----
+# 7z archive
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+reader.extract_all('output/')
+reader.close
+
+# ZIP archive
+reader = Omnizip::Formats::Zip::Reader.new('archive.zip')
+reader.extract_all('output/')
+reader.close
+----
+
+==== Listing Contents
+
+[source,ruby]
+----
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+reader.open
+reader.each_file do |entry|
+  puts "#{entry.name}: #{entry.size} bytes"
+end
+reader.close
+----
+
+=== Error Handling
+
+[source,ruby]
+----
+begin
+  Omnizip.compress_file('input.txt', 'output.lzma')
+rescue Omnizip::CompressionError => e
+  puts "Compression failed: #{e.message}"
+rescue Omnizip::AlgorithmNotFound => e
+  puts "Algorithm not found: #{e.message}"
+rescue IOError => e
+  puts "I/O error: #{e.message}"
+end
+----
+
+=== Progress Tracking
+
+[source,ruby]
+----
+# Create tracker with callback
+progress = Omnizip::ProgressTracker.new
+
+Omnizip.compress_file('large.txt', 'large.lzma',
+  progress_callback: ->(percent) {
+    puts "Progress: #{percent}%" if percent % 10 == 0
+  }
+)
+----
+
+=== Configuration
+
+[source,ruby]
+----
+# Set default compression level
+Omnizip.config.default_level = 7
+
+# Set default algorithm
+Omnizip.config.default_algorithm = :lzma2
+
+# Enable verbose output
+Omnizip.config.verbose = true
+----
+
+=== See Also
+
+* link:compression-api[Compression API] - Compression details
+* link:decompression-api[Decompression API] - Decompression details
+* link:archive-api[Archive API] - Archive operations
+* link:algorithm-registry[Algorithm Registry] - Algorithm management

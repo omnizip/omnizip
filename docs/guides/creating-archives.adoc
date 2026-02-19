@@ -1,0 +1,354 @@
+---
+title: Creating Archives
+nav_order: 1
+parent: Guides
+---
+
+== Creating Archives
+
+Step-by-step guide to creating archives with Omnizip.
+
+== Quick Examples
+
+=== Create ZIP Archive
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip::Archive.create('backup.zip') do |archive|
+  archive.add_file('document.pdf')
+  archive.add_directory('photos/')
+end
+----
+
+=== Create 7z Archive
+
+[source,ruby]
+----
+Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
+  archive.add_directory('data/')
+end
+----
+
+=== Create RAR5 Archive
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# STORE compression (uncompressed)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar')
+writer.add_file('document.txt')
+writer.add_file('image.png')
+writer.write
+
+# LZMA compression (default level 3)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma
+)
+writer.add_file('large_dataset.json')
+writer.write
+
+# LZMA level 5 (best compression)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5
+)
+writer.add_directory('photos/')
+writer.write
+
+# Include modification time
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  include_mtime: true
+)
+writer.add_file('document.txt')
+writer.write
+
+# Include CRC32 (STORE compression only)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :store,
+  include_crc32: true
+)
+writer.add_file('data.bin')
+writer.write
+----
+
+IMPORTANT: RAR5 CRC32 checksums only work with STORE compression. When LZMA is used, CRC32 is automatically disabled. Use BLAKE2sp (always present) for compressed file integrity.
+
+=== RAR5 Multi-Volume Archives (v0.5.0)
+
+Split large archives across multiple volumes:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Basic multi-volume with default naming (part1, part2, ...)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  multi_volume: true,
+  volume_size: '100M'  # Human-readable sizes supported
+)
+writer.add_directory('large_dataset/')
+volumes = writer.write
+# => ['backup.part1.rar', 'backup.part2.rar', ...]
+
+# Custom volume naming patterns
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('data.rar',
+  multi_volume: true,
+  volume_size: '4.7GB',  # CD/DVD sizes
+  volume_naming: 'numeric'  # data.001.rar, data.002.rar, ...
+)
+writer.add_file('huge_database.sql')
+volumes = writer.write
+
+# Volume naming options:
+# - 'part' (default): archive.part1.rar, archive.part2.rar
+# - 'volume': archive.volume1.rar, archive.volume2.rar
+# - 'numeric': archive.001.rar, archive.002.rar
+
+# Minimum volume size: 64 KB
+----
+
+=== RAR5 Solid Compression (v0.5.0)
+
+Achieve 10-30% better compression ratios for similar files:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Enable solid compression
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('project.rar',
+  compression: :lzma,
+  level: 5,
+  solid: true  # Shared dictionary across files
+)
+writer.add_directory('source_code/')
+writer.write
+
+# Best for:
+# - Source code repositories
+# - Log files
+# - Text documents
+# - Similar structured data
+
+# Trade-offs:
+# - Cannot extract individual files without decompressing entire block
+# - Corruption may affect multiple files
+# - Slightly longer extraction time for single files
+----
+
+=== RAR5 AES-256 Encryption (v0.5.0)
+
+Password-protect archives with industry-standard encryption:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Basic password protection
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('secure.rar',
+  compression: :lzma,
+  password: 'SecurePassword123!'
+)
+writer.add_file('confidential.pdf')
+writer.write
+
+# Custom key derivation iterations (higher = more secure, slower)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('protected.rar',
+  compression: :lzma,
+  level: 5,
+  password: 'VerySecurePassword2025!',
+  kdf_iterations: 524_288  # 2^19, more secure than default
+)
+writer.add_directory('sensitive_data/')
+writer.write
+
+# KDF iteration options:
+# - 65,536 (2^16): Minimum, fast but less secure
+# - 262,144 (2^18): Default, balanced security/performance
+# - 1,048,576 (2^20): Maximum, strongest security
+
+# Security features:
+# - AES-256-CBC encryption with PKCS#7 padding
+# - PBKDF2-HMAC-SHA256 key derivation
+# - Per-file IV generation
+# - Password verification before decryption
+----
+
+=== RAR5 PAR2 Recovery Records (v0.5.0)
+
+Add error correction for archive recovery:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Enable PAR2 recovery with default 5% redundancy
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  compression: :lzma,
+  recovery: true
+)
+writer.add_directory('important_data/')
+files = writer.write
+# => ['backup.rar', 'backup.par2', 'backup.vol00+01.par2', ...]
+
+# Custom redundancy percentage
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('critical.rar',
+  compression: :lzma,
+  level: 5,
+  recovery: true,
+  recovery_percent: 15  # Can recover up to 15% data loss
+)
+writer.add_file('mission_critical.db')
+files = writer.write
+
+# Redundancy guidelines:
+# - 5% (default): General backups
+# - 10%: Important data
+# - 20-30%: High-value data
+# - 50-100%: Maximum protection
+
+# Recovery capabilities:
+# - Detect corruption at block level
+# - Repair damaged archives automatically
+# - Works with multi-volume, solid, and encrypted archives
+----
+
+=== RAR5 Combined Features (v0.5.0)
+
+Use all features together for comprehensive protection:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Production-ready backup configuration
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('complete_backup.rar',
+  # Compression
+  compression: :lzma,
+  level: 5,
+  solid: true,
+
+  # Security
+  password: 'SecureBackup2025!',
+  kdf_iterations: 262_144,
+
+  # Multi-volume
+  multi_volume: true,
+  volume_size: '4G',  # DVD-sized volumes
+  volume_naming: 'part',
+
+  # Recovery
+  recovery: true,
+  recovery_percent: 10,
+
+  # Optional fields
+  include_mtime: true
+)
+
+writer.add_directory('/critical/data')
+writer.add_directory('/important/documents')
+files = writer.write
+
+puts "Backup created: #{files.size} files"
+archive_files = files.select { |f| f.end_with?('.rar') }
+par2_files = files.select { |f| f.include?('.par2') }
+puts "  Archive volumes: #{archive_files.size}"
+puts "  PAR2 files: #{par2_files.size}"
+puts "  Total size: #{files.sum { |f| File.size(f) } / 1024 / 1024}MB"
+----
+
+=== RAR5 Best Practices
+
+**For Maximum Compression:**
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5,        # Best compression
+  solid: true,     # 10-30% better ratios
+  include_mtime: true
+)
+----
+
+**For Important Data:**
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  compression: :lzma,
+  level: 3,              # Balanced performance
+  recovery: true,
+  recovery_percent: 15,  # 15% redundancy
+  include_mtime: true
+)
+----
+
+**For Optical Media:**
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5,
+  solid: true,
+  multi_volume: true,
+  volume_size: '4.7GB',  # DVD size
+  recovery: true,
+  include_mtime: true
+)
+----
+
+**For Secure Archives:**
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('secure.rar',
+  compression: :lzma,
+  level: 5,
+  password: ENV['BACKUP_PASSWORD'],
+  kdf_iterations: 524_288,  # Enhanced security
+  recovery: true,
+  recovery_percent: 10,
+  include_mtime: true
+)
+----
+
+== Adding Files
+
+=== Individual Files
+
+[source,ruby]
+----
+archive.add_file('source.txt', 'dest.txt')
+----
+
+=== Directories
+
+[source,ruby]
+----
+archive.add_directory('folder/')
+----
+
+=== From Data
+
+[source,ruby]
+----
+archive.add_data('config.json', JSON.generate(config))
+----
+
+== Compression Options
+
+[source,ruby]
+----
+Omnizip::Archive.create('archive.7z',
+                        format: :seven_zip,
+                        algorithm: :lzma2,
+                        level: 9) do |archive|
+  # ...
+end
+----
+
+== See Also
+
+* link:extracting-archives.html[Extracting Archives]
+* link:../reference/api/overview.html[Ruby API]

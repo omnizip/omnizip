@@ -10,7 +10,7 @@ module Benchmark
     end
 
     def print_summary
-      puts "\n#{"=" * 80}"
+      puts "\n#{'=' * 80}"
       puts "OMNIZIP vs 7-ZIP BENCHMARK RESULTS"
       puts "=" * 80
 
@@ -29,14 +29,14 @@ module Benchmark
     def to_json(*_args)
       JSON.pretty_generate({
                              timestamp: Time.now.iso8601,
-                             results: @results.map(&:to_h)
+                             results: @results.map(&:to_h),
                            })
     end
 
     private
 
     def print_comparison(result)
-      puts "\n#{"-" * 80}"
+      puts "\n#{'-' * 80}"
       puts "Test: #{result.test_name}"
       puts "-" * 80
 
@@ -74,7 +74,7 @@ module Benchmark
                   omni.compression_time || 0.0,
                   seven.compression_time || 0.0)
 
-      puts "\n#{"-" * 80}"
+      puts "\n#{'-' * 80}"
       puts "Comparison:"
       puts "-" * 80
 
@@ -109,7 +109,7 @@ module Benchmark
     end
 
     def print_overall_summary
-      puts "\n#{"=" * 80}"
+      puts "\n#{'=' * 80}"
       puts "OVERALL SUMMARY"
       puts "=" * 80
 
@@ -120,10 +120,10 @@ module Benchmark
 
       return if successful.empty?
 
-      avg_size_diff = successful.map(&:size_difference_percentage)
-                                .compact.sum / successful.size
-      avg_speed_ratio = successful.map(&:compression_speed_ratio)
-                                  .compact.sum / successful.size
+      avg_size_diff = successful.filter_map(&:size_difference_percentage)
+        .sum / successful.size
+      avg_speed_ratio = successful.filter_map(&:compression_speed_ratio)
+        .sum / successful.size
 
       puts format("\nAverage size difference: %+.1f%%", avg_size_diff)
       puts format("Average speed ratio: %.1fx slower", avg_speed_ratio)

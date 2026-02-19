@@ -29,7 +29,7 @@ module Omnizip
           entry.gid = extract_octal(header_data, GID_OFFSET, GID_SIZE)
           entry.size = extract_octal(header_data, SIZE_OFFSET, SIZE_SIZE)
           entry.mtime = Time.at(
-            extract_octal(header_data, MTIME_OFFSET, MTIME_SIZE)
+            extract_octal(header_data, MTIME_OFFSET, MTIME_SIZE),
           )
           entry.typeflag = header_data[TYPEFLAG_OFFSET]
           entry.linkname = extract_string(
@@ -156,7 +156,7 @@ module Omnizip
           # Format as octal with leading zeros
           octal_str = format("%0#{size - 1}o", value.to_i)
           # Truncate if too long
-          octal_str = octal_str[-size + 1..-1] if octal_str.bytesize >= size
+          octal_str = octal_str[(-size + 1)..] if octal_str.bytesize >= size
           header[offset, octal_str.bytesize] = octal_str
         end
 

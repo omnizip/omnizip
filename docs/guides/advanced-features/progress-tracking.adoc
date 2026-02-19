@@ -1,0 +1,320 @@
+---
+title: Progress Tracking
+nav_order: 3
+parent: Advanced Features
+grand_parent: Guides
+---
+
+== Purpose
+
+Real-time progress tracking provides visibility into long-running archive operations. Monitor file counts, bytes processed, processing rate, and estimated time remaining.
+
+== Benefits
+
+* **User Feedback**: Show progress to users during long operations
+* **Better UX**: Prevent "frozen" appearance during processing
+* **Performance Monitoring**: Track processing rates and bottlenecks
+* **Time Estimation**: Know how long operations will take
+* **Debugging**: Identify which files cause slowdowns
+
+== Progress Callbacks
+
+=== Basic Progress Monitoring
+
+Get updates during compression or extraction:
+
+[source,ruby]
+----
+Omnizip.compress_directory('large_project/', 'backup.zip') do |progress|
+  puts "Progress: #{progress.percentage}%"
+  puts "Current file: #{progress.current_file}"
+  puts "Files: #{progress.files_processed}/#{progress.total_files}"
+end
+----
+
+=== Detailed Progress Information
+
+Access comprehensive progress data:
+
+[source,ruby]
+----
+Omnizip.extract_archive('archive.zip', 'output/') do |progress|
+  puts "Files: #{progress.files_processed}/#{progress.total_files}"
+  puts "Bytes: #{progress.bytes_processed}/#{progress.total_bytes}"
+  puts "Speed: #{progress.throughput_mb_s} MB/s"
+  puts "Elapsed: #{progress.elapsed_seconds}s"
+  puts "ETA: #{progress.eta_seconds}s"
+  puts "Percentage: #{progress.percentage}%"
+end
+----
+
+== Console Progress Bar
+
+=== Automatic Progress Bar
+
+Enable automatic progress bar for terminal output:
+
+[source,ruby]
+----
+Omnizip.compress_directory(
+  'data/',
+  'backup.zip',
+  progress: :console  # Show progress bar
+)
+
+# Output:
+# [=========>          ] 45% (23/50 files) - 2.5 MB/s - ETA: 12s
+----
+
+=== Custom Progress Bar
+
+Configure progress bar appearance:
+
+[source,ruby]
+----
+options = {
+  progress: :console,
+  progress_format: :detailed,  # or :simple, :verbose
+  update_interval: 0.5,  # Update every 500ms
+  show_rate: true,
+  show_eta: true
+}
+
+Omnizip.compress_directory('files/', 'backup.7z', **options)
+----
+
+== Web Application Integration
+
+=== Rails Real-Time Updates
+
+Send progress updates to the browser via WebSocket:
+
+[source,ruby]
+----
+class ArchiveJob < ApplicationJob
+  def perform(user_id, file_paths)
+    ActionCable.server.broadcast("archive_#{user_id}", {
+      status: 'starting',
+      total_files: file_paths.count
+    })
+
+    Omnizip.compress_files(file_paths, 'output.zip') do |progress|
+      ActionCable.server.broadcast("archive_#{user_id}", {
+        status: 'processing',
+        percentage: progress.percentage,
+        files_done: progress.files_processed,
+        current_file: progress.current_file,
+        eta: progress.eta_seconds
+      })
+    end
+
+    ActionCable.server.broadcast("archive_#{user_id}", {
+      status: 'complete',
+      download_url: archive_url
+    })
+  end
+end
+----
+
+=== API Progress Endpoint
+
+Provide progress via polling endpoint:
+
+[source,ruby]
+----
+# Start background job
+def create_archive
+  job_id = SecureRandom.uuid
+
+  Thread.new do
+    Omnizip.compress_directory('data/', 'output.zip') do |progress|
+      # Store progress in Redis/cache
+      Rails.cache.write("archive_progress_#{job_id}", {
+        percentage: progress.percentage,
+        files: progress.files_processed,
+        total: progress.total_files,
+        eta: progress.eta_seconds
+      })
+    end
+  end
+
+  render json: { job_id: job_id }
+end
+
+# Check progress
+def check_progress
+  progress = Rails.cache.read("archive_progress_#{params[:job_id]}")
+  render json: progress
+end
+----
+
+== Progress Metrics
+
+=== Available Metrics
+
+[cols="2,3"]
+|===
+|Metric |Description
+
+|`percentage`
+|Overall completion percentage (0-100)
+
+|`files_processed`
+|Number of files processed so far
+
+|`total_files`
+|Total number of files to process
+
+|`bytes_processed`
+|Bytes processed so far
+
+|`total_bytes`
+|Total bytes to process
+
+|`current_file`
+|Name of file currently being processed
+
+|`throughput_mb_s`
+|Processing speed in MB/second
+
+|`elapsed_seconds`
+|Time elapsed since start
+
+|`eta_seconds`
+|Estimated seconds until completion
+
+|`active_threads`
+|Number of active worker threads (parallel mode)
+|===
+
+=== Computed Properties
+
+[source,ruby]
+----
+progress.percentage          # => 45.2
+progress.files_remaining     # => 27
+progress.bytes_remaining     # => 125829120
+progress.elapsed_formatted   # => "2m 15s"
+progress.eta_formatted       # => "3m 05s"
+progress.completion_time     # => 2024-01-15 14:32:10
+----
+
+== Performance Monitoring
+
+=== Track Processing Rate
+
+Monitor compression/decompression speed:
+
+[source,ruby]
+----
+rates = []
+
+Omnizip.compress_directory('files/', 'backup.zip') do |progress|
+  rates << progress.throughput_mb_s
+
+  # Alert if speed drops significantly
+  if rates.size > 10 && progress.throughput_mb_s < rates[-10..-1].average * 0.5
+    puts "WARNING: Processing slowed down significantly"
+    puts "Current file: #{progress.current_file}"
+  end
+end
+
+puts "Average rate: #{rates.average.round(2)} MB/s"
+puts "Peak rate: #{rates.max.round(2)} MB/s"
+----
+
+=== Identify Slow Files
+
+Find files that take longest to process:
+
+[source,ruby]
+----
+slow_files = []
+
+Omnizip.compress_directory('data/', 'backup.zip') do |progress|
+  if progress.current_file_duration > 5.0  # More than 5 seconds
+    slow_files << {
+      name: progress.current_file,
+      duration: progress.current_file_duration,
+      size: progress.current_file_size
+    }
+  end
+end
+
+slow_files.sort_by { |f| -f[:duration] }.first(10).each do |f|
+  puts "#{f[:name]}: #{f[:duration]}s (#{f[:size]} bytes)"
+end
+----
+
+== Custom Progress Reporters
+
+=== Log File Reporter
+
+Write progress to log file:
+
+[source,ruby]
+----
+File.open('archive_progress.log', 'w') do |log|
+  Omnizip.compress_directory('data/', 'backup.zip') do |progress|
+    log.puts "[#{Time.now}] #{progress.percentage}% - #{progress.current_file}"
+    log.flush
+  end
+end
+----
+
+=== JSON Progress Reporter
+
+Output machine-readable progress:
+
+[source,ruby]
+----
+Omnizip.compress_directory('data/', 'backup.zip') do |progress|
+  json = {
+    timestamp: Time.now.iso8601,
+    percentage: progress.percentage,
+    files_done: progress.files_processed,
+    files_total: progress.total_files,
+    current: progress.current_file,
+    rate_mbs: progress.throughput_mb_s,
+    eta_seconds: progress.eta_seconds
+  }
+
+  puts json.to_json
+end
+----
+
+== CLI Progress Display
+
+[source,bash]
+----
+# Default progress bar
+$ omnizip archive create backup.zip files/
+[=========>          ] 45% (230/512 files) - 2.5 MB/s - ETA: 1m 23s
+
+# Verbose progress
+$ omnizip archive create backup.zip files/ --progress verbose
+Processing: src/app.rb (230/512 files, 45%)
+Size: 45 KB -> 12 KB (73% compression)
+Rate: 2.5 MB/s, Elapsed: 1m 12s, ETA: 1m 23s
+
+# Quiet mode (no progress)
+$ omnizip archive create backup.zip files/ --quiet
+
+# JSON progress output
+$ omnizip archive create backup.zip files/ --progress json
+{"percentage":45.0,"files":230,"total":512,"eta":83}
+----
+
+== Best Practices
+
+. **Update Interval**: Don't update too frequently (0.5-1s is good)
+. **Non-Blocking**: Use threads/async for long operations
+. **User Experience**: Always show progress for operations >5 seconds
+. **Error Handling**: Continue tracking even if individual files fail
+. **Resource Cleanup**: Ensure progress callbacks don't leak memory
+
+== See Also
+
+* link:parallel-processing.html[Parallel Processing] - Monitor multi-threaded operations
+* link:streaming.html[Streaming] - Track streaming operations
+* link:../performance-tuning.html[Performance Tuning] - Optimize based on progress data

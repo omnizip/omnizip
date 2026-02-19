@@ -10,11 +10,25 @@ require_relative "rar/parity_handler"
 require_relative "rar/archive_verifier"
 require_relative "rar/archive_repairer"
 require_relative "rar/reader"
-require_relative "rar/license_validator"
-require_relative "rar/external_writer"
+require_relative "rar/writer"
 require_relative "rar/models/rar_entry"
 require_relative "rar/models/rar_volume"
 require_relative "rar/models/rar_archive"
+
+# RAR5 format support (pure Ruby)
+require_relative "rar/rar5/vint"
+require_relative "rar/rar5/crc32"
+require_relative "rar/rar5/header"
+require_relative "rar/rar5/writer"
+
+# RAR compression layer (native pure Ruby implementation)
+require_relative "rar/compression/bit_stream"
+require_relative "rar/compression/ppmd/context"
+require_relative "rar/compression/ppmd/decoder"
+require_relative "rar/compression/lz77_huffman/sliding_window"
+require_relative "rar/compression/lz77_huffman/huffman_coder"
+require_relative "rar/compression/lz77_huffman/decoder"
+require_relative "rar/compression/dispatcher"
 
 module Omnizip
   module Formats
@@ -48,43 +62,61 @@ module Omnizip
 
         # Check if RAR creation is available
         #
-        # @return [Boolean] true if WinRAR available
+        # @return [Boolean] true for pure Ruby writer
         def writer_available?
-          ExternalWriter.available?
+          Writer.available?
         end
 
         # Get RAR writer information
         #
         # @return [Hash] Writer type and version
         def writer_info
-          ExternalWriter.info
+          Writer.info
         end
 
-        # Create RAR archive (requires licensed WinRAR)
+        # Create RAR archive (requires licensed WinRAR for RAR4, pure Ruby for RAR5)
         #
         # @param path [String] Output RAR file path
         # @param options [Hash] Creation options
-        # @yield [ExternalWriter] Writer instance
+        # @option options [Integer] :version RAR version (4 or 5, default: 4)
+        # @option options [Symbol] :compression For RAR5: :store, :lzma, :auto (default: :store)
+        # @option options [Integer] :level For RAR5: LZMA level 1-5 (default: 3)
+        # @option options [Boolean] :include_mtime Include modification time (RAR5 only)
+        # @option options [Boolean] :include_crc32 Include CRC32 checksum (RAR5 only)
+        # @yield [Writer] Writer instance
         # @return [String] Path to created archive
-        # @raise [NotLicensedError] if WinRAR license not confirmed
-        # @raise [RarNotAvailableError] if WinRAR not installed
         #
-        # @example Create RAR archive
+        # @example Create RAR4 archive (requires WinRAR)
         #   Omnizip::Formats::Rar.create('archive.rar') do |rar|
         #     rar.add_file('document.pdf')
         #     rar.add_directory('photos/')
         #   end
         #
-        # @example With compression options
+        # @example Create RAR5 archive (pure Ruby)
+        #   Omnizip::Formats::Rar.create('archive.rar', version: 5) do |rar|
+        #     rar.add_file('document.pdf')
+        #   end
+        #
+        # @example Create RAR5 with LZMA compression
         #   Omnizip::Formats::Rar.create('archive.rar',
-        #     compression: :best,
-        #     solid: true,
-        #     recovery: 5
+        #     version: 5,
+        #     compression: :lzma,
+        #     level: 5,
+        #     include_mtime: true,
+        #     include_crc32: true
         #   ) do |rar|
-        #     rar.add_directory('data/')
+        #     rar.add_file('data.txt')
         #   end
         def create(path, options = {})
-          writer = ExternalWriter.new(path, options)
+          version = options.delete(:version) || 4
+
+          writer = if version == 5
+                     # Use pure Ruby RAR5 writer
+                     Rar5::Writer.new(path, options)
+                   else
+                     # Use RAR4 writer (requires WinRAR)
+                     Writer.new(path, options)
+                   end
 
           yield writer if block_given?
 

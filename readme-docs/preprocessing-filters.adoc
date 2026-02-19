@@ -1,0 +1,280 @@
+= Preprocessing Filters Guide
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document covers preprocessing filters that improve compression of specific data types, particularly executable files and multimedia data.
+
+== Supported Filters
+
+[cols="20,15,65",options="header"]
+|===
+|Filter |ID |Description
+
+|BCJ x86 |0x04 |Branch conversion for x86 executables
+|BCJ2 |0x0303011B |Advanced 4-stream x86 filter
+|BCJ ARM |0x05 |ARM executable filter
+|BCJ ARM64 |0x0A |ARM64/AArch64 filter
+|BCJ PPC |0x07 |PowerPC filter
+|BCJ IA-64 |0x06 |Itanium filter
+|BCJ SPARC |0x08 |SPARC filter
+|Delta |0x03 |Delta encoding (configurable distance)
+|===
+
+== BCJ (Branch-Call-Jump) Filters
+
+=== General
+
+Branch-Call-Jump filters improve compression of executable files by converting relative addresses to absolute addresses. This transformation makes the data more compressible because branch instructions share common patterns.
+
+=== Supported Architectures
+
+* **BCJ x86** - Intel/AMD x86 (32-bit and 64-bit)
+* **BCJ ARM** - ARM 32-bit executables
+* **BCJ ARM64** - ARM 64-bit (AArch64) executables
+* **BCJ PPC** - PowerPC executables
+* **BCJ SPARC** - SPARC executables
+* **BCJ IA-64** - Intel Itanium executables
+
+=== How It Works
+
+. Scans binary code for branch/call instructions
+. Converts relative offsets to absolute addresses
+. Makes patterns more regular and compressible
+. Decoder reverses the transformation after decompression
+
+=== Usage
+
+[source,ruby]
+----
+# Use with filter pipeline
+pipeline = Omnizip::FilterPipeline.new
+pipeline.add_filter(:bcj_x86)  # For x86 executables
+
+# Apply before compression
+filtered_data = pipeline.encode(executable_data)
+algorithm.compress(StringIO.new(filtered_data), output)
+
+# Different architectures
+pipeline_arm = Omnizip::FilterPipeline.new
+pipeline_arm.add_filter(:bcj_arm)
+
+pipeline_arm64 = Omnizip::FilterPipeline.new
+pipeline_arm64.add_filter(:bcj_arm64)
+----
+
+=== Typical Improvements
+
+Using BCJ filters on executable files typically improves compression by:
+
+* **10-30%** for x86/x64 executables
+* **15-35%** for ARM executables
+* **20-40%** for stripped executables (no debug symbols)
+
+== BCJ2 Filter
+
+=== General
+
+BCJ2 provides advanced 4-stream filtering for x86 code, achieving better compression than standard BCJ. It splits the filtered data into four separate streams that can be compressed independently.
+
+=== How It Works
+
+. Analyzes x86 code structure
+. Splits into 4 streams:
+  * Main stream (data and unprocessed bytes)
+  * Call stream (call instruction targets)
+  * Jump stream (jump instruction targets)
+  * Common stream (shared data)
+. Each stream is compressed separately
+. Decoder merges streams during decompression
+
+=== Usage
+
+[source,ruby]
+----
+filter = Omnizip::FilterRegistry.get(:bcj2).new
+encoded_streams = filter.encode(x86_code)
+# Returns 4 separate streams for optimal compression
+
+# Compress each stream
+encoded_streams.each_with_index do |stream, idx|
+  algorithm.compress(StringIO.new(stream), output_files[idx])
+end
+----
+
+=== When to Use BCJ2
+
+**Use BCJ2 when:**
+
+* Maximum compression is needed
+* Processing large x86 executables
+* Archive size is critical (software distribution)
+
+**Use standard BCJ when:**
+
+* Simplicity is preferred
+* Working with mixed content
+* Speed is more important than maximum compression
+
+=== Typical Improvements
+
+BCJ2 typically achieves:
+
+* **5-10% better** compression than standard BCJ
+* **15-40%** better than no filter
+* Best results on large executables (> 1MB)
+
+== Delta Filter
+
+=== General
+
+Delta encoding is effective for multimedia files and time-series data where consecutive bytes have small differences. It transforms absolute values into differences between consecutive values.
+
+=== How It Works
+
+. Computes differences between consecutive bytes
+. Stores deltas instead of absolute values
+. Makes nearly constant data highly compressible
+. Configurable distance parameter for pattern matching
+
+=== Configuration
+
+The `distance` parameter determines the stride:
+
+* **distance=1:** Byte-by-byte differences (images, audio)
+* **distance=2:** 16-bit word differences
+* **distance=4:** 32-bit word differences
+* **distance=N:** Custom stride
+
+=== Usage
+
+[source,ruby]
+----
+# Basic delta filter (distance=1)
+filter = Omnizip::FilterRegistry.get(:delta).new(distance: 1)
+filtered = filter.encode(audio_data)
+
+# For 16-bit audio samples
+filter_16bit = Omnizip::FilterRegistry.get(:delta).new(distance: 2)
+filtered_audio = filter_16bit.encode(audio_samples)
+
+# For database dumps with aligned records
+filter_db = Omnizip::FilterRegistry.get(:delta).new(distance: 4)
+filtered_db = filter_db.encode(database_dump)
+----
+
+=== Best Use Cases
+
+**Excellent for:**
+
+* Uncompressed audio (WAV, raw PCM)
+* Time-series sensor data
+* Database dumps with sequential indices
+* Bitmap images (BMP, uncompressed TIFF)
+
+**Not suitable for:**
+
+* Already compressed data (MP3, JPEG)
+* Random data
+* Text files
+* Encrypted data
+
+=== Typical Improvements
+
+Delta filter can achieve:
+
+* **50-80%** better compression on audio waveforms
+* **30-60%** better on time-series data
+* **20-40%** better on bitmap images
+* **Minimal improvement** on text or compressed data
+
+== Filter Chaining
+
+=== General
+
+Multiple filters can be chained together for optimal compression. The order matters - apply filters in sequence that makes data progressively more compressible.
+
+=== Usage
+
+[source,ruby]
+----
+# Chain multiple filters
+pipeline = Omnizip::FilterPipeline.new
+pipeline.add_filter(:bcj_x86)   # First: convert branches
+pipeline.add_filter(:delta, distance: 1)  # Then: delta encode
+
+# Apply chain
+filtered_data = pipeline.encode(executable_data)
+algorithm.compress(StringIO.new(filtered_data), output)
+----
+
+=== Recommended Filter Chains
+
+**For x86 executables:**
+```
+BCJ x86 → LZMA2
+```
+
+**For ARM executables:**
+```
+BCJ ARM → LZMA2
+```
+
+**For large x86 binaries (maximum compression):**
+```
+BCJ2 (4 streams) → LZMA2 (each stream)
+```
+
+**For uncompressed audio:**
+```
+Delta (distance=2) → LZMA2 or BZip2
+```
+
+**For bitmap images:**
+```
+Delta (distance=1) → LZMA2
+```
+
+== Performance Considerations
+
+=== Processing Overhead
+
+Filters add minimal overhead:
+
+* **BCJ filters:** < 5% processing time
+* **Delta filter:** < 3% processing time
+* **BCJ2:** 10-15% processing time (4-stream handling)
+
+The compression gains far outweigh the processing cost.
+
+=== Memory Usage
+
+* **BCJ filters:** Minimal (< 1MB)
+* **Delta filter:** Minimal (< 1MB)
+* **BCJ2:** Moderate (needs buffer for 4 streams)
+
+== Integration with .7z Archives
+
+Filters are automatically applied when using .7z archives:
+
+[source,ruby]
+----
+# Create .7z with BCJ filter
+writer = Omnizip::Formats::SevenZip::Writer.new('programs.7z')
+writer.add_filter(:bcj_x86)  # Applies to all files
+writer.add_file('program.exe')
+writer.close
+
+# Filter is automatically applied during extraction
+reader = Omnizip::Formats::SevenZip::Reader.new('programs.7z')
+reader.extract_all('output/')  # BCJ filter automatically reversed
+reader.close
+----
+
+== See Also
+
+* link:compression-algorithms.adoc[Compression Algorithms]
+* link:api-usage.adoc[Library API Usage]
+* link:archive-formats.adoc[Archive Formats]
+* link:../README.adoc[Main README]

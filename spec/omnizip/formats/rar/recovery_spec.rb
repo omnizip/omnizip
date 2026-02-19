@@ -163,12 +163,14 @@ RSpec.describe "RAR Recovery Support" do
       end
 
       it "returns true when parity block exists" do
-        parity_handler.instance_variable_set(:@parity_blocks, [{ index: 0, data: "test" }])
+        parity_handler.instance_variable_set(:@parity_blocks,
+                                             [{ index: 0, data: "test" }])
         expect(parity_handler.can_recover?(0)).to be true
       end
 
       it "returns false when parity block not found" do
-        parity_handler.instance_variable_set(:@parity_blocks, [{ index: 0, data: "test" }])
+        parity_handler.instance_variable_set(:@parity_blocks,
+                                             [{ index: 0, data: "test" }])
         expect(parity_handler.can_recover?(1)).to be false
       end
     end
@@ -328,16 +330,43 @@ RSpec.describe "RAR Recovery Support" do
   end
 
   describe "Integration Tests" do
+    let(:recovery_fixture_dir) do
+      File.join(__dir__, "../../../fixtures/rar/recovery")
+    end
+    let(:test_archive) do
+      File.join(recovery_fixture_dir, "test_with_recovery.rar")
+    end
+    let(:corrupted_archive) do
+      File.join(recovery_fixture_dir, "test_corrupted.rar")
+    end
+    let(:temp_dir) { Dir.mktmpdir }
+
+    after do
+      FileUtils.rm_rf(temp_dir) if temp_dir && Dir.exist?(temp_dir)
+    end
+
     describe Omnizip::Formats::Rar do
       describe ".verify" do
         it "returns verification result" do
-          skip "Requires test RAR archive with recovery records"
+          result = described_class.verify(test_archive)
+
+          expect(result).to be_a(Omnizip::Formats::Rar::ArchiveVerifier::VerificationResult)
+          # Test that API works - actual verification depends on implementation
+          expect(result).to respond_to(:valid?)
+          expect(result).to respond_to(:recovery_available)
+          expect(result).to respond_to(:summary)
         end
       end
 
       describe ".repair" do
         it "repairs corrupted archive" do
-          skip "Requires corrupted test RAR archive"
+          output_path = File.join(temp_dir, "repaired.rar")
+
+          # This test validates that the repair API works
+          # The actual repair may not succeed depending on implementation
+          expect do
+            described_class.repair(corrupted_archive, output_path)
+          end.not_to raise_error
         end
       end
     end

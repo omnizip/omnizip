@@ -138,7 +138,7 @@ module Omnizip
             description: "Branch converter for 32-bit ARM executables",
             architecture: "ARM (32-bit)",
             alignment: 4,
-            endian: "little"
+            endian: "little",
           }
         end
       end

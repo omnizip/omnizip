@@ -35,13 +35,13 @@ module Omnizip
         result = Parity.repair(
           @par2_file,
           output_dir: @options[:output_dir],
-          progress: progress
+          progress: progress,
         )
 
         display_results(result)
 
         result.success? ? 0 : 1
-      rescue => e
+      rescue StandardError => e
         report_error(e)
         1
       end
@@ -54,7 +54,7 @@ module Omnizip
       def default_options
         {
           output_dir: nil,
-          verbose: false
+          verbose: false,
         }
       end
 

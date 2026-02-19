@@ -92,14 +92,17 @@ module Omnizip
       end
     end
 
-    desc "create OUTPUT INPUT...", "Create .7z archive"
+    desc "create OUTPUT INPUT...", "Create .7z or .rar archive"
     long_desc <<~DESC
-      Create a .7z archive from files and directories.
+      Create a .7z or .rar archive from files and directories.
 
-      OUTPUT is the path to the .7z archive to create.
+      OUTPUT is the path to the archive to create (.7z or .rar extension).
       INPUT can be one or more files or directories to archive.
 
       For split archives, OUTPUT should end with .001 (e.g., backup.7z.001).
+
+      RAR5 archives are created using pure Ruby (no external tools needed).
+      RAR5 currently supports individual files only (not directories).
 
       Examples:
 
@@ -114,25 +117,59 @@ module Omnizip
         $ omnizip archive create backup.7z.001 large_data/ --volume-size 100M
 
         $ omnizip archive create backup.7z.001 files/ --volume-size 4.7GB
+
+        $ omnizip archive create archive.rar file1.txt file2.txt
+
+        $ omnizip archive create archive.rar data.txt --rar-compression lzma \\
+          --level 5 --include-mtime --include-crc32
+
+        $ omnizip archive create secure.rar data.txt --rar-compression lzma \\
+          --level 5 --password "SecurePass123!" --kdf-iterations 262144
+
+        $ omnizip archive create backup.rar files/ --rar-compression lzma \\
+          --level 5 --solid --multi-volume --volume-size 100M
+
+        $ omnizip archive create critical.rar data/ --rar-compression lzma \\
+          --level 5 --password "Secure2025!" --recovery --recovery-percent 10
     DESC
+    option :format, type: :string,
+                    desc: "Archive format (7z or rar, default: auto-detect from extension)"
     option :profile, type: :string,
                      desc: "Compression profile (fast, balanced, maximum, text, binary, archive, auto)"
     option :algorithm, type: :string, default: "lzma2",
-                       desc: "Compression algorithm (lzma, lzma2, ppmd7, bzip2)"
+                       desc: "Compression algorithm for 7z (lzma, lzma2, ppmd7, bzip2)"
     option :level, type: :numeric, default: 5,
-                   desc: "Compression level (1-9)"
+                   desc: "Compression level (1-9 for 7z, 1-5 for RAR5)"
     option :solid, type: :boolean, default: true,
-                   desc: "Use solid compression (default: true)"
+                   desc: "Use solid compression (default: true for 7z, false for RAR)"
     option :filters, type: :string,
-                     desc: "Filter chain (e.g., bcj_x86,delta)"
+                     desc: "Filter chain for 7z (e.g., bcj_x86,delta)"
     option :volume_size, type: :string,
                          desc: "Volume size for split archives (e.g., 100M, 650MB, 4.7GB)"
     option :password, type: :string,
-                      desc: "Password for header encryption"
+                      desc: "Password for encryption (7z: header encryption, RAR5: AES-256-CBC)"
     option :encrypt_headers, type: :boolean, default: false,
-                            desc: "Encrypt archive headers (hides filenames)"
+                             desc: "Encrypt archive headers (7z only, hides filenames)"
     option :preserve_ntfs_streams, type: :boolean, default: false,
-                                  desc: "Preserve NTFS alternate data streams (Windows only)"
+                                   desc: "Preserve NTFS alternate data streams (Windows only, 7z only)"
+    option :rar_version, type: :numeric, default: 5,
+                         desc: "RAR version (4 or 5, default: 5 for pure Ruby)"
+    option :rar_compression, type: :string, default: "store",
+                             desc: "RAR compression method (store, lzma, auto)"
+    option :include_mtime, type: :boolean, default: false,
+                           desc: "Include modification time in RAR5 file headers"
+    option :include_crc32, type: :boolean, default: false,
+                           desc: "Include CRC32 checksum in RAR5 file headers"
+    option :multi_volume, type: :boolean, default: false,
+                          desc: "Create multi-volume RAR5 archive (requires --volume-size)"
+    option :volume_naming, type: :string, default: "part",
+                           desc: "Volume naming pattern for RAR5 (part, volume, numeric)"
+    option :kdf_iterations, type: :numeric, default: 262_144,
+                            desc: "PBKDF2 iterations for RAR5 encryption (65536-1048576, default: 262144)"
+    option :recovery, type: :boolean, default: false,
+                      desc: "Generate PAR2 recovery records for RAR5"
+    option :recovery_percent, type: :numeric, default: 5,
+                              desc: "PAR2 redundancy percentage for RAR5 (0-100, default: 5)"
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
@@ -260,7 +297,7 @@ module Omnizip
     option :chmod, type: :string,
                    desc: "Set Unix permissions (e.g., '755', '0644')"
     option :set_attribute, type: :string,
-                          desc: "Set attribute flag (readonly, hidden, system, archive)"
+                           desc: "Set attribute flag (readonly, hidden, system, archive)"
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
@@ -420,7 +457,7 @@ module Omnizip
         $ omnizip convert archive.zip archive.7z --no-solid
     DESC
     option :compression, type: :string,
-                        desc: "Compression algorithm (lzma, lzma2, ppmd7, bzip2)"
+                         desc: "Compression algorithm (lzma, lzma2, ppmd7, bzip2)"
     option :level, type: :numeric, default: 5,
                    desc: "Compression level (1-9)"
     option :filter, type: :string,
@@ -428,9 +465,9 @@ module Omnizip
     option :solid, type: :boolean, default: true,
                    desc: "Use solid compression for 7z (default: true)"
     option :preserve_metadata, type: :boolean, default: true,
-                              desc: "Preserve metadata (default: true)"
+                               desc: "Preserve metadata (default: true)"
     option :delete_source, type: :boolean, default: false,
-                          desc: "Delete source after conversion"
+                           desc: "Delete source after conversion"
     option :verbose, type: :boolean, default: false,
                      aliases: "-v",
                      desc: "Enable verbose output"
@@ -447,7 +484,7 @@ module Omnizip
         filter: options[:filter]&.to_sym,
         solid: options[:solid],
         preserve_metadata: options[:preserve_metadata],
-        delete_source: options[:delete_source]
+        delete_source: options[:delete_source],
       )
 
       puts "Conversion complete!"
@@ -464,7 +501,6 @@ module Omnizip
     rescue StandardError => e
       handle_error(e)
     end
-
 
     map %w[-v --version] => :version
 
@@ -489,7 +525,7 @@ module Omnizip
         format: format,
         compression: compression,
         entry_name: entry_name,
-        level: options[:level]
+        level: options[:level],
       )
 
       warn "Compression complete" if options[:verbose]

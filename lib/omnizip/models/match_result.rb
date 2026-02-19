@@ -6,6 +6,8 @@ module Omnizip
     #
     # Contains matched entries with metadata about the matching process.
     class MatchResult
+      include Enumerable
+
       attr_reader :matches, :total_scanned, :pattern
 
       # Initialize a new match result
@@ -114,7 +116,7 @@ module Omnizip
           pattern: @pattern.to_s,
           matches: count,
           scanned: @total_scanned,
-          match_rate: match_rate
+          match_rate: match_rate,
         }
       end
     end

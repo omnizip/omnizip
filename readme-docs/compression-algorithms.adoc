@@ -1,0 +1,442 @@
+= Compression Algorithms Guide
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document provides detailed information about all compression algorithms supported by Omnizip, including their characteristics, use cases, and performance considerations.
+
+== Supported Algorithms Overview
+
+[cols="20,15,15,50",options="header"]
+|===
+|Algorithm |ID |Type |Description
+
+|LZMA |0x030101 |Dictionary |High compression, range coding
+|LZMA2 |0x21 |Dictionary |Enhanced LZMA with better streaming
+|PPMd7 |0x030401 |Statistical |Prediction by Partial Matching v7
+|PPMd8 |0x030402 |Statistical |PPMd variant H v8
+|BZip2 |0x040202 |BWT |Burrows-Wheeler Transform
+|Deflate |0x040108 |LZ77 |ZIP-compatible (Zlib wrapper)
+|Deflate64 |9 (ZIP) |LZ77 |Enhanced Deflate with 64KB window
+|Zstandard |0x04F71101 |LZ77 |Fast modern compression
+|Copy |0x00 |None |Uncompressed storage
+|===
+
+== LZMA/LZMA2
+
+=== General
+
+LZMA (Lempel-Ziv-Markov chain Algorithm) is a lossless data compression algorithm that achieves high compression ratios through dictionary-based compression combined with range coding. The implementation uses adaptive probability models that adjust based on the input data.
+
+The LZMA algorithm operates in three main stages:
+
+. Dictionary-based compression using LZ77 match finding
+. Range encoding with adaptive bit models
+. State machine for context tracking
+
+LZMA2 extends LZMA with:
+
+* Better support for uncompressible data
+* Improved parallelization potential
+* More efficient handling of small chunks
+* Reset capability for streaming
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐⭐⭐ (Excellent)
+
+**Speed:** ⭐⭐ (Slow)
+
+**Memory Usage:** ⭐⭐⭐ (Moderate to High)
+
+**Best For:**
+
+* Archival storage where size matters most
+* Software distribution packages
+* Documents and text files
+* Any data where maximum compression is priority
+
+**Not Ideal For:**
+
+* Real-time compression needs
+* Streaming data that changes frequently
+* Already compressed data (images, videos)
+
+=== Compression Levels
+
+LZMA/LZMA2 support compression levels from 1 to 9:
+
+* **Level 1:** Fastest compression, 64KB dictionary, ~3-5x compression
+* **Level 2-3:** Fast compression, 1MB dictionary, ~4-7x compression
+* **Level 4-5:** Balanced (default 5), 4MB dictionary, ~6-10x compression
+* **Level 6-7:** Higher compression, 8MB dictionary, ~8-12x compression
+* **Level 8-9:** Maximum compression, 16MB dictionary, ~10-15x compression
+
+=== Usage Example
+
+[source,ruby]
+----
+# LZMA compression
+lzma = Omnizip::AlgorithmRegistry.get(:lzma).new(level: 9)
+lzma.compress(input, output)
+
+# LZMA2 compression (recommended for new archives)
+lzma2 = Omnizip::AlgorithmRegistry.get(:lzma2).new(level: 7)
+lzma2.compress(input, output)
+----
+
+== BZip2
+
+=== General
+
+BZip2 uses the Burrows-Wheeler Transform (BWT) for block-sorting compression, achieving good compression ratios with moderate speed. It's particularly effective for text data.
+
+The algorithm operates in stages:
+
+. Run-Length Encoding (RLE) preprocessing
+. Burrows-Wheeler Transform
+. Move-to-Front transform
+. Run-Length Encoding (second pass)
+. Huffman coding
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐⭐ (Very Good)
+
+**Speed:** ⭐⭐⭐ (Moderate)
+
+**Memory Usage:** ⭐⭐⭐⭐ (Low to Moderate)
+
+**Best For:**
+
+* Text files and source code
+* Log files
+* Data with repetitive patterns
+* When LZMA is too slow but good compression is needed
+
+**Not Ideal For:**
+
+* Binary data with low redundancy
+* Multimedia files
+* When maximum compression is required
+
+=== Compression Levels
+
+BZip2 supports levels 1-9:
+
+* **Level 1:** 100KB blocks, fastest
+* **Level 5:** 500KB blocks, default
+* **Level 9:** 900KB blocks, best compression
+
+Block size directly affects memory usage and compression ratio.
+
+=== Usage Example
+
+[source,ruby]
+----
+bzip2 = Omnizip::AlgorithmRegistry.get(:bzip2).new(level: 9)
+bzip2.compress(input, output)
+----
+
+== PPMd7 and PPMd8
+
+=== General
+
+PPMd (Prediction by Partial Matching) excels at text compression using statistical modeling. It maintains context models that predict the probability of each symbol based on preceding symbols.
+
+Two variants are supported:
+
+* **PPMd7:** Original variant, excellent for general text
+* **PPMd8:** Variant H with improved handling of binary data
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐⭐⭐ (Excellent for text)
+
+**Speed:** ⭐⭐ (Slow)
+
+**Memory Usage:** ⭐⭐ (High, configurable)
+
+**Best For:**
+
+* Plain text files
+* Source code
+* XML/JSON/YAML files
+* Natural language text
+* Any highly structured text data
+
+**Not Ideal For:**
+
+* Binary executable files
+* Multimedia files
+* Low-redundancy data
+* Limited memory environments
+
+=== Configuration
+
+PPMd requires two key parameters:
+
+* `mem_size`: Memory size as power of 2 (e.g., 24 = 16MB)
+* `order`: Context order (typically 4-8)
+
+Higher memory and order = better compression but slower.
+
+=== Usage Example
+
+[source,ruby]
+----
+# PPMd7 for general text
+ppmd7 = Omnizip::AlgorithmRegistry.get(:ppmd7).new(
+  mem_size: 24,  # 16MB
+  order: 6
+)
+ppmd7.compress(input, output)
+
+# PPMd8 for mixed content
+ppmd8 = Omnizip::AlgorithmRegistry.get(:ppmd8).new(
+  mem_size: 26,  # 64MB
+  order: 8
+)
+ppmd8.compress(input, output)
+----
+
+== Deflate
+
+=== General
+
+Deflate provides ZIP-compatible compression using LZ77 sliding window with Huffman coding. It's the standard compression algorithm for ZIP files and uses the native Zlib library.
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐ (Good)
+
+**Speed:** ⭐⭐⭐⭐ (Fast)
+
+**Memory Usage:** ⭐⭐⭐⭐⭐ (Low)
+
+**Best For:**
+
+* ZIP file creation
+* Fast compression needs
+* Web content (gzip)
+* Limited resource environments
+* When compatibility is important
+
+**Not Ideal For:**
+
+* Maximum compression requirements
+* When speed is not critical
+
+=== Compression Levels
+
+Deflate supports levels 1-9:
+
+* **Level 1:** Fastest, minimal compression
+* **Level 6:** Default, balanced
+* **Level 9:** Best compression, slower
+
+=== Usage Example
+
+[source,ruby]
+----
+deflate = Omnizip::AlgorithmRegistry.get(:deflate).new(level: 6)
+deflate.compress(input, output)
+----
+
+== Deflate64
+
+=== General
+
+Deflate64 (Enhanced Deflate) extends standard Deflate with a 64KB sliding window (versus 32KB in standard Deflate), providing better compression ratios for larger files while maintaining ZIP format compatibility as compression method 9.
+
+The algorithm operates in stages:
+
+. LZ77 match finding with 64KB dictionary
+. Huffman coding with dynamic trees
+. Bitstream encoding
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐⭐ (Better than Deflate)
+
+**Speed:** ⭐⭐⭐⭐ (Fast)
+
+**Memory Usage:** ⭐⭐⭐⭐ (Low to Moderate)
+
+**Best For:**
+
+* Large files (> 32KB)
+* ZIP archives needing better compression
+* When Deflate is not enough but LZMA is too slow
+* Files with long-range repetition
+
+**Not Ideal For:**
+
+* Small files (< 32KB)
+* When maximum compatibility is needed (not all ZIP readers support it)
+
+=== Usage Example
+
+[source,ruby]
+----
+deflate64 = Omnizip::AlgorithmRegistry.get(:deflate64).new(level: 7)
+deflate64.compress(input, output)
+----
+
+== Zstandard
+
+=== General
+
+Zstandard (zstd) offers fast compression with good ratios, using a modern LZ77-based algorithm. It's designed to provide a good balance between compression ratio and speed.
+
+**Note:** Current implementation uses the zstd-ruby gem. A pure Ruby implementation is planned for full portability.
+
+=== Characteristics
+
+**Compression Ratio:** ⭐⭐⭐⭐ (Very Good)
+
+**Speed:** ⭐⭐⭐⭐⭐ (Very Fast)
+
+**Memory Usage:** ⭐⭐⭐⭐ (Low to Moderate)
+
+**Best For:**
+
+* Real-time compression
+* Network transmission
+* Fast backup operations
+* When both speed and compression matter
+
+**Not Ideal For:**
+
+* Maximum compression needs (use LZMA instead)
+* Environments requiring pure Ruby (until pure Ruby implementation is complete)
+
+=== Compression Levels
+
+Zstandard supports levels 1-22:
+
+* **Level 1-3:** Fast compression, ~2-3x ratio
+* **Level 3:** Default, good balance
+* **Level 10-15:** High compression
+* **Level 16-22:** Maximum compression (very slow)
+
+=== Usage Example
+
+[source,ruby]
+----
+zstd = Omnizip::AlgorithmRegistry.get(:zstd).new(level: 3)
+zstd.compress(input, output)
+----
+
+== Algorithm Selection Guide
+
+=== By Use Case
+
+**Maximum Compression (size is priority):**
+
+1. LZMA/LZMA2 (level 9)
+2. PPMd7/PPMd8 (for text)
+3. BZip2 (level 9)
+
+**Balanced Compression (size + speed):**
+
+1. LZMA2 (level 5-6)
+2. BZip2 (level 5-6)
+3. Deflate64 (level 6-7)
+
+**Fast Compression (speed is priority):**
+
+1. Zstandard (level 1-3)
+2. Deflate (level 1-3)
+3. LZMA2 (level 1-2)
+
+**Text Files:**
+
+1. PPMd7 (best ratio)
+2. LZMA2 (good all-around)
+3. BZip2 (fast and good)
+
+**Binary Executable Files:**
+
+1. LZMA2 + BCJ filter
+2. Deflate64 + BCJ filter
+3. BZip2
+
+**Mixed Content Archives:**
+
+1. LZMA2 (default for .7z)
+2. Deflate (default for .zip)
+3. BZip2
+
+=== By File Type
+
+[cols="30,70",options="header"]
+|===
+|File Type |Recommended Algorithm
+
+|Text files (.txt, .log, .csv)
+|PPMd7, LZMA2, BZip2
+
+|Source code (.c, .java, .py)
+|PPMd7, LZMA2
+
+|Documents (.doc, .pdf, .odt)
+|LZMA2, Deflate64
+
+|Executables (.exe, .dll, .so)
+|LZMA2 + BCJ filter
+
+|Archives (.tar, .cpio)
+|LZMA2, BZip2
+
+|Database dumps (.sql, .db)
+|PPMd7, LZMA2
+
+|Configuration files (.xml, .json, .yaml)
+|PPMd7, BZip2
+
+|Mixed content
+|LZMA2 (versatile)
+
+|Already compressed (.jpg, .mp3, .mp4)
+|Copy (no compression)
+|===
+
+== Performance Considerations
+
+=== Pure Ruby Implementation
+
+All algorithms are implemented in pure Ruby for maximum portability. This means:
+
+* **10-60x slower** than native C implementations
+* No external dependencies required
+* Works on all Ruby platforms (MRI, JRuby, TruffleRuby)
+* Acceptable for most non-real-time use cases
+
+=== Performance Baseline (v1.0)
+
+Relative to native implementations:
+
+* **LZMA encode:** 13-15x slower (acceptable)
+* **LZMA decode:** 8-10x slower (good)
+* **Range coder:** 10x slower (excellent)
+* **BWT (BZip2):** 50-60x slower (needs optimization)
+
+=== Memory Usage Guidelines
+
+* **LZMA level 9:** ~16MB dictionary + overhead
+* **PPMd order 8:** ~64MB+ (configurable)
+* **BZip2 level 9:** ~9MB blocks
+* **Deflate/Deflate64:** ~1-2MB
+* **Zstandard level 3:** ~2-4MB
+
+For low-memory environments, prefer Deflate or lower compression levels.
+
+== See Also
+
+* link:api-usage.adoc[Library API Usage]
+* link:cli-usage.adoc[CLI Usage Guide]
+* link:preprocessing-filters.adoc[Preprocessing Filters]
+* link:compression-profiles.adoc[Compression Profiles]
+* link:../README.adoc[Main README]

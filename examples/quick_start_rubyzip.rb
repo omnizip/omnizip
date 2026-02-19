@@ -84,7 +84,9 @@ begin
   end
 
   puts "   Extracted to: #{output_dir}"
-  extracted_files = Dir.glob(File.join(output_dir, "**/*")).select { |f| File.file?(f) }
+  extracted_files = Dir.glob(File.join(output_dir, "**/*")).select do |f|
+    File.file?(f)
+  end
   puts "   Extracted #{extracted_files.size} files"
   puts
 
@@ -108,7 +110,6 @@ begin
   puts "All files created in: #{tmpdir}"
   puts "Note: Temporary directory will be cleaned up automatically"
 
-ensure
   # Cleanup (optional - tmpdir usually handles this)
   # FileUtils.rm_rf(tmpdir)
 end

@@ -24,7 +24,7 @@ module Omnizip
       # Extract safely with verification
       # @yield [temp_dir] Block for verification (return truthy to proceed)
       # @return [String] Destination path
-      def extract(&block)
+      def extract
         unless File.exist?(@archive_path)
           raise Errno::ENOENT, "Archive not found: #{@archive_path}"
         end
@@ -35,7 +35,7 @@ module Omnizip
 
           # User verification if block given
           if block_given?
-            result = block.call(temp_dir)
+            result = yield(temp_dir)
             unless result
               raise VerificationError, "Extraction verification failed"
             end

@@ -10,7 +10,7 @@ module Omnizip
       # @return [ConversionResult] Conversion result
       def convert
         start_time = Time.now
-        entry_count = 0
+        0
 
         require_relative "../formats/seven_zip"
         require_relative "../zip/file"
@@ -58,7 +58,7 @@ module Omnizip
           data = {
             name: entry.name,
             content: nil,
-            mtime: entry.mtime || Time.now
+            mtime: entry.mtime || Time.now,
           }
 
           # Extract entry data

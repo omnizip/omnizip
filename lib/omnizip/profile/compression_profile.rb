@@ -75,7 +75,7 @@ module Omnizip
           level: level,
           filter: filter,
           solid: solid,
-          description: description
+          description: description,
         }
       end
 

@@ -16,7 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require "lutaml/model"
+require "json"
 
 module Omnizip
   module Models
@@ -24,27 +24,49 @@ module Omnizip
     #
     # This class encapsulates information about a compression algorithm,
     # including its name, description, version, and capabilities.
-    class AlgorithmMetadata < Lutaml::Model::Serializable
-      attribute :name, :string
-      attribute :description, :string
-      attribute :version, :string
-      attribute :author, :string
-      attribute :max_compression_level, :integer
-      attribute :min_compression_level, :integer
-      attribute :default_compression_level, :integer
-      attribute :supports_streaming, :boolean, default: -> { false }
-      attribute :supports_multithreading, :boolean, default: -> { false }
+    class AlgorithmMetadata
+      attr_accessor :name, :description, :version, :author,
+                    :max_compression_level, :min_compression_level,
+                    :default_compression_level, :supports_streaming,
+                    :supports_multithreading
 
-      json do
-        map "name", to: :name
-        map "description", to: :description
-        map "version", to: :version
-        map "author", to: :author
-        map "max_compression_level", to: :max_compression_level
-        map "min_compression_level", to: :min_compression_level
-        map "default_compression_level", to: :default_compression_level
-        map "supports_streaming", to: :supports_streaming
-        map "supports_multithreading", to: :supports_multithreading
+      def initialize(**kwargs)
+        @supports_streaming = false
+        @supports_multithreading = false
+
+        kwargs.each do |key, value|
+          instance_variable_set("@#{key}", value)
+        end
+      end
+
+      def to_h
+        {
+          name: @name,
+          description: @description,
+          version: @version,
+          author: @author,
+          max_compression_level: @max_compression_level,
+          min_compression_level: @min_compression_level,
+          default_compression_level: @default_compression_level,
+          supports_streaming: @supports_streaming,
+          supports_multithreading: @supports_multithreading,
+        }.compact
+      end
+
+      # Serialize to JSON
+      #
+      # @return [String] JSON representation
+      def to_json(*args)
+        to_h.to_json(*args)
+      end
+
+      # Deserialize from JSON
+      #
+      # @param json [String] JSON string
+      # @return [AlgorithmMetadata] Deserialized instance
+      def self.from_json(json)
+        data = JSON.parse(json)
+        new(**data.transform_keys(&:to_sym))
       end
     end
   end

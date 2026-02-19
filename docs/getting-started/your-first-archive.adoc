@@ -1,0 +1,218 @@
+---
+title: Your First Archive
+nav_order: 4
+parent: Getting Started
+---
+
+== Your First Archive
+
+=== General
+
+This guide walks you through creating your first archive with Omnizip, covering both .7z and ZIP formats.
+
+=== Creating a Simple 7z Archive
+
+==== Command Line
+
+[source,bash]
+----
+# Create a 7z archive with default settings
+omnizip archive create backup.7z document.txt photo.jpg
+----
+
+This creates a new archive using LZMA2 compression at level 5 (default).
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create archive with default settings
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z')
+writer.add_file('document.txt')
+writer.add_file('photo.jpg')
+writer.close
+
+puts "Archive created successfully!"
+----
+
+=== Customizing Compression
+
+==== Higher Compression
+
+[source,bash]
+----
+omnizip archive create backup.7z documents/ \
+  --algorithm lzma2 --level 9
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z',
+  algorithm: :lzma2,
+  level: 9
+)
+writer.add_directory('documents/')
+writer.close
+----
+
+==== Faster Compression
+
+[source,bash]
+----
+omnizip archive create backup.7z data/ \
+  --algorithm lzma2 --level 1
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z',
+  algorithm: :lzma2,
+  level: 1
+)
+writer.add_directory('data/')
+writer.close
+----
+
+=== Creating a ZIP Archive
+
+==== Command Line
+
+[source,bash]
+----
+# Create a ZIP archive
+omnizip archive create backup.zip documents/ \
+  --format zip
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+writer = Omnizip::Formats::Zip::Writer.new('backup.zip')
+writer.add_directory('documents/')
+writer.close
+----
+
+=== Using Filters for Executables
+
+BCJ filters improve compression of executable files:
+
+[source,bash]
+----
+omnizip archive create binaries.7z app.exe \
+  --filters bcj_x86
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('binaries.7z',
+  filters: [:bcj_x86]
+)
+writer.add_file('app.exe')
+writer.close
+----
+
+=== Creating Multi-Volume Archives
+
+Split large archives into multiple volumes:
+
+[source,bash]
+----
+# Create volumes of 100MB each
+omnizip archive create backup.7z.001 large_data/ \
+  --volume-size 100M
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z.001',
+  volume_size: 100 * 1024 * 1024
+)
+writer.add_directory('large_data/')
+writer.close
+----
+
+=== Encrypting Archives
+
+Protect your archives with a password:
+
+[source,bash]
+----
+omnizip archive create secure.7z documents/ \
+  --password "MySecurePassword123!"
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('secure.7z',
+  password: 'MySecurePassword123!'
+)
+writer.add_directory('documents/')
+writer.close
+----
+
+=== Complete Example
+
+Here's a complete example that creates a backup archive:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create encrypted backup with high compression
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z',
+  algorithm: :lzma2,
+  level: 7,
+  password: ENV['BACKUP_PASSWORD'],
+  solid: true
+)
+
+# Add directories
+writer.add_directory('/home/user/documents')
+writer.add_directory('/home/user/projects')
+writer.add_directory('/home/user/photos')
+
+# Write the archive
+writer.close
+
+# Get statistics
+info = Omnizip::Formats::SevenZip::Reader.info('backup.7z')
+puts "Archive created:"
+puts "  Files: #{info.entry_count}"
+puts "  Size: #{info.uncompressed_size} bytes"
+puts "  Compressed: #{info.compressed_size} bytes"
+puts "  Ratio: #{(info.compressed_size.to_f / info.uncompressed_size * 100).round(1)}%"
+----
+
+=== Verifying Your Archive
+
+Always verify your archive after creation:
+
+[source,bash]
+----
+omnizip archive list backup.7z
+----
+
+[source,ruby]
+----
+require 'omnizip'
+
+reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
+reader.open
+puts "Archive contents:"
+reader.each_file do |entry|
+  puts "  #{entry.name} (#{entry.size} bytes)"
+end
+reader.close
+----
+
+=== Next Steps
+
+* link:../guides/basic-usage/creating-archives[Creating Archives Guide] - More archive options
+* link:../guides/advanced-usage/solid-compression[Solid Archives] - Better compression for similar files
+* link:../guides/advanced-usage/encryption[Encryption Guide] - Password protection details
+* link:../guides/basic-usage/extracting-archives[Extracting Archives] - How to extract your archives

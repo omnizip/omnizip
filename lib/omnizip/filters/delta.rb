@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 #
-# Copyright (C) 2024 Ribose Inc.
+# Copyright (C) 2024-2025 Ribose Inc.
 #
 # This file is part of Omnizip.
 #
@@ -16,7 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "filter_base"
+require_relative "../filter"
 
 module Omnizip
   module Filters
@@ -29,7 +29,11 @@ module Omnizip
     #
     # The filter uses wrap-around arithmetic (modulo 256) and is
     # fully reversible.
-    class Delta < FilterBase
+    #
+    # Filter IDs by format:
+    # - XZ: 0x03
+    # - 7-Zip: 0x03
+    class Delta < ::Omnizip::Filter
       # Default distance for delta calculation (audio/single channel)
       DEFAULT_DISTANCE = 1
 
@@ -39,9 +43,19 @@ module Omnizip
       # Byte modulo for wrap-around arithmetic
       BYTE_MODULO = 256
 
+      # Filter ID for XZ format
+      XZ_FILTER_ID = 0x03
+
+      # Filter ID for 7-Zip format
+      SEVEN_ZIP_FILTER_ID = 0x03
+
       attr_reader :distance
 
       # Initialize Delta filter with specified distance.
+      #
+      # Supports both positional and keyword argument styles:
+      #   Delta.new(3)           # positional
+      #   Delta.new(distance: 3) # keyword
       #
       # @param distance [Integer] Byte distance for delta calculation
       #   - 1: Audio/single channel data
@@ -49,10 +63,36 @@ module Omnizip
       #   - 3: RGB image data (24-bit)
       #   - 4: RGBA image data (32-bit) or 32-bit integers
       # @raise [ArgumentError] If distance is invalid
-      def initialize(distance = DEFAULT_DISTANCE)
-        super()
-        validate_distance(distance)
-        @distance = distance
+      def initialize(distance_arg = DEFAULT_DISTANCE, distance: DEFAULT_DISTANCE)
+        # Support both positional and keyword argument styles
+        # If called with Delta.new(3), distance_arg=3, distance=DEFAULT (keyword not used)
+        # If called with Delta.new(distance: 3), distance_arg=DEFAULT, distance=3
+        dist = if distance == DEFAULT_DISTANCE
+                 distance_arg
+               else
+                 distance
+               end
+
+        validate_distance(dist)
+        @distance = dist
+        super(architecture: :delta, name: "Delta")
+      end
+
+      # Get filter ID for specific format
+      #
+      # @param format [Symbol] Format identifier (:seven_zip, :xz)
+      # @return [Integer] Format-specific filter ID
+      # @raise [ArgumentError] If format is not supported
+      def id_for_format(format)
+        case format
+        when :seven_zip
+          SEVEN_ZIP_FILTER_ID
+        when :xz
+          XZ_FILTER_ID
+        else
+          raise ArgumentError,
+                "Unknown format: #{format}. Supported: :seven_zip, :xz"
+        end
       end
 
       # Encode (preprocess) data by computing forward differences.
@@ -124,7 +164,7 @@ module Omnizip
             name: "Delta",
             description: "Byte-wise difference filter for multimedia " \
                          "and database preprocessing",
-            typical_usage: "WAV audio, BMP images, database dumps"
+            typical_usage: "WAV audio, BMP images, database dumps",
           }
         end
       end
@@ -154,6 +194,3 @@ module Omnizip
     end
   end
 end
-
-# Auto-register Delta filter
-Omnizip::FilterRegistry.register(:delta, Omnizip::Filters::Delta)

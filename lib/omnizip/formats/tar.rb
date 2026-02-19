@@ -35,18 +35,22 @@ module Omnizip
         # @param file_path [String] Path to TAR archive
         # @yield [Reader] TAR reader instance
         # @return [Reader] TAR reader instance
+        # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
         def open(file_path, &block)
           Reader.open(file_path, &block)
         end
+        # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
         # Create a TAR archive
         #
         # @param file_path [String] Path to output TAR archive
         # @yield [Writer] TAR writer instance
         # @return [Writer] TAR writer instance
+        # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
         def create(file_path, &block)
           Writer.create(file_path, &block)
         end
+        # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
         # Extract a TAR archive
         #

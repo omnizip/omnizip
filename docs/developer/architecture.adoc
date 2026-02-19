@@ -1,0 +1,256 @@
+---
+title: Architecture
+nav_order: 90
+parent: Developer Guide
+---
+
+== Architecture
+
+Omnizip's system design and component relationships.
+
+=== Overview Diagram
+
+[source]
+----
+                    Omnizip Library
+                          |
+        +-----------------+-----------------+
+        |                 |                 |
+    Registries        Algorithms        Formats
+        |                 |                 |
+    +---+---+         +---+---+         +---+---+
+    |       |         |       |         |       |
+  Alg.   Filter   LZMA    BZip2      7z     ZIP
+  Reg.   Reg.     LZMA2   PPMd       RAR    TAR
+                    Deflate  Zstd      ISO    GZIP
+                                          CPIO   XZ
+                                            BZIP2
+----
+
+=== Registry Pattern
+
+All components use a registry pattern for extensibility:
+
+[source,ruby]
+----
+# Base registry class
+module Omnizip
+  class Registry
+    def initialize
+      @registry = {}
+    end
+
+    def register(name, klass)
+      @registry[name] = klass
+    end
+
+    def get(name)
+      @registry[name] || raise(NotFoundError, name)
+    end
+
+    def registered
+      @registry.keys
+    end
+  end
+end
+
+# Algorithm registry
+AlgorithmRegistry = Registry.new
+
+# Filter registry
+FilterRegistry = Registry.new
+
+# Format registry
+FormatRegistry = Registry.new
+----
+
+=== Algorithm Architecture
+
+Compression algorithms implement a common interface:
+
+[source,ruby]
+----
+module Omnizip
+  module Algorithms
+    class Base
+      def initialize(options = {})
+        @options = options
+      end
+
+      def compress(input, output)
+        raise NotImplementedError
+      end
+
+      def decompress(input, output)
+        raise NotImplementedError
+      end
+    end
+  end
+end
+
+# Example: LZMA2
+module Algorithms
+  class LZMA2 < Base
+    def compress(input, output)
+      # LZMA2 compression implementation
+    end
+
+    def decompress(input, output)
+      # LZMA2 decompression implementation
+    end
+  end
+end
+----
+
+=== Format Architecture
+
+Archive formats implement reader/writer interfaces:
+
+[source,ruby]
+----
+module Omnizip
+  module Formats
+    module SevenZip
+      class Reader
+        def initialize(filename)
+          @filename = filename
+        end
+
+        def open
+          # Open archive
+        end
+
+        def each_file
+          # Yield archive entries
+        end
+
+        def extract_all(output_dir)
+          # Extract all files
+        end
+
+        def close
+          # Close archive
+        end
+      end
+
+      class Writer
+        def initialize(filename, options = {})
+          @filename = filename
+          @options = options
+        end
+
+        def add_file(path)
+          # Add file to archive
+        end
+
+        def add_directory(path)
+          # Add directory to archive
+        end
+
+        def close
+          # Write and close archive
+        end
+      end
+    end
+  end
+end
+----
+
+=== Component Relationships
+
+==== Compression Flow
+
+[source,ruby]
+----
+# User API call
+Omnizip.compress_file('input.txt', 'output.lzma',
+  algorithm: :lzma2,
+  level: 9
+)
+
+# Resolves to:
+# 1. Get algorithm from registry
+algorithm = AlgorithmRegistry.get(:lzma2).new(level: 9)
+
+# 2. Open files
+File.open('input.txt', 'rb') do |input|
+  File.open('output.lzma', 'wb') do |output|
+    # 3. Compress
+    algorithm.compress(input, output)
+  end
+end
+----
+
+==== Archive Creation Flow
+
+[source,ruby]
+----
+# User API call
+writer = Formats::SevenZip::Writer.new('archive.7z',
+  algorithm: :lzma2,
+  level: 7
+)
+
+# Resolves to:
+# 1. Get algorithm
+algorithm = AlgorithmRegistry.get(:lzma2).new(level: 7)
+
+# 2. Apply filters (if any)
+filters = options[:filters].map do |name|
+  FilterRegistry.get(name).new
+end
+
+# 3. For each added file:
+#    a. Apply filters
+#    b. Compress with algorithm
+#    c. Write to archive
+
+writer.add_file('document.txt')
+writer.close
+----
+
+### Design Principles
+
+==== Object-Oriented
+
+All components use proper OOP:
+
+* Encapsulation of state and behavior
+* Inheritance for shared functionality
+* Polymorphism for extensibility
+
+==== Separation of Concerns
+
+Each component has single responsibility:
+
+* **Algorithms** - Compression/decompression only
+* **Formats** - Archive structure only
+* **Filters** - Preprocessing only
+* **Checksums** - Integrity verification only
+
+==== Extensibility
+
+Easy to add new components:
+
+[source,ruby]
+----
+# Add custom algorithm
+class MyAlgorithm < Omnizip::Algorithms::Base
+  def compress(input, output)
+    # Custom compression
+  end
+end
+
+Omnizip::AlgorithmRegistry.register(:myalgo, MyAlgorithm)
+
+# Use immediately
+Omnizip.compress_file('input.txt', 'output.my',
+  algorithm: :myalgo
+)
+----
+
+### See Also
+
+* link:../concepts/[Core Concepts]
+* link:contributing[Contributing Guide]
+* link:../guides/[Usage Guides]

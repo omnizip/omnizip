@@ -1,0 +1,39 @@
+= PAR2 Test Fixtures
+
+These test fixtures are derived from the par2cmdline reference implementation:
+https://github.com/Parchive/par2cmdline
+
+par2cmdline is licensed under the GNU General Public License v2.0 or later.
+
+== Purpose
+
+These fixtures are used for testing compatibility with the PAR2 specification
+as implemented by par2cmdline, which is the reference implementation for the
+PAR2 file format.
+
+== Attribution
+
+The test data files in this directory were extracted from the par2cmdline
+project's test suite and are used here to verify that Omnizip's PAR2
+implementation correctly handles real-world PAR2 archives.
+
+== License
+
+The test fixtures themselves fall under the GPL v2.0 or later license, as
+they are derivative works from par2cmdline.
+
+However, Omnizip's implementation is an independent, clean-room implementation
+based on publicly available PAR2 format specifications.
+
+These test files are not distributed in the Omnizip gem releases, but are
+included in the source repository for testing purposes only.
+
+== Files
+
+The following test fixtures are included:
+
+* `flatdata.tar.gz` - Simple flat file structure test case (1,984 bytes)
+* `flatdata-par2files.tar.gz` - PAR2 parity files for flatdata (47,620 bytes)
+
+Additional fixtures can be found in the upstream par2cmdline repository:
+https://github.com/Parchive/par2cmdline/tree/master/tests

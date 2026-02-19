@@ -44,14 +44,14 @@ module Zip
   class << self
     # Legacy compatibility method
     # @deprecated Use Zip::File.open instead
-    def open(*args, &block)
-      File.open(*args, &block)
+    def open(...)
+      File.open(...)
     end
 
     # Legacy compatibility method
     # @deprecated Use Zip::File.create instead
-    def create(*args, &block)
-      File.create(*args, &block)
+    def create(...)
+      File.create(...)
     end
   end
 end

@@ -1,0 +1,113 @@
+---
+title: Comparison
+nav_order: 7
+has_children: true
+---
+
+== Comparison with Other Tools
+
+This section provides detailed comparisons of Omnizip against other popular archive and compression tools.
+
+== Overview
+
+Omnizip is designed to be a pure Ruby compression library with advanced features. Understanding how it compares to other tools helps you make informed decisions about which tool to use for your needs.
+
+== Comparison Topics
+
+link:feature-matrix.html[**Feature Comparison Matrix**]::
+Comprehensive feature comparison across all major tools
+
+link:vs-rubyzip.html[**Omnizip vs rubyzip**]::
+Detailed comparison with the popular rubyzip gem
+
+link:vs-7zip.html[**Omnizip vs 7-Zip**]::
+How Omnizip compares to the native 7-Zip tool
+
+link:vs-winrar.html[**Omnizip vs WinRAR**]::
+Comparison with the commercial WinRAR utility
+
+link:vs-peazip.html[**Omnizip vs PeaZip**]::
+Open-source alternative comparison
+
+== Key Differentiators
+
+=== Pure Ruby Implementation
+
+Unlike most compression tools, Omnizip is written entirely in Ruby with no C extensions or external dependencies. This provides:
+
+* **Portability** - Runs anywhere Ruby runs
+* **Maintainability** - Easy to understand and modify
+* **Security** - No binary dependencies to audit
+* **Debugging** - Full visibility into compression logic
+
+=== Multiple Format Support
+
+Omnizip supports multiple archive formats in a single library:
+
+* ZIP (read/write)
+* 7z (read/write)
+* RAR (read-only)
+* TAR (read/write)
+* ISO (read-only)
+
+=== Advanced Algorithms
+
+Native implementation of advanced compression algorithms:
+
+* LZMA/LZMA2
+* BZip2
+* PPMd7/PPMd8
+* Deflate64
+* Zstandard
+
+=== Rubyzip Compatibility
+
+Drop-in replacement for the rubyzip gem with enhanced features.
+
+== Use Case Recommendations
+
+=== Choose Omnizip When
+
+* You need pure Ruby implementation
+* You want 7-Zip format support in Ruby
+* You need advanced compression algorithms (LZMA2, PPMd)
+* You're migrating from rubyzip and want better compression
+* You need both ZIP and 7z formats in one library
+* You want good API design and documentation
+
+=== Choose Rubyzip When
+
+* You only need ZIP format support
+* You want the most mature Ruby ZIP library
+* You have existing rubyzip code to maintain
+* Pure simplicity is more important than features
+
+=== Choose 7-Zip When
+
+* You need maximum compression ratio
+* You're working with very large files
+* Command-line interface is acceptable
+* Native C++ performance is required
+
+=== Choose WinRAR When
+
+* You specifically need RAR format write support
+* You're on Windows platform primarily
+* You have a WinRAR license
+
+== Performance Considerations
+
+As a pure Ruby implementation, Omnizip trades some performance for portability:
+
+* **10-60x slower** than native C implementations
+* **Excellent** for Ruby-native environments
+* **Acceptable** for moderate file sizes
+* **Portable** across all platforms
+
+See link:../guides/performance-tuning.html[Performance Tuning] for detailed benchmarks.
+
+== See Also
+
+* link:feature-matrix.html[Complete Feature Matrix]
+* link:../guides/performance-tuning.html[Performance Tuning]
+* link:../guides/migration-rubyzip.html[Migration from Rubyzip]

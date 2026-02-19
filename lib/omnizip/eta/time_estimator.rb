@@ -21,7 +21,7 @@ module Omnizip
       def initialize(sample_history: nil, rate_calculator: nil)
         @sample_history = sample_history || SampleHistory.new
         @rate_calculator = rate_calculator ||
-                           RateCalculator.new(sample_history: @sample_history)
+          RateCalculator.new(sample_history: @sample_history)
       end
 
       # Add a sample to the history
@@ -33,7 +33,7 @@ module Omnizip
         sample_history.add_sample(
           bytes_processed: bytes_processed,
           files_processed: files_processed,
-          timestamp: timestamp
+          timestamp: timestamp,
         )
       end
 

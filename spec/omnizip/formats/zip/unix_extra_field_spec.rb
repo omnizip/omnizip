@@ -66,7 +66,7 @@ RSpec.describe Omnizip::Formats::Zip::UnixExtraField do
   describe ".from_binary" do
     it "parses field with uid and gid" do
       original = described_class.new(uid: 1000, gid: 1000)
-      binary = original.to_binary[4..-1] # Skip tag and size
+      binary = original.to_binary[4..] # Skip tag and size
       parsed = described_class.from_binary(binary)
 
       expect(parsed.uid).to eq(1000)
@@ -77,9 +77,9 @@ RSpec.describe Omnizip::Formats::Zip::UnixExtraField do
       original = described_class.new(
         uid: 1000,
         gid: 1000,
-        link_target: "/path/to/target"
+        link_target: "/path/to/target",
       )
-      binary = original.to_binary[4..-1] # Skip tag and size
+      binary = original.to_binary[4..] # Skip tag and size
       parsed = described_class.from_binary(binary)
 
       expect(parsed.uid).to eq(1000)
@@ -174,7 +174,7 @@ RSpec.describe Omnizip::Formats::Zip::UnixExtraField do
       field = described_class.new(
         uid: 1000,
         gid: 1000,
-        link_target: "/target"
+        link_target: "/target",
       )
       hash = field.to_h
 
@@ -191,7 +191,7 @@ RSpec.describe Omnizip::Formats::Zip::UnixExtraField do
       original = described_class.new(
         uid: 1000,
         gid: 1000,
-        link_target: "/path/to/target"
+        link_target: "/path/to/target",
       )
 
       binary = original.to_binary

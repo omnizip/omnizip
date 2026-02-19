@@ -25,6 +25,8 @@ require_relative "omnizip/models/profile_report"
 require_relative "omnizip/models/optimization_suggestion"
 require_relative "omnizip/models/progress_options"
 require_relative "omnizip/models/eta_result"
+require_relative "omnizip/models/filter_config"
+require_relative "omnizip/models/filter_chain"
 require_relative "omnizip/algorithm"
 require_relative "omnizip/algorithm_registry"
 require_relative "omnizip/format_registry"
@@ -42,9 +44,11 @@ require_relative "omnizip/algorithms/deflate64"
 require_relative "omnizip/algorithms/zstandard"
 
 # Filter components
+require_relative "omnizip/filter"
 require_relative "omnizip/filter_registry"
 require_relative "omnizip/filter_pipeline"
 require_relative "omnizip/filters/filter_base"
+require_relative "omnizip/filters/bcj"
 require_relative "omnizip/filters/bcj_x86"
 require_relative "omnizip/filters/bcj2"
 require_relative "omnizip/filters/bcj_arm"
@@ -53,6 +57,9 @@ require_relative "omnizip/filters/bcj_ppc"
 require_relative "omnizip/filters/bcj_sparc"
 require_relative "omnizip/filters/bcj_ia64"
 require_relative "omnizip/filters/delta"
+
+# Register filters with format-aware registration
+require_relative "omnizip/filters/registry"
 
 # Checksum implementations
 require_relative "omnizip/checksum_registry"
@@ -72,16 +79,6 @@ Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)
 # Crypto implementations
 require_relative "omnizip/crypto/aes256"
 
-# Register filters
-Omnizip::FilterRegistry.register(:"bcj-x86", Omnizip::Filters::BcjX86)
-Omnizip::FilterRegistry.register(:bcj2, Omnizip::Filters::Bcj2)
-Omnizip::FilterRegistry.register(:"bcj-arm", Omnizip::Filters::BcjArm)
-Omnizip::FilterRegistry.register(:"bcj-arm64", Omnizip::Filters::BcjArm64)
-Omnizip::FilterRegistry.register(:"bcj-ppc", Omnizip::Filters::BcjPpc)
-Omnizip::FilterRegistry.register(:"bcj-sparc", Omnizip::Filters::BcjSparc)
-Omnizip::FilterRegistry.register(:"bcj-ia64", Omnizip::Filters::BcjIa64)
-# Delta filter auto-registers itself
-
 # Archive format support
 require_relative "omnizip/formats/seven_zip"
 require_relative "omnizip/formats/zip"
@@ -92,6 +89,8 @@ require_relative "omnizip/formats/tar"
 require_relative "omnizip/formats/gzip"
 require_relative "omnizip/formats/bzip2_file"
 require_relative "omnizip/formats/xz"
+require_relative "omnizip/formats/lzma_alone"
+require_relative "omnizip/formats/lzip"
 
 # ISO 9660 CD-ROM format (Weeks 11-14)
 require_relative "omnizip/formats/iso"
@@ -135,14 +134,20 @@ require_relative "omnizip/converter"
 require_relative "omnizip/link_handler"
 
 # Parallel processing (v2.0 Phase 4 Weeks 11-12)
+# NOTE: Not auto-loaded to avoid loading fractor unnecessarily.
+# Users who need parallel processing should explicitly require it:
+#   require "omnizip/parallel"
 require_relative "omnizip/models/parallel_options"
-require_relative "omnizip/parallel"
+# require_relative "omnizip/parallel"  # Lazy-load only when needed
 
 # Performance profiling components
 require_relative "omnizip/profiler"
 require_relative "omnizip/profiler/method_profiler"
 require_relative "omnizip/profiler/memory_profiler"
 require_relative "omnizip/profiler/report_generator"
+
+# PAR2 parity archive support
+require_relative "omnizip/parity"
 
 # CLI components (cli.rb will require output_formatter itself)
 require_relative "omnizip/cli"

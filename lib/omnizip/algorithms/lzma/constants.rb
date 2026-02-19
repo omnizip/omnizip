@@ -55,6 +55,9 @@ module Omnizip
         # Number of position bits (pb)
         NUM_POS_BITS_MAX = 4
 
+        # Number of LZMA states (from state machine)
+        NUM_STATES = 12
+
         # Dictionary size limits
         DICT_SIZE_MIN = 1 << 12  # 4KB
         DICT_SIZE_MAX = 1 << 30  # 1GB
@@ -83,6 +86,26 @@ module Omnizip
 
         # End of stream marker
         EOS_MARKER = true
+
+        # SDK-specific encoding constants
+        # Length encoding constants
+        NUM_LEN_LOW_BITS = 3
+        NUM_LEN_MID_BITS = 3
+        NUM_LEN_HIGH_BITS = 8
+        LEN_LOW_SYMBOLS = 1 << NUM_LEN_LOW_BITS
+        LEN_MID_SYMBOLS = 1 << NUM_LEN_MID_BITS
+        LEN_HIGH_SYMBOLS = 1 << NUM_LEN_HIGH_BITS
+
+        # Distance encoding constants
+        NUM_DIST_SLOT_BITS = 6
+        DIST_ALIGN_BITS = 4
+        DIST_ALIGN_SIZE = 1 << DIST_ALIGN_BITS
+        START_POS_MODEL_INDEX = 4
+        END_POS_MODEL_INDEX = 14
+        NUM_FULL_DISTANCES = 1 << (END_POS_MODEL_INDEX >> 1)
+
+        # Distance slot calculation helper
+        DIST_SLOT_FAST_LIMIT = 1 << (NUM_DIST_SLOT_BITS + 1)
       end
     end
   end

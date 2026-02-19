@@ -57,7 +57,7 @@ module Omnizip
         def initialize(output, options = {})
           @output = output
           @block_size = validate_block_size(
-            options[:block_size] || DEFAULT_BLOCK_SIZE
+            options[:block_size] || DEFAULT_BLOCK_SIZE,
           )
           @bwt = Bwt.new
           @mtf = Mtf.new

@@ -60,7 +60,7 @@ module Omnizip
         case @format
         when :zip
           compress_zip
-        when :seven_zip, :"7z"
+        when :seven_zip, :'7z'
           compress_7z
         else
           raise ArgumentError, "Unsupported format: #{@format}"
@@ -114,9 +114,7 @@ module Omnizip
           @bytes_written += chunk.bytesize
 
           # Call progress callback if provided
-          if @progress_callback
-            @progress_callback.call(@bytes_read, @bytes_written)
-          end
+          @progress_callback&.call(@bytes_read, @bytes_written)
         end
       rescue IOError, SystemCallError => e
         raise Omnizip::Error, "Stream compression failed: #{e.message}"

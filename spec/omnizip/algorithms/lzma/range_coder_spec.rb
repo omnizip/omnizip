@@ -10,7 +10,7 @@ RSpec.describe "LZMA Range Coding" do
     describe "#initialize" do
       it "initializes with default probability" do
         expect(model.probability).to eq(
-          Omnizip::Algorithms::LZMA::Constants::INIT_PROBS
+          Omnizip::Algorithms::LZMA::Constants::INIT_PROBS,
         )
       end
 
@@ -60,7 +60,7 @@ RSpec.describe "LZMA Range Coding" do
         # Decode
         encoder_output.rewind
         decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(
-          encoder_output
+          encoder_output,
         )
         decode_model = Omnizip::Algorithms::LZMA::BitModel.new
         decoded_bits = bits.map { decoder.decode_bit(decode_model) }
@@ -81,7 +81,7 @@ RSpec.describe "LZMA Range Coding" do
         # Decode
         encoder_output.rewind
         decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(
-          encoder_output
+          encoder_output,
         )
         decoded_values = values.map do
           decoder.decode_direct_bits(num_bits)
@@ -95,7 +95,7 @@ RSpec.describe "LZMA Range Coding" do
           { value: 3, bits: 2 },
           { value: 7, bits: 3 },
           { value: 15, bits: 4 },
-          { value: 31, bits: 5 }
+          { value: 31, bits: 5 },
         ]
 
         # Encode
@@ -107,7 +107,7 @@ RSpec.describe "LZMA Range Coding" do
         # Decode
         encoder_output.rewind
         decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(
-          encoder_output
+          encoder_output,
         )
         decoded_values = test_cases.map do |tc|
           decoder.decode_direct_bits(tc[:bits])
@@ -135,7 +135,7 @@ RSpec.describe "LZMA Range Coding" do
         # Decode
         encoder_output.rewind
         decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(
-          encoder_output
+          encoder_output,
         )
         decode_model = Omnizip::Algorithms::LZMA::BitModel.new
 
@@ -156,7 +156,7 @@ RSpec.describe "LZMA Range Coding" do
 
       it "returns algorithm metadata" do
         expect(metadata).to be_a(
-          Omnizip::Models::AlgorithmMetadata
+          Omnizip::Models::AlgorithmMetadata,
         )
       end
 

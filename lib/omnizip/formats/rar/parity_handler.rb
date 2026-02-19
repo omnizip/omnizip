@@ -53,7 +53,7 @@ module Omnizip
             verified: corrupted_blocks.empty?,
             total: blocks_to_check.size,
             ok: blocks_to_check.size - corrupted_blocks.size,
-            corrupted: corrupted_blocks
+            corrupted: corrupted_blocks,
           }
         end
 
@@ -173,7 +173,7 @@ module Omnizip
             index: block_index,
             size: block_size,
             checksum: checksum,
-            data: parity_data
+            data: parity_data,
           }
         rescue StandardError
           nil

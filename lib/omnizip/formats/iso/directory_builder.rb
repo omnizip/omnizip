@@ -52,7 +52,7 @@ module Omnizip
             files: @files,
             path_table: path_table,
             path_table_size: path_table.bytesize,
-            total_sectors: @current_sector
+            total_sectors: @current_sector,
           }
         end
 
@@ -67,7 +67,7 @@ module Omnizip
             iso_path: "",
             children: [],
             directory: true,
-            stat: nil
+            stat: nil,
           }
 
           # Add all directories first
@@ -94,6 +94,8 @@ module Omnizip
 
           # Navigate/create directory structure
           parts[0...-1].each do |part|
+            # Ensure current node has children array (it should be a directory)
+            current[:children] ||= []
             child = current[:children].find { |c| c[:name] == part }
 
             unless child
@@ -102,7 +104,7 @@ module Omnizip
                 iso_path: [current[:iso_path], part].reject(&:empty?).join("/"),
                 children: [],
                 directory: true,
-                stat: nil
+                stat: nil,
               }
               current[:children] << child
             end
@@ -119,9 +121,11 @@ module Omnizip
             directory: info[:directory] || false,
             stat: info[:stat],
             source: info[:source],
-            size: info[:directory] ? 0 : File.size(info[:source])
+            size: info[:directory] ? 0 : File.size(info[:source]),
           }
 
+          # Ensure current node has children array
+          current[:children] ||= []
           current[:children] << entry
         end
 
@@ -187,7 +191,7 @@ module Omnizip
         #
         # @param entry [Hash] Entry information
         # @return [Integer] Size in bytes
-        def calculate_rock_ridge_size(entry)
+        def calculate_rock_ridge_size(_entry)
           # Basic Rock Ridge fields:
           # - PX (POSIX attributes): 44 bytes
           # - TF (timestamps): 26 bytes
@@ -226,14 +230,14 @@ module Omnizip
         # @param tree [Hash] Directory tree
         # @return [String] Path table data
         def build_path_table(tree)
-          table = String.new
+          table = +""
           directories = []
 
           # Collect all directories in path table order
           collect_directories_for_path_table(tree, directories)
 
           # Build path table entries
-          directories.each_with_index do |dir, idx|
+          directories.each_with_index do |dir, _idx|
             name = dir[:name] == "\x00" ? "\x00" : dir[:name]
             parent_idx = dir[:parent_idx] || 0
 

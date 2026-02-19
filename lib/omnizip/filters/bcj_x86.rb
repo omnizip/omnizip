@@ -135,7 +135,7 @@ module Omnizip
             name: "BCJ-x86",
             description: "Branch/Call/Jump converter for x86/x64 " \
                          "executables",
-            architecture: "x86/x64"
+            architecture: "x86/x64",
           }
         end
       end
@@ -150,9 +150,9 @@ module Omnizip
       def extract_int32_le(data, offset)
         bytes = data.byteslice(offset, ADDRESS_SIZE).bytes
         value = bytes[0] |
-                (bytes[1] << 8) |
-                (bytes[2] << 16) |
-                (bytes[3] << 24)
+          (bytes[1] << 8) |
+          (bytes[2] << 16) |
+          (bytes[3] << 24)
 
         # Convert to signed integer
         value >= 0x80000000 ? value - 0x100000000 : value

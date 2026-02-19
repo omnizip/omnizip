@@ -1,0 +1,158 @@
+---
+title: Contributing
+nav_order: 86
+parent: Developer Guide
+---
+
+== Contributing
+
+Thank you for considering contributing to Omnizip!
+
+=== General
+
+Contributions are welcome! This document provides guidelines for contributing to Omnizip.
+
+=== Code of Conduct
+
+* Be respectful and inclusive
+* Provide constructive feedback
+* Focus on what is best for the community
+
+### How to Contribute
+
+==== Report Bugs
+
+Report bugs at https://github.com/metanorma/omnizip/issues
+
+Include:
+
+* Omnizip version
+* Ruby version
+* Operating system
+* Reproduction steps
+* Expected vs actual behavior
+
+==== Suggest Features
+
+Request features at https://github.com/metanorma/omnizip/issues
+
+Explain:
+
+* Use case for the feature
+* Why it's important
+* Proposed implementation (if known)
+
+==== Submit Pull Requests
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add/update tests
+5. Run test suite
+6. Run linter
+7. Commit with semantic message
+8. Push to branch
+9. Create pull request
+
+=== Development Setup
+
+[source,bash]
+----
+# Clone repository
+git clone https://github.com/metanorma/omnizip.git
+cd omnizip
+
+# Install dependencies
+bundle install
+
+# Run tests
+bundle exec rspec
+
+# Run linter
+bundle exec rubocop -A
+----
+
+### Coding Standards
+
+==== Style Guide
+
+Follow these guidelines:
+
+* Use 2 spaces for indentation
+* Max line length: 80 characters
+* Max method length: 50 lines
+* Max class length: 700 lines
+
+==== Naming Conventions
+
+* Classes: `PascalCase`
+* Methods: `snake_case`
+* Constants: `SCREAMING_SNAKE_CASE`
+* Variables: `snake_case`
+
+==== Documentation
+
+* Document public methods with YARD comments
+* Include usage examples
+* Explain parameters and return values
+
+=== Testing
+
+==== Test Coverage
+
+Aim for:
+
+* Unit tests for all methods
+* Integration tests for formats
+* Round-trip tests for compression
+
+==== Test Structure
+
+[source,ruby]
+----
+RSpec.describe Omnizip::Algorithms::LZMA do
+  describe '#compress' do
+    it 'compresses data correctly' do
+      # Test implementation
+    end
+  end
+
+  describe '#decompress' do
+    it 'decompresses data correctly' do
+      # Test implementation
+    end
+  end
+end
+----
+
+=== Commit Messages
+
+Use semantic commit messages:
+
+```
+feat(algorithm): add new compression algorithm
+fix(format): correct ZIP file header parsing
+docs(guide): update installation instructions
+test(spec): add regression test for issue #123
+```
+
+### Release Process
+
+Releases are managed by maintainers:
+
+1. Update version number
+2. Update CHANGELOG
+3. Create release tag
+4. Build and publish gem
+5. Update documentation
+
+### Getting Help
+
+* GitHub Issues: https://github.com/metanorma/omnizip/issues
+* Discussions: https://github.com/metanorma/omnizip/discussions
+
+### See Also
+
+* link:code-style[Code Style] - Detailed coding standards
+* link:testing[Testing Guide] - Testing guidelines
+* link:architecture[Architecture] - System design

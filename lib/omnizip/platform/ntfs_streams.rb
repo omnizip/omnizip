@@ -144,7 +144,7 @@ module Omnizip
         {
           name: stream_name,
           size: data.bytesize,
-          exists: true
+          exists: true,
         }
       end
 

@@ -101,12 +101,12 @@ module Omnizip
             break if entry.nil?
 
             # Read entry data
-            if entry.size > 0
+            if entry.size.positive?
               entry.data = @file.read(entry.size)
 
               # Skip to next block boundary
               remainder = entry.size % BLOCK_SIZE
-              if remainder > 0
+              if remainder.positive?
                 padding = BLOCK_SIZE - remainder
                 @file.read(padding)
               end

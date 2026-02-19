@@ -16,7 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require "lutaml/model"
+require "json"
 
 module Omnizip
   module Models
@@ -24,23 +24,47 @@ module Omnizip
     #
     # This class encapsulates configuration options for compression
     # operations, including compression level, threading, and buffer sizes.
-    class CompressionOptions < Lutaml::Model::Serializable
-      attribute :level, :integer, default: -> { 5 }
-      attribute :dictionary_size, :integer
-      attribute :num_fast_bytes, :integer
-      attribute :match_finder, :string
-      attribute :num_threads, :integer, default: -> { 1 }
-      attribute :solid, :boolean, default: -> { false }
-      attribute :buffer_size, :integer, default: -> { 65_536 }
+    class CompressionOptions
+      attr_accessor :level, :dictionary_size, :num_fast_bytes, :match_finder,
+                    :num_threads, :solid, :buffer_size
 
-      json do
-        map "level", to: :level
-        map "dictionary_size", to: :dictionary_size
-        map "num_fast_bytes", to: :num_fast_bytes
-        map "match_finder", to: :match_finder
-        map "num_threads", to: :num_threads
-        map "solid", to: :solid
-        map "buffer_size", to: :buffer_size
+      def initialize(**kwargs)
+        @level = 5
+        @num_threads = 1
+        @solid = false
+        @buffer_size = 65_536
+
+        kwargs.each do |key, value|
+          instance_variable_set("@#{key}", value)
+        end
+      end
+
+      def to_h
+        {
+          level: @level,
+          dictionary_size: @dictionary_size,
+          num_fast_bytes: @num_fast_bytes,
+          match_finder: @match_finder,
+          num_threads: @num_threads,
+          solid: @solid,
+          buffer_size: @buffer_size,
+        }.compact
+      end
+
+      # Serialize to JSON
+      #
+      # @return [String] JSON representation
+      def to_json(*args)
+        to_h.to_json(*args)
+      end
+
+      # Deserialize from JSON
+      #
+      # @param json [String] JSON string
+      # @return [CompressionOptions] Deserialized instance
+      def self.from_json(json)
+        data = JSON.parse(json)
+        new(**data.transform_keys(&:to_sym))
       end
     end
   end

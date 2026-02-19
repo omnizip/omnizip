@@ -23,7 +23,7 @@ module Omnizip
           return strategy if strategy
 
           raise ArgumentError, "Unknown encryption strategy: #{name}. " \
-                              "Available: #{@strategies.keys.join(', ')}"
+                               "Available: #{@strategies.keys.join(', ')}"
         end
 
         # Check if strategy is registered

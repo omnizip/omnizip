@@ -93,7 +93,7 @@ module Omnizip
             system_id: iso.system_identifier,
             size: iso.volume_size,
             files: iso.entries.count { |e| !e.directory? },
-            directories: iso.entries.count(&:directory?)
+            directories: iso.entries.count(&:directory?),
           }
         end
       end

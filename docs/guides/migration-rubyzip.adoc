@@ -1,0 +1,217 @@
+---
+title: Migrating from Rubyzip
+nav_order: 4
+parent: Guides
+---
+
+== Migrating from Rubyzip
+
+Complete guide to migrating from the rubyzip gem to Omnizip.
+
+== Quick Migration
+
+=== Step 1: Install Omnizip
+
+[source,ruby]
+----
+# Gemfile
+gem 'omnizip', '~> 1.0'
+----
+
+=== Step 2: Use Compatibility Layer
+
+[source,ruby]
+----
+# Before (rubyzip)
+require 'zip'
+
+# After (Omnizip with compatibility)
+require 'omnizip/rubyzip_compat'
+
+# All existing Zip::* code works unchanged!
+----
+
+== Why Migrate?
+
+✅ **Format Flexibility** - Support both ZIP and 7z formats
+
+✅ **Better Compression** - LZMA2, BZip2, PPMd, Deflate64
+
+✅ **Pure Ruby** - No external dependencies
+
+✅ **Backward Compatible** - Drop-in replacement
+
+✅ **Better Architecture** - Clean OOP design
+
+== Code Examples
+
+=== Creating Archives
+
+**Before (rubyzip):**
+
+[source,ruby]
+----
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt', 'path/to/file.txt')
+end
+----
+
+**After (with compatibility layer):**
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt', 'path/to/file.txt')
+end
+----
+
+**After (enhanced API):**
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip::Archive.create('archive.zip') do |archive|
+  archive.add_file('path/to/file.txt', 'file.txt')
+end
+----
+
+=== Extracting Archives
+
+**Before (rubyzip):**
+
+[source,ruby]
+----
+Zip::File.open('archive.zip') do |zip|
+  zip.each do |entry|
+    entry.extract("output/#{entry.name}")
+  end
+end
+----
+
+**After (enhanced API):**
+
+[source,ruby]
+----
+Omnizip::Archive.open('archive.zip') do |archive|
+  archive.extract_all('output/')
+end
+----
+
+== Migration Strategies
+
+=== Strategy 1: Drop-in Replacement
+
+For simple codebases - just change the require:
+
+[source,ruby]
+----
+# config/initializers/omnizip.rb
+require 'omnizip/rubyzip_compat'
+----
+
+All existing `Zip::*` code works unchanged!
+
+=== Strategy 2: Gradual Migration
+
+Keep both gems during transition:
+
+[source,ruby]
+----
+# Gemfile
+gem 'rubyzip', '~> 3.0'
+gem 'omnizip', '~> 1.0'
+
+# Migrate file by file
+require 'zip'        # Old code
+require 'omnizip'    # New code
+----
+
+=== Strategy 3: Full Migration
+
+New projects - use enhanced API:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Use Omnizip's improved API from the start
+Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
+  archive.add_directory('data/')
+end
+----
+
+== Common Patterns
+
+=== Reading Archive Contents
+
+[source,ruby]
+----
+Omnizip::Zip::File.open('archive.zip') do |zip|
+  zip.each do |entry|
+    next unless entry.file?
+    content = entry.get_input_stream.read
+    process(entry.name, content)
+  end
+end
+----
+
+=== Streaming Operations
+
+[source,ruby]
+----
+Omnizip::Zip::OutputStream.open('archive.zip') do |zos|
+  files.each do |file|
+    zos.put_next_entry(file[:name])
+    zos.write file[:data]
+  end
+end
+----
+
+=== Encrypted Archives
+
+[source,ruby]
+----
+# Use 7z for AES-256 encryption
+Omnizip::Archive.create('secure.7z',
+                        format: :seven_zip,
+                        password: 'secret') do |archive|
+  archive.add_file('sensitive.txt')
+end
+----
+
+== Migration Checklist
+
+- [ ] Install Omnizip gem
+- [ ] Choose migration strategy
+- [ ] Update require statements
+- [ ] Run tests
+- [ ] Verify compatibility
+- [ ] Deploy to staging
+- [ ] Monitor performance
+- [ ] Deploy to production
+
+== Complete Migration Guide
+
+For the complete migration guide with advanced topics, see:
+
+* link:https://github.com/metanorma/omnizip/blob/main/MIGRATION_GUIDE.md[Full Migration Guide] (GitHub)
+
+Topics covered in full guide:
+
+* Advanced migration patterns
+* Handling large files
+* Using both libraries together
+* Converting ZIP to 7z
+* Integration testing
+* Performance optimization
+* Troubleshooting
+* Rollback plan
+
+== See Also
+
+* link:../comparison/vs-rubyzip.html[Omnizip vs rubyzip Comparison]
+* link:../getting-started/quick-start.html[Quick Start Guide]
+* link:../reference/api/overview.html[Ruby API Reference]

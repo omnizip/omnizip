@@ -39,13 +39,16 @@ module Omnizip
         def self.from_binary(data)
           signature, disk_number, offset, total_disks = data.unpack("VVQV")
 
-          raise Omnizip::FormatError, "Invalid ZIP64 EOCD Locator signature" unless signature == ZIP64_END_OF_CENTRAL_DIRECTORY_LOCATOR_SIGNATURE
+          unless signature == ZIP64_END_OF_CENTRAL_DIRECTORY_LOCATOR_SIGNATURE
+            raise Omnizip::FormatError,
+                  "Invalid ZIP64 EOCD Locator signature"
+          end
 
           new(
             signature: signature,
             disk_number_with_zip64_eocd: disk_number,
             zip64_eocd_offset: offset,
-            total_disks: total_disks
+            total_disks: total_disks,
           )
         end
 

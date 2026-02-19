@@ -1,0 +1,342 @@
+---
+title: Omnizip vs rubyzip
+nav_order: 2
+parent: Comparison
+---
+
+== Omnizip vs rubyzip
+
+Detailed comparison between Omnizip and the popular rubyzip gem.
+
+== Overview
+
+Both Omnizip and rubyzip are pure Ruby libraries for working with ZIP archives. Omnizip provides rubyzip compatibility while adding support for additional formats and compression algorithms.
+
+== Key Differences
+
+=== Format Support
+
+**Omnizip:**
+
+* ZIP format (read/write)
+* 7z format (read/write)
+* RAR format (read-only)
+* TAR format (read/write)
+* ISO format (read-only)
+
+**rubyzip:**
+
+* ZIP format only (read/write)
+
+=== Compression Algorithms
+
+**Omnizip:**
+
+* LZMA/LZMA2
+* BZip2
+* PPMd7/PPMd8
+* Deflate
+* Deflate64
+* Zstandard
+
+**rubyzip:**
+
+* Deflate only
+
+=== API Compatibility
+
+Omnizip provides **100% rubyzip API compatibility** via the compatibility layer:
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+# Use identical rubyzip syntax
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt', 'source.txt')
+end
+----
+
+== Feature Comparison
+
+[cols="40,30,30",options="header"]
+|===
+|Feature |Omnizip |rubyzip
+
+|ZIP Format
+|✅
+|✅
+
+|7z Format
+|✅
+|❌
+
+|Deflate Compression
+|✅
+|✅
+
+|Deflate64 Compression
+|✅
+|❌
+
+|LZMA Compression
+|✅
+|❌
+
+|BZip2 Compression
+|✅
+|❌
+
+|AES Encryption
+|✅
+|✅
+
+|ZIP64 Support
+|✅
+|✅
+
+|Streaming
+|✅
+|✅
+
+|Rubyzip API
+|✅ (via compat)
+|✅
+
+|Native API
+|✅
+|N/A
+
+|CLI Tool
+|✅
+|❌
+
+|Pure Ruby
+|✅
+|✅
+
+|No Dependencies
+|✅
+|✅
+
+|===
+
+== Migration from rubyzip
+
+=== Step 1: Install Omnizip
+
+[source,ruby]
+----
+# Gemfile
+gem 'omnizip'
+----
+
+=== Step 2: Update Requires
+
+Change:
+
+[source,ruby]
+----
+require 'zip'
+----
+
+To:
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+----
+
+=== Step 3: Run Tests
+
+Your existing rubyzip code should work without changes!
+
+== Code Examples
+
+=== Creating Archives
+
+**rubyzip:**
+
+[source,ruby]
+----
+require 'zip'
+
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt', 'source.txt')
+end
+----
+
+**Omnizip (compatible):**
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+Zip::File.open('archive.zip', create: true) do |zip|
+  zip.add('file.txt', 'source.txt')
+end
+----
+
+**Omnizip (native):**
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip::Archive.create('archive.zip') do |archive|
+  archive.add_file('source.txt', 'file.txt')
+end
+----
+
+=== Reading Archives
+
+**rubyzip:**
+
+[source,ruby]
+----
+require 'zip'
+
+Zip::File.open('archive.zip') do |zip|
+  content = zip.read('file.txt')
+end
+----
+
+**Omnizip (compatible):**
+
+[source,ruby]
+----
+require 'omnizip/rubyzip_compat'
+
+Zip::File.open('archive.zip') do |zip|
+  content = zip.read('file.txt')
+end
+----
+
+**Omnizip (native):**
+
+[source,ruby]
+----
+require 'omnizip'
+
+content = Omnizip.read_from_archive('archive.zip', 'file.txt')
+----
+
+== Advanced Features in Omnizip
+
+=== 7-Zip Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create 7z archive with LZMA2
+Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
+  archive.add_directory('data/')
+end
+----
+
+=== Better Compression
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Use Deflate64 for better compression
+Omnizip.compress_file(
+  'large_file.txt',
+  'output.zip',
+  algorithm: :deflate64,
+  level: 9
+)
+----
+
+=== Multiple Algorithms
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Try different algorithms
+[:lzma, :bzip2, :deflate64].each do |alg|
+  Omnizip.compress_file('file.txt', "output.#{alg}", algorithm: alg)
+end
+----
+
+== Performance Comparison
+
+Both libraries are pure Ruby implementations with similar performance characteristics:
+
+**Compression Speed:**
+
+* Omnizip: ~50-100 KB/s (Deflate)
+* rubyzip: ~50-100 KB/s (Deflate)
+
+**Memory Usage:**
+
+* Similar for ZIP operations
+* Omnizip uses more memory for LZMA (larger dictionary)
+
+**Compatibility:**
+
+* Both maintain excellent ZIP compatibility
+* Omnizip adds 7-Zip compatibility
+
+== When to Use Each
+
+=== Choose Omnizip When
+
+* You need 7-Zip format support
+* You want better compression (LZMA, Deflate64)
+* You need multiple compression algorithms
+* You want a CLI tool
+* You're starting a new project
+* You want advanced features
+
+=== Choose rubyzip When
+
+* You only need basic ZIP operations
+* You have an existing rubyzip codebase
+* You want the most mature solution
+* Simplicity is the priority
+
+== Migration Checklist
+
+- [ ] Install Omnizip gem
+- [ ] Update require statements
+- [ ] Run test suite
+- [ ] Verify archive compatibility
+- [ ] Test error handling
+- [ ] Update documentation
+- [ ] Deploy to staging
+- [ ] Monitor performance
+
+== Compatibility Notes
+
+=== Fully Compatible
+
+* `Zip::File` operations
+* `Zip::Entry` methods
+* `Zip::InputStream`
+* `Zip::OutputStream`
+* Error classes
+* Archive creation/extraction
+
+=== Enhanced in Omnizip
+
+* Additional compression algorithms
+* 7-Zip format support
+* Better error messages
+* CLI tool included
+* Performance profiling
+
+=== Migration Resources
+
+* link:../guides/migration-rubyzip.html[Detailed Migration Guide]
+* link:../reference/api/overview.html[Omnizip Ruby API]
+* link:../getting-started/quick-start.html[Quick Start Tutorial]
+
+== See Also
+
+* link:feature-matrix.html[Complete Feature Matrix]
+* link:../guides/migration-rubyzip.html[Migration Guide]
+* link:../reference/api/overview.html[Ruby API Reference]

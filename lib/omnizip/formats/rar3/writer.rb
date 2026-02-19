@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
-require "lutaml/model"
+begin
+  require "lutaml/model"
+rescue LoadError, ArgumentError
+  # lutaml-model not available, using simple classes
+end
+
 require "stringio"
 require_relative "../rar/rar_format_base"
 require_relative "compressor"
@@ -74,7 +79,7 @@ module Omnizip
           header = create_block_header(
             type: block_type_code(:archive),
             flags: flags,
-            data: header_data.string
+            data: header_data.string,
           )
 
           write_block_header(io, header)
@@ -133,7 +138,7 @@ module Omnizip
           header = create_block_header(
             type: block_type_code(:file),
             flags: flags,
-            data: header_data.string
+            data: header_data.string,
           )
 
           write_block_header(io, header)
@@ -149,7 +154,7 @@ module Omnizip
           header = create_block_header(
             type: block_type_code(:terminator),
             flags: 0x4000, # Archive end flag
-            data: ""
+            data: "",
           )
 
           write_block_header(io, header)
@@ -177,7 +182,7 @@ module Omnizip
             crc: header_crc,
             type: type,
             flags: flags,
-            size: size
+            size: size,
           }
         end
 

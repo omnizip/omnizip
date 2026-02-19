@@ -245,7 +245,7 @@ RSpec.describe Omnizip::Filters::BcjX86 do
       encoded = filter.encode(data, 0)
       decoded = filter.decode(encoded, 0)
 
-      expect(decoded.bytes.size).to eq(data.bytes.size)
+      expect(decoded.bytesize).to eq(data.bytesize)
     end
 
     it "handles null bytes correctly" do

@@ -55,7 +55,7 @@ module Omnizip
           type: :symlink,
           target: @target,
           path: @path,
-          permissions: permissions
+          permissions: permissions,
         }
       end
 

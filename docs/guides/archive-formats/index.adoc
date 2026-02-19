@@ -1,0 +1,130 @@
+---
+title: Archive Formats
+nav_order: 20
+parent: Guides
+has_children: true
+---
+
+== Archive Formats Overview
+
+Omnizip supports 10 archive formats for different use cases. Each format has unique features, compression options, and compatibility characteristics.
+
+== Format Comparison
+
+[cols="1,1,1,2"]
+|===
+|Format |Compression |Encryption |Best For
+
+|link:seven-zip-format.html[7z]
+|Multiple (LZMA2, etc.)
+|AES-256
+|Software distribution, backups
+
+|link:zip-format.html[ZIP]
+|Deflate, PPMd
+|AES (WinZip), Traditional
+|Cross-platform compatibility
+
+|link:rar-format.html[RAR]
+|RAR (proprietary)
+|AES-256
+|Binary distribution, multi-volume
+
+|link:tar-format.html[TAR]
+|External (gzip, bzip2, xz)
+|None
+|Unix backups, software packaging
+
+|link:gzip-format.html[GZIP]
+|Deflate
+|None
+|Single file compression
+
+|link:xz-format.html[XZ]
+|LZMA2
+|None
+|System package compression
+|===
+
+== Choosing a Format
+
+=== By Use Case
+
+[cols="1,2"]
+|===
+|Use Case |Recommended Format
+
+|Cross-platform distribution
+|ZIP (universal compatibility)
+
+|Maximum compression
+|7z with LZMA2 (level 9)
+
+|Large file splitting
+|RAR (multi-volume support) or 7z
+
+|Unix/Linux backups
+|TAR with XZ or BZip2
+
+|Single file compression
+|GZIP or XZ
+
+|Software packages
+|7z or TAR.XZ
+|===
+
+=== By Compatibility
+
+[cols="1,4"]
+|===
+|Platform |Best Format
+
+|Windows
+|ZIP (native), 7z (7-Zip), RAR (WinRAR)
+
+|macOS
+|ZIP (native), 7z, TAR.GZ
+
+|Linux
+|TAR.GZ, TAR.XZ, ZIP, 7z
+
+|Universal
+|ZIP (supported everywhere)
+|===
+
+== Format Features
+
+=== 7z Format
+
+* **Compression**: LZMA, LZMA2, BZip2, PPMd, Deflate, Zstandard
+* **Encryption**: AES-256 with header encryption
+* **Solid Archives**: Yes (better compression)
+* **Multi-Volume**: Yes
+* **Large Files**: Yes (up to 16 billion GB)
+
+=== ZIP Format
+
+* **Compression**: Deflate, Deflate64, PPMd, BZip2
+* **Encryption**: AES-256 (WinZip), Traditional (weak)
+* **ZIP64**: Yes (files >4GB)
+* **Universal Support**: Yes
+
+=== RAR Format
+
+* **Compression**: Proprietary RAR algorithm
+* **Encryption**: AES-256
+* **Multi-Volume**: Excellent support
+* **Recovery Records**: Error correction
+
+=== TAR Format
+
+* **Compression**: External (GZIP, BZip2, XZ)
+* **Encryption**: None
+* **POSIX**: Full support
+* **Unix Standard**: Yes
+
+== See Also
+
+* link:../compression-algorithms/[Compression Algorithms] - Choose the right compression
+* link:../../compatibility.html[Compatibility] - Detailed format support matrix
+* link:../advanced-features/encryption.html[Encryption] - Secure your archives

@@ -51,7 +51,7 @@ module Benchmark
           decompression_time: decompression_time,
           compression_ratio: compression_ratio,
           compression_percentage: compression_percentage,
-          error: error
+          error: error,
         }
       end
     end

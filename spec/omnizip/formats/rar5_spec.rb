@@ -16,7 +16,8 @@ RSpec.describe "RAR v5 Format Support" do
     end
 
     it "verifies magic bytes" do
-      io = StringIO.new([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00].pack("C*"))
+      io = StringIO.new([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01,
+                         0x00].pack("C*"))
       expect(reader.verify_magic_bytes(io)).to be true
     end
 
@@ -53,7 +54,8 @@ RSpec.describe "RAR v5 Format Support" do
 
       # Verify magic bytes
       magic = io.read(8)
-      expect(magic).to eq([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00].pack("C*"))
+      expect(magic).to eq([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01,
+                           0x00].pack("C*"))
     end
 
     it "compresses file data" do
@@ -175,7 +177,8 @@ RSpec.describe "RAR v5 Format Support" do
 
       # Verify archive starts with correct magic bytes
       magic = archive_io.read(8)
-      expect(magic).to eq([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00].pack("C*"))
+      expect(magic).to eq([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01,
+                           0x00].pack("C*"))
     end
 
     it "handles large files" do

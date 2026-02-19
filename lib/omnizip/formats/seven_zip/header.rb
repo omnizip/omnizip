@@ -33,7 +33,7 @@ module Omnizip
           # Read complete start header (32 bytes)
           header_data = io.read(START_HEADER_SIZE)
           raise "Invalid .7z file: too short" if header_data.nil? ||
-                                                 header_data.bytesize < START_HEADER_SIZE
+            header_data.bytesize < START_HEADER_SIZE
 
           # Validate signature
           signature = header_data[0, SIGNATURE_SIZE]

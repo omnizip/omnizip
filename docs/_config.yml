@@ -1,0 +1,112 @@
+title: "Omnizip documentation"
+description: Pure Ruby compression library with support for LZMA, LZMA2, BZip2, PPMd7/8, Deflate, Deflate64, Zstandard, and multiple archive formats (.7z, ZIP, RAR, TAR, ISO, CPIO, GZIP, XZ, BZIP2).
+url: https://metanorma.github.io
+baseurl: /omnizip
+
+theme: just-the-docs
+remote_theme: just-the-docs/just-the-docs
+
+# AsciiDoc support
+asciidoc: {}
+asciidoctor:
+  attributes:
+    - idprefix=_
+    - source-highlighter=rouge
+    - icons=font
+    - experimental=''
+
+plugins:
+  - jekyll-asciidoc
+  - jekyll-seo-tag
+
+# Search configuration
+search_enabled: true
+search:
+  heading_level: 3
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  button: true
+
+# Enable copy button for code snippets
+enable_copy_code_button: true
+
+# Navigation
+nav_sort: case_insensitive
+
+# Footer
+footer_content: 'Copyright &copy; 2025 Ribose Inc.'
+
+# Color scheme - supports dark mode toggle
+color_scheme: light
+
+# Enable dark mode toggle
+color_schemes:
+  light:
+    name: Light
+  dark:
+    name: Dark
+
+# Allow users to toggle between themes
+color_scheme_toggle:
+  enabled: true
+
+# Logo
+logo: "/assets/logo.svg"
+
+# Auxiliary links
+aux_links:
+  "Omnizip on GitHub":
+    - "https://github.com/metanorma/omnizip"
+  "Report Issue":
+    - "https://github.com/metanorma/omnizip/issues"
+
+aux_links_new_tab: true
+
+# Heading anchors
+heading_anchors: true
+
+# Back to top
+back_to_top: true
+back_to_top_text: "Back to top"
+
+# Mermaid diagram support
+mermaid:
+  version: "10.6.0"
+
+# Last modified timestamps
+last_edit_timestamp: true
+last_edit_time_format: "%b %e %Y at %I:%M %p"
+
+# Edit on GitHub links
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/metanorma/omnizip"
+gh_edit_branch: "main"
+gh_edit_source: docs
+gh_edit_view_mode: "edit"
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+      nav_exclude: false
+
+# Include files
+include:
+  - "*.adoc"
+  - "_diagrams"
+  - "assets"
+
+# Exclude files
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+
+# Permalink structure
+permalink: pretty

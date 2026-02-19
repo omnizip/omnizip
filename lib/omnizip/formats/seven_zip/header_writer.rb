@@ -30,7 +30,7 @@ module Omnizip
           header << SIGNATURE
 
           # Version (2 bytes)
-          header << [MAJOR_VERSION, 0].pack("CC")
+          header << [MAJOR_VERSION, MINOR_VERSION].pack("CC")
 
           # Calculate CRC for next header info
           next_header_info = String.new(encoding: "BINARY")
@@ -63,24 +63,67 @@ module Omnizip
         def write_number(value)
           return [value].pack("C") if value < 0x80
 
-          # Multi-byte encoding
-          bytes = []
-          first_byte_mask = 0x80
-
-          7.times do |i|
-            if value < (1 << (7 * (i + 1)))
-              first_byte = first_byte_mask | (value >> (8 * i))
-              bytes.unshift(first_byte)
-              break
-            end
-
-            bytes.unshift(value & 0xFF)
-            value >>= 8
-            first_byte_mask >>= 1
-            first_byte_mask |= 0x80
+          # Determine how many bytes needed and encode accordingly
+          if value < 0x4000 # 14-bit: 2 bytes
+            first_byte = 0x80 | (value >> 8)
+            second_byte = value & 0xFF
+            [first_byte, second_byte].pack("C*")
+          elsif value < 0x200000 # 21-bit: 3 bytes
+            first_byte = 0xC0 | (value >> 16)
+            second_byte = (value >> 8) & 0xFF
+            third_byte = value & 0xFF
+            [first_byte, second_byte, third_byte].pack("C*")
+          elsif value < 0x10000000 # 28-bit: 4 bytes
+            first_byte = 0xE0 | (value >> 24)
+            [
+              first_byte,
+              (value >> 16) & 0xFF,
+              (value >> 8) & 0xFF,
+              value & 0xFF,
+            ].pack("C*")
+          elsif value < 0x800000000 # 35-bit: 5 bytes
+            first_byte = 0xF0 | (value >> 32)
+            [
+              first_byte,
+              (value >> 24) & 0xFF,
+              (value >> 16) & 0xFF,
+              (value >> 8) & 0xFF,
+              value & 0xFF,
+            ].pack("C*")
+          elsif value < 0x40000000000 # 42-bit: 6 bytes
+            first_byte = 0xF8 | (value >> 40)
+            [
+              first_byte,
+              (value >> 32) & 0xFF,
+              (value >> 24) & 0xFF,
+              (value >> 16) & 0xFF,
+              (value >> 8) & 0xFF,
+              value & 0xFF,
+            ].pack("C*")
+          elsif value < 0x2000000000000 # 49-bit: 7 bytes
+            first_byte = 0xFC | (value >> 48)
+            [
+              first_byte,
+              (value >> 40) & 0xFF,
+              (value >> 32) & 0xFF,
+              (value >> 24) & 0xFF,
+              (value >> 16) & 0xFF,
+              (value >> 8) & 0xFF,
+              value & 0xFF,
+            ].pack("C*")
+          else # 56-bit: 8 bytes
+            first_byte = 0xFE | (value >> 56)
+            [
+              first_byte,
+              (value >> 48) & 0xFF,
+              (value >> 40) & 0xFF,
+              (value >> 32) & 0xFF,
+              (value >> 24) & 0xFF,
+              (value >> 16) & 0xFF,
+              (value >> 8) & 0xFF,
+              value & 0xFF,
+            ].pack("C*")
           end
-
-          bytes.pack("C*")
         end
 
         # Write bit vector
@@ -199,10 +242,13 @@ module Omnizip
           data << [PropertyId::FOLDER].pack("C")
           data << write_number(folders.size)
 
+          # Write external flag (0 = inline folders, 1 = external)
+          data << [0].pack("C")
+
           folders.each do |folder|
             data << write_folder(
               folder[:method_id],
-              folder[:properties]
+              folder[:properties],
             )
           end
 
@@ -339,20 +385,60 @@ module Omnizip
           data << write_pack_info(
             options[:pack_pos],
             options[:pack_sizes],
-            options[:pack_crcs]
+            options[:pack_crcs],
           )
           data << write_unpack_info(options[:folders])
 
-          # Substreams info
+          # Substreams info - needed for solid archives with multiple files
           if options[:digests] && !options[:digests].empty?
-            data << [PropertyId::SUBSTREAMS_INFO].pack("C")
+            data << write_substreams_info(
+              options[:unpack_sizes] || [],
+              options[:digests],
+              options[:folders],
+            )
+          end
+
+          data << [PropertyId::K_END].pack("C")
+          data
+        end
+
+        # Write substreams info section
+        #
+        # @param unpack_sizes [Array<Integer>] Unpack sizes per file
+        # @param digests [Array<Integer>] CRC per file
+        # @param folders [Array<Hash>] Folder information
+        # @return [String] Encoded substreams info
+        def write_substreams_info(unpack_sizes, digests, folders)
+          data = String.new(encoding: "BINARY")
+
+          data << [PropertyId::SUBSTREAMS_INFO].pack("C")
+
+          # Write NUM_UNPACK_STREAM if multiple files in folder
+          if digests.size > folders.size
+            data << [PropertyId::NUM_UNPACK_STREAM].pack("C")
+            folders.each do |_folder|
+              # For solid archives, all files are in one folder
+              data << write_number(digests.size)
+            end
+          end
+
+          # Write unpack sizes if we have them and multiple files
+          if unpack_sizes.size > 1
+            data << [PropertyId::SIZE].pack("C")
+            # Write all but last size (last is calculated from folder unpack size)
+            unpack_sizes[0...-1].each do |size|
+              data << write_number(size)
+            end
+          end
+
+          # Write CRCs
+          if digests && !digests.empty?
             data << [PropertyId::CRC].pack("C")
-            defined_bits = options[:digests].map { |d| !d.nil? }
+            defined_bits = digests.map { |d| !d.nil? }
             data << write_bit_vector(defined_bits)
-            options[:digests].each do |crc|
+            digests.each do |crc|
               data << [crc].pack("V") if crc
             end
-            data << [PropertyId::K_END].pack("C")
           end
 
           data << [PropertyId::K_END].pack("C")

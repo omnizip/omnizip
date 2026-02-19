@@ -23,7 +23,8 @@ RSpec.describe Omnizip::Buffer do
 
       expect(buffer).to be_a(StringIO)
       files = described_class.extract_to_memory(buffer.string)
-      expect(files.keys).to contain_exactly("file1.txt", "file2.txt", "dir/file3.txt")
+      expect(files.keys).to contain_exactly("file1.txt", "file2.txt",
+                                            "dir/file3.txt")
     end
 
     it "creates archive with directory entries" do
@@ -40,8 +41,8 @@ RSpec.describe Omnizip::Buffer do
     it "supports method chaining" do
       buffer = described_class.create(:zip) do |archive|
         archive.add("file1.txt", "content1")
-               .add("file2.txt", "content2")
-               .add("file3.txt", "content3")
+          .add("file2.txt", "content2")
+          .add("file3.txt", "content3")
       end
 
       files = described_class.extract_to_memory(buffer.string)
@@ -57,9 +58,9 @@ RSpec.describe Omnizip::Buffer do
     end
 
     it "raises error for unsupported format" do
-      expect {
+      expect do
         described_class.create(:rar) { |_| }
-      }.to raise_error(ArgumentError, /Unsupported format/)
+      end.to raise_error(ArgumentError, /Unsupported format/)
     end
 
     it "creates archive with compression options" do
@@ -148,9 +149,9 @@ RSpec.describe Omnizip::Buffer do
 
     it "raises error for unknown format" do
       invalid_data = "NOT A ZIP FILE"
-      expect {
+      expect do
         described_class.open(invalid_data)
-      }.to raise_error(Omnizip::FormatError, /Unknown archive format/)
+      end.to raise_error(Omnizip::FormatError, /Unknown archive format/)
     end
   end
 
@@ -297,7 +298,7 @@ RSpec.describe Omnizip::Buffer do
       expect(files.size).to eq(5)
 
       # Verify buffer can be garbage collected
-      buffer = nil
+      nil
       GC.start
       expect(files.size).to eq(5) # Still accessible
     end
@@ -448,7 +449,8 @@ RSpec.describe Omnizip::Buffer::MemoryExtractor do
       extractor = described_class.new(zip_data)
       names = extractor.list_entries
 
-      expect(names).to contain_exactly("file1.txt", "file2.txt", "dir/file3.txt")
+      expect(names).to contain_exactly("file1.txt", "file2.txt",
+                                       "dir/file3.txt")
     end
 
     it "includes directory entries" do

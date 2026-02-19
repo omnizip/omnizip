@@ -82,7 +82,7 @@ module Omnizip
           bzip2.compress(
             StringIO.new(input_data),
             compressed_io,
-            build_compression_options(level)
+            build_compression_options(level),
           )
 
           # Write compressed data

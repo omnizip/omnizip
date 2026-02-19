@@ -1,7 +1,12 @@
 # frozen_string_literal: true
 
 require "yaml"
-require "lutaml/model"
+begin
+  require "lutaml/model"
+rescue LoadError, ArgumentError
+  # lutaml-model not available, using simple classes
+end
+
 require_relative "../error"
 
 module Omnizip
@@ -41,7 +46,7 @@ module Omnizip
           parsed_yaml = YAML.safe_load(
             yaml_content,
             permitted_classes: [Symbol],
-            symbolize_names: true
+            symbolize_names: true,
           )
 
           validate_spec(parsed_yaml, format_name)
@@ -65,7 +70,7 @@ module Omnizip
         #
         # @return [void]
         def clear_specs
-          @specs = {}
+          @all_specs = {}
         end
 
         # Check if a format specification is loaded

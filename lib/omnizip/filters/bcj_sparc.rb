@@ -138,7 +138,7 @@ module Omnizip
             description: "Branch converter for SPARC executables",
             architecture: "SPARC",
             alignment: 4,
-            endian: "big"
+            endian: "big",
           }
         end
       end

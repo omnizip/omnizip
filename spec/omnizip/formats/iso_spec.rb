@@ -15,16 +15,16 @@ RSpec.describe Omnizip::Formats::Iso do
   describe "VolumeDescriptor" do
     it "parses primary volume descriptor" do
       # Create minimal primary VD
-      data = "\x01"                    # Type: Primary
+      data = "\x01" # Type: Primary
       data += "CD001"                   # Identifier
       data += "\x01"                    # Version
       data += "\x00"                    # Unused
       data += " " * 32                  # System ID
-      data += "TEST_VOLUME".ljust(32)  # Volume ID
+      data += "TEST_VOLUME".ljust(32) # Volume ID
       data += "\x00" * 8                # Unused
       data += [100].pack("V")           # Volume space size (LE)
       data += [100].pack("N")           # Volume space size (BE)
-      data += "\x00" * (2048 - data.bytesize)  # Pad to sector size
+      data += "\x00" * (2048 - data.bytesize) # Pad to sector size
 
       vd = Omnizip::Formats::Iso::VolumeDescriptor.parse(data)
 
@@ -35,7 +35,7 @@ RSpec.describe Omnizip::Formats::Iso do
     end
 
     it "detects volume descriptor terminator" do
-      data = "\xFF"                    # Type: Terminator
+      data = "\xFF" # Type: Terminator
       data += "CD001"                   # Identifier
       data += "\x01"                    # Version
       data += "\x00" * (2048 - data.bytesize)
@@ -58,14 +58,14 @@ RSpec.describe Omnizip::Formats::Iso do
 
   describe "DirectoryRecord" do
     it "parses directory record" do
-      data = [34].pack("C")              # Length
+      data = [34].pack("C") # Length
       data += "\x00"                      # Extended attr length
       data += [10].pack("V")              # Location (LE)
       data += [10].pack("N")              # Location (BE)
       data += [1024].pack("V")            # Data length (LE)
       data += [1024].pack("N")            # Data length (BE)
-      data += [2023 - 1900, 12, 25, 10, 30, 0, 0].pack("C*")  # Date
-      data += [Omnizip::Formats::Iso::FLAG_DIRECTORY].pack("C")  # Flags
+      data += [2023 - 1900, 12, 25, 10, 30, 0, 0].pack("C*") # Date
+      data += [Omnizip::Formats::Iso::FLAG_DIRECTORY].pack("C") # Flags
       data += "\x00\x00"                  # File unit size, interleave gap
       data += [1].pack("v")               # Volume sequence (LE)
       data += [1].pack("n")               # Volume sequence (BE)
@@ -116,7 +116,7 @@ RSpec.describe Omnizip::Formats::Iso do
   describe "PathTable" do
     it "parses path table entries" do
       # Root entry
-      data = [1].pack("C")              # Name length
+      data = [1].pack("C") # Name length
       data += "\x00"                     # Extended attr
       data += [20].pack("V")             # Location
       data += [1].pack("v")              # Parent
@@ -139,7 +139,7 @@ RSpec.describe Omnizip::Formats::Iso do
     end
 
     it "finds entries by name" do
-      data = [4].pack("C") + "\x00" + [20].pack("V") + [1].pack("v") + "TEST"
+      data = "#{[4].pack('C')}\u0000#{[20].pack('V')}#{[1].pack('v')}TEST"
       pt = Omnizip::Formats::Iso::PathTable.parse(data, data.bytesize)
 
       entry = pt.find_by_name("TEST")

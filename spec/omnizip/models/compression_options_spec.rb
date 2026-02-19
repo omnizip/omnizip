@@ -21,7 +21,7 @@ RSpec.describe Omnizip::Models::CompressionOptions do
         match_finder: "bt4",
         num_threads: 4,
         solid: true,
-        buffer_size: 131_072
+        buffer_size: 131_072,
       )
 
       expect(options.level).to eq(9)
@@ -39,7 +39,7 @@ RSpec.describe Omnizip::Models::CompressionOptions do
       described_class.new(
         level: 7,
         dictionary_size: 8_388_608,
-        num_threads: 2
+        num_threads: 2,
       )
     end
 

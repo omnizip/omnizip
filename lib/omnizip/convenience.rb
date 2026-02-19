@@ -24,15 +24,22 @@ module Omnizip
     #   Omnizip.compress_file('data.txt', 'data.zip', profile: :fast)
     #   Omnizip.compress_file('app.exe', 'app.zip', profile: :auto)
     def compress_file(input_path, output_path, **options)
-      raise Errno::ENOENT, "Input file not found: #{input_path}" unless ::File.exist?(input_path)
-      raise ArgumentError, "Input is a directory: #{input_path}" if ::File.directory?(input_path)
+      unless ::File.exist?(input_path)
+        raise Errno::ENOENT,
+              "Input file not found: #{input_path}"
+      end
+      if ::File.directory?(input_path)
+        raise ArgumentError,
+              "Input is a directory: #{input_path}"
+      end
 
       # Apply profile settings if specified
       options = apply_profile(input_path, options) if options[:profile]
 
       # Use chunked processing for large files if requested
       if options[:chunked]
-        return Omnizip::Chunked.compress_file(input_path, output_path, **options)
+        return Omnizip::Chunked.compress_file(input_path, output_path,
+                                              **options)
       end
 
       Omnizip::Zip::File.create(output_path) do |zip|
@@ -62,13 +69,19 @@ module Omnizip
     #   Omnizip.compress_directory('large/', 'backup.zip', max_memory: 256.megabytes)
     #   Omnizip.compress_directory('src/', 'backup.7z', profile: :maximum)
     def compress_directory(input_dir, output_path, recursive: true, **options)
-      raise Errno::ENOENT, "Input directory not found: #{input_dir}" unless ::File.exist?(input_dir)
-      raise ArgumentError, "Input is not a directory: #{input_dir}" unless ::File.directory?(input_dir)
+      unless ::File.exist?(input_dir)
+        raise Errno::ENOENT,
+              "Input directory not found: #{input_dir}"
+      end
+      unless ::File.directory?(input_dir)
+        raise ArgumentError,
+              "Input is not a directory: #{input_dir}"
+      end
 
       # Apply profile settings if specified (use first file for auto-detection)
       if options[:profile]
         first_file = find_first_file(input_dir)
-        options = apply_profile(first_file, options)
+        apply_profile(first_file, options)
       end
 
       Omnizip::Zip::File.create(output_path) do |zip|
@@ -88,8 +101,11 @@ module Omnizip
     # @example
     #   Omnizip.extract_archive('backup.zip', 'restore/')
     #   Omnizip.extract_archive('archive.zip', 'output/', overwrite: true)
-    def extract_archive(archive_path, output_dir, overwrite: false, **options)
-      raise Errno::ENOENT, "Archive not found: #{archive_path}" unless ::File.exist?(archive_path)
+    def extract_archive(archive_path, output_dir, overwrite: false, **_options)
+      unless ::File.exist?(archive_path)
+        raise Errno::ENOENT,
+              "Archive not found: #{archive_path}"
+      end
 
       extracted_files = []
 
@@ -101,7 +117,7 @@ module Omnizip
           on_exists = if overwrite
                         proc { true }
                       else
-                        proc { |e, path| raise "File exists: #{path}" }
+                        proc { |_e, path| raise "File exists: #{path}" }
                       end
 
           zip.extract(entry, dest_path, &on_exists)
@@ -124,8 +140,11 @@ module Omnizip
     #
     #   Omnizip.list_archive('backup.zip', details: true)
     #   # => [{name: "file1.txt", size: 1024, compressed_size: 512, ...}, ...]
-    def list_archive(archive_path, details: false, **options)
-      raise Errno::ENOENT, "Archive not found: #{archive_path}" unless ::File.exist?(archive_path)
+    def list_archive(archive_path, details: false, **_options)
+      unless ::File.exist?(archive_path)
+        raise Errno::ENOENT,
+              "Archive not found: #{archive_path}"
+      end
 
       Omnizip::Zip::File.open(archive_path) do |zip|
         if details
@@ -154,7 +173,10 @@ module Omnizip
     # @example
     #   content = Omnizip.read_from_archive('backup.zip', 'config.yml')
     def read_from_archive(archive_path, entry_name)
-      raise Errno::ENOENT, "Archive not found: #{archive_path}" unless ::File.exist?(archive_path)
+      unless ::File.exist?(archive_path)
+        raise Errno::ENOENT,
+              "Archive not found: #{archive_path}"
+      end
 
       Omnizip::Zip::File.open(archive_path) do |zip|
         entry = zip.get_entry(entry_name)
@@ -173,8 +195,14 @@ module Omnizip
     # @example
     #   Omnizip.add_to_archive('backup.zip', 'new_file.txt', 'path/to/new_file.txt')
     def add_to_archive(archive_path, entry_name, source_path)
-      raise Errno::ENOENT, "Archive not found: #{archive_path}" unless ::File.exist?(archive_path)
-      raise Errno::ENOENT, "Source file not found: #{source_path}" unless ::File.exist?(source_path)
+      unless ::File.exist?(archive_path)
+        raise Errno::ENOENT,
+              "Archive not found: #{archive_path}"
+      end
+      unless ::File.exist?(source_path)
+        raise Errno::ENOENT,
+              "Source file not found: #{source_path}"
+      end
 
       Omnizip::Zip::File.open(archive_path) do |zip|
         zip.add(entry_name, source_path)
@@ -191,7 +219,10 @@ module Omnizip
     # @example
     #   Omnizip.remove_from_archive('backup.zip', 'old_file.txt')
     def remove_from_archive(archive_path, entry_name)
-      raise Errno::ENOENT, "Archive not found: #{archive_path}" unless ::File.exist?(archive_path)
+      unless ::File.exist?(archive_path)
+        raise Errno::ENOENT,
+              "Archive not found: #{archive_path}"
+      end
 
       Omnizip::Zip::File.open(archive_path) do |zip|
         zip.remove(entry_name)
@@ -199,6 +230,45 @@ module Omnizip
 
       archive_path
     end
+
+    # Create a RAR archive
+    # @param archive_path [String] Path to output RAR file
+    # @param options [Hash] Creation options
+    # @option options [Integer] :version RAR version (4 or 5, default: 5 for pure Ruby)
+    # @option options [Symbol] :compression For RAR5: :store, :lzma, :auto (default: :store)
+    # @option options [Integer] :level For RAR5: LZMA compression level 1-5 (default: 3)
+    # @option options [Boolean] :include_mtime Include modification time (RAR5 only, default: false)
+    # @option options [Boolean] :include_crc32 Include CRC32 checksum (RAR5 only, default: false)
+    # @yield [writer] RAR writer instance
+    # @return [String] Path to created archive
+    #
+    # @example Create RAR5 archive with STORE compression
+    #   Omnizip.create_rar('backup.rar') do |rar|
+    #     rar.add_file('document.pdf')
+    #   end
+    #
+    # @example Create RAR5 with LZMA compression
+    #   Omnizip.create_rar('backup.rar', compression: :lzma, level: 5) do |rar|
+    #     rar.add_file('data.txt')
+    #   end
+    #
+    # @example Create RAR5 with optional fields
+    #   Omnizip.create_rar('backup.rar',
+    #     compression: :lzma,
+    #     level: 3,
+    #     include_mtime: true,
+    #     include_crc32: true
+    #   ) do |rar|
+    #     rar.add_file('important.doc')
+    #   end
+    # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
+    def create_rar(archive_path, **options, &block)
+      # Default to RAR5 (pure Ruby) unless explicitly specified
+      options[:version] ||= 5
+
+      Omnizip::Formats::Rar.create(archive_path, options, &block)
+    end
+    # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
     private
 
@@ -236,7 +306,7 @@ module Omnizip
     # @return [String, nil] Path to first file or nil
     def find_first_file(dir_path)
       Dir.foreach(dir_path) do |entry|
-        next if entry == "." || entry == ".."
+        next if [".", ".."].include?(entry)
 
         full_path = ::File.join(dir_path, entry)
         return full_path if ::File.file?(full_path)
@@ -255,15 +325,29 @@ module Omnizip
       dir_path = ::File.join(base_dir, relative_path)
 
       Dir.foreach(dir_path) do |entry|
-        next if entry == "." || entry == ".."
+        next if [".", ".."].include?(entry)
 
         full_path = ::File.join(dir_path, entry)
-        archive_path = ::File.join(relative_path, entry)
+
+        # Create archive path (strip leading separator if at root)
+        archive_path = if relative_path.empty?
+                         entry
+                       else
+                         ::File.join(relative_path, entry)
+                       end
 
         if ::File.directory?(full_path)
-          zip.add("#{archive_path}/")
-          add_directory_contents(zip, base_dir, archive_path, recursive: recursive) if recursive
+          # Add directory entry with trailing slash
+          dir_entry_name = archive_path.end_with?("/") ? archive_path : "#{archive_path}/"
+          zip.add(dir_entry_name)
+
+          # Recursively add contents if requested
+          if recursive
+            add_directory_contents(zip, base_dir, archive_path,
+                                   recursive: recursive)
+          end
         else
+          # Add file with its data
           zip.add(archive_path, full_path)
         end
       end

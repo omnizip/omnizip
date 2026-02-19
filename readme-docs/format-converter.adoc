@@ -1,0 +1,325 @@
+= Format Converter
+:toc:
+:toclevels: 3
+
+== Purpose
+
+The Format Converter provides seamless conversion between different archive formats, preserving metadata and allowing batch processing operations.
+
+== Supported Conversions
+
+[cols="30,30,40",options="header"]
+|===
+|Source Format |Target Format |Status
+
+|ZIP
+|7z
+|✅ Full support
+
+|7z
+|ZIP
+|✅ Full support
+
+|RAR
+|ZIP/7z
+|🔵 Via extract + re-compress
+
+|TAR
+|ZIP/7z
+|🔵 Via extract + re-compress
+|===
+
+== Basic Conversion
+
+=== Single File Conversion
+
+[source,ruby]
+----
+# Convert ZIP to 7z
+Omnizip::Converter.convert('archive.zip', 'archive.7z')
+
+# Convert 7z to ZIP
+Omnizip::Converter.convert('archive.7z', 'archive.zip')
+----
+
+=== With Options
+
+[source,ruby]
+----
+# Convert with compression settings
+Omnizip::Converter.convert('source.zip', 'target.7z',
+  algorithm: :lzma2,
+  level: 9,
+  solid: true
+)
+
+# Convert and delete source
+Omnizip::Converter.convert('source.zip', 'target.7z',
+  delete_source: true
+)
+
+# Convert with progress tracking
+Omnizip::Converter.convert('large.zip', 'large.7z',
+  progress: ->(pct) { puts "Progress: #{pct}%" }
+)
+----
+
+== Batch Conversion
+
+=== Convert Multiple Archives
+
+[source,ruby]
+----
+# Batch convert all ZIP files to 7z
+sources = Dir.glob('backups/*.zip')
+
+Omnizip::Converter.batch_convert(
+  sources,
+  target_format: :seven_zip,
+  level: 9
+) do |result|
+  puts "Converted: #{result.source} -> #{result.target}"
+  puts "  Time: #{result.duration}s"
+  puts "  Original: #{result.source_size} bytes"
+  puts "  Converted: #{result.target_size} bytes"
+  puts "  Savings: #{result.compression_improvement}%"
+end
+----
+
+== Conversion Strategies
+
+=== ZIP to 7z Strategy
+
+Converts ZIP archives to 7z format with better compression:
+
+[source,ruby]
+----
+strategy = Omnizip::Converter::ZipToSevenZipStrategy.new(
+  'source.zip',
+  'target.7z',
+  algorithm: :lzma2,
+  level: 9,
+  solid: true
+)
+
+result = strategy.convert
+puts "Compression improved by #{result.compression_improvement}%"
+----
+
+=== 7z to ZIP Strategy
+
+Converts 7z archives to ZIP for better compatibility:
+
+[source,ruby]
+----
+strategy = Omnizip::Converter::SevenZipToZipStrategy.new(
+  'source.7z',
+  'target.zip',
+  algorithm: :deflate,
+  level: 6
+)
+
+result = strategy.convert
+----
+
+== Conversion Options
+
+=== Available Options
+
+[source,ruby]
+----
+options = Omnizip::Models::ConversionOptions.new(
+  # Target compression settings
+  algorithm: :lzma2,          # Compression algorithm
+  level: 9,                   # Compression level (1-9)
+  solid: true,                # Solid compression (7z only)
+  
+  # Filters
+  filter: :bcj_x86,          # Preprocessing filter
+  
+  # Behavior options
+  delete_source: false,       # Delete source after conversion
+  overwrite: false,           # Overwrite existing target
+  preserve_timestamps: true,  # Keep original timestamps
+  
+  # Progress tracking
+  progress: nil              # Progress callback
+)
+
+Omnizip::Converter.convert_with_options('source.zip', 'target.7z', options)
+----
+
+== Conversion Results
+
+=== Result Object
+
+Each conversion returns a result object with detailed information:
+
+[source,ruby]
+----
+result = Omnizip::Converter.convert('archive.zip', 'archive.7z')
+
+# Conversion details
+result.success?                    # => true/false
+result.source                      # => 'archive.zip'
+result.target                      # => 'archive.7z'
+result.duration                    # => 2.5 (seconds)
+
+# Size information
+result.source_size                 # => 1048576 (bytes)
+result.target_size                 # => 524288 (bytes)
+result.compression_improvement     # => 50.0 (%)
+
+# Files processed
+result.files_processed             # => 42
+result.files_failed                # => 0
+
+# Error information (if failed)
+result.error_message               # => nil or error string
+----
+
+== Examples
+
+=== Example 1: Optimize Storage with 7z
+
+[source,ruby]
+----
+# Convert all ZIP backups to 7z for better compression
+def optimize_backups(backup_dir)
+  zip_files = Dir.glob("#{backup_dir}/*.zip")
+  total_saved = 0
+  
+  zip_files.each do |zip_file|
+    sevenz_file = zip_file.sub('.zip', '.7z')
+    
+    result = Omnizip::Converter.convert(zip_file, sevenz_file,
+      algorithm: :lzma2,
+      level: 9,
+      solid: true,
+      delete_source: true
+    )
+    
+    saved = result.source_size - result.target_size
+    total_saved += saved
+    
+    puts "#{File.basename(zip_file)}: saved #{saved / 1024}KB"
+  end
+  
+  puts "\nTotal space saved: #{total_saved / (1024 * 1024)}MB"
+end
+
+optimize_backups('backups/')
+----
+
+=== Example 2: Convert to ZIP for Compatibility
+
+[source,ruby]
+----
+# Convert 7z archives to ZIP for compatibility with other systems
+def convert_for_compatibility(source_dir, target_dir)
+  FileUtils.mkdir_p(target_dir)
+  
+  Dir.glob("#{source_dir}/*.7z").each do |sevenz_file|
+    basename = File.basename(sevenz_file, '.7z')
+    zip_file = File.join(target_dir, "#{basename}.zip")
+    
+    puts "Converting: #{basename}"
+    result = Omnizip::Converter.convert(sevenz_file, zip_file,
+      algorithm: :deflate,
+      level: 6
+    )
+    
+    if result.success?
+      puts "  ✓ Success (#{result.files_processed} files)"
+    else
+      puts "  ✗ Failed: #{result.error_message}"
+    end
+  end
+end
+
+convert_for_compatibility('internal/', 'external/')
+----
+
+=== Example 3: Smart Conversion with Analysis
+
+[source,ruby]
+----
+# Analyze and convert only if beneficial
+def smart_convert(source_file)
+  target_file = source_file.sub(/\.(zip|7z)$/, '.optimized.7z')
+  
+  # Try conversion with maximum compression
+  result = Omnizip::Converter.convert(source_file, target_file,
+    algorithm: :lzma2,
+    level: 9,
+    solid: true
+  )
+  
+  # Keep conversion only if it saves significant space
+  improvement = result.compression_improvement
+  
+  if improvement > 10.0
+    # Good savings, delete source
+    File.delete(source_file)
+    File.rename(target_file, source_file.sub(/\.(zip|7z)$/, '.7z'))
+    puts "Optimized: #{improvement.round(1)}% savings"
+  else
+    # Not worth it, delete converted file
+    File.delete(target_file)
+    puts "Skipped: only #{improvement.round(1)}% improvement"
+  end
+end
+----
+
+== Checking Conversion Support
+
+[source,ruby]
+----
+# Check if conversion is supported
+if Omnizip::Converter.supported?('archive.zip', 'archive.7z')
+  puts "ZIP to 7z conversion is supported"
+end
+
+# List available strategies
+Omnizip::Converter.strategies.each do |strategy_class|
+  puts strategy_class.name
+end
+----
+
+== Performance Considerations
+
+=== Conversion Speed
+
+[cols="30,30,40",options="header"]
+|===
+|Conversion |Speed |Notes
+
+|ZIP → 7z (LZMA2)
+|Slow
+|10-15x slower than ZIP extraction alone
+
+|7z → ZIP (Deflate)
+|Medium
+|Faster due to simpler Deflate compression
+
+|With solid compression
+|Very Slow
+|Solid mode requires recompression of entire archive
+
+|With Store (no compression)
+|Fast
+|Just format conversion, minimal processing
+|===
+
+=== Memory Usage
+
+- **Streaming mode**: Processes files one at a time (lower memory)
+- **Batch mode**: May load multiple files in memory
+- **Large archives**: Consider chunked processing for >1GB archives
+
+== See Also
+
+* link:../README.adoc#seven-zip-format[7z Format Documentation]
+* link:../README.adoc#zip-format[ZIP Format Documentation]
+* link:compression-profiles.adoc[Compression Profiles]
+* link:performance-profiler.adoc[Performance Profiler]

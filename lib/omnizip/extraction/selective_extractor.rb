@@ -73,7 +73,9 @@ module Omnizip
       def list_matches
         return list_all if @filter.nil?
 
-        list_all.grep(@filter)
+        list_all.select do |entry|
+          filter_matches?(entry)
+        end
       end
 
       # Count matching entries
@@ -89,7 +91,7 @@ module Omnizip
       def match_result
         all_entries = list_all
         matches = if @filter
-                    all_entries.grep(@filter)
+                    all_entries.select { |entry| filter_matches?(entry) }
                   else
                     all_entries
                   end
@@ -97,7 +99,7 @@ module Omnizip
         Models::MatchResult.new(
           @filter&.to_s || "all",
           matches: matches,
-          total_scanned: all_entries.size
+          total_scanned: all_entries.size,
         )
       end
 
@@ -212,8 +214,26 @@ module Omnizip
         tracker.update(
           current_bytes: current,
           total_bytes: total,
-          current_file: entry_filename(entry)
+          current_file: entry_filename(entry),
         )
+      end
+
+      # Check if entry matches the filter
+      #
+      # @param entry [Object] Entry to check
+      # @return [Boolean]
+      def filter_matches?(entry)
+        filename = entry_filename(entry)
+
+        case @filter
+        when FilterChain
+          @filter.match?(entry, filename: filename)
+        when PatternMatcher
+          @filter.match?(filename)
+        else
+          # For other pattern types, try match? with filename
+          @filter.match?(filename)
+        end
       end
     end
   end

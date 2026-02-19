@@ -20,20 +20,15 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-require_relative "range_decoder"
-require_relative "state"
-require_relative "bit_model"
+require_relative "xz_utils_decoder"
 
 module Omnizip
   module Algorithms
     class LZMA < Algorithm
-      # LZMA Decoder - decompresses LZMA-encoded data
+      # LZMA Decoder - Factory for LZMA decompression implementations
       #
-      # This class implements the LZMA decoding algorithm by:
-      # 1. Reading and parsing the LZMA header
-      # 2. Using range decoder for probability-based bit decoding
-      # 3. Reconstructing the original data from literals and matches
+      # This class provides a unified interface for LZMA decoding, delegating
+      # to the XZ Utils implementation for full compatibility.
       #
       # The decoder reads a stream that consists of:
       # - Property byte (lc, lp, pb parameters)
@@ -41,162 +36,111 @@ module Omnizip
       # - Uncompressed size (8 bytes)
       # - Compressed data
       class Decoder
-        include Constants
-
         attr_reader :dict_size, :lc, :lp, :pb, :uncompressed_size
 
         # Initialize the decoder
         #
         # @param input [IO] Input stream of compressed data
-        def initialize(input)
-          @input = input
-          read_header
-          init_decoder
+        # @param options [Hash] Decoding options
+        # @option options [Boolean] :raw_mode Skip header parsing for raw LZMA (for LZMA2)
+        # @option options [Integer] :dict_size Dictionary size for raw mode
+        def initialize(input, options = {})
+          # Use XZ Utils LZMA decoder (full XZ Utils compatibility)
+          @impl = XzUtilsDecoder.new(input, options)
+
+          # Expose header info for backward compatibility
+          @lc = @impl.lc
+          @lp = @impl.lp
+          @pb = @impl.pb
+          @dict_size = @impl.dict_size
+          @uncompressed_size = @impl.uncompressed_size
         end
 
         # Decode a compressed stream
         #
-        # @return [String] Decompressed data
-        def decode_stream
-          @range_decoder = RangeDecoder.new(@input)
-          @state = State.new
-          @output = []
-
-          decode_data
-
-          @output.pack("C*").force_encoding("ASCII-8BIT")
+        # @param output [IO, nil] Optional output stream (if nil, returns String)
+        # @param preserve_dict [Boolean] Whether to preserve dictionary from previous decode
+        # @return [String, Integer] Decompressed data or bytes written
+        def decode_stream(output = nil, preserve_dict: false)
+          @impl.decode_stream(output, preserve_dict: preserve_dict)
         end
 
-        private
+        # Reset the decoder state for reuse with new properties
+        #
+        # This method is used by LZMA2 decoder for multi-chunk streams.
+        #
+        # @param new_lc [Integer, nil] New lc value (if nil, keeps current)
+        # @param new_lp [Integer, nil] New lp value (if nil, keeps current)
+        # @param new_pb [Integer, nil] New pb value (if nil, keeps current)
+        # @param preserve_dict [Boolean] If true, preserve dictionary state (pos, dict_full)
+        # @return [void]
+        def reset(new_lc: nil, new_lp: nil, new_pb: nil, preserve_dict: false)
+          @impl.reset(new_lc: new_lc, new_lp: new_lp, new_pb: new_pb,
+                      preserve_dict: preserve_dict)
 
-        # Read and parse LZMA header
+          # Update cached properties
+          @lc = @impl.lc
+          @lp = @impl.lp
+          @pb = @impl.pb
+        end
+
+        # Reset only state machine and rep distances, preserve probability models
+        #
+        # This method is used by LZMA2 decoder for multi-chunk streams.
         #
         # @return [void]
-        # @raise [RuntimeError] If header is invalid
-        def read_header
-          # Property byte
-          props = @input.getbyte
-          raise "Invalid LZMA header" if props.nil?
-
-          @lc = props % 9
-          rem = props / 9
-          @lp = rem % 5
-          @pb = rem / 5
-
-          # Dictionary size (4 bytes, little-endian)
-          @dict_size = 0
-          4.times do |i|
-            byte = @input.getbyte
-            raise "Incomplete header" if byte.nil?
-
-            @dict_size |= (byte << (i * 8))
-          end
-
-          # Uncompressed size (8 bytes, little-endian)
-          @uncompressed_size = 0
-          8.times do |i|
-            byte = @input.getbyte
-            raise "Incomplete header" if byte.nil?
-
-            @uncompressed_size |= (byte << (i * 8))
-          end
+        def reset_state_only
+          @impl.reset_state_only
         end
 
-        # Initialize decoder state
+        # Prepare state reset - called BEFORE setting new input
+        #
+        # This method is used by LZMA2 decoder for multi-chunk streams.
         #
         # @return [void]
-        def init_decoder
-          @literal_models = Array.new(1 << (@lc + @lp)) do
-            Array.new(256) { BitModel.new }
-          end
-          @match_model = BitModel.new
-          @rep_model = BitModel.new
-          @len_models = Array.new(16) { BitModel.new }
-          @dist_models = Array.new(128) { BitModel.new }
+        def prepare_state_reset
+          @impl.prepare_state_reset
         end
 
-        # Decode the main data
+        # Reset state machine only - preserves rep distances
+        #
+        # This method is used by LZMA2 decoder for multi-chunk streams
+        # where we want to reset the state machine but preserve rep distances
+        # from the previous chunk (control >= 0xA0 but < 0xC0).
         #
         # @return [void]
-        def decode_data
-          while @output.size < @uncompressed_size
-            is_match = @range_decoder.decode_bit(@match_model)
-
-            if is_match.zero?
-              decode_literal
-            else
-              decode_match
-            end
-          end
+        def reset_state_machine_only
+          @impl.reset_state_machine_only
         end
 
-        # Decode a literal byte
+        # Finish state reset - called AFTER setting new input
+        #
+        # This method is used by LZMA2 decoder for multi-chunk streams.
         #
         # @return [void]
-        def decode_literal
-          lit_state = get_literal_state
-          byte = decode_literal_byte(lit_state)
-
-          @output << byte
-          @state.update_literal
+        def finish_state_reset
+          @impl.finish_state_reset
         end
 
-        # Decode a match
+        # Set new input stream for chunked decoding
         #
+        # This method is used by LZMA2 decoder for multi-chunk streams.
+        #
+        # @param new_input [IO] New input stream
         # @return [void]
-        def decode_match
-          length = decode_length + MATCH_LEN_MIN
-          distance = decode_distance + 1
-
-          # Copy from output buffer (dictionary)
-          length.times do
-            src_pos = @output.size - distance
-            byte = src_pos >= 0 ? (@output[src_pos] || 0) : 0
-            @output << byte
-          end
-
-          @state.update_match
+        def set_input(new_input)
+          @impl.set_input(new_input)
         end
 
-        # Get literal state based on position
+        # Set uncompressed size for chunked decoding
         #
-        # @return [Integer] Literal state index
-        def get_literal_state
-          pos = @output.size
-          prev_byte = pos.positive? ? @output[pos - 1] : 0
-          ((pos & ((1 << @lp) - 1)) << @lc) + (prev_byte >> (8 - @lc))
-        end
-
-        # Decode a literal byte value
+        # This method is used by LZMA2 decoder for multi-chunk streams.
         #
-        # @param lit_state [Integer] Literal state
-        # @return [Integer] Decoded byte
-        def decode_literal_byte(lit_state)
-          models = @literal_models[lit_state % @literal_models.size]
-          symbol = 1
-
-          8.times do
-            bit = @range_decoder.decode_bit(models[symbol])
-            symbol = (symbol << 1) | bit
-          end
-
-          symbol - 256
-        end
-
-        # Decode match length
-        #
-        # @return [Integer] Length value (before adding MIN)
-        def decode_length
-          # Use fixed 8-bit decoding for simplicity
-          @range_decoder.decode_direct_bits(8)
-        end
-
-        # Decode match distance
-        #
-        # @return [Integer] Distance value (before adding 1)
-        def decode_distance
-          # Use fixed 16-bit decoding for simplicity
-          @range_decoder.decode_direct_bits(16)
+        # @param size [Integer] Uncompressed size
+        # @param allow_eopm [Boolean] Whether to allow end-of-stream marker
+        # @return [void]
+        def set_uncompressed_size(size, allow_eopm: true)
+          @impl.set_uncompressed_size(size, allow_eopm: allow_eopm)
         end
       end
     end

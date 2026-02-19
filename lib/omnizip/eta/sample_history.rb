@@ -116,7 +116,7 @@ module Omnizip
         return 0.0 if rates.empty?
 
         mean = rates.sum / rates.size
-        variance = rates.map { |r| (r - mean)**2 }.sum / rates.size
+        variance = rates.sum { |r| (r - mean)**2 } / rates.size
         Math.sqrt(variance)
       end
 

@@ -1,0 +1,49 @@
+---
+title: Guides
+nav_order: 10
+has_children: true
+---
+
+== Guides
+
+Comprehensive guides for all Omnizip features and formats.
+
+=== Core Operations
+
+* link:creating-archives.html[Creating Archives] - Build new archives with comprehensive examples
+* link:extracting-archives.html[Extracting Archives] - Extract files from archives
+* link:format-conversion.html[Format Conversion] - Convert between archive formats
+
+=== Compression Algorithms
+
+* link:compression-algorithms/[Compression Algorithms Overview] - Algorithm comparison and selection guide
+* link:compression-algorithms/lzma.html[LZMA] - High compression ratio algorithm
+* link:compression-algorithms/lzma2.html[LZMA2] - Enhanced LZMA with multi-threading
+* link:compression-algorithms/bzip2.html[BZip2] - Text file compression
+* link:compression-algorithms/ppmd.html[PPMd] - Prediction by Partial Matching for text
+* link:compression-algorithms/deflate.html[Deflate] - ZIP-compatible compression
+* link:compression-algorithms/zstandard.html[Zstandard] - Modern fast compression
+
+=== Archive Formats
+
+* link:archive-formats/[Archive Formats Overview] - Format comparison and selection guide
+* link:archive-formats/seven-zip-format.html[7z Format] - 7-Zip archives with solid compression
+* link:archive-formats/zip-format.html[ZIP Format] - ZIP archives with ZIP64 support
+* link:archive-formats/rar-format.html[RAR Format] - RAR4/RAR5 archives (read-only)
+* link:archive-formats/tar-format.html[TAR Format] - TAR archives with POSIX extensions
+* link:archive-formats/gzip-format.html[GZIP Format] - GZIP single file compression
+* link:archive-formats/xz-format.html[XZ Format] - XZ compressed files with LZMA2
+
+=== Advanced Features
+
+* link:advanced-features/[Advanced Features Overview] - Power user features
+* link:advanced-features/streaming.html[Streaming Operations] - Memory-efficient processing
+* link:advanced-features/parallel-processing.html[Parallel Processing] - Multi-threaded compression
+* link:advanced-features/progress-tracking.html[Progress Tracking] - Real-time progress monitoring
+* link:advanced-features/encryption.html[Encryption] - AES-256 password protection
+
+=== Migration & Optimization
+
+* link:migration-rubyzip.html[Migrating from Rubyzip] - Migration guide for rubyzip users
+* link:performance-tuning.html[Performance Tuning] - Optimize compression performance
+* link:parity-archives.html[PAR2 Parity Archives] - Error correction and recovery

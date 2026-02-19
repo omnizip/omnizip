@@ -20,6 +20,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+# Ported from XZ Utils src/liblzma/rangecoder/range_encoder.h
+# Direct port of the reference implementation for byte-for-byte compatibility.
+
 require_relative "range_coder"
 
 module Omnizip
@@ -27,13 +30,11 @@ module Omnizip
     class LZMA < Algorithm
       # Range encoder for LZMA compression
       #
-      # This class implements the encoding side of arithmetic coding
-      # using integer range arithmetic. It encodes bits based on their
-      # probability models, producing a compressed byte stream.
+      # This is a direct port of XZ Utils' range encoder implementation
+      # for guaranteed byte-for-byte compatibility.
       #
       # The encoder maintains a range [low, low+range) and subdivides
-      # it proportionally based on symbol probabilities. When the range
-      # becomes too small, it is normalized by shifting bytes to output.
+      # it proportionally based on symbol probabilities.
       class RangeEncoder < RangeCoder
         # Initialize the range encoder
         #
@@ -41,37 +42,60 @@ module Omnizip
         def initialize(output_stream)
           super
           @cache = 0
-          @cache_size = 1
+          @cache_size = 1 # XZ Utils initializes to 1, not 0
+          @pre_flush_pos = 0
         end
 
         # Encode a single bit using a probability model
         #
-        # The range is split based on the bit's probability:
-        # - If bit is 0: use lower portion of range
-        # - If bit is 1: use upper portion of range
+        # Ported from XZ Utils rc_encode() - RC_BIT_0 and RC_BIT_1 cases.
+        # The key is that normalization happens BEFORE encoding the bit.
+        #
+        # IMPORTANT: We must emulate 32-bit unsigned arithmetic by masking
+        # after each operation, since Ruby's integers are arbitrary precision.
         #
         # @param model [BitModel] The probability model for this bit
         # @param bit [Integer] The bit value (0 or 1)
         # @return [void]
         def encode_bit(model, bit)
-          bound = (@range >> 11) * model.probability
+          # Normalize BEFORE encoding (matches XZ Utils)
+          normalize
 
-          if bit.zero?
-            @range = bound
-            model.update(0)
-          else
-            @low += bound
-            @range -= bound
-            model.update(1)
+          prob = model.probability
+
+          # DEBUG: Trace is_rep bit encoding
+          if ENV["TRACE_IS_REP_BITS"] && bit.zero?
+            puts "  [RangeEncoder.encode_bit] BEFORE: range=#{@range}, low=#{@low}, prob=#{prob}, bit=#{bit}"
           end
 
-          normalize
+          if bit.zero?
+            # RC_BIT_0: shrink range to lower portion
+            # rc->range = (rc->range >> 11) * prob
+            # Emulate 32-bit unsigned multiplication with truncation
+            @range = ((@range >> 11) * prob) & 0xFFFFFFFF
+          else
+            # RC_BIT_1: add bound to low, shrink range to upper portion
+            # const uint32_t bound = prob * (rc->range >> 11)
+            # rc->low += bound
+            # rc->range -= bound
+            bound = prob * (@range >> 11)
+            @low = (@low + bound) & 0xFFFFFFFFFFFFFFFF # low can grow beyond 32 bits
+            @range = (@range - bound) & 0xFFFFFFFF
+          end
+
+          if ENV["TRACE_IS_REP_BITS"] && bit.zero?
+            puts "  [RangeEncoder.encode_bit] AFTER: range=#{@range}, low=#{@low}"
+          end
+
+          # Update probability model based on the bit value
+          # This matches the decoder's update behavior (proper OOP symmetry)
+          model.update(bit)
         end
 
         # Encode bits directly without using probability model
         #
-        # This is used for encoding values with uniform distribution
-        # where all bit values are equally likely.
+        # Used for encoding values with uniform distribution.
+        # Emulates 32-bit unsigned arithmetic.
         #
         # @param value [Integer] The value to encode
         # @param num_bits [Integer] Number of bits to encode
@@ -79,62 +103,90 @@ module Omnizip
         def encode_direct_bits(value, num_bits)
           num_bits.downto(1) do |i|
             normalize
-            @range >>= 1
+            @range = (@range >> 1) & 0xFFFFFFFF
             bit = (value >> (i - 1)) & 1
-            @low += @range if bit == 1
+            @low = (@low + @range) & 0xFFFFFFFFFFFFFFFF if bit == 1
           end
         end
 
         # Flush remaining bytes to output stream
         #
-        # This method ensures all encoded data is written to the
-        # output stream. Must be called after encoding is complete.
+        # Ported from XZ Utils rc_flush().
         #
         # @return [void]
         def flush
+          # Store position BEFORE flush for LZMA2 compatibility
+          # The decoder only needs bytes up to this point
+          @pre_flush_pos = @stream.pos
+
+          # Prevent further normalizations
+          @range = 0xFFFFFFFF
+
+          # Flush 5 bytes (see rc_flush() in xz)
           5.times { shift_low }
+        end
+
+        # Return bytes needed for decoding
+        #
+        # For LZMA2: returns pre-flush position (excludes 5-byte flush padding)
+        # For regular LZMA: returns full output size
+        #
+        # @return [Integer] Number of bytes decoder will consume
+        def bytes_for_decode
+          @pre_flush_pos || @stream.pos
         end
 
         protected
 
         # Normalize the range when it becomes too small
         #
-        # When range drops below TOP threshold, shift out the
-        # top byte of 'low' to the output stream and scale up
-        # the range by 256.
+        # Ported from XZ Utils rc_encode() normalization logic.
+        # IMPORTANT: shift_low is called BEFORE range is shifted!
         #
         # @return [void]
         def normalize
-          shift_low while @range < TOP
+          while @range < TOP
+            shift_low
+            @range <<= 8
+          end
         end
 
         private
 
         # Shift the top byte of 'low' to output
         #
-        # This implements the byte-oriented output of the range coder.
+        # Direct port of XZ Utils rc_shift_low() from range_encoder.h:136-159
         # Handles carry propagation through the cache mechanism.
         #
         # @return [void]
         def shift_low
-          if @low < 0xFF000000 || (@low >> 32) != 0
-            temp = @cache
+          # if ((uint32_t)(rc->low) < (uint32_t)(0xFF000000)
+          #     || (uint32_t)(rc->low >> 32) != 0)
+          low_32 = @low & 0xFFFFFFFF
+          carry = (@low >> 32) & 0xFF
 
+          if low_32 < 0xFF000000 || carry != 0
+            # do {
+            #   out[*out_pos] = rc->cache + (uint8_t)(rc->low >> 32);
+            #   ++*out_pos;
+            #   rc->cache = 0xFF;
+            # } while (--rc->cache_size != 0);
             loop do
-              @stream.putc(temp + (@low >> 32))
-              temp = 0xFF
+              @stream.putc((@cache + carry) & 0xFF)
+              @cache = 0xFF
               @cache_size -= 1
-              break if @cache_size <= 0
+              break if @cache_size.zero?
             end
 
-            @cache = (@low >> 24) & 0xFF
-            @cache_size = 1
-          else
-            @cache_size += 1
+            # rc->cache = (rc->low >> 24) & 0xFF;
+            @cache = (low_32 >> 24) & 0xFF
           end
 
-          @low = (@low << 8) & 0xFFFFFFFF
-          @range <<= 8
+          # ++rc->cache_size;
+          @cache_size += 1
+
+          # rc->low = (rc->low & 0x00FFFFFF) << RC_SHIFT_BITS;
+          @low = (@low & 0x00FFFFFF) << 8
         end
       end
     end

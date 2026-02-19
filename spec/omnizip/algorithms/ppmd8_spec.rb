@@ -18,59 +18,75 @@ RSpec.describe Omnizip::Algorithms::PPMd8 do
   describe "#compress and #decompress" do
     let(:input_data) { "Hello, PPMd8 compression test!" }
 
-    it "compresses and decompresses data correctly" do
+    it "raises NotImplementedError when compressing" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.compress(StringIO.new(input_data), compressed)
 
-      compressed.rewind
+      expect do
+        algorithm.compress(StringIO.new(input_data), compressed)
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 compression is not yet fully implemented/)
+    end
+
+    it "raises NotImplementedError when decompressing" do
+      compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
       decompressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.decompress(compressed, decompressed)
 
-      expect(decompressed.string).to eq(input_data)
+      expect do
+        algorithm.decompress(compressed, decompressed)
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 decompression is not yet fully implemented/)
     end
 
-    it "supports custom model order" do
+    it "raises NotImplementedError with custom model order" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.compress(
-        StringIO.new(input_data),
-        compressed,
-        model_order: 8
-      )
 
-      expect(compressed.size).to be > 0
+      expect do
+        algorithm.compress(
+          StringIO.new(input_data),
+          compressed,
+          model_order: 8,
+        )
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 compression is not yet fully implemented/)
     end
 
-    it "supports custom memory size" do
+    it "raises NotImplementedError with custom memory size" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.compress(
-        StringIO.new(input_data),
-        compressed,
-        mem_size: 1 << 22
-      )
 
-      expect(compressed.size).to be > 0
+      expect do
+        algorithm.compress(
+          StringIO.new(input_data),
+          compressed,
+          mem_size: 1 << 22,
+        )
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 compression is not yet fully implemented/)
     end
 
-    it "supports RESTART restoration method" do
+    it "raises NotImplementedError with RESTART restoration method" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.compress(
-        StringIO.new(input_data),
-        compressed,
-        restore_method: 0
-      )
 
-      expect(compressed.size).to be > 0
+      expect do
+        algorithm.compress(
+          StringIO.new(input_data),
+          compressed,
+          restore_method: 0,
+        )
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 compression is not yet fully implemented/)
     end
 
-    it "supports CUT_OFF restoration method" do
+    it "raises NotImplementedError with CUT_OFF restoration method" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
-      algorithm.compress(
-        StringIO.new(input_data),
-        compressed,
-        restore_method: 1
-      )
 
-      expect(compressed.size).to be > 0
+      expect do
+        algorithm.compress(
+          StringIO.new(input_data),
+          compressed,
+          restore_method: 1,
+        )
+      end.to raise_error(NotImplementedError,
+                         /PPMd8 compression is not yet fully implemented/)
     end
   end
 
@@ -78,14 +94,14 @@ RSpec.describe Omnizip::Algorithms::PPMd8 do
     it "handles RESTART restoration" do
       model = Omnizip::Algorithms::PPMd8::Model.new(6, 1 << 20, 0)
       expect(model.restoration_method).to be_a(
-        Omnizip::Algorithms::PPMd8::RestorationMethod
+        Omnizip::Algorithms::PPMd8::RestorationMethod,
       )
     end
 
     it "handles CUT_OFF restoration" do
       model = Omnizip::Algorithms::PPMd8::Model.new(6, 1 << 20, 1)
       expect(model.restoration_method).to be_a(
-        Omnizip::Algorithms::PPMd8::RestorationMethod
+        Omnizip::Algorithms::PPMd8::RestorationMethod,
       )
     end
   end

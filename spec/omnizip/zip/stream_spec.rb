@@ -94,9 +94,9 @@ RSpec.describe "Omnizip::Zip Stream Classes" do
 
       it "raises error without entry" do
         stream = described_class.open(zip_path)
-        expect {
+        expect do
           stream.write("data")
-        }.to raise_error(/No entry started/)
+        end.to raise_error(/No entry started/)
         stream.close
       end
 
@@ -291,7 +291,8 @@ RSpec.describe "Omnizip::Zip Stream Classes" do
           while entry = zis.get_next_entry
             names << entry.name
           end
-          expect(names).to eq(["file1.txt", "file2.txt", "dir/", "dir/file3.txt"])
+          expect(names).to eq(["file1.txt", "file2.txt", "dir/",
+                               "dir/file3.txt"])
         end
       end
     end
@@ -381,7 +382,8 @@ RSpec.describe "Omnizip::Zip Stream Classes" do
         described_class.open(zip_path) do |zis|
           while entry = zis.get_next_entry
             content = entry.directory? ? nil : zis.read
-            entries << { name: entry.name, content: content, directory: entry.directory? }
+            entries << { name: entry.name, content: content,
+                         directory: entry.directory? }
           end
         end
 

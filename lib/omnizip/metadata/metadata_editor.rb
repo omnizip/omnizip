@@ -73,11 +73,12 @@ module Omnizip
         validator.validate_comment(comment)
 
         matching_entries = if pattern.is_a?(Regexp)
-                            archive.entries.select { |e| e.name =~ pattern }
-                          else
-                            require "fnmatch"
-                            archive.entries.select { |e| ::File.fnmatch(pattern, e.name) }
-                          end
+                             archive.entries.select { |e| e.name =~ pattern }
+                           else
+                             archive.entries.select do |e|
+                               ::File.fnmatch(pattern, e.name)
+                             end
+                           end
 
         matching_entries.each do |entry|
           metadata = EntryMetadata.new(entry)
@@ -95,11 +96,12 @@ module Omnizip
         validator.validate_permissions(perms)
 
         matching_entries = if pattern.is_a?(Regexp)
-                            archive.entries.select { |e| e.name =~ pattern }
-                          else
-                            require "fnmatch"
-                            archive.entries.select { |e| ::File.fnmatch(pattern, e.name) }
-                          end
+                             archive.entries.select { |e| e.name =~ pattern }
+                           else
+                             archive.entries.select do |e|
+                               ::File.fnmatch(pattern, e.name)
+                             end
+                           end
 
         matching_entries.each do |entry|
           next if entry.directory?

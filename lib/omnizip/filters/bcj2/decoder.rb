@@ -192,7 +192,7 @@ module Omnizip
           unsigned & 0xFF,
           (unsigned >> 8) & 0xFF,
           (unsigned >> 16) & 0xFF,
-          (unsigned >> 24) & 0xFF
+          (unsigned >> 24) & 0xFF,
         ].pack("C*")
       end
     end

@@ -48,7 +48,7 @@ module Omnizip
           @model = Model.new(
             options[:model_order] || DEFAULT_ORDER,
             options[:mem_size] || DEFAULT_MEM_SIZE,
-            options[:restore_method] || DEFAULT_RESTORE_METHOD
+            options[:restore_method] || DEFAULT_RESTORE_METHOD,
           )
           @range_decoder = LZMA::RangeDecoder.new(input)
         end
@@ -56,17 +56,12 @@ module Omnizip
         # Decode a stream back to original bytes
         #
         # @return [String] Decoded data
+        # @raise [NotImplementedError] PPMd8 is not yet fully implemented
         def decode_stream
-          result = String.new(encoding: Encoding::BINARY)
-
-          100.times do
-            symbol = decode_symbol
-            break if symbol.nil?
-
-            result << symbol.chr
-          end
-
-          result
+          raise NotImplementedError,
+                "PPMd8 decompression is not yet fully implemented. " \
+                "The arithmetic coding integration requires completion. " \
+                "Please use PPMd7 or other compression algorithms instead."
         end
 
         private

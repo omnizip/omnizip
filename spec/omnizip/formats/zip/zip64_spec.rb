@@ -20,7 +20,7 @@ RSpec.describe "ZIP64 Support" do
         uncompressed_size: 5_000_000_000,
         compressed_size: 4_000_000_000,
         relative_header_offset: 1_000_000_000,
-        disk_start_number: 0
+        disk_start_number: 0,
       )
 
       expect(field.tag).to eq(Omnizip::Formats::Zip::Constants::ZIP64_EXTRA_FIELD_TAG)
@@ -32,7 +32,7 @@ RSpec.describe "ZIP64 Support" do
     it "creates ZIP64 extra field with only size fields" do
       field = described_class.new(
         uncompressed_size: 5_000_000_000,
-        compressed_size: 4_000_000_000
+        compressed_size: 4_000_000_000,
       )
 
       expect(field.size).to eq(16) # 8+8
@@ -41,14 +41,13 @@ RSpec.describe "ZIP64 Support" do
     it "serializes and deserializes correctly" do
       original = described_class.new(
         uncompressed_size: 5_000_000_000,
-        compressed_size: 4_000_000_000
+        compressed_size: 4_000_000_000,
       )
 
       binary = original.to_binary
       parsed = described_class.from_binary(binary,
-        needs_uncompressed: true,
-        needs_compressed: true
-      )
+                                           needs_uncompressed: true,
+                                           needs_compressed: true)
 
       expect(parsed.uncompressed_size).to eq(5_000_000_000)
       expect(parsed.compressed_size).to eq(4_000_000_000)
@@ -71,7 +70,7 @@ RSpec.describe "ZIP64 Support" do
       eocd = described_class.new(
         total_entries: 70_000,
         central_directory_size: 5_000_000_000,
-        central_directory_offset: 10_000_000_000
+        central_directory_offset: 10_000_000_000,
       )
 
       expect(eocd.signature).to eq(Omnizip::Formats::Zip::Constants::ZIP64_END_OF_CENTRAL_DIRECTORY_SIGNATURE)
@@ -83,7 +82,7 @@ RSpec.describe "ZIP64 Support" do
       original = described_class.new(
         total_entries: 70_000,
         central_directory_size: 5_000_000_000,
-        central_directory_offset: 10_000_000_000
+        central_directory_offset: 10_000_000_000,
       )
 
       binary = original.to_binary
@@ -99,7 +98,7 @@ RSpec.describe "ZIP64 Support" do
     it "creates ZIP64 EOCD locator" do
       locator = described_class.new(
         zip64_eocd_offset: 15_000_000_000,
-        total_disks: 1
+        total_disks: 1,
       )
 
       expect(locator.signature).to eq(Omnizip::Formats::Zip::Constants::ZIP64_END_OF_CENTRAL_DIRECTORY_LOCATOR_SIGNATURE)
@@ -110,7 +109,7 @@ RSpec.describe "ZIP64 Support" do
     it "serializes and deserializes correctly" do
       original = described_class.new(
         zip64_eocd_offset: 15_000_000_000,
-        total_disks: 1
+        total_disks: 1,
       )
 
       binary = original.to_binary

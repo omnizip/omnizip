@@ -23,8 +23,6 @@ module Omnizip
   # allowing algorithms to self-register and be retrieved by name.
   # It implements a plugin-style architecture for extensibility.
   class AlgorithmRegistry
-    @algorithms = {}
-
     class << self
       # Register an algorithm class with the registry.
       #
@@ -36,7 +34,7 @@ module Omnizip
         raise ArgumentError, "Algorithm name cannot be nil" if name.nil?
         raise ArgumentError, "Algorithm class cannot be nil" if klass.nil?
 
-        @algorithms[name.to_sym] = klass
+        algorithms[name.to_sym] = klass
       end
 
       # Retrieve an algorithm class by name.
@@ -45,12 +43,12 @@ module Omnizip
       # @raise [UnknownAlgorithmError] If algorithm is not registered
       # @return [Class] The registered algorithm class
       def get(name)
-        algorithm = @algorithms[name.to_sym]
+        algorithm = algorithms[name.to_sym]
         return algorithm if algorithm
 
         raise UnknownAlgorithmError,
               "Unknown algorithm: #{name}. " \
-              "Available: #{available.join(", ")}"
+              "Available: #{available.join(', ')}"
       end
 
       # Check if an algorithm is registered.
@@ -58,21 +56,30 @@ module Omnizip
       # @param name [Symbol, String] The name identifier for the algorithm
       # @return [Boolean] True if algorithm is registered, false otherwise
       def registered?(name)
-        @algorithms.key?(name.to_sym)
+        algorithms.key?(name.to_sym)
       end
 
       # Get list of all registered algorithm names.
       #
       # @return [Array<Symbol>] Array of registered algorithm names
       def available
-        @algorithms.keys
+        algorithms.keys
       end
 
       # Reset the registry (primarily for testing).
       #
       # @return [void]
       def reset!
-        @algorithms.clear
+        algorithms.clear
+      end
+
+      private
+
+      # Get or initialize the algorithms hash.
+      #
+      # @return [Hash] The algorithms registry
+      def algorithms
+        @algorithms ||= {}
       end
     end
   end

@@ -18,9 +18,9 @@ module Omnizip
       def self.open(file_path_or_io, &block)
         stream = new(file_path_or_io)
 
-        if block_given?
+        if block
           begin
-            block.call(stream)
+            yield(stream)
           ensure
             stream.close
           end
@@ -43,8 +43,9 @@ module Omnizip
 
         @current_entry = nil
         @current_entry_io = nil
-        @entries_read = 0
+        @current_index = 0
         @closed = false
+        @hit_nil = false
 
         # Find and parse central directory for efficient access
         parse_central_directory
@@ -53,14 +54,22 @@ module Omnizip
       # Get next entry in the archive
       # @return [Entry, nil] Next entry or nil if no more entries
       def get_next_entry
-        return nil if @entries_read >= @all_entries.size
+        # Check if we can fetch another entry
+        if @current_index >= @all_entries.size
+          # Mark that get_next_entry returned nil
+          @hit_nil = true
+          return nil
+        end
 
         # Close previous entry data if open
         @current_entry_io = nil
 
         # Get next entry from our parsed list
-        header = @all_entries[@entries_read]
-        @entries_read += 1
+        header = @all_entries[@current_index]
+        @current_index += 1
+
+        # Successfully got an entry - clear the nil flag
+        @hit_nil = false
 
         # Position at entry data
         position_at_entry_data(header)
@@ -81,7 +90,7 @@ module Omnizip
           decompressed = decompress_data(
             compressed_data,
             @current_entry.compression_method,
-            @current_entry.size
+            @current_entry.size,
           )
           require "stringio"
           @current_entry_io = StringIO.new(decompressed, "rb")
@@ -92,10 +101,10 @@ module Omnizip
 
       # Rewind the stream
       def rewind
-        @io.seek(0, ::IO::SEEK_SET)
-        @entries_read = 0
+        @current_index = 0
         @current_entry = nil
         @current_entry_io = nil
+        @hit_nil = false
       end
 
       # Close the stream
@@ -113,8 +122,9 @@ module Omnizip
       end
 
       # Check if at end of file
+      # Returns true if the NEXT call to get_next_entry would return nil
       def eof?
-        @entries_read >= @all_entries.size
+        @current_index >= @all_entries.size
       end
       alias_method :eof, :eof?
 
@@ -164,10 +174,13 @@ module Omnizip
         signature = [END_OF_CENTRAL_DIRECTORY_SIGNATURE].pack("V")
         pos = buffer.rindex(signature)
 
-        raise Omnizip::FormatError, "End of Central Directory not found" unless pos
+        unless pos
+          raise Omnizip::FormatError,
+                "End of Central Directory not found"
+        end
 
         # Parse EOCD
-        eocd_data = buffer[pos..-1]
+        eocd_data = buffer[pos..]
 
         sig, disk_num, disk_with_cd, entries_this_disk, total_entries,
         cd_size, cd_offset, comment_length = eocd_data.unpack("VvvvvVVv")
@@ -215,7 +228,8 @@ module Omnizip
         when COMPRESSION_ZSTANDARD
           decompress_zstandard(compressed_data)
         else
-          raise Omnizip::UnsupportedFormatError, "Unsupported compression method: #{method}"
+          raise Omnizip::UnsupportedFormatError,
+                "Unsupported compression method: #{method}"
         end
       end
 
@@ -223,32 +237,36 @@ module Omnizip
       def decompress_deflate(data)
         require "zlib"
         Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(data)
-      rescue => e
-        raise Omnizip::DecompressionError, "Deflate decompression failed: #{e.message}"
+      rescue StandardError => e
+        raise Omnizip::DecompressionError,
+              "Deflate decompression failed: #{e.message}"
       end
 
       # Decompress using BZip2
       def decompress_bzip2(data)
         algorithm = Omnizip::AlgorithmRegistry.get(:bzip2)
         algorithm.decompress(data)
-      rescue => e
-        raise Omnizip::DecompressionError, "BZip2 decompression failed: #{e.message}"
+      rescue StandardError => e
+        raise Omnizip::DecompressionError,
+              "BZip2 decompression failed: #{e.message}"
       end
 
       # Decompress using LZMA
       def decompress_lzma(data, uncompressed_size)
         algorithm = Omnizip::AlgorithmRegistry.get(:lzma)
         algorithm.decompress(data, uncompressed_size: uncompressed_size)
-      rescue => e
-        raise Omnizip::DecompressionError, "LZMA decompression failed: #{e.message}"
+      rescue StandardError => e
+        raise Omnizip::DecompressionError,
+              "LZMA decompression failed: #{e.message}"
       end
 
       # Decompress using Zstandard
       def decompress_zstandard(data)
         algorithm = Omnizip::AlgorithmRegistry.get(:zstandard)
         algorithm.decompress(data)
-      rescue => e
-        raise Omnizip::DecompressionError, "Zstandard decompression failed: #{e.message}"
+      rescue StandardError => e
+        raise Omnizip::DecompressionError,
+              "Zstandard decompression failed: #{e.message}"
       end
     end
   end

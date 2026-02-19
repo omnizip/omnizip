@@ -25,15 +25,15 @@ puts "\nAnalyzing archive structure:"
 File.open(output.path, "rb") do |io|
   # Read signature
   sig = io.read(6)
-  puts "Signature: #{sig.bytes.map { |b| format("0x%02X", b) }.join(" ")}"
+  puts "Signature: #{sig.bytes.map { |b| format('0x%02X', b) }.join(' ')}"
 
   # Read version
   version = io.read(2)
-  puts "Version: #{version.bytes.map { |b| format("0x%02X", b) }.join(" ")}"
+  puts "Version: #{version.bytes.map { |b| format('0x%02X', b) }.join(' ')}"
 
   # Read start header CRC
   crc = io.read(4).unpack1("V")
-  puts "Start Header CRC: 0x#{format("%08X", crc)}"
+  puts "Start Header CRC: 0x#{format('%08X', crc)}"
 
   # Read next header offset
   offset = io.read(8).unpack1("Q<")
@@ -45,7 +45,7 @@ File.open(output.path, "rb") do |io|
 
   # Read next header CRC
   next_crc = io.read(4).unpack1("V")
-  puts "Next Header CRC: 0x#{format("%08X", next_crc)}"
+  puts "Next Header CRC: 0x#{format('%08X', next_crc)}"
 
   # Jump to next header
   io.seek(32 + offset)
@@ -66,9 +66,9 @@ File.open(output.path, "rb") do |io|
                 end
 
     if prop_name
-      puts "  [#{i}] 0x#{format("%02X", byte)} (#{byte}) - #{prop_name}"
+      puts "  [#{i}] 0x#{format('%02X', byte)} (#{byte}) - #{prop_name}"
     else
-      puts "  [#{i}] 0x#{format("%02X", byte)} (#{byte})"
+      puts "  [#{i}] 0x#{format('%02X', byte)} (#{byte})"
     end
   end
 end

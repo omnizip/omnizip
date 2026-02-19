@@ -26,9 +26,9 @@ module Omnizip
 
         # Calculate memory metrics
         total_allocated = gc_stat_after[:total_allocated_objects] -
-                          gc_stat_before[:total_allocated_objects]
+          gc_stat_before[:total_allocated_objects]
         total_freed = gc_stat_after[:total_freed_objects] -
-                      gc_stat_before[:total_freed_objects]
+          gc_stat_before[:total_freed_objects]
 
         # Object allocation delta
         objspace_after[:TOTAL]
@@ -44,7 +44,7 @@ module Omnizip
           memory_retained: (total_allocated - total_freed) * 40,
           object_allocations: total_allocated,
           gc_runs: 0,
-          call_count: @call_counts[operation_name]
+          call_count: @call_counts[operation_name],
         )
       ensure
         GC.enable

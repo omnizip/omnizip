@@ -25,7 +25,7 @@ RSpec.describe Omnizip::Formats::Rar do
       expect(info).to be_a(Hash)
       expect(info).to have_key(:type)
       expect(info).to have_key(:version)
-      expect([:gem, :command, :none]).to include(info[:type])
+      expect(%i[gem command none]).to include(info[:type])
     end
   end
 
@@ -62,13 +62,13 @@ RSpec.describe Omnizip::Formats::Rar do
   describe "Constants" do
     it "defines RAR4 signature" do
       expect(Omnizip::Formats::Rar::Constants::RAR4_SIGNATURE).to eq(
-        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]
+        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00],
       )
     end
 
     it "defines RAR5 signature" do
       expect(Omnizip::Formats::Rar::Constants::RAR5_SIGNATURE).to eq(
-        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]
+        [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00],
       )
     end
 
@@ -278,7 +278,7 @@ RSpec.describe Omnizip::Formats::Rar do
     end
 
     it "rejects invalid signature" do
-      io = StringIO.new("INVALID" + "\x00" * 100)
+      io = StringIO.new("INVALID#{"\x00" * 100}")
       header = Omnizip::Formats::Rar::Header.new
       expect { header.parse(io) }.to raise_error(/Invalid RAR signature/)
     end

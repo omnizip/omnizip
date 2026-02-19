@@ -8,7 +8,7 @@ options = {
   verbose: false,
   quick: false,
   mode: :all,
-  output: nil
+  output: nil,
 }
 
 ARGV.each do |arg|
@@ -47,7 +47,7 @@ end
 # Run benchmarks
 suite = Benchmark::BenchmarkSuite.new(
   verbose: options[:verbose],
-  quick: options[:quick]
+  quick: options[:quick],
 )
 
 case options[:mode]

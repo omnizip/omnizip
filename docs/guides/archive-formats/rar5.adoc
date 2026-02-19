@@ -1,0 +1,521 @@
+---
+title: RAR5 Format Support
+nav_order: 7
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== RAR5 Format Support
+
+Complete documentation for RAR5 archive creation and extraction in Omnizip v0.3.0.
+
+=== Overview
+
+RAR5 is the latest version of the RAR archive format, introduced in WinRAR 5.0. It features improved compression algorithms, better recovery records, and enhanced encryption compared to RAR4.
+
+**Status in Omnizip v0.3.0:**
+
+* ✅ **Read support:** Full RAR5 extraction with all compression methods
+* ✅ **Write support:** STORE and LZMA compression (5 levels)
+* ✅ **Multi-volume archives:** Split archives across multiple volumes
+* ✅ **Solid archives:** Full support for solid compression
+* ✅ **Unicode filenames:** UTF-8 support
+* ✅ **Symlinks and hardlinks:** Full support
+* ✅ **Error handling:** Graceful handling of truncated/invalid files
+* ✅ **Pure Ruby:** Zero external dependencies
+* ✅ **Format compliant:** Archives compatible with official `unrar`
+* ✅ **libarchive compatibility:** 51 test files verified
+
+=== Compression Methods
+
+RAR5 supports multiple compression methods. Omnizip v0.5.0 implements:
+
+==== STORE (Method 0)
+
+Uncompressed storage - files are copied directly into the archive without compression.
+
+**Use cases:**
+* Already compressed files (JPEG, MP4, ZIP)
+* Small files where compression overhead isn't worth it
+* Maximum extraction speed required
+
+**Performance:**
+* Instant compression
+* Zero CPU overhead
+* Archive size = sum of file sizes
+
+==== LZMA (Methods 1-5)
+
+LZMA (Lempel-Ziv-Markov chain Algorithm) with configurable dictionary sizes for different compression/speed trade-offs.
+
+[cols="1,2,2,3",options="header"]
+|===
+|Level |Dictionary |Speed |Use Case
+
+|1
+|256 KB
+|Fastest
+|Quick backups, already compressed data
+
+|2
+|1 MB
+|Fast
+|General purpose, good balance
+
+|3
+|4 MB
+|Normal
+|Default - good compression with reasonable speed
+
+|4
+|8 MB
+|Good
+|Better compression for larger files
+
+|5
+|16 MB
+|Best
+|Maximum compression, archives for distribution
+|===
+
+**Performance (Pure Ruby):**
+* 10-60x slower than native WinRAR (level-dependent)
+* Memory usage: < 2-3x input size
+* Trade-off: Complete portability without native extensions
+
+=== Multi-Volume Archives *(NEW in v0.5.0)*
+
+Split large archives across multiple volume files for distribution on size-constrained media or network uploads.
+
+==== Features
+
+* **Configurable split size:** Specify maximum volume size (e.g., "10M", "100M", "1G")
+* **Three naming patterns:**
+  - `part`: archive.part1.rar, archive.part2.rar, ... (default)
+  - `volume`: archive.vol1.rar, archive.vol2.rar, ...
+  - `numeric`: archive.rar, archive.r00, archive.r01, ...
+* **Atomic file placement:** Files are not split mid-stream (v0.5.0 limitation)
+* **Compression support:** Works with both STORE and LZMA
+* **Format compliant:** Extracts correctly with `unrar`
+
+==== Basic Usage
+
+[source,ruby]
+----
+# Create multi-volume archive (10 MB per volume)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  multi_volume: true,
+  volume_size: '10M',
+  compression: :lzma,
+  level: 5
+)
+writer.add_directory('large_dataset/')
+volumes = writer.write
+# Returns: ['archive.part1.rar', 'archive.part2.rar', ...]
+
+# Create with numeric naming
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  multi_volume: true,
+  volume_size: '100M',
+  volume_naming: 'numeric'
+)
+writer.add_file('huge_file.dat')
+volumes = writer.write
+# Returns: ['backup.rar', 'backup.r00', 'backup.r01', ...]
+----
+
+==== Volume Size Specification
+
+**Human-readable formats:**
+```ruby
+volume_size: '10K'   # 10 kilobytes
+volume_size: '50M'   # 50 megabytes
+volume_size: '1G'    # 1 gigabyte
+volume_size: '2T'    # 2 terabytes
+
+# Or integer bytes
+volume_size: 10_485_760  # 10 MB in bytes
+```
+
+**Minimum size:** 64 KB (enforced by validation)
+
+==== CLI Usage
+
+[source,sh]
+----
+# Create multi-volume archive
+omnizip archive create archive.rar large_files/ \
+  --split-size 10M --algorithm lzma --level 5
+
+# With numeric naming
+omnizip archive create backup.rar data/ \
+  --split-size 100M --volume-naming numeric
+----
+
+==== Use Cases
+
+* **DVD/Blu-ray distribution:** Split to fit disc capacity
+* **Email attachments:** Split into attachment-size chunks
+* **Cloud uploads:** Respect size limits (e.g., 100MB per file)
+* **Network transfers:** Resumable downloads via individual volumes
+
+==== Current Limitations
+
+* **No file spanning:** Individual files cannot span multiple volumes (files must fit in single volume)
+* **Sequential creation:** Volumes created one at a time (no parallelization in v0.5.0)
+
+=== Optional Fields
+
+RAR5 supports optional metadata fields for enhanced archive information.
+
+==== Modification Time (mtime)
+
+Preserves file modification timestamps in the archive.
+
+**Format:** 64-bit Windows FILETIME (100-nanosecond intervals since 1601-01-01)
+
+**Usage:**
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  include_mtime: true
+)
+----
+
+**Compatibility:** Works with all compression methods (STORE, LZMA)
+
+==== CRC32 Checksum
+
+**CRITICAL LIMITATION:** CRC32 optional field is only compatible with STORE compression.
+
+**Why this limitation exists:**
+
+RAR5 format specification requires that compressed files use only the BLAKE2sp checksum (always present in the main file header) for integrity verification. The optional CRC32 field was designed for uncompressed (STORE) files to provide additional integrity checking during transmission or storage.
+
+**Behavior:**
+* With STORE: CRC32 is included if requested
+* With LZMA: CRC32 is automatically disabled (no error)
+* BLAKE2sp checksum is always present regardless of compression
+
+**Usage:**
+[source,ruby]
+----
+# CRC32 works with STORE
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :store,
+  include_crc32: true  # ✅ Will be included
+)
+
+# CRC32 auto-disabled with LZMA
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  include_crc32: true  # ⚠️ Silently disabled
+)
+# Archive will use BLAKE2sp only (standard behavior)
+----
+
+=== Creating RAR5 Archives
+
+==== Basic Usage
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Create with default settings (STORE compression)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar')
+writer.add_file('document.txt')
+writer.add_file('image.png')
+writer.write
+writer.close
+----
+
+==== LZMA Compression
+
+[source,ruby]
+----
+# Default LZMA level (3 = normal)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma
+)
+writer.add_file('large_dataset.json')
+writer.write
+
+# LZMA level 5 (best compression)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5
+)
+writer.add_directory('photos/')
+writer.write
+
+# LZMA level 1 (fastest)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 1
+)
+writer.add_file('temp_data.bin')
+writer.write
+----
+
+==== Auto-Compression Selection
+
+Automatically choose STORE for small files (<1KB) and LZMA for larger files:
+
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :auto,  # Smart selection
+  level: 3             # LZMA level when auto selects it
+)
+writer.add_file('small_config.txt')   # → STORE
+writer.add_file('large_dataset.csv')  # → LZMA level 3
+writer.write
+----
+
+==== Combined Features
+
+[source,ruby]
+----
+# Multi-volume with LZMA compression and mtime
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  compression: :lzma,
+  level: 4,
+  include_mtime: true,
+  multi_volume: true,
+  volume_size: '50M'
+)
+writer.add_directory('project/')
+volumes = writer.write
+# Creates: backup.part1.rar, backup.part2.rar, ...
+----
+
+==== Block Syntax
+
+[source,ruby]
+----
+Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5
+) do |writer|
+  writer.add_file('report.pdf')
+  writer.add_directory('data/')
+end
+# Automatically calls write() and close()
+----
+
+=== CLI Usage
+
+Create RAR5 archives using the command-line interface:
+
+[source,sh]
+----
+# Create with STORE compression (default)
+omnizip archive create archive.rar file1.txt file2.txt
+
+# Create with LZMA compression (level 3 default)
+omnizip archive create archive.rar documents/ --algorithm lzma
+
+# Create with LZMA level 5 (best)
+omnizip archive create archive.rar datasets/ --algorithm lzma --level 5
+
+# Create with LZMA level 1 (fastest)
+omnizip archive create archive.rar temp/ --algorithm lzma --level 1
+
+# Include modification time
+omnizip archive create archive.rar photos/ --include-mtime
+
+# Include CRC32 (STORE compression only)
+omnizip archive create archive.rar data/ --algorithm store --include-crc32
+
+# Multi-volume archive
+omnizip archive create archive.rar large_data/ --split-size 10M --algorithm lzma
+----
+
+=== Extracting RAR5 Archives
+
+Omnizip provides full RAR5 archive reading support with all compression methods:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar5/reader'
+
+# Read and list files
+reader = Omnizip::Formats::Rar5::Reader.new
+File.open('archive.rar', 'rb') do |io|
+  entries = reader.read_archive(io)
+
+  entries.each do |entry|
+    puts "#{entry.name}: #{entry.uncompressed_size} bytes"
+    puts "  Compressed: #{entry.compressed_size} bytes"
+    puts "  Method: #{entry.compression_method}"
+    puts "  Modified: #{entry.modified_time}"
+    puts "  CRC32: #{entry.crc32.to_s(16)}"
+    puts "  Directory: #{entry.is_directory}"
+  end
+end
+----
+
+**Reader Features:**
+
+* ✅ All compression methods (STORE, LZSS)
+* ✅ Solid archive support
+* ✅ Unicode filenames (UTF-8)
+* ✅ Symlink and hardlink detection
+* ✅ Multi-file archives
+* ✅ Graceful error handling for truncated/invalid files
+* ✅ Proper header position tracking with bounds checking
+
+=== Performance Characteristics
+
+==== Compression Speed
+
+Pure Ruby implementation (portable):
+
+[cols="2,3,3",options="header"]
+|===
+|Method |Speed vs Native |Use Case
+
+|STORE
+|~1x (no compression)
+|Instant archiving
+
+|LZMA Level 1
+|~10-15x slower
+|Quick backups
+
+|LZMA Level 3
+|~20-30x slower
+|General purpose
+
+|LZMA Level 5
+|~40-60x slower
+|Distribution archives
+|===
+
+==== Memory Usage
+
+* STORE: Minimal (< 0.5x input size)
+* LZMA: < 2-3x input size (level-dependent)
+* Multi-volume: Compresses all files upfront (v0.5.0)
+* Streaming support for large files (>100MB)
+
+==== Trade-offs
+
+**Pure Ruby advantages:**
+* ✅ Works on all Ruby platforms (MRI, JRuby, TruffleRuby)
+* ✅ Zero external dependencies
+* ✅ Complete portability
+* ✅ No compilation or native extensions
+
+**Performance trade-off:**
+* ⚠️ 10-60x slower than native implementations
+* ✅ Acceptable for most use cases (< 1GB archives)
+* ✅ Can process 100MB files in reasonable time
+
+=== Format Compliance
+
+Omnizip's RAR5 implementation follows the official RAR5 format specification:
+
+* **Archive signature:** Correct RAR 5.0 magic bytes (`0x52 0x61 0x72 0x21 0x1A 0x07 0x01 0x00`)
+* **Header structure:** Compliant main archive header and file headers
+* **Multi-volume flags:** Proper VOLUME_ARCHIVE_FLAG and volume numbering
+* **Checksum algorithm:** BLAKE2sp for all files (CRC32 optional for STORE)
+* **LZMA encoding:** Standard LZMA parameters compatible with 7-Zip SDK
+* **Compatibility:** Archives extract correctly with official `unrar` 5.0+
+
+=== Current Limitations
+
+==== Known Issues (v0.3.0)
+
+* **CRC32 limitation:** Only works with STORE compression (format requirement)
+* **Large files:** >1GB files may be slow with pure Ruby LZMA
+  - Consider using STORE for very large files
+  - Or use 7z format with same algorithms for better performance
+* **Multi-volume memory:** All files compressed upfront
+  - Sequential/streaming compression planned for future release
+
+==== Deferred to v0.4.0
+
+* **PPMd compression:** Prediction by Partial Matching encoder/decoder synchronization
+* **Zstandard compression:** RFC 8878 implementation required
+
+=== Examples
+
+==== Backup Script
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Backup documents with LZMA compression
+def backup_documents(source_dir, backup_file)
+  Omnizip::Formats::Rar::Rar5::Writer.new(backup_file,
+    compression: :lzma,
+    level: 4,
+    include_mtime: true
+  ) do |writer|
+    Dir.glob("#{source_dir}/**/*").each do |file|
+      next if File.directory?(file)
+      writer.add_file(file)
+    end
+  end
+
+  puts "Backup created: #{backup_file}"
+end
+
+backup_documents('~/Documents', 'backup.rar')
+----
+
+==== Multi-Volume Backup
+
+[source,ruby]
+----
+# Create multi-volume backup for DVD burning
+def create_dvd_backup(source_dir, output_base)
+  Omnizip::Formats::Rar::Rar5::Writer.new(output_base,
+    compression: :lzma,
+    level: 5,
+    multi_volume: true,
+    volume_size: '4.3G',  # DVD-R capacity
+    include_mtime: true
+  ) do |writer|
+    writer.add_directory(source_dir)
+  end
+end
+
+volumes = create_dvd_backup('~/Photos', 'photos_backup.rar')
+puts "Created #{volumes.size} volumes for burning"
+volumes.each { |v| puts "  - #{File.basename(v)}" }
+----
+
+==== Archive Converter
+
+[source,ruby]
+----
+# Convert ZIP to RAR5
+def zip_to_rar5(zip_file, rar_file)
+  zip = Omnizip::Formats::Zip::Reader.new(zip_file)
+
+  Omnizip::Formats::Rar::Rar5::Writer.new(rar_file,
+    compression: :lzma,
+    level: 5
+  ) do |writer|
+    zip.each_entry do |entry|
+      content = zip.read_entry(entry)
+      writer.add_data(entry.name, content)
+    end
+  end
+
+  zip.close
+end
+
+zip_to_rar5('archive.zip', 'archive.rar')
+----
+
+=== See Also
+
+* link:../../reference/index.html[Reference Documentation]
+* link:../creating-archives.html[Creating Archives Guide]
+* link:../../comparison/vs-winrar.html[Omnizip vs WinRAR Comparison]
+* https://www.rarlab.com/technote.htm[Official RAR5 Format Specification]

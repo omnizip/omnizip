@@ -1,0 +1,140 @@
+---
+title: CLI Overview
+nav_order: 51
+parent: Reference
+---
+
+== Command-Line Interface Overview
+
+=== General
+
+Omnizip provides a comprehensive command-line interface for all compression and archive operations.
+
+=== Basic Syntax
+
+[source,bash]
+----
+omnizip [global-options] COMMAND [command-options] [arguments]
+----
+
+=== Global Options
+
+`--version`, `-v`:: Show version information
+`--help`, `-h`:: Show help message
+
+=== Available Commands
+
+==== Compression Commands
+
+* link:compress-command[`compress`] - Compress a file or stream
+* link:decompress-command[`decompress`] - Decompress a file or stream
+
+==== Archive Commands
+
+* link:archive-command[`archive create`] - Create an archive
+* link:archive-command[`archive extract`] - Extract an archive
+* link:archive-command[`archive list`] - List archive contents
+* link:archive-command[`archive metadata`] - View/edit archive metadata
+
+==== Utility Commands
+
+* link:list-command[`list`] - List available algorithms
+* link:profile-command[`profile`] - Manage compression profiles
+* link:convert-command[`convert`] - Convert between formats
+
+=== Common Patterns
+
+==== Pipe Mode
+
+Use `-` for stdin/stdout:
+
+[source,bash]
+----
+# Read from stdin
+cat input.txt | omnizip compress - output.lzma
+
+# Write to stdout
+omnizip compress input.txt - > output.lzma
+
+# Full pipe
+cat input.txt | omnizip compress - - | omnizip decompress - output.txt
+----
+
+==== Verbosity
+
+Enable detailed output with `--verbose`:
+
+[source,bash]
+----
+omnizip compress input.txt output.lzma --verbose
+----
+
+==== Compression Levels
+
+Most commands accept compression levels:
+
+[source,bash]
+----
+# Fast (1-3)
+omnizip compress input.txt output.lzma --level 1
+
+# Balanced (4-6)
+omnizip compress input.txt output.lzma --level 5
+
+# Maximum (7-9)
+omnizip compress input.txt output.lzma --level 9
+----
+
+=== Command Help
+
+Each command supports `--help`:
+
+[source,bash]
+----
+omnizip compress --help
+omnizip archive create --help
+omnizip profile list --help
+----
+
+=== Exit Codes
+
+* `0` - Success
+* `1` - Error occurred
+* `2` - Invalid command or options
+
+=== Environment Variables
+
+`OMNIZIP_LEVEL`:: Default compression level (1-9)
+`OMNIZIP_ALGORITHM`:: Default compression algorithm
+`OMNIZIP_THREADS`:: Number of threads for parallel operations
+
+=== Examples
+
+==== Quick Backup
+
+[source,bash]
+----
+# Create compressed backup
+omnizip archive create backup.7z documents/ --level 7
+
+# Verify
+omnizip archive list backup.7z
+
+# Extract to test
+omnizip archive extract backup.7z /tmp/test/
+----
+
+==== Batch Processing
+
+[source,bash]
+----
+# Compress all log files
+for log in *.log; do
+  omnizip compress "$log" "${log}.lzma" --level 5
+done
+----
+
+=== Related Sections
+
+* link:compress-command.html[compress command] - Compress files
+* link:../api/overview.html[Ruby API] - Programmatic interface

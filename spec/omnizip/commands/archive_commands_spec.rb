@@ -4,7 +4,7 @@ require "spec_helper"
 require "tempfile"
 require "fileutils"
 
-RSpec.describe "Archive Commands", :focus do
+RSpec.describe "Archive Commands" do
   let(:test_dir) { Dir.mktmpdir }
   let(:archive_path) { File.join(test_dir, "test.7z") }
   let(:output_dir) { File.join(test_dir, "output") }
@@ -33,7 +33,7 @@ RSpec.describe "Archive Commands", :focus do
       it "creates archive with verbose option" do
         cmd = described_class.new(verbose: true)
         expect { cmd.run(archive_path, test_file) }.to(
-          output(/Creating archive/).to_stdout
+          output(/Creating archive/).to_stdout,
         )
       end
     end
@@ -54,7 +54,7 @@ RSpec.describe "Archive Commands", :focus do
 
         reader = Omnizip::Formats::SevenZip::Reader.new(archive_path).open
         expect(reader.entries.map(&:name)).to(
-          match_array(["file1.txt", "file2.txt"])
+          match_array(["file1.txt", "file2.txt"]),
         )
       end
     end
@@ -161,7 +161,7 @@ RSpec.describe "Archive Commands", :focus do
     it "extracts archive with verbose option" do
       cmd = described_class.new(verbose: true)
       expect { cmd.run(fixture_archive, output_dir) }.to(
-        output(/Extracting/).to_stdout
+        output(/Extracting/).to_stdout,
       )
     end
 
@@ -193,20 +193,20 @@ RSpec.describe "Archive Commands", :focus do
 
     it "lists archive contents" do
       expect { command.run(fixture_archive) }.to(
-        output(/Archive:/).to_stdout
+        output(/Archive:/).to_stdout,
       )
     end
 
     it "lists archive with verbose option" do
       cmd = described_class.new(verbose: true)
       expect { cmd.run(fixture_archive) }.to(
-        output(/Type.*Size.*Compressed.*Modified.*Name/).to_stdout
+        output(/Type.*Size.*Compressed.*Modified.*Name/).to_stdout,
       )
     end
 
     it "shows summary statistics" do
       expect { command.run(fixture_archive) }.to(
-        output(/Summary:/).to_stdout
+        output(/Summary:/).to_stdout,
       )
     end
 

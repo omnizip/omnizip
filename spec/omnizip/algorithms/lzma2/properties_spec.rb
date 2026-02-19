@@ -38,17 +38,21 @@ RSpec.describe Omnizip::Algorithms::LZMA2::Properties do
   describe ".decode_dict_size" do
     it "decodes prop 0 to 4KB" do
       size = described_class.decode_dict_size(0)
-      expect(size).to eq(1 << 11)
+      # XZ Utils formula: dict_size = (2 | (props & 1)) << (props / 2 + 11)
+      # For props=0: (2 | 0) << (0 + 11) = 2 << 11 = 4096 = 4KB
+      expect(size).to eq(4096)
     end
 
     it "decodes prop 1 to 6KB" do
       size = described_class.decode_dict_size(1)
-      expect(size).to eq((1 << 11) + (1 << 11))
+      # For props=1: (2 | 1) << (0 + 11) = 3 << 11 = 6144 ≈ 6KB
+      expect(size).to eq(6144)
     end
 
     it "decodes prop 2 to 8KB" do
       size = described_class.decode_dict_size(2)
-      expect(size).to eq(1 << 12)
+      # For props=2: (2 | 0) << (1 + 11) = 2 << 12 = 8192 = 8KB
+      expect(size).to eq(8192)
     end
 
     it "handles larger prop values correctly" do

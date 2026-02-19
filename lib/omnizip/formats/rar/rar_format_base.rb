@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
-require "lutaml/model"
+begin
+  require "lutaml/model"
+rescue LoadError, ArgumentError
+  # lutaml-model not available, using simple classes
+end
+
 require_relative "../format_spec_loader"
 
 module Omnizip
@@ -105,8 +110,20 @@ module Omnizip
           name = methods.key(code)
           return name if name
 
-          raise FormatError,
-                "Unknown compression method code: #{code}"
+          # Handle unknown method codes gracefully
+          # RAR can have version-specific or PPMd methods not in standard list
+          case code
+          when 0x00..0x2F then :store      # Very old or stored
+          when 0x30 then :store
+          when 0x31 then :fastest
+          when 0x32 then :fast
+          when 0x33 then :normal
+          when 0x34 then :good
+          when 0x35 then :best
+          when 0x36..0x40 then :normal     # Extended range
+          when 0x80..0xFF then :ppmd       # PPMd or version-specific
+          else :unknown
+          end
         end
 
         # Get block type code from symbol

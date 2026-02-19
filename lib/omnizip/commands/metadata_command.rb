@@ -95,14 +95,13 @@ module Omnizip
       end
 
       def edit_entry_metadata(archive, pattern)
-        entries = if pattern.include?('*') || pattern.include?('?')
-                   # Glob pattern
-                   require "fnmatch"
-                   archive.entries.select { |e| File.fnmatch(pattern, e.name) }
-                 else
-                   # Single entry
-                   [archive.get_entry(pattern)].compact
-                 end
+        entries = if pattern.include?("*") || pattern.include?("?")
+                    # Glob pattern
+                    archive.entries.select { |e| File.fnmatch(pattern, e.name) }
+                  else
+                    # Single entry
+                    [archive.get_entry(pattern)].compact
+                  end
 
         if entries.empty?
           warn "No entries match pattern: #{pattern}"
@@ -133,7 +132,7 @@ module Omnizip
 
       def parse_permissions(perms_str)
         # Handle octal (755) or decimal
-        if perms_str.start_with?('0')
+        if perms_str.start_with?("0")
           perms_str.to_i(8)
         else
           perms_str.to_i

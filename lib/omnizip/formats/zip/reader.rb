@@ -42,14 +42,17 @@ module Omnizip
         end
 
         # Extract all files to a directory
-        def extract_all(output_dir, preserve_links: true, dereference_links: false)
+        def extract_all(output_dir, preserve_links: true,
+dereference_links: false)
           entries.each do |entry|
-            extract_entry(entry, output_dir, preserve_links: preserve_links, dereference_links: dereference_links)
+            extract_entry(entry, output_dir, preserve_links: preserve_links,
+                                             dereference_links: dereference_links)
           end
         end
 
         # Extract a specific entry
-        def extract_entry(entry, output_dir, preserve_links: true, dereference_links: false)
+        def extract_entry(entry, output_dir, preserve_links: true,
+dereference_links: false)
           output_path = File.join(output_dir, entry.filename)
 
           if entry.directory?
@@ -74,7 +77,7 @@ module Omnizip
               variable_data = io.read(filename_length + extra_length)
 
               # Parse complete local file header
-              local_header = LocalFileHeader.from_binary(fixed_header + variable_data)
+              LocalFileHeader.from_binary(fixed_header + variable_data)
 
               # Now we're positioned right after the local file header, read compressed data
               compressed_data = io.read(entry.compressed_size)
@@ -83,20 +86,23 @@ module Omnizip
               decompressed_data = decompress_data(
                 compressed_data,
                 entry.compression_method,
-                entry.uncompressed_size
+                entry.uncompressed_size,
               )
 
               # Verify CRC
-              calculated_crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(decompressed_data) }.finalize
+              calculated_crc = Omnizip::Checksums::Crc32.new.tap do |c|
+                c.update(decompressed_data)
+              end.finalize
               if calculated_crc != entry.crc32
-                raise Omnizip::ChecksumError, "CRC mismatch for #{entry.filename}"
+                raise Omnizip::ChecksumError,
+                      "CRC mismatch for #{entry.filename}"
               end
 
               # Write decompressed data
               File.binwrite(output_path, decompressed_data)
 
               # Set file permissions if Unix
-              if entry.unix_permissions > 0
+              if entry.unix_permissions.positive?
                 File.chmod(entry.unix_permissions & 0o777, output_path)
               end
             end
@@ -185,7 +191,8 @@ module Omnizip
           when COMPRESSION_ZSTANDARD
             decompress_zstandard(compressed_data)
           else
-            raise Omnizip::UnsupportedFormatError, "Unsupported compression method: #{method}"
+            raise Omnizip::UnsupportedFormatError,
+                  "Unsupported compression method: #{method}"
           end
         end
 
@@ -194,32 +201,36 @@ module Omnizip
           require "zlib"
           # ZIP uses raw deflate without zlib wrapper
           Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(data)
-        rescue => e
-          raise Omnizip::DecompressionError, "Deflate decompression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::DecompressionError,
+                "Deflate decompression failed: #{e.message}"
         end
 
         # Decompress using BZip2
         def decompress_bzip2(data)
           algorithm = AlgorithmRegistry.get(:bzip2)
           algorithm.decompress(data)
-        rescue => e
-          raise Omnizip::DecompressionError, "BZip2 decompression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::DecompressionError,
+                "BZip2 decompression failed: #{e.message}"
         end
 
         # Decompress using LZMA
         def decompress_lzma(data, uncompressed_size)
           algorithm = AlgorithmRegistry.get(:lzma)
           algorithm.decompress(data, uncompressed_size: uncompressed_size)
-        rescue => e
-          raise Omnizip::DecompressionError, "LZMA decompression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::DecompressionError,
+                "LZMA decompression failed: #{e.message}"
         end
 
         # Decompress using Zstandard
         def decompress_zstandard(data)
           algorithm = AlgorithmRegistry.get(:zstandard)
           algorithm.decompress(data)
-        rescue => e
-          raise Omnizip::DecompressionError, "Zstandard decompression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::DecompressionError,
+                "Zstandard decompression failed: #{e.message}"
         end
 
         # Get human-readable compression method name

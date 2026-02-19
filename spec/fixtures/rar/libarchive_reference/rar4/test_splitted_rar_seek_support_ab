@@ -1,0 +1,171 @@
+log messages on failure. In particular, they print
+the value of both arguments; this greatly simplifies diagnosing
+failures. 
+</P>
+<H1 CLASS="western"><A NAME="Life_cycle_of_a_test"></A>Life cycle of
+a test</H1>
+<P>Each test resides in a C source file with the same name as the
+test. The test itself is a function that takes no arguments. The test
+is declared using the <TT CLASS="western">DEFINE_TEST()</TT> macro.
+This macro serves both to ensure that the test is declared correctly
+and as a label that can be used to locate all defined tests. (On
+Unix-like platforms, a simple <TT CLASS="western">grep</TT> operation
+is used to construct a file called <TT CLASS="western">list.h</TT>
+that holds the names of all of the tests. This makes it very easy to
+add new tests.) 
+</P>
+<P>The test harness determines which tests to run. It goes through
+the following steps whenever it runs a test: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><STRIKE>Closes all file
+	descriptors except for stdin, stdout, and stderr.</STRIKE> (This
+	screws up libc on some platforms so has been removed.) 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Creates a temporary directory
+	whose name matches the name of the test and switches into that
+	directory. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Resets the current locale. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Calls the test function. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">If there were no assertion
+	failures, it will remove the temporary directory. (If <TT CLASS="western">-k</TT>
+	is specified, temporary directory are left even if the test
+	succeeds.) 
+	</P>
+	<LI><P><STRIKE>If there are any open file descriptors other than
+	stdin, stdout, and stderr, it reports an error.</STRIKE> Tests
+	should never leave open file descriptors. 
+	</P>
+</UL>
+<P>In particular, tests can safely assume that: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">The current directory is empty
+	when the test starts. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Any files created in the current
+	directory will be removed for you. 
+	</P>
+	<LI><P>The current locale is the default &quot;C&quot; locale. 
+	</P>
+</UL>
+<P>Tests should: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">Release all memory. The test
+	suites are occasionally run under a memory debugger to detect leaks
+	in the libarchive library. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Close all opened files. This helps
+	to catch file descriptor leaks in libarchive. 
+	</P>
+	<LI><P>Not read or write absolute paths. 
+	</P>
+</UL>
+<H1 CLASS="western"><A NAME="Platform_variation"></A>Platform
+variation</H1>
+<P>Some tests are specific to a particular platform. Such tests
+should use appropriate platform-specific macros as follows: 
+</P>
+<PRE CLASS="western">#if __PLATFORM
+... various helper functions ...
+#endif
+DEFINE_TEST(foo_platform)
+{
+#if __PLATFORM
+&nbsp; &nbsp;... tests as usual ....
+#else
+&nbsp; &nbsp;skipping(&quot;platform-specific tests&quot;);
+#endif
+}</PRE><P>
+In particular, note that all tests are compiled and run on all
+platforms. 
+</P>
+<P>Most tests are not platform-specific and will thus end up running
+on many different platforms. In order to simplify writing such tests,
+try to use platform-independent coding: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">Use stdio <TT CLASS="western">fopen()</TT>,
+	<TT CLASS="western">fwrite()</TT>, <TT CLASS="western">fread()</TT>,
+	and <TT CLASS="western">fclose()</TT> to access files whenever
+	feasible. 
+	</P>
+	<LI><P>Look through the <TT CLASS="western">test.h</TT> header to
+	see if there are assertXxx() functions that you can use. There's a
+	list of the more popular ones below, but new ones are often added. 
+	</P>
+</UL>
+<H1 CLASS="western"><A NAME="Assert_macros"></A>Assert macros</H1>
+<P>The following is a necessarily incomplete list of assert functions
+available to tests: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">Basic equality: <TT CLASS="western">assertEqualInt</TT>,
+	<TT CLASS="western">assertEqualString</TT>, <TT CLASS="western">assertEqualMem</TT>
+		</P>
+	<LI><P STYLE="margin-bottom: 0in">File creation: <TT CLASS="western">assertMakeFile</TT>,
+	<TT CLASS="western">assertMakeSymlink</TT>, <TT CLASS="western">assertMakeHardlink</TT>,
+	<TT CLASS="western">assertMakeDir</TT> 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">File tests: <TT CLASS="western">assertIsReg</TT>,
+	<TT CLASS="western">assertIsDir</TT>, <TT CLASS="western">assertIsSymlink</TT>,
+	<TT CLASS="western">assertFileSize</TT>, <TT CLASS="western">assertFileNlinks</TT>,
+	<TT CLASS="western">assertFileMtime</TT> 
+	</P>
+	<LI><P>File contents: <TT CLASS="western">assertFileEmpty</TT>,
+	<TT CLASS="western">assertFileNonEmpty</TT>, <TT CLASS="western">assertFileContents</TT>,
+	<TT CLASS="western">assertTextFileContents</TT> 
+	</P>
+</UL>
+<H1 CLASS="western"><A NAME="Reference_Files"></A>Reference Files</H1>
+<P>Many tests require reading a pre-constructed reference file. Such
+files are stored with the source code for the associated test suite.
+Reference files are named according to the test and must be uuencoded
+to be checked into source control. 
+</P>
+<P>For example, if you need a reference tar archive to use with
+<TT CLASS="western">test_foo</TT>, the file should be named
+<TT CLASS="western">test_foo.tar</TT> and stored in source control as
+<TT CLASS="western">test_foo.tar.uu</TT>. 
+</P>
+<P>Within the test code, you can recover the reference file with: 
+</P>
+<PRE CLASS="western" STYLE="margin-bottom: 0.2in">&nbsp; &nbsp; extract_reference_file(&quot;test_foo.tar&quot;);</PRE><P>
+The <TT CLASS="western">extract_reference_file()</TT> function will
+uudecode the requested file and put the result in the current
+directory. 
+</P>
+<P>Look at <TT CLASS="western">test_read_format_cpio_bin_be.c</TT>
+for a simple example of this usage. 
+</P>
+<P>A few of the older tests store reference data within the source
+code as a hex-encoded array of characters. This was common before
+<TT CLASS="western">extract_reference_file()</TT> was added and is
+not recommended for new code. 
+</P>
+<H1 CLASS="western"><A NAME="Dos_and_Donts"></A>Dos and Donts</H1>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">DO use asserts liberally. It's
+	common to have an assert on almost every line. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">DO use assertEqualInt,
+	assertEqualString, assertEqualMem to test equality instead of plain
+	assert(); the specialized forms give a lot more information on a
+	failure. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">DO test your tests; experiment by
+	changing a piece of code and make sure your test fails. If you think
+	you've found a bug, we recommend writing the test first, make sure
+	the test fails, then fixing the bug. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">DO run all of the tests before
+	submitting a change. Depending on your build environment, <TT CLASS="western">make
+	test</TT> or <TT CLASS="western">make check</TT> will usually run
+	all of the tests. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">DON'T rely on <TT CLASS="western">HAVE_</TT>
+	macros f

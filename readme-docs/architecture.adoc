@@ -1,0 +1,449 @@
+= Architecture Documentation
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document describes Omnizip's system architecture, design patterns, and extensibility mechanisms. It's intended for developers who want to understand the internal structure or contribute new algorithms and features.
+
+== General Architecture
+
+Omnizip uses a registry-based architecture that separates algorithm implementation from the compression interface. This design enables easy addition of new compression algorithms while maintaining a consistent API.
+
+The architecture consists of three main layers:
+
+. **Algorithm Registry Layer:** Manages algorithm registration and discovery
+. **Algorithm Implementation Layer:** Implements specific compression algorithms
+. **I/O Management Layer:** Handles buffered input/output operations
+
+== System Architecture Diagram
+
+[source]
+----
+┌────────────────────────────────────────────────────────────┐
+│                        User Code                           │
+│                  (CLI / Ruby API)                          │
+└────────────────────┬───────────────────────────────────────┘
+                     │
+                     │ Uses
+                     ▼
+┌────────────────────────────────────────────────────────────┐
+│                  AlgorithmRegistry                         │
+│                                                            │
+│  • register(name, klass)                                  │
+│  • get(name) → Algorithm Class                            │
+│  • available → [:lzma, ...]                               │
+└────────────┬───────────────────────────────────────────────┘
+             │
+             │ Returns
+             ▼
+┌────────────────────────────────────────────────────────────┐
+│                   Algorithm (Base)                         │
+│                                                            │
+│  • compress(input, output, options)                       │
+│  • decompress(input, output, options)                     │
+│  • metadata → AlgorithmMetadata                           │
+└────────────┬───────────────────────────────────────────────┘
+             │
+             │ Implemented by
+             ▼
+┌────────────────────────────────────────────────────────────┐
+│                    LZMA Algorithm                          │
+│                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │   Encoder    │  │   Decoder    │  │    State     │   │
+│  │              │  │              │  │              │   │
+│  │ • encode()   │  │ • decode()   │  │ • track()    │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────────────┘   │
+│         │                  │                              │
+│         ▼                  ▼                              │
+│  ┌──────────────┐  ┌──────────────┐                     │
+│  │ RangeEncoder │  │ RangeDecoder │                     │
+│  └──────────────┘  └──────────────┘                     │
+│         │                  │                              │
+│         ▼                  ▼                              │
+│  ┌──────────────┐  ┌──────────────┐                     │
+│  │ MatchFinder  │  │  BitModel    │                     │
+│  └──────────────┘  └──────────────┘                     │
+└────────────┬───────────────────────────────────────────────┘
+             │
+             │ Uses
+             ▼
+┌────────────────────────────────────────────────────────────┐
+│                   I/O Management                           │
+│                                                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ BufferedInput│  │BufferedOutput│  │StreamManager │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘   │
+└────────────────────────────────────────────────────────────┘
+----
+
+== Data Flow
+
+=== Compression Flow
+
+[source]
+----
+Compression Flow:
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│ Input File  │────►│ LZMA Encoder │────►│ Output File  │
+└─────────────┘     └──────────────┘     └──────────────┘
+                           │
+                           │ Uses
+                           ▼
+                    ┌──────────────┐
+                    │ MatchFinder  │
+                    │ RangeEncoder │
+                    │   BitModel   │
+                    └──────────────┘
+----
+
+=== Decompression Flow
+
+[source]
+----
+Decompression Flow:
+┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+│Compressed   │────►│ LZMA Decoder │────►│ Decompressed │
+│   File      │     │              │     │    Output    │
+└─────────────┘     └──────────────┘     └──────────────┘
+                           │
+                           │ Uses
+                           ▼
+                    ┌──────────────┐
+                    │ RangeDecoder │
+                    │   BitModel   │
+                    │    State     │
+                    └──────────────┘
+----
+
+== Design Patterns
+
+=== Registry Pattern
+
+The registry pattern provides a plugin architecture for algorithms, filters, formats, and checksums.
+
+**Purpose:** Enable runtime discovery and dynamic algorithm selection
+
+**Implementation:**
+
+* `AlgorithmRegistry` - Manages compression algorithms
+* `FilterRegistry` - Manages preprocessing filters
+* `FormatRegistry` - Manages archive formats
+* `ChecksumRegistry` - Manages checksum algorithms
+
+**Benefits:**
+
+* Easy to add new algorithms without modifying core
+* Runtime algorithm discovery
+* Consistent API across implementations
+* Clean separation of concerns
+
+=== Template Method Pattern
+
+**Purpose:** Define algorithm interface, let subclasses implement specifics
+
+**Implementation:**
+
+* `Algorithm` base class defines `compress`, `decompress`, `metadata` interface
+* Subclasses implement specific compression logic
+* Metadata method provides algorithm information
+
+**Example:**
+
+[source,ruby]
+----
+class Algorithm
+  def compress(input, output, options = nil)
+    raise NotImplementedError
+  end
+  
+  def decompress(input, output, options = nil)
+    raise NotImplementedError
+  end
+  
+  def self.metadata
+    raise NotImplementedError
+  end
+end
+----
+
+=== Strategy Pattern
+
+**Purpose:** Interchangeable compression strategies
+
+**Implementation:**
+
+* Different algorithms (LZMA, Deflate, BZip2) implement same interface
+* User selects strategy via registry: `AlgorithmRegistry.get(:lzma)`
+* Filters can be composed using `FilterPipeline`
+
+**Benefits:**
+
+* Algorithm selection at runtime
+* Easy to swap algorithms
+* Composition of filters
+
+=== Builder Pattern
+
+**Purpose:** Construct complex archives step-by-step
+
+**Implementation:**
+
+* Archive writers allow incremental file addition
+* Options configured via models before execution
+* Clean API for multi-step operations
+
+**Example:**
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
+writer.algorithm = :lzma2
+writer.level = 9
+writer.add_file('file1.txt')
+writer.add_file('file2.txt')
+writer.close
+----
+
+=== Adapter Pattern
+
+**Purpose:** Provide rubyzip-compatible interface
+
+**Implementation:**
+
+* `rubyzip_compat.rb` adapts native API to `Zip::` namespace
+* Allows drop-in replacement for existing rubyzip code
+* Maintains backward compatibility
+
+**Benefits:**
+
+* Easy migration path
+* No code changes needed for basic operations
+* Gradual adoption possible
+
+== The Algorithm Registry
+
+=== General
+
+The `AlgorithmRegistry` class maintains a global registry of available compression algorithms.
+
+=== Registration
+
+[source,ruby]
+----
+# Register a new algorithm
+Omnizip::AlgorithmRegistry.register(:lzma, Omnizip::Algorithms::LZMA)
+
+# Get an algorithm class
+algorithm_class = Omnizip::AlgorithmRegistry.get(:lzma)
+
+# Check if registered
+if Omnizip::AlgorithmRegistry.registered?(:lzma)
+  puts "LZMA is available"
+end
+
+# List all available
+algorithms = Omnizip::AlgorithmRegistry.available
+# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstd]
+----
+
+=== Adding New Algorithms
+
+To add a new compression algorithm:
+
+. Create a class that inherits from `Omnizip::Algorithm`
+. Implement required methods: `compress`, `decompress`, `metadata`
+. Register the algorithm with the registry
+
+**Example:**
+
+[source,ruby]
+----
+module Omnizip
+  module Algorithms
+    class MyAlgorithm < Algorithm
+      def self.metadata
+        Models::AlgorithmMetadata.new.tap do |meta|
+          meta.name = "myalgorithm"
+          meta.description = "My custom compression algorithm"
+          meta.version = "1.0.0"
+        end
+      end
+
+      def compress(input_stream, output_stream, options = nil)
+        # Implement compression logic
+      end
+
+      def decompress(input_stream, output_stream, options = nil)
+        # Implement decompression logic
+      end
+    end
+  end
+end
+
+# Register the algorithm
+Omnizip::AlgorithmRegistry.register(:myalgorithm, Omnizip::Algorithms::MyAlgorithm)
+----
+
+== Component Relationships
+
+=== Dependency Graph
+
+[source]
+----
+CLI → Commands → Formats → Algorithms → Registries
+                         ↓
+                    Filters → FilterRegistry
+                         ↓
+                    I/O Layer
+----
+
+=== Module Organization
+
+**Core Modules:**
+
+* `Omnizip::Algorithms::*` - Algorithm implementations
+* `Omnizip::Formats::*` - Archive format handlers
+* `Omnizip::Filters::*` - Preprocessing filters
+* `Omnizip::Models::*` - Data models (Lutaml::Model based)
+* `Omnizip::Checksums::*` - Checksum algorithms
+
+**Support Modules:**
+
+* `Omnizip::Chunked::*` - Chunked I/O for large files
+* `Omnizip::Progress::*` - Progress tracking
+* `Omnizip::Profiler::*` - Performance profiling
+* `Omnizip::Parallel::*` - Parallel processing
+
+== Extension Points
+
+=== Adding New Algorithms
+
+. Inherit from `Algorithm`
+. Implement `compress`, `decompress`, `metadata`
+. Register with `AlgorithmRegistry.register`
+
+=== Adding New Filters
+
+. Inherit from `Filters::FilterBase`
+. Implement `encode` and `decode` methods
+. Register with `FilterRegistry.register`
+
+=== Adding New Formats
+
+. Create reader/writer classes
+. Follow format specification
+. Register with `FormatRegistry`
+
+=== Adding New Checksums
+
+. Inherit from `Checksums::CrcBase`
+. Implement checksum calculation
+. Register with `ChecksumRegistry`
+
+== Performance Considerations
+
+=== Pure Ruby Trade-offs
+
+**Decision:** Implement everything in pure Ruby without C extensions
+
+**Rationale:** Maximum portability across all Ruby platforms
+
+**Trade-off:** 10-60x slower than native implementations
+
+**Mitigation:** Profile-guided optimization within Ruby bounds
+
+=== Bottlenecks (v1.0 baseline)
+
+* **BWT (Burrows-Wheeler Transform):** 50-60x slower - CRITICAL
+* **LZMA encoding:** 13-15x slower - acceptable
+* **LZMA decoding:** 8-10x slower - good
+* **Range coder:** 10x slower - excellent
+
+=== Optimization Strategies
+
+. Profile-guided optimization using `Profiler`
+. Algorithm-specific tuning (e.g., BWT implementation)
+. Memory allocation reduction
+. Hot path optimization
+. Avoid unnecessary object creation
+
+== Memory Management
+
+=== Chunked Processing
+
+For large files (> 100MB), use chunked processing:
+
+* `Chunked::Reader` - Read files in chunks
+* `Chunked::Writer` - Write files in chunks
+* `Chunked::MemoryManager` - Track memory usage
+
+=== Dictionary Size Configuration
+
+Configure dictionary sizes based on available memory:
+
+* **LZMA level 1:** 64KB
+* **LZMA level 5:** 4MB (default)
+* **LZMA level 9:** 16MB
+* **PPMd:** Configurable (4MB-256MB)
+
+== Testing Architecture
+
+=== Test Structure
+
+* **Unit Tests:** Individual class/method testing
+* **Integration Tests:** End-to-end workflows
+* **Format Tests:** Archive format compatibility
+
+=== Test Principles
+
+* **MECE:** Mutually Exclusive, Collectively Exhaustive
+* **No Mocks:** Test real behavior, not test doubles
+* **StringIO:** Use for in-memory testing
+* **Fixtures:** Store in `spec/fixtures/`
+
+=== Test Organization
+
+[source]
+----
+spec/
+├── omnizip/
+│   ├── algorithms/
+│   │   ├── lzma_spec.rb              # Unit tests
+│   │   ├── lzma_integration_spec.rb  # Integration
+│   │   └── ...
+│   ├── formats/
+│   │   ├── seven_zip/
+│   │   │   ├── reader_spec.rb
+│   │   │   ├── writer_spec.rb
+│   │   │   └── ...
+│   │   └── ...
+│   └── ...
+└── fixtures/
+    ├── test_data/
+    └── archives/
+----
+
+== Code Quality Standards
+
+=== RuboCop Configuration
+
+* **Max line length:** 80 characters
+* **Max method length:** 50 lines (complex algorithms allowed)
+* **Max class length:** 700 lines (refactor if exceeded)
+* **Indentation:** 2 spaces, no tabs
+
+=== Documentation Requirements
+
+* All public methods must have YARD documentation
+* Complex algorithms need detailed comments
+* README sections for all major features
+* Examples for common use cases
+
+== See Also
+
+* link:api-usage.adoc[Library API Usage]
+* link:compression-algorithms.adoc[Compression Algorithms]
+* link:preprocessing-filters.adoc[Preprocessing Filters]
+* link:../README.adoc[Main README]

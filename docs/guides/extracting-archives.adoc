@@ -1,0 +1,53 @@
+---
+title: Extracting Archives
+nav_order: 2
+parent: Guides
+---
+
+== Extracting Archives
+
+Guide to extracting files from archives.
+
+== Quick Examples
+
+=== Extract All Files
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip::Archive.open('backup.zip') do |archive|
+  archive.extract_all('output/')
+end
+----
+
+=== Extract Specific Files
+
+[source,ruby]
+----
+Omnizip::Archive.open('backup.zip') do |archive|
+  archive.extract('document.pdf', 'restored/document.pdf')
+end
+----
+
+=== List Contents
+
+[source,ruby]
+----
+entries = Omnizip.list_archive('backup.zip')
+entries.each do |entry|
+  puts "#{entry.name}: #{entry.size} bytes"
+end
+----
+
+== Pattern Matching
+
+[source,ruby]
+----
+archive.extract_matching('*.txt', 'output/')
+----
+
+== See Also
+
+* link:creating-archives.html[Creating Archives]
+* link:../reference/api/overview.html[Ruby API]

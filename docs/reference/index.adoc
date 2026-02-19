@@ -1,0 +1,26 @@
+---
+title: Reference
+nav_order: 50
+has_children: true
+---
+
+== Reference
+
+Complete technical reference for Omnizip CLI and Ruby API.
+
+=== Command-Line Interface
+
+* link:cli/overview.html[CLI Overview] - Command-line interface introduction
+* link:cli/compress-command.html[compress] - Compress files command reference
+
+=== Ruby API
+
+* link:api/overview.html[API Overview] - Ruby API introduction and examples
+
+== Additional Resources
+
+For more detailed guides, see:
+
+* link:../guides/[How-To Guides] - Step-by-step guides for common tasks
+* link:../getting-started/[Getting Started] - Installation and quick start
+* link:../comparison/[Comparison] - Compare with other tools

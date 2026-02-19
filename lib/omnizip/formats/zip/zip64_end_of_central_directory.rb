@@ -67,11 +67,14 @@ module Omnizip
           total_entries_this_disk, total_entries,
           central_directory_size, central_directory_offset = data.unpack("VQvvVVQQQQ")
 
-          raise Omnizip::FormatError, "Invalid ZIP64 EOCD signature" unless signature == ZIP64_END_OF_CENTRAL_DIRECTORY_SIGNATURE
+          unless signature == ZIP64_END_OF_CENTRAL_DIRECTORY_SIGNATURE
+            raise Omnizip::FormatError,
+                  "Invalid ZIP64 EOCD signature"
+          end
 
           # Extensible data sector starts after the fixed 56 bytes (4+8+2+2+4+4+8+8+8+8)
           extensible_data_sector = if data.bytesize > 56
-                                     data[56..-1]
+                                     data[56..]
                                    else
                                      ""
                                    end
@@ -87,13 +90,13 @@ module Omnizip
             total_entries: total_entries,
             central_directory_size: central_directory_size,
             central_directory_offset: central_directory_offset,
-            extensible_data_sector: extensible_data_sector
+            extensible_data_sector: extensible_data_sector,
           )
         end
 
         # Total size of this record in bytes
         def total_size
-          12 + record_size  # 4 (signature) + 8 (record_size) + record_size
+          12 + record_size # 4 (signature) + 8 (record_size) + record_size
         end
       end
     end

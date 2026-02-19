@@ -65,7 +65,7 @@ module Omnizip
           priority_score: priority_score,
           related_operations: related_operations,
           code_locations: code_locations,
-          metrics: metrics
+          metrics: metrics,
         }
       end
 
@@ -76,7 +76,7 @@ module Omnizip
 
         raise ArgumentError,
               "Invalid severity: #{severity}. " \
-              "Must be one of: #{SEVERITY_LEVELS.join(", ")}"
+              "Must be one of: #{SEVERITY_LEVELS.join(', ')}"
       end
 
       def validate_category!(category)
@@ -84,7 +84,7 @@ module Omnizip
 
         raise ArgumentError,
               "Invalid category: #{category}. " \
-              "Must be one of: #{CATEGORIES.join(", ")}"
+              "Must be one of: #{CATEGORIES.join(', ')}"
       end
     end
   end

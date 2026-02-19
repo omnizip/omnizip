@@ -78,7 +78,7 @@ module Omnizip
             available: @pool.size,
             created: @created_count,
             reused: @reuse_count,
-            efficiency: efficiency_ratio
+            efficiency: efficiency_ratio,
           }
         end
       end

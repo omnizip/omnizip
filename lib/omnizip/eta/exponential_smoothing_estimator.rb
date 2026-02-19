@@ -50,12 +50,12 @@ module Omnizip
         # Update smoothed rate
         current_rate = rate_calculator.bytes_per_second
 
-        if @smoothed_rate.nil?
-          @smoothed_rate = current_rate
-        else
-          @smoothed_rate = (smoothing_factor * current_rate) +
-                           ((1.0 - smoothing_factor) * @smoothed_rate)
-        end
+        @smoothed_rate = if @smoothed_rate.nil?
+                           current_rate
+                         else
+                           (smoothing_factor * current_rate) +
+                             ((1.0 - smoothing_factor) * @smoothed_rate)
+                         end
 
         # Calculate ETA
         seconds_remaining = if @smoothed_rate.positive?

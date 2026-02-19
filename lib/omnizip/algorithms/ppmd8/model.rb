@@ -154,7 +154,7 @@ module Omnizip
             cumulative_freq: cum_freq,
             freq: state.freq,
             total_freq: context.total_freq,
-            escape: false
+            escape: false,
           }
         end
 
@@ -166,7 +166,7 @@ module Omnizip
             cumulative_freq: cum_freq,
             freq: context.escape_freq,
             total_freq: context.total_freq,
-            escape: true
+            escape: true,
           }
         end
 

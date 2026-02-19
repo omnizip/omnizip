@@ -22,7 +22,7 @@ module Omnizip
           def confirm_license!
             return true if license_confirmed?
 
-            puts "\n#{"=" * 70}"
+            puts "\n#{'=' * 70}"
             puts "RAR License Confirmation Required"
             puts "=" * 70
             puts
@@ -90,11 +90,11 @@ module Omnizip
               WinRAR License Confirmation
               Confirmed at: #{Time.now.iso8601}
               Year: #{Time.now.year}
-              User: #{ENV["USER"] || ENV["USERNAME"] || "unknown"}
+              User: #{ENV['USER'] || ENV['USERNAME'] || 'unknown'}
               Hostname: #{begin
                 Socket.gethostname
               rescue StandardError
-                "unknown"
+                'unknown'
               end}
               Status: CONFIRMED
 

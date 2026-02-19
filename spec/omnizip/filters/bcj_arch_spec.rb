@@ -228,7 +228,7 @@ RSpec.describe "Architecture-specific BCJ filters" do
         Omnizip::Filters::BcjArm64.new,
         Omnizip::Filters::BcjPpc.new,
         Omnizip::Filters::BcjSparc.new,
-        Omnizip::Filters::BcjIa64.new
+        Omnizip::Filters::BcjIa64.new,
       ]
     end
 
@@ -240,7 +240,7 @@ RSpec.describe "Architecture-specific BCJ filters" do
         "\x00" * 64,                          # Zeros
         "\x01" * 64,                          # All ones (not 0xEB/0x94/etc)
         (0..63).map { |i| (i % 128).chr }.join, # Sequential (safe range)
-        "\x12\x34\x56\x78" * 16                 # Safe pattern
+        "\x12\x34\x56\x78" * 16, # Safe pattern
       ]
 
       filters.each do |filter|

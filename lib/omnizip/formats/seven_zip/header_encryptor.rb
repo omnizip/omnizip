@@ -59,7 +59,7 @@ module Omnizip
             data: encrypted,
             salt: @salt,
             iv: @iv,
-            size: header_data.bytesize
+            size: header_data.bytesize,
           }
         end
 
@@ -69,7 +69,7 @@ module Omnizip
         # @param salt [String] Salt used during encryption
         # @param iv [String] Initialization vector
         # @return [String] Decrypted header bytes
-        # @raise [OpenSSL::Cipher::CipherError] if password is incorrect
+        # @raise [RuntimeError] if password is incorrect
         def decrypt(encrypted_data, salt, iv)
           # Derive decryption key from password
           key = derive_key(@password, salt)
@@ -79,10 +79,16 @@ module Omnizip
           decipher.decrypt
           decipher.key = key
           decipher.iv = iv
+          # Ensure padding validation is enabled (default, but explicit)
+          decipher.padding = 1
 
-          decipher.update(encrypted_data) + decipher.final
-        rescue OpenSSL::Cipher::CipherError => e
-          raise "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
+          begin
+            decipher.update(encrypted_data) + decipher.final
+          rescue OpenSSL::Cipher::CipherError => e
+            raise "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
+          rescue StandardError => e
+            raise "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
+          end
         end
 
         # Derive encryption key from password using PBKDF2
@@ -96,7 +102,7 @@ module Omnizip
             salt,
             PBKDF2_ITERATIONS,
             AES_KEY_SIZE,
-            OpenSSL::Digest.new("SHA256")
+            OpenSSL::Digest.new("SHA256"),
           )
         end
 

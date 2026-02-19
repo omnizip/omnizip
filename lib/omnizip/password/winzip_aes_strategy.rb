@@ -70,7 +70,7 @@ module Omnizip
         password_verify_bytes = data[salt_size, 2]
         hmac_size = 10
         encrypted_data = data[(salt_size + 2)...-hmac_size]
-        stored_hmac = data[-hmac_size..-1]
+        stored_hmac = data[-hmac_size..]
 
         # Derive keys
         encryption_key, expected_verify, hmac_key = derive_winzip_keys(salt)
@@ -116,7 +116,7 @@ module Omnizip
           0x0002, # AES version 2
           0x4145, # Vendor ID "AE"
           key_size_code,
-          actual_compression_method
+          actual_compression_method,
         ].pack("vvCv")
 
         [WINZIP_AES_EXTRA_ID, data.bytesize].pack("vv") + data
@@ -152,7 +152,8 @@ module Omnizip
         when 192 then KEY_SIZE_192
         when 256 then KEY_SIZE_256
         else
-          raise ArgumentError, "Invalid key size: #{size}. Must be 128, 192, or 256"
+          raise ArgumentError,
+                "Invalid key size: #{size}. Must be 128, 192, or 256"
         end
       end
 
@@ -170,7 +171,7 @@ module Omnizip
           salt,
           1000, # iterations
           (2 * key_bits / 8) + 2, # key + hmac + verify
-          OpenSSL::Digest::SHA1.new
+          OpenSSL::Digest.new("SHA1"),
         )
 
         key_size_bytes = key_bits / 8
@@ -184,7 +185,7 @@ module Omnizip
 
       def calculate_hmac(key, data)
         require "openssl"
-        OpenSSL::HMAC.digest(OpenSSL::Digest::SHA1.new, key, data)[0, 10]
+        OpenSSL::HMAC.digest(OpenSSL::Digest.new("SHA1"), key, data)[0, 10]
       end
     end
   end

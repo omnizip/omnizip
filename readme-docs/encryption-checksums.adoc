@@ -1,0 +1,328 @@
+= Encryption & Checksums Guide
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document covers encryption and checksum features in Omnizip for securing archives and verifying data integrity.
+
+== AES-256 Encryption
+
+=== General
+
+Omnizip provides password-protected archive encryption using AES-256-CBC with SHA-256 key derivation. This ensures strong security for sensitive data in archives.
+
+=== How It Works
+
+. **Key Derivation:** Password is hashed using SHA-256 to create encryption key
+. **Encryption:** Data is encrypted using AES-256 in CBC (Cipher Block Chaining) mode
+. **Initialization Vector (IV):** Random IV is generated for each archive
+. **Storage:** Encrypted data and IV are stored in archive metadata
+
+=== Security Features
+
+* **AES-256:** Industry-standard strong encryption (256-bit key)
+* **CBC Mode:** Cipher Block Chaining prevents pattern analysis
+* **SHA-256:** Secure hash function for key derivation
+* **Random IV:** Each archive has unique initialization vector
+* **Salt:** Password is salted before hashing (prevents rainbow tables)
+
+=== Usage with .7z Archives
+
+[source,ruby]
+----
+# Create encrypted archive
+writer = Omnizip::Formats::SevenZip::Writer.new(
+  'secure_archive.7z',
+  password: "my_secure_password"
+)
+
+writer.add_file('sensitive_document.pdf')
+writer.add_file('confidential_data.xlsx')
+writer.close
+
+# Extract encrypted archive
+reader = Omnizip::Formats::SevenZip::Reader.new(
+  'secure_archive.7z',
+  password: "my_secure_password"
+)
+
+reader.extract_all('output/')
+reader.close
+----
+
+=== Password Strength Recommendations
+
+**Weak (avoid):**
+* Single words
+* Common passwords
+* < 8 characters
+* No special characters
+
+**Strong (recommended):**
+* 12+ characters
+* Mix of uppercase, lowercase, numbers, symbols
+* Not based on dictionary words
+* Unique for each archive
+
+**Example strong passwords:**
+* `mK9$pL2#nQ5@vR8!`
+* `Correct-Horse-Battery-Staple-2024`
+* `Th1s!sMyS3cur3P@ssw0rd`
+
+=== Security Considerations
+
+**What encryption protects:**
+* File contents from unauthorized access
+* Archive contents from modification
+* Data confidentiality during storage/transfer
+
+**What encryption does NOT protect:**
+* File names (visible in archive)
+* File sizes (visible in archive)
+* Directory structure (visible in archive)
+* Metadata (creation dates, etc.)
+
+**Important notes:**
+* Store passwords securely (password managers recommended)
+* Lost passwords cannot be recovered
+* Stronger passwords require more time to crack
+* Consider using key files for additional security
+
+=== Performance Impact
+
+Encryption adds minimal overhead:
+
+* **Encryption:** ~5-10% slower than unencrypted
+* **Decryption:** ~5-10% slower than unencrypted
+* **Memory:** No significant increase
+
+The security benefits far outweigh the small performance cost.
+
+== CRC32 Checksums
+
+=== General
+
+CRC32 (Cyclic Redundancy Check 32-bit) provides fast integrity verification for compressed data. It detects accidental corruption but is not cryptographically secure.
+
+=== Characteristics
+
+* **Size:** 32-bit (4 bytes)
+* **Speed:** Very fast
+* **Collision resistance:** Moderate
+* **Use case:** Detect accidental corruption
+
+=== Usage
+
+[source,ruby]
+----
+# Calculate CRC32 of data
+data = File.binread('file.txt')
+crc32 = Omnizip::ChecksumRegistry.get(:crc32).calculate(data)
+
+puts "CRC32: #{crc32.to_s(16).upcase}"  # Hexadecimal format
+----
+
+=== When to Use CRC32
+
+**Good for:**
+* ZIP archives (standard checksum)
+* Quick integrity checks
+* Detecting transmission errors
+* Low-overhead verification
+
+**Not suitable for:**
+* Security-critical applications
+* Detecting intentional tampering
+* Cryptographic purposes
+
+== CRC64 Checksums
+
+=== General
+
+CRC64 (Cyclic Redundancy Check 64-bit) provides stronger integrity verification than CRC32 with very low collision probability. Used in .7z archives for reliable data verification.
+
+=== Characteristics
+
+* **Size:** 64-bit (8 bytes)
+* **Speed:** Very fast
+* **Collision resistance:** Very high
+* **Use case:** Reliable corruption detection
+
+=== Usage
+
+[source,ruby]
+----
+# Calculate CRC64 of data
+data = File.binread('large_file.dat')
+crc64 = Omnizip::ChecksumRegistry.get(:crc64).calculate(data)
+
+puts "CRC64: #{crc64.to_s(16).upcase}"
+----
+
+=== When to Use CRC64
+
+**Good for:**
+* .7z archives (standard checksum)
+* Large files (> 4GB)
+* High-reliability verification
+* Minimal collision risk needed
+
+**Advantages over CRC32:**
+* Much lower collision probability
+* Better for large datasets
+* More reliable for critical data
+
+## Checksum Comparison
+
+[cols="20,20,20,20,20",options="header"]
+|===
+|Feature |CRC32 |CRC64 |MD5 |SHA-256
+
+|Size
+|4 bytes
+|8 bytes
+|16 bytes
+|32 bytes
+
+|Speed
+|⭐⭐⭐⭐⭐
+|⭐⭐⭐⭐⭐
+|⭐⭐⭐⭐
+|⭐⭐⭐
+
+|Collision Resistance
+|⭐⭐
+|⭐⭐⭐⭐
+|⭐⭐⭐
+|⭐⭐⭐⭐⭐
+
+|Cryptographic Security
+|❌ No
+|❌ No
+|⚠️ Weak
+|✅ Yes
+
+|Best Use Case
+|ZIP archives
+|.7z archives
+|Legacy systems
+|Security-critical
+|===
+
+**Note:** MD5 and SHA-256 are not currently implemented in Omnizip core, but can be added if needed.
+
+== Archive Integrity Verification
+
+=== Automatic Verification
+
+Omnizip automatically verifies checksums during extraction:
+
+[source,ruby]
+----
+# Extraction automatically verifies checksums
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+
+begin
+  reader.extract_all('output/')
+  puts "✓ All files verified successfully"
+rescue Omnizip::ChecksumMismatchError => e
+  puts "✗ Checksum verification failed: #{e.message}"
+  puts "File may be corrupted: #{e.filename}"
+end
+
+reader.close
+----
+
+=== Manual Verification
+
+You can manually verify checksums without extraction:
+
+[source,ruby]
+----
+# Verify archive integrity without extracting
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+
+reader.entries.each do |entry|
+  # Get stored checksum
+  stored_crc = entry.crc
+  
+  # Read and calculate actual checksum
+  data = reader.read_entry_data(entry)
+  calculated_crc = Omnizip::ChecksumRegistry.get(:crc64).calculate(data)
+  
+  if stored_crc == calculated_crc
+    puts "✓ #{entry.name}: OK"
+  else
+    puts "✗ #{entry.name}: CORRUPTED"
+  end
+end
+
+reader.close
+----
+
+== Combined Security: Encryption + Checksums
+
+Omnizip uses both encryption and checksums for maximum security and integrity:
+
+[source,ruby]
+----
+# Create secure archive with both encryption and checksums
+writer = Omnizip::Formats::SevenZip::Writer.new(
+  'secure_archive.7z',
+  password: "strong_password_here",
+  checksum: :crc64  # Default, can be explicit
+)
+
+writer.add_file('important_data.xlsx')
+writer.close
+
+# Extraction verifies both encryption and checksums
+reader = Omnizip::Formats::SevenZip::Reader.new(
+  'secure_archive.7z',
+  password: "strong_password_here"
+)
+
+begin
+  reader.extract_all('output/')
+  puts "✓ Password correct, checksums valid, data intact"
+rescue Omnizip::WrongPasswordError
+  puts "✗ Incorrect password"
+rescue Omnizip::ChecksumMismatchError
+  puts "✗ Data corrupted (password correct but checksum failed)"
+end
+
+reader.close
+----
+
+== Best Practices
+
+=== For Security
+
+. **Use strong passwords** (12+ characters, mixed case, numbers, symbols)
+. **Don't reuse passwords** across different archives
+. **Store passwords securely** (password manager recommended)
+. **Use AES-256** for sensitive data
+. **Combine with file permissions** for defense in depth
+
+=== For Data Integrity
+
+. **Always verify checksums** during extraction
+. **Use CRC64** for large or critical files
+. **Test archives** after creation
+. **Keep backup copies** of important archives
+. **Verify archives periodically** (detect bit rot)
+
+=== For Performance
+
+. **Encryption overhead is minimal** (~5-10%) - always use for sensitive data
+. **CRC64 is very fast** - overhead is negligible
+. **Larger files benefit more** from CRC64 over CRC32
+. **Consider compression level** before encryption for best balance
+
+== See Also
+
+* link:archive-formats.adoc[Archive Formats]
+* link:api-usage.adoc[Library API Usage]
+* link:par2-archives.adoc[PAR2 Error Correction]
+* link:../README.adoc[Main README]

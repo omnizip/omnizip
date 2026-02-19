@@ -8,11 +8,11 @@ Gem::Specification.new do |spec|
   spec.authors = ["Ribose Inc."]
   spec.email = ["open.source@ribose.com"]
 
-  spec.summary = "Pure Ruby port of 7-Zip compression algorithms"
+  spec.summary = "Multi-format compression and extraction library"
   spec.description = <<~DESC
-    Omnizip is a pure Ruby implementation of LZMA compression and
-    multi-format archive support (.7z, CPIO, ISO 9660), based on the
-    7-Zip LZMA SDK by Igor Pavlov.
+    Omnizip is an extractor/compressor library that implements a comprehensive set
+    of data compression algorithms and archive formats, in pure Ruby.
+    Supports LZMA, ZIP, 7z, RAR, XZ, CPIO, ISO 9660, PAR and more.
   DESC
   spec.homepage = "https://github.com/riboseinc/omnizip"
   spec.license = "LGPL-2.1-or-later"
@@ -39,6 +39,8 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
+  spec.add_dependency "base64"
+  spec.add_dependency "bindata", "~> 2.4"
   spec.add_dependency "lutaml-model", "~> 0.7"
-  spec.add_dependency "marcel", "~> 1.1"
+  spec.add_dependency "marcel", "~> 1.0"
 end

@@ -33,7 +33,7 @@ module Omnizip
       end
 
       def throughput_ops_per_second
-        return nil unless call_count && total_time && total_time.positive?
+        return nil unless call_count && total_time&.positive?
 
         call_count.to_f / total_time
       end
@@ -51,7 +51,7 @@ module Omnizip
       end
 
       def gc_pressure
-        return nil unless gc_runs && total_time && total_time.positive?
+        return nil unless gc_runs && total_time&.positive?
 
         gc_runs.to_f / total_time
       end
@@ -71,7 +71,7 @@ module Omnizip
           average_time_per_operation: average_time_per_operation,
           memory_per_operation: memory_per_operation,
           gc_pressure: gc_pressure,
-          timestamp: timestamp.iso8601
+          timestamp: timestamp.iso8601,
         }
       end
     end

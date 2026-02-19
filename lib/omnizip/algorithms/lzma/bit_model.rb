@@ -20,8 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm
@@ -32,65 +30,72 @@ module Omnizip
       # are updated based on actual bit values encountered during encoding
       # or decoding.
       #
-      # The probability model maintains a value between 0 and BIT_MODEL_TOTAL
-      # that represents the probability of encoding a 0 bit. The model
-      # adapts by shifting toward the actual bit values seen, allowing
-      # better compression of non-random data.
+      # Ported from XZ Utils range_encoder.c probability model implementation.
       class BitModel
-        include Constants
+        PROB_INIT = 1024  # Initial probability (0.5)
+        MOVE_BITS = 5     # Probability update speed
+        MAX_PROB = 1 << 11 # 4096
+        BIT_MODEL_TOTAL = 0x800 # XZ Utils RC_BIT_MODEL_TOTAL = 2048
 
         attr_reader :probability
 
         # Initialize a new bit probability model
         #
-        # @param initial_prob [Integer] Initial probability value
-        #   (default: INIT_PROBS which represents 0.5 probability)
-        def initialize(initial_prob = INIT_PROBS)
+        # @param initial_prob [Integer] Initial probability value (default: PROB_INIT)
+        def initialize(initial_prob = PROB_INIT)
           @probability = initial_prob
         end
 
         # Update the probability model based on an actual bit value
         #
-        # This method implements the adaptive algorithm:
+        # This method implements the XZ Utils adaptive algorithm:
         # - If bit is 0: probability increases (shifts toward encoding 0)
         # - If bit is 1: probability decreases (shifts toward encoding 1)
         #
         # The update uses a shift operation (MOVE_BITS) to control the
         # adaptation rate. Smaller MOVE_BITS means faster adaptation.
         #
+        # XZ Utils formula (lzma/lzma_encoder.c:RC_BIT_*):
+        #   bit 0: prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS
+        #   bit 1: prob -= prob >> RC_MOVE_BITS
+        # where RC_BIT_MODEL_TOTAL = 2048, RC_MOVE_BITS = 5
+        #
         # @param bit [Integer] The actual bit value (0 or 1)
         # @return [void]
         def update(bit)
           if bit.zero?
-            # Increase probability of 0
-            # prob += (BIT_MODEL_TOTAL - prob) >> MOVE_BITS
+            # XZ Utils formula: prob += (RC_BIT_MODEL_TOTAL - prob) >> RC_MOVE_BITS
             @probability += ((BIT_MODEL_TOTAL - @probability) >> MOVE_BITS)
           else
-            # Decrease probability of 0 (increase probability of 1)
-            # prob -= prob >> MOVE_BITS
+            # XZ Utils formula: prob -= prob >> RC_MOVE_BITS
             @probability -= (@probability >> MOVE_BITS)
           end
+        end
+
+        # @deprecated Use {update} instead (same functionality, XZ Utils compatible)
+        def update!(bit)
+          update(bit)
         end
 
         # Reset the probability model to initial state
         #
         # @return [void]
         def reset
-          @probability = INIT_PROBS
+          @probability = PROB_INIT
         end
 
         # Get the probability of encoding a 0 bit
         #
-        # @return [Integer] Probability value (0..BIT_MODEL_TOTAL)
+        # @return [Integer] Probability value (0..MAX_PROB)
         def prob_0
           @probability
         end
 
         # Get the probability of encoding a 1 bit
         #
-        # @return [Integer] Probability value (0..BIT_MODEL_TOTAL)
+        # @return [Integer] Probability value (0..MAX_PROB)
         def prob_1
-          BIT_MODEL_TOTAL - @probability
+          MAX_PROB - @probability
         end
 
         # Create a copy of this bit model
@@ -98,6 +103,16 @@ module Omnizip
         # @return [BitModel] A new BitModel with the same probability
         def dup
           BitModel.new(@probability)
+        end
+
+        # For range coder: get probability scaled to 11 bits (XZ Utils compatibility)
+        #
+        # This method returns the probability value in the format expected
+        # by the range coder for encoding/decoding operations.
+        #
+        # @return [Integer] Probability value (0..MAX_PROB)
+        def to_range
+          @probability
         end
       end
     end

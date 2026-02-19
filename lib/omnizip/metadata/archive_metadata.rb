@@ -59,7 +59,10 @@ module Omnizip
       def compression_ratio
         return 0.0 if total_size.zero?
 
-        1.0 - (total_compressed_size.to_f / total_size)
+        ratio = 1.0 - (total_compressed_size.to_f / total_size)
+        # Clamp ratio between 0.0 and 1.0 (compressed size can exceed
+        # original size for small files or incompressible data)
+        [[ratio, 0.0].max, 1.0].min
       end
 
       # Get entry count
@@ -103,7 +106,7 @@ module Omnizip
           compression_ratio: compression_ratio,
           entry_count: entry_count,
           file_count: file_count,
-          directory_count: directory_count
+          directory_count: directory_count,
         }
       end
     end

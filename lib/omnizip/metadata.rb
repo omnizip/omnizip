@@ -17,7 +17,7 @@ module Omnizip
       # @return [EntryMetadata] Entry metadata object
       def edit_entry(entry, &block)
         metadata = EntryMetadata.new(entry)
-        block.call(metadata) if block_given?
+        yield(metadata) if block
         metadata
       end
 
@@ -27,7 +27,7 @@ module Omnizip
       # @return [ArchiveMetadata] Archive metadata object
       def edit_archive(archive, &block)
         metadata = ArchiveMetadata.new(archive)
-        block.call(metadata) if block_given?
+        yield(metadata) if block
         metadata
       end
 

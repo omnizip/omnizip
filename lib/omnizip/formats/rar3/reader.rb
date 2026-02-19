@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
-require "lutaml/model"
+begin
+  require "lutaml/model"
+rescue LoadError, ArgumentError
+  # lutaml-model not available, using simple classes
+end
+
 require_relative "../rar/rar_format_base"
 require_relative "decompressor"
 
@@ -35,21 +40,29 @@ module Omnizip
           end
 
           entries = []
-          io.pos
 
-          # Read marker block
-          marker = read_block_header(io)
-          unless marker.type == block_type_code(:marker)
-            raise FormatError, "Expected marker block"
+          # RAR4 marker is the signature itself (7 bytes): "Rar!\x1a\x07\x00"
+          # Skip past the marker to read the archive header
+          io.seek(7, ::IO::SEEK_SET)
+
+          # Read first block - could be archive header or file block (for minimal archives)
+          first_block = read_block_header(io)
+
+          if first_block.type == block_type_code(:archive)
+            # Standard archive with archive header
+            @archive_flags = first_block.flags
+
+            # Skip past archive header block (header + data)
+            # SIZE field contains total block size
+            block_end = first_block.header_start + first_block.size
+            io.seek(block_end, ::IO::SEEK_SET)
+          elsif first_block.type == block_type_code(:file)
+            # Minimal archive without archive header - process as file block
+            entry = read_file_entry(io, first_block)
+            entries << entry if entry
+          else
+            raise FormatError, "Expected archive header or file header, got type #{first_block.type}"
           end
-
-          # Read archive header
-          archive_header = read_block_header(io)
-          unless archive_header.type == block_type_code(:archive)
-            raise FormatError, "Expected archive header"
-          end
-
-          @archive_flags = archive_header.flags
 
           # Read file blocks until end
           loop do
@@ -70,6 +83,9 @@ module Omnizip
           end
 
           entries
+        rescue EOFError, FormatError
+          # Handle truncated or malformed files gracefully
+          entries
         end
 
         private
@@ -79,6 +95,9 @@ module Omnizip
         # @param io [IO] The input stream
         # @return [BlockHeader] The block header
         def read_block_header(io)
+          # Record position BEFORE reading header
+          header_start = io.pos
+
           header_crc = io.read(2)&.unpack1("v")
           type = io.read(1)&.unpack1("C")
           flags = io.read(2)&.unpack1("v")
@@ -86,19 +105,31 @@ module Omnizip
 
           raise FormatError, "Unexpected EOF" unless size
 
-          # Check if header has additional size field
-          if flags & 0x8000 != 0
-            add_size = io.read(4)&.unpack1("V")
-            size += add_size
-          end
+          # For FILE blocks, the SIZE field directly contains the total header size
+          # The file_header structure starts immediately after the 7-byte block header
+          # No additional 4-byte field needed for FILE blocks
+          header_size = 7 # CRC(2) + TYPE(1) + FLAGS(2) + SIZE(2)
 
           BlockHeader.new(
             crc: header_crc,
             type: type,
             flags: flags,
             size: size,
-            position: io.pos
+            header_start: header_start,
+            header_size: header_size,
           )
+        end
+
+        # Skip to the data portion of a block (after header)
+        #
+        # @param io [IO] The input stream
+        # @param block [BlockHeader] The block header
+        def skip_to_block_data(io, block)
+          target_pos = block.header_start + block.header_size
+          current_pos = io.pos
+          if target_pos > current_pos
+            io.seek(target_pos, ::IO::SEEK_SET)
+          end
         end
 
         # Read a file entry from archive
@@ -107,41 +138,97 @@ module Omnizip
         # @param block [BlockHeader] The file block header
         # @return [Entry] The file entry
         def read_file_entry(io, block)
-          packed_size = io.read(4)&.unpack1("V")
-          unpacked_size = io.read(4)&.unpack1("V")
-          host_os = io.read(1)&.unpack1("C")
-          file_crc = io.read(4)&.unpack1("V")
-          file_time = io.read(4)&.unpack1("V")
-          io.read(1)&.unpack1("C")
-          method = io.read(1)&.unpack1("C")
-          name_size = io.read(2)&.unpack1("v")
-          attr = io.read(4)&.unpack1("V")
+          # The SIZE field contains the total size of the block header (including data after 7-byte prefix)
+          # The data portion after the 7-byte block header is: size - 7 bytes
+          block.header_start + 7 # Start of header data after 7-byte prefix
+          header_data_size = block.size - 7
+
+          # Read all header data at once
+          header_data = io.read(header_data_size)
+          raise FormatError, "Unexpected EOF reading file header" unless header_data
+
+          # Now parse the file_header from the start of header_data
+          pos = 0
+
+          packed_size = header_data[pos, 4].unpack1("V")
+          pos += 4
+
+          unpacked_size = header_data[pos, 4].unpack1("V")
+          pos += 4
+
+          host_os = header_data[pos, 1].unpack1("C")
+          pos += 1
+
+          file_crc = header_data[pos, 4].unpack1("V")
+          pos += 4
+
+          file_time = header_data[pos, 4].unpack1("V")
+          pos += 4
+
+          header_data[pos, 1].unpack1("C")
+          pos += 1
+
+          method = header_data[pos, 1].unpack1("C")
+          pos += 1
+
+          name_size = header_data[pos, 2].unpack1("v")
+          pos += 2
+
+          attr = header_data[pos, 4].unpack1("V")
+          pos += 4
 
           # Read filename
-          name_bytes = io.read(name_size)
+          name_bytes = header_data[pos, name_size]
+          pos += name_size
           filename = decode_filename(name_bytes, block.flags)
 
           # Handle large file sizes
-          if block.flags & spec.format.file_flags[:large_file] != 0
-            high_packed = io.read(4)&.unpack1("V")
-            high_unpacked = io.read(4)&.unpack1("V")
+          if block.flags & 0x0100 != 0 # large_file flag
+            high_packed = header_data[pos, 4].unpack1("V")
+            high_unpacked = header_data[pos + 4, 4].unpack1("V")
             packed_size |= (high_packed << 32)
             unpacked_size |= (high_unpacked << 32)
+            pos += 8
           end
 
           # Read salt if encrypted
           salt = nil
-          salt = io.read(8) if block.flags & spec.format.file_flags[:salt] != 0
+          if block.flags & 0x0400 != 0 # salt flag
+            salt = header_data[pos, 8]
+            pos += 8
+          end
 
           # Read extended time if present
           mtime = parse_dos_time(file_time)
-          if block.flags & spec.format.file_flags[:ext_time] != 0
-            mtime = read_extended_time(io)
+          if block.flags & 0x1000 != 0 # ext_time flag
+            # Extended time format: mtime[4] + ctime[4] + atime[4] + arctime[4] + flags
+            # Plus additional 3 bytes for each present time
+            mtime, = read_extended_time_data(header_data, pos)
           end
 
-          # Skip to compressed data
-          header_size = io.pos - block.position
-          data_offset = block.position + header_size
+          # We've already read all header data, no need to seek
+          # Just skip to end of block and then past file data
+
+          # Record data offset (start of file data)
+          data_offset = block.header_start + block.size
+
+          # Current position should be at end of header data
+          # Skip past file data to prepare for next block
+          # Use read instead of seek for better compatibility with non-seekable streams
+          if packed_size.positive?
+            begin
+              io.seek(packed_size, ::IO::SEEK_CUR)
+            rescue Errno::EINVAL, Errno::ESPIPE
+              # Stream doesn't support seeking - read and discard instead
+              remaining = packed_size
+              while remaining.positive?
+                chunk = io.read([remaining, 8192].min)
+                break unless chunk
+
+                remaining -= chunk.bytesize
+              end
+            end
+          end
 
           Entry.new(
             name: filename,
@@ -151,11 +238,38 @@ module Omnizip
             compression_method: compression_method_name(method),
             modified_time: mtime,
             attributes: attr,
-            encrypted: block.flags.anybits?(spec.format.file_flags[:encrypted]),
+            encrypted: block.flags.anybits?(0x0004), # encrypted flag
             data_offset: data_offset,
             host_os: host_os,
-            salt: salt
+            salt: salt,
           )
+        end
+
+        # Read extended time from header data
+        #
+        # @param data [String] The header data
+        # @param pos [Integer] Current position in data
+        # @return [Array<Time, Integer>] The modification time and new position
+        def read_extended_time_data(data, pos)
+          return [Time.now, pos] if pos + 4 > data.bytesize
+
+          mtime = parse_dos_time(data[pos, 4].unpack1("V"))
+          pos += 4
+
+          # Skip ctime, atime, arctime if present
+          begin
+            data[pos, 1].unpack1("C")
+          rescue StandardError
+            0
+          end
+          pos += 1
+
+          # For now, just skip the remaining extended time data
+          # The format is complex and varies
+
+          [mtime, pos]
+        rescue ArgumentError
+          [Time.now, pos]
         end
 
         # Decode filename based on encoding flags
@@ -206,8 +320,11 @@ module Omnizip
         # @param block [BlockHeader] The block header
         # @return [String] The comment text
         def read_comment_block(io, block)
-          data_size = block.size - (io.pos - block.position)
-          comment = io.read(data_size)
+          current_pos = io.pos
+          header_end = block.header_start + block.header_size
+          data_size = block.size - block.header_size
+          remaining = data_size - (current_pos - header_end)
+          comment = io.read(remaining) if remaining.positive?
           comment&.force_encoding("UTF-8")
         end
 
@@ -217,33 +334,52 @@ module Omnizip
         # @param block [BlockHeader] The block header
         # @return [void]
         def skip_block_data(io, block)
-          remaining = block.size - (io.pos - block.position)
-          io.seek(remaining, IO::SEEK_CUR) if remaining.positive?
+          # block.size is the total size, calculate remaining bytes
+          current_pos = io.pos
+          header_end = block.header_start + block.header_size
+          data_size = block.size - block.header_size
+          remaining = data_size - (current_pos - header_end)
+          io.seek(remaining, ::IO::SEEK_CUR) if remaining.positive?
         end
       end
 
       # RAR v3 block header model
-      class BlockHeader < Lutaml::Model::Serializable
-        attribute :crc, :integer
-        attribute :type, :integer
-        attribute :flags, :integer
-        attribute :size, :integer
-        attribute :position, :integer
+      class BlockHeader
+        attr_accessor :crc, :type, :flags, :size, :header_start, :header_size
+
+        def initialize(crc: nil, type: nil, flags: nil, size: nil,
+                       header_start: nil, header_size: 7)
+          @crc = crc
+          @type = type
+          @flags = flags
+          @size = size
+          @header_start = header_start
+          @header_size = header_size
+        end
       end
 
       # RAR archive entry model
-      class Entry < Lutaml::Model::Serializable
-        attribute :name, :string
-        attribute :compressed_size, :integer
-        attribute :uncompressed_size, :integer
-        attribute :crc32, :integer
-        attribute :compression_method, :string
-        attribute :modified_time, :string
-        attribute :attributes, :integer
-        attribute :encrypted, :boolean
-        attribute :data_offset, :integer
-        attribute :host_os, :integer
-        attribute :salt, :string
+      class Entry
+        attr_accessor :name, :compressed_size, :uncompressed_size, :crc32,
+                      :compression_method, :modified_time, :attributes,
+                      :encrypted, :data_offset, :host_os, :salt
+
+        def initialize(name: nil, compressed_size: nil, uncompressed_size: nil,
+                       crc32: nil, compression_method: nil, modified_time: nil,
+                       attributes: nil, encrypted: nil, data_offset: nil,
+                       host_os: nil, salt: nil)
+          @name = name
+          @compressed_size = compressed_size
+          @uncompressed_size = uncompressed_size
+          @crc32 = crc32
+          @compression_method = compression_method
+          @modified_time = modified_time
+          @attributes = attributes
+          @encrypted = encrypted
+          @data_offset = data_offset
+          @host_os = host_os
+          @salt = salt
+        end
       end
     end
   end

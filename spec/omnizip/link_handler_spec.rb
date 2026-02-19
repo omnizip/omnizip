@@ -41,7 +41,27 @@ RSpec.describe Omnizip::LinkHandler do
     end
   end
 
-  if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
+  if RUBY_PLATFORM.match?(/mswin|mingw|cygwin/)
+    describe "Windows platform", :windows_only do
+      it "raises error when trying to create symlink" do
+        expect do
+          described_class.create_symlink("/target", "/link")
+        end.to raise_error(Omnizip::Error, /not supported/)
+      end
+
+      it "raises error when trying to create hardlink" do
+        expect do
+          described_class.create_hardlink("/target", "/link")
+        end.to raise_error(Omnizip::Error, /not supported/)
+      end
+
+      it "raises error when trying to read link target" do
+        expect do
+          described_class.read_link_target("/link")
+        end.to raise_error(Omnizip::Error, /not supported/)
+      end
+    end
+  else
     describe "Unix/macOS link operations", :unix_only do
       let(:temp_dir) { Dir.mktmpdir }
       let(:target_file) { File.join(temp_dir, "target.txt") }
@@ -187,7 +207,7 @@ RSpec.describe Omnizip::LinkHandler do
         it "returns same inode for hard links" do
           File.link(target_file, hardlink_path)
           expect(described_class.inode_number(hardlink_path)).to eq(
-            described_class.inode_number(target_file)
+            described_class.inode_number(target_file),
           )
         end
 
@@ -229,26 +249,6 @@ RSpec.describe Omnizip::LinkHandler do
           link = described_class.hard_link_from_path(single_file, target_file)
           expect(link).to be_nil
         end
-      end
-    end
-  else
-    describe "Windows platform", :windows_only do
-      it "raises error when trying to create symlink" do
-        expect do
-          described_class.create_symlink("/target", "/link")
-        end.to raise_error(Omnizip::Error, /not supported/)
-      end
-
-      it "raises error when trying to create hardlink" do
-        expect do
-          described_class.create_hardlink("/target", "/link")
-        end.to raise_error(Omnizip::Error, /not supported/)
-      end
-
-      it "raises error when trying to read link target" do
-        expect do
-          described_class.read_link_target("/link")
-        end.to raise_error(Omnizip::Error, /not supported/)
       end
     end
   end

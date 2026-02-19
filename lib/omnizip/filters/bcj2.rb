@@ -90,7 +90,7 @@ module Omnizip
             streams: 4,
             complexity: "high",
             compression_quality: "maximum",
-            limitations: "Encoding not yet implemented"
+            limitations: "Encoding not yet implemented",
           }
         end
       end

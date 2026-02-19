@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "parity/galois_field"
-require_relative "parity/reed_solomon"
+require_relative "parity/par2cmdline_coefficients"
 require_relative "parity/par2_creator"
 require_relative "parity/par2_verifier"
 require_relative "parity/par2_repairer"
@@ -45,29 +44,39 @@ module Omnizip
       #   )
       def create(file_or_pattern, redundancy: 5, block_size: Par2Creator::DEFAULT_BLOCK_SIZE,
                  output_dir: nil, progress: nil)
-        # Expand glob pattern if needed
+        # Try glob expansion first (handles both patterns and single files)
         files = Dir.glob(file_or_pattern)
-        raise ArgumentError, "No files match pattern: #{file_or_pattern}" if files.empty?
+
+        # If glob returns nothing, check if it's a single existing file
+        if files.empty? && File.exist?(file_or_pattern) && !File.directory?(file_or_pattern)
+          files = [file_or_pattern]
+        end
+
+        if files.empty?
+          raise ArgumentError,
+                "No files match pattern: #{file_or_pattern}"
+        end
 
         # Create PAR2 creator
         creator = Par2Creator.new(
           redundancy: redundancy,
           block_size: block_size,
-          progress: progress
+          progress: progress,
         )
 
         # Add all files
         files.each { |file| creator.add_file(file) }
 
         # Determine output base name
+        dir = output_dir || File.dirname(files.first)
         base_name = if files.size == 1
-                      File.basename(files.first, ".*")
+                      # Use file's directory and base name without extension
+                      File.join(dir, File.basename(files.first, ".*"))
                     else
-                      File.basename(File.dirname(files.first))
+                      # Use files' directory name for multiple files
+                      File.join(dir,
+                                File.basename(File.dirname(files.first)))
                     end
-
-        # Add output directory if specified
-        base_name = File.join(output_dir, base_name) if output_dir
 
         # Create PAR2 files
         creator.create(base_name)
@@ -147,16 +156,16 @@ module Omnizip
         verifier = Par2Verifier.new(par2_file)
         verifier.send(:parse_par2_file)
 
+        total_blocks = verifier.send(:calculate_total_blocks)
+        recovery_blocks = verifier.instance_variable_get(:@recovery_blocks).size
+
         {
           par2_file: par2_file,
           block_size: verifier.metadata[:block_size],
-          total_blocks: verifier.metadata[:recovery_file_count],
-          file_count: verifier.metadata[:file_count],
-          recovery_blocks: verifier.instance_variable_get(:@recovery_blocks).size,
-          redundancy: calculate_redundancy(
-            verifier.metadata[:recovery_file_count],
-            verifier.instance_variable_get(:@recovery_blocks).size
-          )
+          total_blocks: total_blocks,
+          file_count: verifier.metadata[:file_count] || verifier.instance_variable_get(:@file_list).size,
+          recovery_blocks: recovery_blocks,
+          redundancy: calculate_redundancy(total_blocks, recovery_blocks),
         }
       end
 
@@ -168,7 +177,7 @@ module Omnizip
       # @param recovery_blocks [Integer] Recovery blocks
       # @return [Float] Redundancy percentage
       def calculate_redundancy(total_blocks, recovery_blocks)
-        return 0.0 if total_blocks.zero?
+        return 0.0 if total_blocks.nil? || total_blocks.zero?
 
         (recovery_blocks.to_f / total_blocks * 100).round(2)
       end

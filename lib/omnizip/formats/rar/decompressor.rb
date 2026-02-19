@@ -168,7 +168,7 @@ module Omnizip
                 size: entry.unpacked_size,
                 compressed_size: entry.packed_size,
                 is_dir: entry.directory?,
-                mtime: entry.file_time
+                mtime: entry.file_time,
               }
             end
           rescue StandardError => e

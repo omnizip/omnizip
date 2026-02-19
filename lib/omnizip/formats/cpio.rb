@@ -121,7 +121,7 @@ module Omnizip
               file_count: entries.count(&:file?),
               directory_count: entries.count(&:directory?),
               symlink_count: entries.count(&:symlink?),
-              total_size: entries.sum(&:filesize)
+              total_size: entries.sum(&:filesize),
             }
           end
         end

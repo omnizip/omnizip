@@ -131,7 +131,7 @@ module Omnizip
 
       def mark_eof
         @eof = true
-        @buffer = String.new
+        @buffer = +""
         @buffer_pos = 0
         @buffer_end = 0
       end

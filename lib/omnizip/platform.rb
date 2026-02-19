@@ -8,21 +8,21 @@ module Omnizip
     #
     # @return [Boolean] true if Windows
     def self.windows?
-      RUBY_PLATFORM =~ /mswin|mingw|cygwin/
+      !!(RUBY_PLATFORM =~ /mswin|mingw|cygwin/)
     end
 
     # Detect if running on macOS
     #
     # @return [Boolean] true if macOS
     def self.macos?
-      RUBY_PLATFORM =~ /darwin/
+      !!RUBY_PLATFORM.include?("darwin")
     end
 
     # Detect if running on Linux
     #
     # @return [Boolean] true if Linux
     def self.linux?
-      RUBY_PLATFORM =~ /linux/
+      !!RUBY_PLATFORM.include?("linux")
     end
 
     # Detect if running on Unix-like system
@@ -88,7 +88,7 @@ module Omnizip
         symlinks: supports_symlinks?,
         hardlinks: supports_hardlinks?,
         extended_attributes: supports_extended_attributes?,
-        file_permissions: supports_file_permissions?
+        file_permissions: supports_file_permissions?,
       }
     end
 
@@ -105,7 +105,7 @@ module Omnizip
         require "win32/registry"
         Win32::Registry::HKEY_LOCAL_MACHINE.open(
           'SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock',
-          Win32::Registry::KEY_READ
+          Win32::Registry::KEY_READ,
         ) do |reg|
           value = reg["AllowDevelopmentWithoutDevLicense"]
           return value == 1

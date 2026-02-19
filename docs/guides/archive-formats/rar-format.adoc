@@ -1,0 +1,104 @@
+---
+title: RAR Format
+nav_order: 3
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== Purpose
+
+RAR is a proprietary archive format known for its excellent compression ratio and robust multi-volume support. Omnizip provides full read support for RAR4 and RAR5 archives.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression
+|Proprietary RAR algorithm (excellent ratio)
+
+|Encryption
+|AES-256 (RAR5), AES-128 (RAR4)
+
+|Multi-Volume
+|Excellent support with recovery records
+
+|Error Recovery
+|Recovery records for damaged archives
+
+|Best For
+|Binary distribution, large archives, error-sensitive storage
+|===
+
+[IMPORTANT]
+====
+RAR compression is patented software. Omnizip can only **read** RAR archives, not create them. See link:../../RAR_WRITE_SUPPORT.html[RAR Write Support] for details.
+====
+
+== Reading RAR Archives
+
+=== Basic Extraction
+
+[source,ruby]
+----
+# Extract RAR archive
+Omnizip.extract_archive('backup.rar', 'output/')
+
+# List contents
+archive = Omnizip::Archive.open('backup.rar')
+archive.each_entry do |entry|
+  puts "#{entry.name} - #{entry.size} bytes"
+end
+----
+
+=== Encrypted Archives
+
+[source,ruby]
+----
+# Extract password-protected RAR
+Omnizip.extract_archive('secure.rar', 'output/',
+  password: 'your-password'
+)
+----
+
+=== Multi-Volume Archives
+
+[source,ruby]
+----
+# Extract multi-volume RAR (part1.rar, part2.rar, ...)
+Omnizip.extract_archive('archive.part1.rar', 'output/')
+----
+
+== RAR4 vs RAR5
+
+[cols="2,1,1"]
+|===
+|Feature |RAR4 |RAR5
+
+|Compression
+|Good
+|Excellent
+
+|Encryption
+|AES-128
+|AES-256
+
+|Dictionary Size
+|4 MB
+|Up to 1 GB
+
+|Multi-Threading
+|Limited
+|Full support
+
+|Recovery Records
+|Yes
+|Enhanced
+|===
+
+== See Also
+
+* link:seven-zip-format.html[7z Format] - Alternative for creating archives
+* link:zip-format.html[ZIP Format] - Universal compatibility
+* link:../../RAR_WRITE_SUPPORT.html[RAR Write Support] - Licensing information

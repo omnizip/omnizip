@@ -11,7 +11,8 @@ RSpec.describe Omnizip::LinkHandler::SymbolicLink do
     end
 
     it "creates a symbolic link with target and path" do
-      link = described_class.new(target: "/path/to/target", path: "/path/to/link")
+      link = described_class.new(target: "/path/to/target",
+                                 path: "/path/to/link")
       expect(link.target).to eq("/path/to/target")
       expect(link.path).to eq("/path/to/link")
     end

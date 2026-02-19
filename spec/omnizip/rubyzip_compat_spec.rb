@@ -171,7 +171,7 @@ RSpec.describe "Rubyzip Compatibility" do
         end
 
         Zip::File.open(zip_path) do |zip|
-          zip.extract("file.txt", existing) { |entry, path| true }
+          zip.extract("file.txt", existing) { |_entry, _path| true }
         end
 
         expect(File.read(existing)).to eq("New")
@@ -239,7 +239,8 @@ RSpec.describe "Rubyzip Compatibility" do
 
         Zip::File.open(zip_path) do |zip|
           matches = zip.glob("*.txt")
-          expect(matches.map(&:name)).to contain_exactly("test1.txt", "test2.txt")
+          expect(matches.map(&:name)).to contain_exactly("test1.txt",
+                                                         "test2.txt")
         end
       end
     end
@@ -325,7 +326,7 @@ RSpec.describe "Rubyzip Compatibility" do
 
       expect(entries).to contain_exactly(
         { name: "file1.txt", content: "Content 1" },
-        { name: "file2.txt", content: "Content 2" }
+        { name: "file2.txt", content: "Content 2" },
       )
     end
 
@@ -360,7 +361,8 @@ RSpec.describe "Rubyzip Compatibility" do
         zis.rewind
         entry = zis.get_next_entry
         expect(entry).to be_truthy
-        expect(zis.eof?).to be false
+        expect(entry.name).to eq("test.txt")
+        expect(zis.eof?).to be true
       end
     end
   end

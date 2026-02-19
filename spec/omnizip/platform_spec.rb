@@ -13,7 +13,7 @@ RSpec.describe Omnizip::Platform do
       platforms = [
         described_class.windows?,
         described_class.macos?,
-        described_class.linux?
+        described_class.linux?,
       ]
 
       expect(platforms.any?).to be true
@@ -219,8 +219,10 @@ RSpec.describe Omnizip::Platform::NtfsStreams do
       expect(restored).to be >= 2
 
       # Verify restoration
-      expect(described_class.read_stream(dest, "Archive1")).to eq("archive data 1")
-      expect(described_class.read_stream(dest, "Archive2")).to eq("archive data 2")
+      expect(described_class.read_stream(dest,
+                                         "Archive1")).to eq("archive data 1")
+      expect(described_class.read_stream(dest,
+                                         "Archive2")).to eq("archive data 2")
     end
   end
 
@@ -235,7 +237,8 @@ RSpec.describe Omnizip::Platform::NtfsStreams do
       end
 
       it "returns false for write_stream" do
-        expect(described_class.write_stream(test_file, "any", "data")).to be false
+        expect(described_class.write_stream(test_file, "any",
+                                            "data")).to be false
       end
 
       it "returns false for delete_stream" do

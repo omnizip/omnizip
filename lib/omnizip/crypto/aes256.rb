@@ -64,7 +64,7 @@ module Omnizip
           data: encrypted_data,
           salt: salt,
           iv: iv,
-          cycles_power: cycles_power
+          cycles_power: cycles_power,
         }
       end
 

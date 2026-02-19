@@ -15,7 +15,7 @@ RSpec.describe Omnizip::Crypto::Aes256 do
         password,
         result[:salt],
         result[:iv],
-        result[:cycles_power]
+        result[:cycles_power],
       )
 
       expect(decrypted).to eq(plaintext)
@@ -33,7 +33,7 @@ RSpec.describe Omnizip::Crypto::Aes256 do
       result = described_class.encrypt(
         plaintext,
         password,
-        num_cycles_power: 16
+        num_cycles_power: 16,
       )
 
       expect(result[:cycles_power]).to eq(16)
@@ -43,7 +43,7 @@ RSpec.describe Omnizip::Crypto::Aes256 do
         password,
         result[:salt],
         result[:iv],
-        16
+        16,
       )
 
       expect(decrypted).to eq(plaintext)

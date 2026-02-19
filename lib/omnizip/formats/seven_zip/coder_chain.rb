@@ -39,7 +39,7 @@ module Omnizip
             algorithm: algorithm,
             filters: filters,
             properties: main_coder.properties,
-            unpack_size: folder.unpack_sizes.last
+            unpack_size: folder.unpack_sizes.last,
           }
         end
 
@@ -61,9 +61,9 @@ module Omnizip
           when MethodId::BZIP2
             :bzip2
           when MethodId::DEFLATE
-            raise "Deflate not yet implemented"
+            :deflate
           when MethodId::DEFLATE64
-            raise "Deflate64 not yet implemented"
+            :deflate64
           else
             raise "Unsupported compression method: " \
                   "0x#{method_id.to_s(16)}"
@@ -78,12 +78,20 @@ module Omnizip
           case method_id
           when FilterId::BCJ_X86
             :bcj_x86
+          when FilterId::BCJ_PPC
+            :bcj_ppc
+          when FilterId::BCJ_IA64
+            :bcj_ia64
+          when FilterId::BCJ_ARM
+            :bcj_arm
+          when FilterId::BCJ_ARMT
+            :bcj_armt
+          when FilterId::BCJ_SPARC
+            :bcj_sparc
+          when FilterId::ARM64
+            :bcj_arm64
           when FilterId::DELTA
             :delta
-          when FilterId::BCJ_PPC, FilterId::BCJ_IA64,
-               FilterId::BCJ_ARM, FilterId::BCJ_ARMT, FilterId::BCJ_SPARC
-            raise "BCJ filter variant not yet implemented: " \
-                  "0x#{method_id.to_s(16)}"
           end
         end
 
@@ -125,14 +133,14 @@ module Omnizip
             {
               decompressor: decompressor,
               pipeline: pipeline,
-              input: input_io
+              input: input_io,
             }
           else
             # Just algorithm
             {
               decompressor: decompressor,
               pipeline: nil,
-              input: input_io
+              input: input_io,
             }
           end
         end

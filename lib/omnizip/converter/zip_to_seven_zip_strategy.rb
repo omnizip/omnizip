@@ -58,14 +58,14 @@ module Omnizip
             name: entry.name,
             directory: entry.directory?,
             mtime: entry.time,
-            content: nil
+            content: nil,
           }
 
           unless entry.directory?
             data[:content] = zip.get_input_stream(entry)
 
-            if options.preserve_metadata
-              data[:unix_perms] = entry.unix_perms if entry.unix_perms > 0
+            if options.preserve_metadata && entry.unix_perms.positive?
+              data[:unix_perms] = entry.unix_perms
             end
           end
 
@@ -81,7 +81,7 @@ module Omnizip
         # Set compression options
         compression = options.compression || :lzma2
         level = options.compression_level || 5
-        solid = options.solid.nil? ? true : options.solid
+        options.solid.nil? || options.solid
 
         # Add each entry
         entries.each do |entry_data|
@@ -95,7 +95,7 @@ module Omnizip
             entry_data[:name],
             entry_data[:content],
             algorithm: compression,
-            level: level
+            level: level,
           )
         end
 

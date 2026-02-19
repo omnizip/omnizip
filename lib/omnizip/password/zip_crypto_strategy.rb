@@ -28,14 +28,17 @@ module Omnizip
       # @return [String] Encrypted data
       def encrypt(data)
         keys = initialize_keys
+
+        # Generate encryption header
+        header = generate_encryption_header(keys)
+
+        # Encrypt data with same keys (header generation updated them)
         encrypted = data.bytes.map do |byte|
           temp = decrypt_byte(keys)
           update_keys(keys, byte)
           byte ^ temp
         end
 
-        # Prepend encryption header
-        header = generate_encryption_header(keys)
         (header + encrypted).pack("C*")
       end
 
@@ -48,7 +51,7 @@ module Omnizip
 
         # Skip encryption header (12 bytes)
         header = bytes[0...12]
-        encrypted_data = bytes[12..-1]
+        encrypted_data = bytes[12..]
 
         # Verify header
         header.each { |byte| update_keys(keys, decrypt_byte(keys) ^ byte) }
@@ -95,7 +98,8 @@ module Omnizip
       # @param byte [Integer] Byte to incorporate
       def update_keys(keys, byte)
         keys[0] = crc32_update(keys[0], byte)
-        keys[1] = ((keys[1] + (keys[0] & 0xFF)) * 134_775_813 + 1) & 0xFFFFFFFF
+        keys[1] =
+          (((keys[1] + (keys[0] & 0xFF)) * 134_775_813) + 1) & 0xFFFFFFFF
         keys[2] = crc32_update(keys[2], keys[1] >> 24)
       end
 
@@ -124,7 +128,13 @@ module Omnizip
       # @return [Array<Integer>] 12-byte header
       def generate_encryption_header(keys)
         header = Array.new(12) { rand(256) }
-        header.map { |byte| decrypt_byte(keys).tap { update_keys(keys, byte) } ^ byte }
+        encrypted_header = []
+        header.each do |byte|
+          temp = decrypt_byte(keys)
+          update_keys(keys, byte)
+          encrypted_header << (byte ^ temp)
+        end
+        encrypted_header
       end
     end
   end

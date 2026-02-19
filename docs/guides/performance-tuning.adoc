@@ -1,0 +1,88 @@
+---
+title: Performance Tuning
+nav_order: 5
+parent: Guides
+---
+
+== Performance Tuning
+
+Guide to optimizing compression speed and ratio.
+
+== Choosing Compression Level
+
+[source,ruby]
+----
+# Fast compression (level 1-3)
+Omnizip.compress_file('file.txt', 'fast.lzma', level: 1)
+
+# Balanced (level 4-6) - Default: 5
+Omnizip.compress_file('file.txt', 'balanced.lzma', level: 5)
+
+# Maximum compression (level 7-9)
+Omnizip.compress_file('file.txt', 'best.lzma', level: 9)
+----
+
+== Algorithm Selection
+
+[source,ruby]
+----
+# Fastest: Deflate
+Omnizip.compress_file('file.txt', 'fast.zip', algorithm: :deflate, level: 1)
+
+# Best ratio: LZMA2
+Omnizip.compress_file('file.txt', 'best.7z', algorithm: :lzma2, level: 9)
+
+# Balanced: BZip2
+Omnizip.compress_file('file.txt', 'balanced.bz2', algorithm: :bzip2, level: 6)
+----
+
+== Streaming for Large Files
+
+[source,ruby]
+----
+# Avoid loading entire file into memory
+File.open('large_input.txt', 'rb') do |input|
+  File.open('large_output.lzma', 'wb') do |output|
+    algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new(level: 5)
+    algorithm.compress(input, output)
+  end
+end
+----
+
+== Performance Characteristics
+
+[cols="25,25,25,25",options="header"]
+|===
+|Algorithm |Speed |Ratio |Use Case
+
+|Deflate
+|Fast
+|Good
+|ZIP compatibility
+
+|Deflate64
+|Fast
+|Better
+|Large ZIP files
+
+|BZip2
+|Moderate
+|Very Good
+|Text files
+
+|LZMA/LZMA2
+|Slow
+|Excellent
+|Maximum compression
+
+|Zstandard
+|Very Fast
+|Good
+|Modern apps
+
+|===
+
+== See Also
+
+* link:../comparison/feature-matrix.html[Feature Comparison]
+* link:../reference/index.html[Reference Documentation]

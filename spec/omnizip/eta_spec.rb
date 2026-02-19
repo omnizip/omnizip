@@ -98,7 +98,7 @@ RSpec.describe Omnizip::ETA do
         history.add_sample(
           bytes_processed: i * 100,
           files_processed: i,
-          timestamp: t + i
+          timestamp: t + i,
         )
       end
 

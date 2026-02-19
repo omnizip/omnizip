@@ -1,0 +1,77 @@
+---
+title: Omnizip vs PeaZip
+nav_order: 5
+parent: Comparison
+---
+
+== Omnizip vs PeaZip
+
+Comparison between Omnizip and the open-source PeaZip archiver.
+
+== Overview
+
+PeaZip is an open-source file archiver with GUI and many format support. Omnizip is a pure Ruby library focused on programmatic compression.
+
+== Key Differences
+
+[cols="40,30,30",options="header"]
+|===
+|Aspect |Omnizip |PeaZip
+
+|Implementation
+|Pure Ruby
+|C++ (native)
+
+|Interface
+|API + CLI
+|GUI + CLI
+
+|Platform
+|All (Ruby)
+|Windows, Linux
+
+|License
+|LGPL 2.1
+|LGPL
+
+|Integration
+|Ruby native
+|External tool
+
+|Dependencies
+|None
+|System libraries
+
+|===
+
+== Format Support
+
+Both support many formats:
+
+* ZIP, 7z, TAR
+* RAR (read-only)
+* ISO, CPIO
+* GZ, BZ2, XZ
+
+== When to Choose Each
+
+=== Choose Omnizip When
+
+* Ruby application integration needed
+* No GUI required
+* Programmatic control essential
+* Cross-platform Ruby deployment
+* No external dependencies wanted
+
+=== Choose PeaZip When
+
+* GUI interface needed
+* Batch file operations
+* Native performance required
+* Advanced file management
+* Many format conversions
+
+== See Also
+
+* link:feature-matrix.html[Feature Comparison Matrix]
+* link:vs-7zip.html[Omnizip vs 7-Zip]

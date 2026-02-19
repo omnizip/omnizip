@@ -60,7 +60,7 @@ module Omnizip
         @report.add_hot_path(
           operation: op.operation_name,
           time: op.total_time,
-          percentage: (op.total_time / total_time) * 100
+          percentage: (op.total_time / total_time) * 100,
         )
       end
 
@@ -78,7 +78,7 @@ module Omnizip
           type: :memory,
           operation: op.operation_name,
           allocated: op.memory_allocated,
-          severity: calculate_memory_severity(op)
+          severity: calculate_memory_severity(op),
         }
         @report.add_bottleneck(bottlenecks.last)
       end
@@ -90,7 +90,7 @@ module Omnizip
           type: :cpu,
           operation: op.operation_name,
           time: op.total_time,
-          severity: calculate_cpu_severity(op)
+          severity: calculate_cpu_severity(op),
         }
         @report.add_bottleneck(bottlenecks.last)
       end
@@ -104,7 +104,7 @@ module Omnizip
           type: :gc,
           operation: op.operation_name,
           gc_pressure: op.gc_pressure,
-          severity: :high
+          severity: :high,
         }
         @report.add_bottleneck(bottlenecks.last)
       end
@@ -114,11 +114,9 @@ module Omnizip
 
     # Generate optimization suggestions based on profiling data
     def generate_suggestions
-      suggestions = []
-
       # Analyze hot paths for optimization opportunities
-      analyze_hot_paths.each do |hot_op|
-        suggestions << Models::OptimizationSuggestion.new(
+      suggestions = analyze_hot_paths.map do |hot_op|
+        Models::OptimizationSuggestion.new(
           title: "Optimize hot path: #{hot_op.operation_name}",
           description: "Operation consuming #{hot_op.total_time}s " \
                        "(#{((hot_op.total_time / report.total_execution_time) * 100).round(1)}% of total time)",
@@ -126,7 +124,7 @@ module Omnizip
           category: :hotpath,
           impact_estimate: hot_op.total_time / report.total_execution_time,
           related_operations: [hot_op.operation_name],
-          metrics: { time: hot_op.total_time }
+          metrics: { time: hot_op.total_time },
         )
       end
 
@@ -141,7 +139,7 @@ module Omnizip
           category: :memory,
           impact_estimate: mem_op.memory_allocated / report.total_memory_allocated.to_f,
           related_operations: [mem_op.operation_name],
-          metrics: { memory_allocated: mem_op.memory_allocated }
+          metrics: { memory_allocated: mem_op.memory_allocated },
         )
       end
 

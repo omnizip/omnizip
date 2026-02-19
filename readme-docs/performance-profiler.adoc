@@ -1,0 +1,389 @@
+= Performance Profiler
+:toc:
+:toclevels: 3
+
+== Purpose
+
+The Performance Profiler provides comprehensive profiling and optimization tools to identify bottlenecks and improve compression performance.
+
+== Features
+
+* **Method profiling** - Track execution time and call counts
+* **Memory profiling** - Monitor allocation and retention
+* **Hot path analysis** - Identify performance bottlenecks
+* **Optimization suggestions** - AI-powered recommendations
+* **Report generation** - Formatted profiling reports
+
+== Basic Profiling
+
+=== Profile a Block of Code
+
+[source,ruby]
+----
+# Simple profiling
+result = Omnizip::Profiler.profile do
+  Omnizip::Formats::SevenZip::Writer.new('archive.7z') do |zip|
+    zip.add_file('large_file.dat')
+  end
+end
+
+puts "Execution time: #{result.total_time}s"
+puts "Memory allocated: #{result.memory_allocated} bytes"
+----
+
+=== Profile with Custom Name
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new(profile_name: "compression_test")
+
+profiler.profile("LZMA compression") do
+  algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new(level: 9)
+  File.open('input.txt', 'rb') do |input|
+    File.open('output.lzma', 'wb') do |output|
+      algorithm.compress(input, output)
+    end
+  end
+end
+
+# Get profiling report
+report = profiler.report
+puts "Total execution time: #{report.total_execution_time}s"
+----
+
+== Hot Path Analysis
+
+=== Identify Performance Bottlenecks
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Profile multiple operations
+profiler.profile("read_file") { File.read('data.txt') }
+profiler.profile("compress") { compress_data(data) }
+profiler.profile("write_file") { File.write('output.dat', compressed) }
+
+# Analyze hot paths (operations >10% of total time)
+hot_paths = profiler.analyze_hot_paths(threshold_percentage: 10.0)
+
+hot_paths.each do |operation|
+  puts "Hot path: #{operation.operation_name}"
+  puts "  Time: #{operation.total_time}s"
+  puts "  Percentage: #{(operation.total_time / profiler.report.total_execution_time * 100).round(1)}%"
+end
+----
+
+== Bottleneck Identification
+
+=== Find CPU and Memory Bottlenecks
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Profile compression pipeline
+profiler.profile("BWT") { bwt_transform(data) }
+profiler.profile("MTF") { mtf_encode(transformed) }
+profiler.profile("Huffman") { huffman_encode(encoded) }
+
+# Identify bottlenecks
+bottlenecks = profiler.identify_bottlenecks
+
+bottlenecks.each do |bottleneck|
+  case bottleneck[:type]
+  when :cpu
+    puts "CPU bottleneck: #{bottleneck[:operation]}"
+    puts "  Time: #{bottleneck[:time]}s"
+    puts "  Severity: #{bottleneck[:severity]}"
+  when :memory
+    puts "Memory bottleneck: #{bottleneck[:operation]}"
+    puts "  Allocated: #{bottleneck[:allocated]} bytes"
+  when :gc
+    puts "GC pressure: #{bottleneck[:operation]}"
+    puts "  GC pressure: #{bottleneck[:gc_pressure]}"
+  end
+end
+----
+
+== Optimization Suggestions
+
+=== Generate Improvement Recommendations
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Run profiling
+10.times do |i|
+  profiler.profile("iteration_#{i}") do
+    # Compression operations
+  end
+end
+
+# Generate suggestions
+suggestions = profiler.generate_suggestions
+
+suggestions.each do |suggestion|
+  puts "\n#{suggestion.title}"
+  puts "  #{suggestion.description}"
+  puts "  Severity: #{suggestion.severity}"
+  puts "  Category: #{suggestion.category}"
+  puts "  Estimated impact: #{(suggestion.impact_estimate * 100).round(1)}%"
+  
+  if suggestion.recommendation
+    puts "  Recommendation: #{suggestion.recommendation}"
+  end
+end
+----
+
+== Profiling Reports
+
+=== Generate Detailed Reports
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new(profile_name: "BZip2 Compression")
+
+# Profile operations
+profiler.profile("initialization") { setup_compressor }
+profiler.profile("bwt_transform") { bwt.transform(data) }
+profiler.profile("mtf_encoding") { mtf.encode(transformed) }
+profiler.profile("huffman_coding") { huffman.encode(encoded) }
+profiler.profile("finalization") { write_output }
+
+# Get detailed report
+report = profiler.report
+
+puts "=== Profiling Report: #{report.profile_name} ==="
+puts "\nTotal execution time: #{report.total_execution_time}s"
+puts "Total memory allocated: #{report.total_memory_allocated} bytes"
+puts "Operations profiled: #{report.results.size}"
+
+puts "\n=== Slowest Operations ==="
+report.slowest_operations(limit: 3).each do |op|
+  percentage = (op.total_time / report.total_execution_time * 100).round(1)
+  puts "  #{op.operation_name}: #{op.total_time}s (#{percentage}%)"
+end
+
+puts "\n=== Memory Intensive Operations ==="
+report.memory_intensive_operations(limit: 3).each do |op|
+  mb = (op.memory_allocated.to_f / (1024 * 1024)).round(2)
+  puts "  #{op.operation_name}: #{mb}MB"
+end
+----
+
+== Method Profiling
+
+=== Profile Specific Methods
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Register method profiler
+method_profiler = Omnizip::Profiler::MethodProfiler.new
+profiler.register_profiler(:method, method_profiler)
+
+# Profile method calls
+algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new
+profiler.profile_method(algorithm, :compress, input, output)
+
+# Check results
+results = profiler.report.results.find { |r| r.operation_name.include?('compress') }
+puts "Method calls: #{results.call_count}"
+puts "Average time per call: #{results.average_time}s"
+----
+
+== Memory Profiling
+
+=== Track Memory Allocation
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Register memory profiler
+memory_profiler = Omnizip::Profiler::MemoryProfiler.new
+profiler.register_profiler(:memory, memory_profiler)
+
+# Profile with memory tracking
+profiler.profile("data_processing", profiler_type: :memory) do
+  data = Array.new(1_000_000) { rand }
+  data.map { |x| x * 2 }
+end
+
+# Check memory usage
+report = profiler.report
+puts "Memory allocated: #{report.total_memory_allocated} bytes"
+puts "Memory retained: #{report.total_memory_retained} bytes"
+----
+
+== Examples
+
+=== Example 1: Find Compression Bottleneck
+
+[source,ruby]
+----
+def profile_compression(file_path)
+  profiler = Omnizip::Profiler.new(profile_name: "Compression Analysis")
+  
+  # Profile each stage
+  data = profiler.profile("read_input") do
+    File.read(file_path)
+  end
+  
+  compressed = profiler.profile("compress") do
+    algorithm = Omnizip::AlgorithmRegistry.get(:bzip2).new(level: 9)
+    output = StringIO.new
+    algorithm.compress(StringIO.new(data), output)
+    output.string
+  end
+  
+  profiler.profile("write_output") do
+    File.write("#{file_path}.bz2", compressed)
+  end
+  
+  # Analyze results
+  report = profiler.report
+  puts "\n=== Compression Profile ==="
+  puts "Total time: #{report.total_execution_time}s"
+  
+  report.results.each do |result|
+    percentage = (result.total_time / report.total_execution_time * 100).round(1)
+    puts "#{result.operation_name}: #{result.total_time}s (#{percentage}%)"
+  end
+  
+  # Generate optimization suggestions
+  suggestions = profiler.generate_suggestions
+  if suggestions.any?
+    puts "\n=== Optimization Suggestions ==="
+    suggestions.first(3).each { |s| puts "- #{s.title}" }
+  end
+end
+
+profile_compression('large_file.txt')
+----
+
+=== Example 2: Compare Algorithm Performance
+
+[source,ruby]
+----
+def compare_algorithms(data, algorithms)
+  results = {}
+  
+  algorithms.each do |algo_name|
+    profiler = Omnizip::Profiler.new(profile_name: algo_name.to_s)
+    
+    compressed_size = profiler.profile("compression") do
+      algorithm = Omnizip::AlgorithmRegistry.get(algo_name).new(level: 6)
+      output = StringIO.new
+      algorithm.compress(StringIO.new(data), output)
+      output.size
+    end
+    
+    results[algo_name] = {
+      time: profiler.report.total_execution_time,
+      size: compressed_size,
+      ratio: (1 - compressed_size.to_f / data.size) * 100
+    }
+  end
+  
+  # Print comparison
+  puts "\n=== Algorithm Comparison ==="
+  puts "Original size: #{data.size} bytes\n\n"
+  
+  results.sort_by { |_, v| v[:time] }.each do |algo, stats|
+    puts "#{algo}:"
+    puts "  Time: #{stats[:time].round(3)}s"
+    puts "  Size: #{stats[:size]} bytes"
+    puts "  Ratio: #{stats[:ratio].round(1)}%"
+  end
+end
+
+data = File.read('test_file.dat')
+compare_algorithms(data, [:deflate, :lzma, :bzip2, :zstd])
+----
+
+=== Example 3: Memory Leak Detection
+
+[source,ruby]
+----
+def detect_memory_leaks(iterations = 100)
+  profiler = Omnizip::Profiler.new(profile_name: "Memory Leak Detection")
+  memory_profiler = Omnizip::Profiler::MemoryProfiler.new
+  profiler.register_profiler(:memory, memory_profiler)
+  
+  baseline_memory = nil
+  
+  iterations.times do |i|
+    profiler.profile("iteration_#{i}", profiler_type: :memory) do
+      # Suspect operation
+      data = Array.new(10_000) { rand }
+      compress_data(data)
+    end
+    
+    current_memory = profiler.report.total_memory_allocated
+    
+    if i == 0
+      baseline_memory = current_memory
+    elsif i % 10 == 0
+      growth = current_memory - baseline_memory
+      growth_rate = (growth.to_f / baseline_memory * 100).round(2)
+      
+      puts "Iteration #{i}: #{growth} bytes growth (#{growth_rate}%)"
+      
+      if growth_rate > 50
+        puts "⚠️  Potential memory leak detected!"
+        break
+      end
+    end
+  end
+end
+
+detect_memory_leaks
+----
+
+== Profiler Configuration
+
+=== Enable/Disable Profiling
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Disable profiling (no overhead)
+profiler.disable!
+
+# Operations run without profiling
+profiler.profile("operation") { slow_operation }  # Not profiled
+
+# Re-enable profiling
+profiler.enable!
+
+# Operations are now profiled again
+profiler.profile("operation") { slow_operation }  # Profiled
+----
+
+=== Reset Profiler State
+
+[source,ruby]
+----
+profiler = Omnizip::Profiler.new
+
+# Collect some data
+profiler.profile("op1") { operation1 }
+profiler.profile("op2") { operation2 }
+
+# Reset profiler
+profiler.reset!
+
+# Start fresh profiling
+profiler.profile("op3") { operation3 }  # Previous data cleared
+----
+
+== See Also
+
+* link:../README.adoc#performance[Performance Analysis]
+* link:compression-profiles.adoc[Compression Profiles]
+* link:advanced-features.adoc[Advanced Features]

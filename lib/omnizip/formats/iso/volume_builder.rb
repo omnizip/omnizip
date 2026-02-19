@@ -54,7 +54,7 @@ module Omnizip
         # @param root_dir [Hash] Root directory information
         # @return [String] Primary VD sector (2048 bytes)
         def build_primary(root_dir)
-          sector = String.new
+          sector = +""
 
           # Byte 0: Volume descriptor type (1 = Primary)
           sector << [Iso::VD_PRIMARY].pack("C")
@@ -179,15 +179,23 @@ module Omnizip
           sector = build_primary(root_dir)
 
           # Modify type to supplementary
-          sector[0] = [Iso::VD_SUPPLEMENTARY].pack("C")
+          sector.setbyte(0, Iso::VD_SUPPLEMENTARY)
 
           # Add escape sequences for UCS-2
           # Bytes 88-90: %/@  %/C  %/E for levels 1, 2, 3
-          sector[88, 3] = "%/E"
+          sector.setbyte(88, 0x25)  # '%'
+          sector.setbyte(89, 0x2F)  # '/'
+          sector.setbyte(90, 0x45)  # 'E'
 
           # Convert volume ID to UCS-2
           volume_id_ucs2 = @volume_id.encode("UTF-16BE")
-          sector[40, 32] = pad_string(volume_id_ucs2, 32)
+          padded_volume_id = pad_string(volume_id_ucs2,
+                                        32).force_encoding("ASCII-8BIT")
+
+          # Replace bytes 40-71 with UCS-2 volume ID
+          32.times do |i|
+            sector.setbyte(40 + i, padded_volume_id.getbyte(i))
+          end
 
           sector
         end
@@ -199,7 +207,7 @@ module Omnizip
         # @param root_dir [Hash] Root directory info
         # @return [String] 34-byte directory record
         def build_root_directory_record(root_dir)
-          record = String.new
+          record = +""
 
           # Length of record (34 bytes for root)
           record << [34].pack("C")
@@ -246,7 +254,7 @@ module Omnizip
         def encode_volume_datetime(time)
           if time.nil?
             # All zeros for unset time
-            return "0" * 16 + "\x00"
+            return "#{'0' * 16}\u0000"
           end
 
           format(
@@ -257,7 +265,7 @@ module Omnizip
             time.hour,
             time.min,
             time.sec,
-            0 # Centiseconds
+            0, # Centiseconds
           ) + [0].pack("c") # GMT offset
         end
 
@@ -273,7 +281,7 @@ module Omnizip
             time.hour,
             time.min,
             time.sec,
-            0 # GMT offset
+            0, # GMT offset
           ].pack("C7")
         end
 
@@ -303,7 +311,8 @@ module Omnizip
         # @return [String] Padded string
         def pad_string(str, length)
           str = str[0, length] if str.bytesize > length
-          str + ("\x00" * (length - str.bytesize))
+          padding = "\x00".encode(str.encoding) * (length - str.bytesize)
+          str + padding
         end
       end
     end

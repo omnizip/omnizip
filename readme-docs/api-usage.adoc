@@ -1,0 +1,444 @@
+= Library API Usage
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document provides comprehensive API documentation for using Omnizip programmatically in Ruby applications. It covers both file-based and stream-based compression operations using the algorithm registry system.
+
+== General
+
+The library provides a programmatic API for integrating compression into Ruby applications. The API supports both file-based and stream-based compression operations.
+
+All compression operations use the algorithm registry to locate and instantiate the appropriate algorithm implementation. This design allows for consistent behavior whether using the CLI or the library API.
+
+[[lzma-compression]]
+== LZMA Compression
+
+=== General
+
+LZMA (Lempel-Ziv-Markov chain Algorithm) is a lossless data compression algorithm that achieves high compression ratios through dictionary-based compression combined with range coding. The implementation uses adaptive probability models that adjust based on the input data.
+
+The LZMA algorithm operates in three main stages:
+
+. Dictionary-based compression using LZ77 match finding
+. Range encoding with adaptive bit models
+. State machine for context tracking
+
+=== Compressing data
+
+Basic file compression using LZMA:
+
+Syntax:
+
+[source,ruby]
+----
+algorithm_class = Omnizip::AlgorithmRegistry.get({algorithm}) <1>
+algorithm = algorithm_class.new({options}) <2>
+algorithm.compress({input}, {output}) <3>
+----
+<1> Retrieve the algorithm class from the registry
+<2> Create an algorithm instance with compression options
+<3> Perform the compression operation
+
+Where,
+
+`algorithm`:: The algorithm name as a symbol (e.g., `:lzma`)
+`options`:: A hash of compression options (e.g., `level: 7`)
+`input`:: An IO object or file handle for reading input data
+`output`:: An IO object or file handle for writing compressed data
+
+.Compressing a file with LZMA
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+
+# Get the LZMA algorithm
+algorithm_class = Omnizip::AlgorithmRegistry.get(:lzma)
+
+# Create an algorithm instance with compression level 7
+algorithm = algorithm_class.new(level: 7)
+
+# Compress a file
+File.open('input.txt', 'rb') do |input|
+  File.open('output.lzma', 'wb') do |output|
+    algorithm.compress(input, output)
+  end
+end
+----
+
+This example compresses `input.txt` using LZMA with compression level 7 and writes the result to `output.lzma`.
+====
+
+=== Decompressing data
+
+Basic file decompression using LZMA:
+
+Syntax:
+
+[source,ruby]
+----
+algorithm_class = Omnizip::AlgorithmRegistry.get({algorithm}) <1>
+algorithm = algorithm_class.new <2>
+algorithm.decompress({input}, {output}) <3>
+----
+<1> Retrieve the algorithm class from the registry
+<2> Create an algorithm instance (no options needed for decompression)
+<3> Perform the decompression operation
+
+Where,
+
+`algorithm`:: The algorithm name as a symbol (e.g., `:lzma`)
+`input`:: An IO object or file handle containing compressed data
+`output`:: An IO object or file handle for writing decompressed data
+
+.Decompressing a file with LZMA
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+
+# Get the LZMA algorithm
+algorithm_class = Omnizip::AlgorithmRegistry.get(:lzma)
+algorithm = algorithm_class.new
+
+# Decompress a file
+File.open('output.lzma', 'rb') do |input|
+  File.open('restored.txt', 'wb') do |output|
+    algorithm.decompress(input, output)
+  end
+end
+----
+
+This example decompresses `output.lzma` and writes the result to `restored.txt`.
+====
+
+=== Stream-based compression
+
+Compressing data from any IO-like object:
+
+Syntax:
+
+[source,ruby]
+----
+algorithm.compress({input_stream}, {output_stream}, {options}) <1>
+----
+<1> Compress from any IO object (File, StringIO, etc.)
+
+Where,
+
+`input_stream`:: Any object responding to `read` (IO, StringIO, etc.)
+`output_stream`:: Any object responding to `write` (IO, StringIO, etc.)
+`options`:: Optional compression options (can be nil for defaults)
+
+.Using StringIO for in-memory compression
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+require 'stringio'
+
+# Get the LZMA algorithm
+algorithm_class = Omnizip::AlgorithmRegistry.get(:lzma)
+algorithm = algorithm_class.new(level: 5)
+
+# Compress in-memory data
+input_data = "Hello, World!" * 1000
+input = StringIO.new(input_data)
+output = StringIO.new
+
+algorithm.compress(input, output)
+
+compressed_data = output.string
+puts "Original size: #{input_data.bytesize} bytes"
+puts "Compressed size: #{compressed_data.bytesize} bytes"
+puts "Compression ratio: #{100 - (compressed_data.bytesize * 100.0 / input_data.bytesize).round(1)}%"
+----
+
+This example demonstrates in-memory compression using StringIO objects instead of files.
+====
+
+[[compression-levels]]
+=== Compression levels
+
+LZMA supports compression levels from 1 to 9, where higher levels provide better compression at the cost of increased processing time and memory usage.
+
+Syntax:
+
+[source,ruby]
+----
+algorithm = algorithm_class.new(level: {level}) <1>
+----
+<1> Specify the compression level (1-9)
+
+Where,
+
+`level`:: Compression level from 1 to 9
++
+* Level 1: Fastest compression, lower ratio (64KB dictionary)
+* Level 2-3: Fast compression (1MB dictionary)
+* Level 4-5: Balanced compression and speed (4MB dictionary) - *Default: 5*
+* Level 6-7: Higher compression (8MB dictionary)
+* Level 8-9: Maximum compression, slower (16MB dictionary)
+
+.Comparing compression levels
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+
+# Test different compression levels
+[1, 5, 9].each do |level|
+  algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new(level: level)
+
+  File.open('input.txt', 'rb') do |input|
+    File.open("output-level#{level}.lzma", 'wb') do |output|
+      start_time = Time.now
+      algorithm.compress(input, output)
+      elapsed = Time.now - start_time
+
+      size = File.size("output-level#{level}.lzma")
+      puts "Level #{level}: #{size} bytes, #{elapsed.round(2)}s"
+    end
+  end
+end
+----
+
+This example compresses the same file with three different compression levels and compares the resulting file sizes and processing times.
+
+* Level 1 provides fast compression but larger output
+* Level 5 (default) provides balanced performance
+* Level 9 provides maximum compression but takes longer
+====
+
+[[bzip2-compression]]
+== BZip2 Compression
+
+BZip2 uses the Burrows-Wheeler Transform (BWT) for block-sorting compression, achieving good compression ratios with moderate speed.
+
+[source,ruby]
+----
+algorithm = Omnizip::AlgorithmRegistry.get(:bzip2).new(level: 9)
+File.open('input.txt', 'rb') do |input|
+  File.open('output.bz2', 'wb') do |output|
+    algorithm.compress(input, output)
+  end
+end
+----
+
+[[ppmd-compression]]
+== PPMd Compression
+
+PPMd (Prediction by Partial Matching) excels at text compression using statistical modeling. PPMd7 and PPMd8 variants are supported.
+
+[source,ruby]
+----
+algorithm = Omnizip::AlgorithmRegistry.get(:ppmd7).new(
+  mem_size: 24,  # 2^24 bytes = 16MB
+  order: 6       # Context order
+)
+algorithm.compress(input, output)
+----
+
+[[deflate-compression]]
+== Deflate Compression
+
+Deflate provides ZIP-compatible compression using the native Zlib library.
+
+[source,ruby]
+----
+algorithm = Omnizip::AlgorithmRegistry.get(:deflate).new(level: 6)
+algorithm.compress(input, output)
+----
+
+[[deflate64-compression]]
+== Deflate64 Compression
+
+=== General
+
+Deflate64 (Enhanced Deflate) extends standard Deflate with a 64KB sliding window (versus 32KB in standard Deflate), providing better compression ratios for larger files while maintaining ZIP format compatibility as compression method 9.
+
+The algorithm operates in three stages:
+
+. LZ77 match finding with 64KB dictionary
+. Huffman coding with dynamic trees
+. Bitstream encoding
+
+=== Compressing with Deflate64
+
+Syntax:
+
+[source,ruby]
+----
+algorithm = Omnizip::AlgorithmRegistry.get(:deflate64).new({options}) <1>
+algorithm.compress({input}, {output}) <2>
+----
+<1> Create Deflate64 instance with optional compression level
+<2> Perform compression operation
+
+Where,
+
+`options`:: Optional hash containing:
++
+* `level`: Compression level (1-9, default: 6)
+* `window_size`: Dictionary size (default: 65536 bytes)
+
+`input`:: IO object or stream with data to compress
+`output`:: IO object or stream for compressed output
+
+.Compressing a file with Deflate64
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+
+# Get Deflate64 algorithm
+algorithm = Omnizip::AlgorithmRegistry.get(:deflate64).new(level: 7)
+
+# Compress file
+File.open('large_file.txt', 'rb') do |input|
+  File.open('output.deflate64', 'wb') do |output|
+    algorithm.compress(input, output)
+  end
+end
+----
+
+This example demonstrates compressing a large file using Deflate64. The 64KB window provides better compression for files larger than 32KB compared to standard Deflate.
+====
+
+=== Decompressing Deflate64
+
+.Decompressing a Deflate64 file
+[example]
+====
+[source,ruby]
+----
+require 'omnizip'
+
+# Get Deflate64 algorithm
+algorithm = Omnizip::AlgorithmRegistry.get(:deflate64).new
+
+# Decompress file
+File.open('output.deflate64', 'rb') do |input|
+  File.open('restored.txt', 'wb') do |output|
+    algorithm.decompress(input, output)
+  end
+end
+----
+====
+
+[[zstandard-compression]]
+== Zstandard Compression
+
+Zstandard offers fast compression with good ratios, using the native library.
+
+[source,ruby]
+----
+algorithm = Omnizip::AlgorithmRegistry.get(:zstd).new(level: 3)
+algorithm.compress(input, output)
+----
+
+[[bcj-filters]]
+== BCJ Filters
+
+Branch-Call-Jump filters improve compression of executable files by converting relative addresses to absolute addresses.
+
+[source,ruby]
+----
+# Use with filter pipeline
+pipeline = Omnizip::FilterPipeline.new
+pipeline.add_filter(:bcj_x86)  # For x86 executables
+
+# Apply before compression
+filtered_data = pipeline.encode(executable_data)
+algorithm.compress(StringIO.new(filtered_data), output)
+----
+
+Supported architectures: `:bcj_x86`, `:bcj_arm`, `:bcj_arm64`, `:bcj_ppc`, `:bcj_sparc`, `:bcj_ia64`
+
+[[bcj2-filter]]
+== BCJ2 Filter
+
+BCJ2 provides advanced 4-stream filtering for x86 code, achieving better compression than standard BCJ.
+
+[source,ruby]
+----
+filter = Omnizip::FilterRegistry.get(:bcj2).new
+encoded_streams = filter.encode(x86_code)
+# Returns 4 separate streams for optimal compression
+----
+
+[[delta-filter]]
+== Delta Filter
+
+Delta encoding is effective for multimedia files and time-series data.
+
+[source,ruby]
+----
+filter = Omnizip::FilterRegistry.get(:delta).new(distance: 1)
+filtered = filter.encode(audio_data)
+----
+
+[[aes-encryption]]
+== AES-256 Encryption
+
+Password-protected archives use AES-256-CBC encryption with SHA-256 key derivation.
+
+[source,ruby]
+----
+# Encryption is handled automatically in .7z archives
+writer = Omnizip::Formats::SevenZip::Writer.new(
+  output_file,
+  password: "secret_password"
+)
+----
+
+[[checksums]]
+== Checksums
+
+CRC32 and CRC64 checksums ensure data integrity.
+
+[source,ruby]
+----
+crc32 = Omnizip::ChecksumRegistry.get(:crc32).calculate(data)
+crc64 = Omnizip::ChecksumRegistry.get(:crc64).calculate(data)
+----
+
+[[seven-zip-format]]
+== .7z Archive Format
+
+Full support for creating and extracting .7z archives.
+
+[source,ruby]
+----
+# Create archive
+writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
+writer.add_file('input.txt')
+writer.add_file('data.bin')
+writer.close
+
+# Extract archive
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+reader.extract_all('output_dir/')
+reader.close
+
+# List contents
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+reader.entries.each do |entry|
+  puts "#{entry.name}: #{entry.size} bytes"
+end
+----
+
+== See Also
+
+* link:cli-usage.adoc[CLI Usage Guide]
+* link:compression-algorithms.adoc[Compression Algorithms]
+* link:preprocessing-filters.adoc[Preprocessing Filters]
+* link:encryption-checksums.adoc[Encryption & Checksums]
+* link:../README.adoc[Main README]

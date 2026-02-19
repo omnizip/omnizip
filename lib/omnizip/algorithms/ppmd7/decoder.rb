@@ -43,7 +43,7 @@ module Omnizip
           @input = input
           @model = Model.new(
             options[:model_order] || Model::DEFAULT_ORDER,
-            options[:mem_size] || Model::DEFAULT_MEM_SIZE
+            options[:mem_size] || Model::DEFAULT_MEM_SIZE,
           )
           @range_decoder = LZMA::RangeDecoder.new(input)
         end

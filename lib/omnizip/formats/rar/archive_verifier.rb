@@ -121,7 +121,7 @@ module Omnizip
           # In a full implementation, we would check CRC32
           valid = verify_entry_crc(entry)
 
-          puts "#{entry.name}: #{valid ? "OK" : "FAILED"}" if verbose
+          puts "#{entry.name}: #{valid ? 'OK' : 'FAILED'}" if verbose
 
           valid
         rescue StandardError => e

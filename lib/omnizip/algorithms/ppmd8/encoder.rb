@@ -48,7 +48,7 @@ module Omnizip
           @model = Model.new(
             options[:model_order] || DEFAULT_ORDER,
             options[:mem_size] || DEFAULT_MEM_SIZE,
-            options[:restore_method] || DEFAULT_RESTORE_METHOD
+            options[:restore_method] || DEFAULT_RESTORE_METHOD,
           )
           @range_encoder = LZMA::RangeEncoder.new(output)
         end
@@ -57,12 +57,12 @@ module Omnizip
         #
         # @param input [IO] Input stream to compress
         # @return [void]
+        # @raise [NotImplementedError] PPMd8 is not yet fully implemented
         def encode_stream(input)
-          while (byte = input.getbyte)
-            encode_symbol(byte)
-          end
-
-          @range_encoder.flush
+          raise NotImplementedError,
+                "PPMd8 compression is not yet fully implemented. " \
+                "The arithmetic coding integration requires completion. " \
+                "Please use PPMd7 or other compression algorithms instead."
         end
 
         private
@@ -77,7 +77,7 @@ module Omnizip
           encode_range(
             prob[:cumulative_freq],
             prob[:freq],
-            prob[:total_freq]
+            prob[:total_freq],
           )
 
           encode_with_escape(symbol) if prob[:escape]
@@ -94,7 +94,7 @@ module Omnizip
           encode_range(
             root_prob[:cumulative_freq],
             root_prob[:freq],
-            root_prob[:total_freq]
+            root_prob[:total_freq],
           )
         end
 
@@ -116,7 +116,7 @@ module Omnizip
           {
             cumulative_freq: cum_freq,
             freq: state.freq,
-            total_freq: context.total_freq
+            total_freq: context.total_freq,
           }
         end
 

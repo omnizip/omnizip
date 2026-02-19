@@ -39,7 +39,7 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         algorithm.compress(StringIO.new(original), compressed)
         algorithm.decompress(
           StringIO.new(compressed.string),
-          decompressed
+          decompressed,
         )
 
         expect(decompressed.string).to eq(original)
@@ -67,7 +67,7 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         algorithm.compress(StringIO.new(original), compressed)
         algorithm.decompress(
           StringIO.new(compressed.string),
-          decompressed
+          decompressed,
         )
 
         expect(decompressed.string).to eq(original)
@@ -83,7 +83,7 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         algorithm.compress(StringIO.new(original), compressed)
         algorithm.decompress(
           StringIO.new(compressed.string),
-          decompressed
+          decompressed,
         )
 
         expect(decompressed.string).to eq(original)
@@ -101,7 +101,7 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         algorithm.compress(StringIO.new(original), compressed)
         algorithm.decompress(
           StringIO.new(compressed.string),
-          decompressed
+          decompressed,
         )
 
         expect(decompressed.string).to eq(original)
@@ -118,7 +118,7 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         "Hello, World!",
         "The quick brown fox jumps over the lazy dog",
         "Lorem ipsum " * 500,
-        "\x00\x01\x02\x03\x04\x05" * 100
+        "\x00\x01\x02\x03\x04\x05" * 100,
       ]
 
       test_cases.each do |original|
@@ -129,11 +129,11 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
         algorithm.compress(StringIO.new(original), compressed)
         algorithm.decompress(
           StringIO.new(compressed.string),
-          decompressed
+          decompressed,
         )
 
         expect(decompressed.string).to eq(original),
-          "Failed for input: #{original.inspect}"
+                                       "Failed for input: #{original.inspect}"
       end
     end
   end

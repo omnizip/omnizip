@@ -1,0 +1,138 @@
+---
+title: Installation
+nav_order: 1
+parent: Getting Started
+---
+
+== Installation
+
+=== General
+
+Install Omnizip to start working with compression algorithms and archive formats in Ruby.
+
+=== Requirements
+
+==== Ruby Version
+
+Omnizip requires Ruby 3.0 or higher:
+
+* MRI (Matz's Ruby Interpreter) 3.0+
+* JRuby 9.4+
+* TruffleRuby 22+
+
+Check your Ruby version:
+
+[source,bash]
+----
+ruby --version
+----
+
+==== Runtime Dependencies
+
+Omnizip has minimal dependencies:
+
+* `lutaml-model` (~> 0.7) - Model serialization
+* `marcel` (~> 1.0) - MIME type detection
+
+These are automatically installed with the gem.
+
+=== Installing via Bundler
+
+Add Omnizip to your Gemfile:
+
+[source,ruby]
+----
+# Gemfile
+gem 'omnizip'
+----
+
+Then install:
+
+[source,bash]
+----
+bundle install
+----
+
+=== Installing via RubyGems
+
+Install the gem directly:
+
+[source,bash]
+----
+gem install omnizip
+----
+
+=== Verifying Installation
+
+Verify that Omnizip is installed correctly:
+
+[source,bash]
+----
+# Check the gem is installed
+gem list omnizip
+
+# Check the version
+omnizip version
+
+# List available algorithms
+omnizip list
+----
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Check version
+puts Omnizip::VERSION
+
+# List algorithms
+Omnizip::AlgorithmRegistry.registered.each do |name|
+  puts "Algorithm: #{name}"
+end
+----
+
+=== Installing from Source
+
+To install from the source repository:
+
+[source,bash]
+----
+git clone https://github.com/metanorma/omnizip.git
+cd omnizip
+bundle install
+rake install
+----
+
+=== Development Installation
+
+For development or contributing:
+
+[source,bash]
+----
+git clone https://github.com/metanorma/omnizip.git
+cd omnizip
+bundle install
+bundle exec rake
+----
+
+=== Platform-Specific Notes
+
+==== Linux
+
+No special requirements. Works with system Ruby or rbenv/rvm-managed Ruby.
+
+==== macOS
+
+No special requirements. Works with system Ruby or rbenv/rvm-managed Ruby.
+
+==== Windows
+
+Works with Ruby for Windows or RubyInstaller. Some file operations may have path handling differences.
+
+=== Next Steps
+
+After installation:
+
+* link:quick-start[Quick Start Guide] - Get started in 5 minutes
+* link:your-first-archive[Create Your First Archive] - Build a practical example
+* link:../guides/basic-usage[Basic Usage Guide] - Learn common operations

@@ -110,7 +110,7 @@ module Omnizip
             salt: salt,
             iv: iv,
             original_size: original_size,
-            crc: crc.zero? ? nil : crc
+            crc: crc.zero? ? nil : crc,
           )
         end
 

@@ -1,0 +1,118 @@
+---
+title: XZ Format
+nav_order: 6
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== Purpose
+
+XZ is a modern compression format based on LZMA2 that provides excellent compression ratios. It's commonly used for Linux package distribution and software archives.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression
+|LZMA2 (with LZMA, BCJ filters)
+
+|Encryption
+|None
+
+|Archive Support
+|Single file only (use with TAR for multiple files)
+
+|Large Files
+|Yes (up to 4 EB)
+
+|Best For
+|Software packages, maximum compression, Unix systems
+|===
+
+== Basic Usage
+
+=== Compress a File
+
+[source,ruby]
+----
+# Compress single file with XZ
+Omnizip.compress_file('data.bin', 'data.bin.xz',
+  level: 6  # Default level
+)
+
+# Maximum compression
+Omnizip.compress_file('data.bin', 'data.bin.xz',
+  level: 9,
+  extreme: true  # Use more CPU for slightly better ratio
+)
+----
+
+=== Decompress a File
+
+[source,ruby]
+----
+# Decompress XZ file
+Omnizip.decompress_file('data.bin.xz', 'data.bin')
+----
+
+== XZ Utils Compatibility
+
+Omnizip is compatible with files created by XZ Utils:
+
+[source,bash]
+----
+# Create with XZ Utils
+$ xz -k data.bin
+
+# Extract with Omnizip
+Omnizip.decompress_file('data.bin.xz', 'data.bin')
+
+# Create with Omnizip
+Omnizip.compress_file('data.bin', 'data.bin.xz')
+
+# Extract with XZ Utils
+$ xz -d data.bin.xz
+----
+
+== Compression Levels
+
+[cols="1,2,2,2"]
+|===
+|Level |Memory (Compress) |Memory (Decompress) |Typical Use
+
+|1-3
+|4-24 MB
+|1-3 MB
+|Fast compression
+
+|4-6
+|32-96 MB
+|4-9 MB
+|**Default** - balanced
+
+|7-9
+|192-674 MB
+|16-64 MB
+|Maximum compression
+|===
+
+== TAR.XZ Archives
+
+XZ is commonly combined with TAR:
+
+[source,ruby]
+----
+# Create TAR.XZ archive
+Omnizip.compress_directory('project/', 'project.tar.xz',
+  format: :tar_xz,
+  level: 6
+)
+----
+
+== See Also
+
+* link:../compression-algorithms/lzma2.html[LZMA2 Algorithm] - Compression details
+* link:tar-format.html[TAR Format] - Multi-file archives with XZ
+* link:gzip-format.html[GZIP Format] - Faster alternative

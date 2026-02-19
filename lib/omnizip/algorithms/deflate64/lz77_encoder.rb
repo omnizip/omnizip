@@ -33,13 +33,13 @@ module Omnizip
               tokens << {
                 type: :match,
                 length: match[:length],
-                distance: match[:distance]
+                distance: match[:distance],
               }
               pos += match[:length]
             else
               tokens << {
                 type: :literal,
-                value: data.getbyte(pos)
+                value: data.getbyte(pos),
               }
               pos += 1
             end
@@ -79,7 +79,7 @@ module Omnizip
               best_length = length
               best_match = {
                 length: length,
-                distance: distance
+                distance: distance,
               }
 
               break if length >= NICE_MATCH
@@ -104,7 +104,7 @@ module Omnizip
           length = 0
 
           while length < max_length &&
-                data.getbyte(pos1 + length) == data.getbyte(pos2 + length)
+              data.getbyte(pos1 + length) == data.getbyte(pos2 + length)
             length += 1
           end
 
@@ -132,7 +132,7 @@ module Omnizip
         # @param data [String] Input data
         # @param pos [Integer] Current position
         def update_window(data, pos)
-          @window << data.getbyte(pos - 1) if pos > 0
+          @window << data.getbyte(pos - 1) if pos.positive?
           @window.shift if @window.size > @window_size
           @position = pos
         end

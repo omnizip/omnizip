@@ -1,0 +1,605 @@
+---
+title: PAR2 Parity Archives
+nav_order: 7
+parent: Guides
+---
+
+== PAR2 Parity Archives Guide
+
+Complete guide to using PAR2 error correction in Omnizip for data protection and recovery.
+
+== What is PAR2?
+
+PAR2 (Parity Archive Volume 2) is an error correction format that uses Reed-Solomon codes to protect data against corruption and loss. It creates recovery files that can detect and repair damaged or missing files.
+
+=== Key Concepts
+
+**Recovery Blocks**:: PAR2 splits files into blocks and generates additional recovery blocks using Reed-Solomon encoding. Each recovery block can replace any damaged or missing original block.
+
+**Redundancy**:: The percentage of extra recovery data created. 10% redundancy means you can recover from up to 10% data loss.
+
+**Block Size**:: The size of each block in bytes. Smaller blocks provide finer-grained recovery but create more metadata. Default is 16KB.
+
+**Reed-Solomon Codes**:: Mathematical error correction codes over Galois Field GF(2^16) that enable reconstruction of missing data from parity information.
+
+== Why Use PAR2?
+
+=== Protection Scenarios
+
+**Long-term Storage**:: Protect archives on CDs, DVDs, tape backups, or cloud storage from bit rot and media degradation.
+
+**Network Transfers**:: Detect corruption during downloads or file transfers without re-downloading entire files.
+
+**Data Archival**:: Create redundant recovery data for critical archives before secure deletion of originals.
+
+**Multi-file Archives**:: Protect sets of related files (e.g., split archives) with unified recovery data.
+
+=== Advantages
+
+* **Efficient**: Only damaged blocks need recovery, not entire files
+* **Flexible**: Configurable redundancy from 0-100%
+* **Portable**: Industry standard format with cross-platform tools
+* **Verifiable**: Check integrity without unpacking archives
+* **Repairable**: Automatically reconstruct missing/damaged data
+
+== Creating PAR2 Files
+
+=== Basic Creation
+
+==== CLI
+
+[source,sh]
+----
+# Create PAR2 with default 10% redundancy
+omnizip parity create important.zip
+
+# Generates:
+#   important.par2          (index file)
+#   important.vol00+01.par2 (recovery volumes)
+#   important.vol01+02.par2
+#   ...
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip/parity'
+
+# Create PAR2 creator
+creator = Omnizip::Parity::Par2Creator.new(
+  redundancy: 10,      # 10% redundancy
+  block_size: 16384    # 16KB blocks (default)
+)
+
+# Add files to protect
+creator.add_file('important.zip')
+creator.add_file('documents.tar.gz')
+
+# Generate PAR2 files
+par2_files = creator.create('backup')
+# => ["backup.par2", "backup.vol00+01.par2", ...]
+----
+
+=== Custom Redundancy
+
+Choose redundancy based on risk tolerance:
+
+[source,sh]
+----
+# Minimal protection (5%)
+omnizip parity create --redundancy 5 data.7z
+
+# Standard protection (10%, default)
+omnizip parity create --redundancy 10 data.7z
+
+# High protection (20%)
+omnizip parity create --redundancy 20 data.7z
+
+# Maximum protection (100%, full duplication)
+omnizip parity create --redundancy 100 critical.zip
+----
+
+=== Custom Block Size
+
+[source,sh]
+----
+# Smaller blocks (8KB) - finer recovery, more metadata
+omnizip parity create --block-size 8192 archive.7z
+
+# Default blocks (16KB) - balanced
+omnizip parity create --block-size 16384 archive.7z
+
+# Larger blocks (64KB) - less metadata, coarser recovery
+omnizip parity create --block-size 65536 large-archive.zip
+----
+
+**Trade-offs:**
+
+* **Small blocks**: Fine-grained recovery, larger PAR2 files, slower
+* **Large blocks**: Coarse recovery, smaller PAR2 files, faster
+
+=== Multiple Files
+
+Protect multiple files with unified recovery data:
+
+[source,sh]
+----
+# CLI: Protect multiple archives
+omnizip parity create --redundancy 15 *.zip *.7z
+
+# Or specify files explicitly
+omnizip parity create backup.7z data.zip photos.tar.gz
+----
+
+[source,ruby]
+----
+# Ruby API: Add multiple files
+creator = Omnizip::Parity::Par2Creator.new(redundancy: 15)
+Dir.glob('*.zip').each { |file| creator.add_file(file) }
+creator.create('archives')
+----
+
+=== Custom Output Directory
+
+[source,sh]
+----
+# Store PAR2 files separately
+omnizip parity create --output-dir recovery/ *.zip
+
+# Output structure:
+# recovery/backup.par2
+# recovery/backup.vol00+01.par2
+# ...
+----
+
+== Verifying Integrity
+
+=== Basic Verification
+
+==== CLI
+
+[source,sh]
+----
+# Verify all files
+omnizip parity verify backup.par2
+----
+
+**Output (all intact):**
+[source,text]
+----
+Verifying backup.par2...
+
+Files verified:
+  ✓ important.zip (2.4 MB) - OK
+  ✓ documents.tar.gz (1.8 MB) - OK
+
+Summary:
+  Files: 2 verified, 0 damaged
+  Blocks: 256 verified, 0 damaged
+  Status: All files intact
+----
+
+**Output (damage detected):**
+[source,text]
+----
+Files verified:
+  ✗ important.zip (2.4 MB) - DAMAGED (3 blocks corrupted)
+  ✓ documents.tar.gz (1.8 MB) - OK
+
+Summary:
+  Files: 1 verified, 1 damaged
+  Blocks: 253 verified, 3 damaged
+  Status: DAMAGE DETECTED - Repairable
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip/parity'
+
+# Verify files
+verifier = Omnizip::Parity::Par2Verifier.new('backup.par2')
+result = verifier.verify
+
+if result.all_ok?
+  puts "All files intact!"
+else
+  puts "Damaged files: #{result.damaged_files}"
+  puts "Damaged blocks: #{result.damaged_blocks.size}"
+  puts "Repairable: #{result.repairable?}"
+end
+----
+
+=== Verbose Verification
+
+[source,sh]
+----
+# Show detailed block information
+omnizip parity verify backup.par2 --verbose
+----
+
+**Output:**
+[source,text]
+----
+Verifying backup.par2...
+
+File: important.zip (2.4 MB, 150 blocks)
+  Block 0: ✓ OK (MD5: a1b2c3d4...)
+  Block 1: ✓ OK (MD5: e5f6g7h8...)
+  ...
+  Block 47: ✗ DAMAGED (expected: a1b2c3d4, got: ffffffff)
+  ...
+
+Total: 147 OK, 3 damaged
+Recovery available: Yes (10 recovery blocks)
+----
+
+=== Automated Verification
+
+[source,ruby]
+----
+# Verify before critical operations
+def safe_extract(archive_file, par2_file)
+  verifier = Omnizip::Parity::Par2Verifier.new(par2_file)
+  result = verifier.verify
+
+  unless result.all_ok?
+    raise "Archive corrupted! Repair before extracting."
+  end
+
+  Omnizip.extract_archive(archive_file, 'output/')
+end
+----
+
+== Repairing Files
+
+=== Basic Repair
+
+==== CLI
+
+[source,sh]
+----
+# Repair damaged files in place
+omnizip parity repair backup.par2
+----
+
+**Output:**
+[source,text]
+----
+Repairing with backup.par2...
+
+Analyzing damage:
+  important.zip: 3 damaged blocks (out of 150 total)
+
+Loading recovery data:
+  backup.vol00+01.par2
+  backup.vol01+02.par2
+
+Repairing:
+  important.zip: Reconstructing blocks 47, 89, 132... OK
+
+Summary:
+  Files repaired: 1
+  Blocks recovered: 3
+  Status: All files successfully repaired
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip/parity'
+
+# Repair damaged files
+repairer = Omnizip::Parity::Par2Repairer.new('backup.par2')
+result = repairer.repair
+
+if result.success?
+  puts "Repaired files: #{result.recovered_files}"
+  puts "Recovered blocks: #{result.recovered_blocks}"
+else
+  puts "Repair failed: #{result.error_message}"
+end
+----
+
+=== Repair to Different Location
+
+[source,sh]
+----
+# Repair to separate directory (preserve originals)
+omnizip parity repair backup.par2 --output-dir recovered/
+----
+
+=== Handling Missing Files
+
+PAR2 can reconstruct completely missing files:
+
+[source,sh]
+----
+# Delete a file
+rm important.zip
+
+# PAR2 detects and reconstructs it
+omnizip parity repair backup.par2
+# Output: "Reconstructed missing file: important.zip"
+----
+
+=== Insufficient Recovery Data
+
+[source,text]
+----
+ERROR: Insufficient recovery data
+  Need 23 recovery blocks, but only 10 available
+  Cannot repair - 13 blocks unrecoverable
+
+Recommendation: Increase redundancy to at least 16% for this scenario
+----
+
+== Complete Workflow Examples
+
+=== Example 1: Archive Backup
+
+[source,sh]
+----
+# 1. Create archive
+omnizip archive create backup.7z important_data/ --level 9
+
+# 2. Create PAR2 (20% redundancy for critical data)
+omnizip parity create --redundancy 20 backup.7z
+
+# 3. Store together
+mkdir backup-2025-11-23/
+mv backup.7z backup.par2 backup.vol*.par2 backup-2025-11-23/
+
+# Later: Verify before use
+cd backup-2025-11-23/
+omnizip parity verify backup.par2
+
+# If needed: Repair
+omnizip parity repair backup.par2
+----
+
+=== Example 2: Multi-File Protection
+
+[source,ruby]
+----
+require 'omnizip/parity'
+
+# Create split archive
+Omnizip::Formats::SevenZip.create('large.7z',
+  split_size: 50_000_000) do |archive|
+  archive.add_directory('massive_dataset/')
+end
+# Generates: large.7z.001, large.7z.002, ...
+
+# Protect all volumes with PAR2
+creator = Omnizip::Parity::Par2Creator.new(redundancy: 15)
+Dir.glob('large.7z.*').each { |vol| creator.add_file(vol) }
+creator.create('large')
+
+# Verify all volumes
+verifier = Omnizip::Parity::Par2Verifier.new('large.par2')
+if verifier.verify.all_ok?
+  # Safe to extract
+  Omnizip::Formats::SevenZip::SplitArchiveReader.new('large.7z.001')
+    .extract_all('output/')
+end
+----
+
+=== Example 3: Automated Testing
+
+[source,ruby]
+----
+require 'omnizip/parity'
+
+def create_verified_archive(source_dir, archive_name)
+  # Create archive
+  Omnizip.compress_directory(source_dir, "#{archive_name}.7z")
+
+  # Create PAR2
+  creator = Omnizip::Parity::Par2Creator.new(redundancy: 10)
+  creator.add_file("#{archive_name}.7z")
+  creator.create(archive_name)
+
+  # Immediate verification
+  verifier = Omnizip::Parity::Par2Verifier.new("#{archive_name}.par2")
+  result = verifier.verify
+
+  unless result.all_ok?
+    raise "PAR2 creation failed verification!"
+  end
+
+  puts "✓ Created and verified: #{archive_name}.7z"
+end
+----
+
+== Best Practices
+
+=== Redundancy Guidelines
+
+[cols="25,25,50",options="header"]
+|===
+|Scenario |Redundancy |Rationale
+
+|Temporary files
+|5%
+|Minimal protection for short-term use
+
+|Standard backups
+|10-15%
+|Good balance for most use cases
+
+|Critical data
+|20-30%
+|Higher protection for important files
+
+|Archival
+|50-100%
+|Maximum protection for long-term storage
+
+|===
+
+=== Block Size Guidelines
+
+[cols="25,25,50",options="header"]
+|===
+|File Size |Block Size |Rationale
+
+|< 10 MB
+|8 KB
+|Fine-grained recovery for small files
+
+|10-100 MB
+|16 KB
+|Default, good for most files
+
+|100 MB - 1 GB
+|32 KB
+|Larger blocks for efficiency
+
+|> 1 GB
+|64 KB
+|Minimize metadata overhead
+
+|===
+
+=== Storage Recommendations
+
+**Keep Together**: Store PAR2 files with protected files
+[source,text]
+----
+backup/
+  ├── data.7z
+  ├── data.par2
+  ├── data.vol00+01.par2
+  └── data.vol01+02.par2
+----
+
+**Verify After Creation**: Always verify immediately after creating PAR2
+[source,sh]
+----
+omnizip parity create data.7z && omnizip parity verify data.par2
+----
+
+**Test Recovery**: Periodically test repair functionality
+[source,sh]
+----
+# Make backup copy
+cp important.zip important.zip.backup
+
+# Simulate damage and test repair
+dd if=/dev/zero of=important.zip bs=1024 count=100 seek=1000 conv=notrunc
+omnizip parity repair important.par2
+
+# Verify repair worked
+diff important.zip important.zip.backup
+----
+
+=== Performance Optimization
+
+**Parallel Processing**: Use appropriate block sizes for CPU utilization
+
+**Memory Usage**: Larger files may require streaming mode (future feature)
+
+**I/O Optimization**: Create PAR2 files on same drive as source files
+
+== Troubleshooting
+
+=== Common Issues
+
+**Issue**: "Insufficient recovery data"
+
+**Solution**: Increase redundancy when creating PAR2:
+[source,sh]
+----
+omnizip parity create --redundancy 20 file.zip
+----
+
+**Issue**: "File not found: xyz.par2"
+
+**Solution**: Ensure .par2 index file is in current directory or specify full path:
+[source,sh]
+----
+omnizip parity verify /path/to/backup.par2
+----
+
+**Issue**: Slow PAR2 creation
+
+**Solution**: Increase block size for large files:
+[source,sh]
+----
+omnizip parity create --block-size 65536 huge-file.7z
+----
+
+**Issue**: "MD5 mismatch" during verify
+
+**Solution**: File is corrupted, use repair:
+[source,sh]
+----
+omnizip parity repair backup.par2
+----
+
+=== Debugging
+
+**Verbose mode** for detailed information:
+[source,sh]
+----
+omnizip parity verify backup.par2 --verbose
+omnizip parity repair backup.par2 --verbose
+----
+
+**Check PAR2 file integrity**:
+[source,ruby]
+----
+require 'omnizip/parity'
+
+begin
+  verifier = Omnizip::Parity::Par2Verifier.new('backup.par2')
+  result = verifier.verify
+  puts "PAR2 file is valid"
+rescue => e
+  puts "PAR2 file is corrupted: #{e.message}"
+end
+----
+
+== Technical Details
+
+=== Reed-Solomon Encoding
+
+PAR2 uses Reed-Solomon codes over Galois Field GF(2^16):
+
+**Encoding**: Creates parity blocks from original blocks using Vandermonde matrix multiplication
+
+**Decoding**: Reconstructs missing blocks via Gaussian elimination with partial pivoting
+
+**Mathematics**: Each recovery block is a linear combination of original blocks in GF(2^16)
+
+=== File Format
+
+**Main Packet** (`.par2`)::
+* File descriptors with MD5 hashes
+* Block checksums
+* Recovery set information
+
+**Recovery Volumes** (`.vol??+??.par2`)::
+* Recovery blocks
+* Indexed for efficient access
+* Multiple volumes for large recovery sets
+
+=== Compatibility
+
+Omnizip's PAR2 implementation is compatible with:
+
+* **par2cmdline**: Reference implementation (tested and verified)
+* **MultiPar**: Windows PAR2 tool
+* **QuickPar**: Legacy Windows tool
+* **gopar**: Go implementation
+
+== See Also
+
+* link:creating-archives.html[Creating Archives]
+* link:../reference/cli/overview.html[CLI Reference]
+* link:../reference/api/overview.html[Ruby API]
+* link:../comparison/feature-matrix.html[Feature Comparison]

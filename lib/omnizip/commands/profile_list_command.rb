@@ -32,7 +32,7 @@ module Omnizip
             "  %-12s - %s%s",
             profile.name,
             profile.description,
-            default_marker
+            default_marker,
           )
         end
       end
@@ -45,7 +45,7 @@ module Omnizip
           puts "Profile: #{profile.name}"
           puts "  Algorithm:   #{profile.algorithm}"
           puts "  Level:       #{profile.level}"
-          puts "  Filter:      #{profile.filter || "none"}"
+          puts "  Filter:      #{profile.filter || 'none'}"
           puts "  Solid:       #{profile.solid}"
           puts "  Description: #{profile.description}"
           puts ""
