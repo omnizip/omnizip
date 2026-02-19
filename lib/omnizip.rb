@@ -91,6 +91,7 @@ require_relative "omnizip/formats/bzip2_file"
 require_relative "omnizip/formats/xz"
 require_relative "omnizip/formats/lzma_alone"
 require_relative "omnizip/formats/lzip"
+require_relative "omnizip/formats/xar"
 
 # ISO 9660 CD-ROM format (Weeks 11-14)
 require_relative "omnizip/formats/iso"

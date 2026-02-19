@@ -43,4 +43,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "bindata", "~> 2.4"
   spec.add_dependency "lutaml-model", "~> 0.7"
   spec.add_dependency "marcel", "~> 1.0"
+  spec.add_dependency "rexml"
 end
