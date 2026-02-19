@@ -219,6 +219,38 @@ module Omnizip
           result
         end
 
+        # Decode a cumulative frequency value
+        #
+        # This is used by PPMd for decoding symbols based on their
+        # frequency distribution. Returns the cumulative frequency
+        # that can be mapped back to a symbol.
+        #
+        # @param total_freq [Integer] Total frequency of all symbols in context
+        # @return [Integer] The cumulative frequency value
+        def decode_freq(total_freq)
+          normalize
+          range_freq = @range / total_freq
+          @code / range_freq
+        end
+
+        # Normalize after decoding a symbol with frequency
+        #
+        # After using decode_freq to get the cumulative frequency,
+        # call this to update the range decoder state.
+        #
+        # @param cum_freq [Integer] Cumulative frequency of decoded symbol
+        # @param freq [Integer] Frequency of decoded symbol
+        # @param total_freq [Integer] Total frequency of all symbols
+        # @return [void]
+        def normalize_freq(cum_freq, freq, total_freq)
+          range_freq = @range / total_freq
+          low_bound = range_freq * cum_freq
+          high_bound = range_freq * (cum_freq + freq)
+
+          @code -= low_bound
+          @range = (high_bound - low_bound) & 0xFFFFFFFF
+        end
+
         # Decode bits directly using a base value (XZ Utils rc_direct pattern)
         #
         # This method implements the XZ Utils rc_direct macro which is used

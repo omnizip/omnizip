@@ -140,23 +140,77 @@ module Omnizip
             #
             # @return [Integer, nil] Decoded byte or nil if end
             def decode_symbol
-              # Simplified decoding - real implementation needs:
-              # 1. Proper context selection
-              # 2. RAR-specific escape handling
-              # 3. Binary symbol encoding
-              # 4. Proper termination detection
+              context = @model.current_context || @model.root_context
+              total_freq = context.total_freq
 
-              # Decode range value
-              value = @range_decoder.decode_direct_bits(16)
+              return nil if total_freq.zero?
 
-              # Find symbol from range using current context
-              symbol = find_symbol_from_range(value)
-              return nil if symbol.nil?
+              # Decode cumulative frequency from range coder
+              cum_freq = @range_decoder.decode_freq(total_freq)
+
+              # Find symbol matching this cumulative frequency
+              symbol, freq = find_symbol_by_cum_freq(context, cum_freq)
+
+              if symbol.nil?
+                # No symbol found - decode as new symbol
+                return decode_new_symbol
+              end
+
+              # Normalize range decoder state
+              actual_cum = calculate_cum_freq(context, symbol)
+              @range_decoder.normalize_freq(actual_cum, freq, total_freq)
 
               # Update model to stay in sync
               @model.update(symbol)
 
               symbol
+            end
+
+            # Find symbol by cumulative frequency
+            #
+            # @param context [Context] Current context
+            # @param cum_freq [Integer] Cumulative frequency to find
+            # @return [Array<Integer, Integer>] Symbol and its frequency, or [nil, 0]
+            def find_symbol_by_cum_freq(context, cum_freq)
+              running_cum = 0
+
+              context.states.keys.sort.each do |symbol|
+                state = context.states[symbol]
+                next_cum = running_cum + state.freq
+
+                if cum_freq >= running_cum && cum_freq < next_cum
+                  return [symbol, state.freq]
+                end
+
+                running_cum = next_cum
+              end
+
+              [nil, 0]
+            end
+
+            # Calculate cumulative frequency for a symbol
+            #
+            # @param context [Context] Current context
+            # @param target_symbol [Integer] Symbol to find cumulative freq for
+            # @return [Integer] Cumulative frequency
+            def calculate_cum_freq(context, target_symbol)
+              cum_freq = 0
+
+              context.states.keys.sort.each do |symbol|
+                break if symbol >= target_symbol
+
+                cum_freq += context.states[symbol].freq
+              end
+
+              cum_freq
+            end
+
+            # Decode a new symbol not in context
+            #
+            # @return [Integer] Decoded byte
+            def decode_new_symbol
+              # Decode as 8 direct bits
+              @range_decoder.decode_direct_bits(8)
             end
 
             # Decode RAR-specific escape code
@@ -177,39 +231,6 @@ module Omnizip
               # For now, return 0 (new symbol follows)
               # Real implementation would decode from range coder
               0
-            end
-
-            # Find symbol from decoded range value (RAR variant)
-            #
-            # Uses RAR-specific probability distribution to map
-            # range value back to original symbol.
-            #
-            # @param value [Integer] Decoded range value
-            # @return [Integer, nil] The symbol
-            def find_symbol_from_range(value)
-              # This is simplified - real RAR implementation uses:
-              # 1. Current context's probability distribution
-              # 2. RAR-specific escape handling
-              # 3. Proper cumulative frequency calculation
-
-              context = @model.root_context
-
-              # Find symbol whose cumulative range contains value
-              scale = 0x10000
-              cum_freq = 0
-
-              context.states.keys.sort.each do |symbol|
-                state = context.states[symbol]
-                next_cum = cum_freq + state.freq
-                sym_low = (cum_freq * scale) / context.total_freq
-                sym_high = (next_cum * scale) / context.total_freq
-
-                return symbol if value >= sym_low && value < sym_high
-
-                cum_freq = next_cum
-              end
-
-              nil
             end
           end
         end
