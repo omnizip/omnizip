@@ -109,6 +109,25 @@ module Omnizip
           end
         end
 
+        # Encode a symbol using cumulative frequency range
+        #
+        # This is used by PPMd for encoding symbols based on their
+        # frequency distribution in the current context.
+        #
+        # @param cum_freq [Integer] Cumulative frequency up to this symbol
+        # @param freq [Integer] Frequency of this symbol
+        # @param total_freq [Integer] Total frequency of all symbols in context
+        # @return [void]
+        def encode_freq(cum_freq, freq, total_freq)
+          normalize
+          range_freq = @range / total_freq
+          low_bound = range_freq * cum_freq
+          high_bound = range_freq * (cum_freq + freq)
+
+          @low = (@low + low_bound) & 0xFFFFFFFFFFFFFFFF
+          @range = (high_bound - low_bound) & 0xFFFFFFFF
+        end
+
         # Flush remaining bytes to output stream
         #
         # Ported from XZ Utils rc_flush().

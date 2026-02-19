@@ -211,12 +211,9 @@ module Omnizip
             #
             # @return [void]
             def encode_escape_code
-              # RAR escape codes differ from PPMd7
-              # For now, encode escape code 0 (new symbol follows)
-              # Real implementation would use context's escape frequency
-
-              # Simplified: encode direct bits for escape
-              @range_encoder.encode_direct_bits(0, 2)
+              # For now, we encode escape as a binary decision with 50% probability
+              # This is simplified - real PPMd uses SEE (Secondary Escape Estimation)
+              @range_encoder.encode_freq(0, 1, 2)
             end
 
             # Encode new symbol not in current context
@@ -228,7 +225,7 @@ module Omnizip
             # @param byte [Integer] Symbol to encode
             # @return [void]
             def encode_new_symbol(byte)
-              # Encode as direct 8 bits (uniform distribution)
+              # Encode as 8 direct bits (uniform distribution)
               @range_encoder.encode_direct_bits(byte, 8)
             end
 
@@ -242,17 +239,9 @@ module Omnizip
             # @param total_freq [Integer] Total frequency
             # @return [void]
             def encode_range(cum_freq, freq, total_freq)
-              # Scale to range coder scale (16-bit)
-              scale = 0x10000
-              low = (cum_freq * scale) / total_freq
-              ((cum_freq + freq) * scale) / total_freq
+              return if total_freq.zero?
 
-              # Encode using direct bits
-              # Full implementation would use proper range subdivision
-              @range_encoder.encode_direct_bits(low, 16)
-
-              # In proper implementation, would also need to encode
-              # the range width (high - low) somehow
+              @range_encoder.encode_freq(cum_freq, freq, total_freq)
             end
           end
         end

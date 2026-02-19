@@ -7,6 +7,21 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
   let(:algorithm) { described_class.new }
   let(:test_data) { "Hello, World! " * 100 }
 
+  # Check if zstd-ruby gem is actually available and working
+  # The encoder.rb defines a mock Zstd module that raises LoadError,
+  # so we need to check if the real gem is loaded
+  def zstd_available?
+    return false unless defined?(Zstd)
+
+    # Try to actually use it - the mock module raises LoadError
+    begin
+      Zstd.compress("test")
+      true
+    rescue LoadError
+      false
+    end
+  end
+
   describe ".metadata" do
     it "returns algorithm metadata" do
       metadata = described_class.metadata
@@ -19,7 +34,7 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
   describe "#compress and #decompress" do
     context "when zstd-ruby gem is available" do
       it "compresses and decompresses data correctly" do
-        skip "Pure Ruby Zstandard deferred to v0.4.0 (RFC 8878 implementation required)"
+        skip "zstd-ruby gem not installed" unless zstd_available?
 
         input = StringIO.new(test_data)
         compressed = StringIO.new
@@ -34,7 +49,7 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
       end
 
       it "achieves compression on repetitive data" do
-        skip "Pure Ruby Zstandard deferred to v0.4.0 (RFC 8878 implementation required)"
+        skip "zstd-ruby gem not installed" unless zstd_available?
 
         input = StringIO.new(test_data)
         compressed = StringIO.new
@@ -42,6 +57,19 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
         algorithm.compress(input, compressed)
 
         expect(compressed.string.bytesize).to be < test_data.bytesize
+      end
+    end
+
+    context "when zstd-ruby gem is not available" do
+      it "raises helpful error on compress" do
+        skip "Test requires zstd-ruby to be unavailable" if zstd_available?
+
+        input = StringIO.new(test_data)
+        compressed = StringIO.new
+
+        expect do
+          algorithm.compress(input, compressed)
+        end.to raise_error(LoadError, /zstd-ruby/)
       end
     end
   end
