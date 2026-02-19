@@ -26,12 +26,14 @@ module Omnizip
         # @param file_path [String] Path to .7z file
         # @param options [Hash] Reader options
         # @option options [String] :password Password for encrypted headers
+        # @option options [Integer] :offset Offset for embedded archives
         def initialize(file_path, options = {})
           @file_path = file_path
           @entries = []
           @stream_info = nil
           @split_reader = nil
           @password = options[:password]
+          @offset = options[:offset] || 0
         end
 
         # Open and parse .7z archive
@@ -47,6 +49,8 @@ module Omnizip
             @stream_info = @split_reader.stream_info
           else
             File.open(@file_path, "rb") do |io|
+              # Seek to offset for embedded archives
+              io.seek(@offset) if @offset.positive?
               parse_archive(io)
             end
           end
@@ -111,6 +115,8 @@ module Omnizip
             FileUtils.mkdir_p(output_path)
           elsif entry.has_stream?
             File.open(@file_path, "rb") do |io|
+              # Seek to offset for embedded archives
+              io.seek(@offset) if @offset.positive?
               data = extract_entry_data(io, entry)
               File.binwrite(output_path, data)
             end
@@ -173,7 +179,8 @@ module Omnizip
           # Read next header metadata
           # NOTE: next_header_offset is from the END of the Start Header (byte 32)
           # NOT from the end of the file
-          next_header_pos = Constants::START_HEADER_SIZE + @header.next_header_offset
+          # For embedded archives, add offset to get absolute position
+          next_header_pos = @offset + Constants::START_HEADER_SIZE + @header.next_header_offset
           io.seek(next_header_pos)
           next_header_data = io.read(@header.next_header_size)
 
@@ -272,7 +279,8 @@ module Omnizip
           end
 
           # Decompress the header using the stream info
-          pack_pos = @header.start_pos_after_header + stream_info.pack_pos
+          # For embedded archives, add offset to get absolute file position
+          pack_pos = @offset + @header.start_pos_after_header + stream_info.pack_pos
           folder = stream_info.folders[0]
           pack_size = stream_info.pack_sizes[0]
           unpack_size = folder.uncompressed_size
@@ -383,8 +391,8 @@ module Omnizip
           folder = @stream_info.folders[entry.folder_index]
           return "" unless folder
 
-          # Calculate pack position
-          pack_pos = @header.start_pos_after_header +
+          # Calculate pack position (add offset for embedded archives)
+          pack_pos = @offset + @header.start_pos_after_header +
             @stream_info.pack_pos
 
           # Get pack size for this folder

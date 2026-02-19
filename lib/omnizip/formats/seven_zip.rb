@@ -80,6 +80,17 @@ module Omnizip
         reader
       end
 
+      # Search for embedded .7z archive in self-extracting executable
+      #
+      # @param path [String] Path to potential self-extracting archive
+      # @return [Integer, nil] Offset of embedded 7z signature, or nil if not found
+      def self.search_embedded(path)
+        data = File.binread(path)
+        signature = Constants::SIGNATURE
+        offset = data.index(signature)
+        offset
+      end
+
       # Auto-register .7z format when loaded
       def self.register!
         require_relative "../format_registry"

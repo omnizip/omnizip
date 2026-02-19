@@ -80,6 +80,12 @@ module Omnizip
               filter_class = FilterRegistry.get(filter_sym)
               next unless filter_class
 
+              # BCJ2 requires special handling with multiple streams
+              if filter_sym == :bcj2
+                raise "BCJ2 archives require multi-stream decompression which is not yet implemented. " \
+                      "Please use the 7z command-line tool for this archive."
+              end
+
               filter = filter_class.new
               filtered = StringIO.new
               filter.reverse(StringIO.new(result), filtered)
