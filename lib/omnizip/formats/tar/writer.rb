@@ -59,15 +59,15 @@ module Omnizip
           data = File.binread(source_path)
 
           entry = Entry.new(entry_name, {
-            mode: options[:mode] || stat.mode & 0o777,
-            uid: options[:uid] || stat.uid,
-            gid: options[:gid] || stat.gid,
-            size: data.bytesize,
-            mtime: options[:mtime] || stat.mtime,
-            typeflag: TYPE_REGULAR,
-            uname: options[:uname] || "",
-            gname: options[:gname] || ""
-          })
+                              mode: options[:mode] || (stat.mode & 0o777),
+                              uid: options[:uid] || stat.uid,
+                              gid: options[:gid] || stat.gid,
+                              size: data.bytesize,
+                              mtime: options[:mtime] || stat.mtime,
+                              typeflag: TYPE_REGULAR,
+                              uname: options[:uname] || "",
+                              gname: options[:gname] || "",
+                            })
 
           write_entry(entry, data)
         end
@@ -97,15 +97,15 @@ module Omnizip
           end
 
           entry = Entry.new(entry_name, {
-            mode: options[:mode] || mode,
-            uid: options[:uid] || uid,
-            gid: options[:gid] || gid,
-            size: 0,
-            mtime: options[:mtime] || mtime,
-            typeflag: TYPE_DIRECTORY,
-            uname: options[:uname] || "",
-            gname: options[:gname] || ""
-          })
+                              mode: options[:mode] || mode,
+                              uid: options[:uid] || uid,
+                              gid: options[:gid] || gid,
+                              size: 0,
+                              mtime: options[:mtime] || mtime,
+                              typeflag: TYPE_DIRECTORY,
+                              uname: options[:uname] || "",
+                              gname: options[:gname] || "",
+                            })
 
           write_entry(entry, nil)
         end
@@ -122,16 +122,16 @@ module Omnizip
           stat = File.lstat(source_path)
 
           entry = Entry.new(entry_name, {
-            mode: options[:mode] || 0o777,
-            uid: options[:uid] || stat.uid,
-            gid: options[:gid] || stat.gid,
-            size: 0,
-            mtime: options[:mtime] || stat.mtime,
-            typeflag: TYPE_SYMLINK,
-            linkname: linkname,
-            uname: options[:uname] || "",
-            gname: options[:gname] || ""
-          })
+                              mode: options[:mode] || 0o777,
+                              uid: options[:uid] || stat.uid,
+                              gid: options[:gid] || stat.gid,
+                              size: 0,
+                              mtime: options[:mtime] || stat.mtime,
+                              typeflag: TYPE_SYMLINK,
+                              linkname: linkname,
+                              uname: options[:uname] || "",
+                              gname: options[:gname] || "",
+                            })
 
           write_entry(entry, nil)
         end
@@ -145,15 +145,15 @@ module Omnizip
           open_file unless @file
 
           entry = Entry.new(entry_name, {
-            mode: options[:mode] || 0o644,
-            uid: options[:uid] || 0,
-            gid: options[:gid] || 0,
-            size: data.bytesize,
-            mtime: options[:mtime] || Time.now,
-            typeflag: TYPE_REGULAR,
-            uname: options[:uname] || "",
-            gname: options[:gname] || ""
-          })
+                              mode: options[:mode] || 0o644,
+                              uid: options[:uid] || 0,
+                              gid: options[:gid] || 0,
+                              size: data.bytesize,
+                              mtime: options[:mtime] || Time.now,
+                              typeflag: TYPE_REGULAR,
+                              uname: options[:uname] || "",
+                              gname: options[:gname] || "",
+                            })
 
           write_entry(entry, data)
         end
@@ -204,7 +204,7 @@ module Omnizip
 
             # Pad to block boundary
             remainder = data.bytesize % BLOCK_SIZE
-            if remainder > 0
+            if remainder.positive?
               padding = BLOCK_SIZE - remainder
               @file.write("\0" * padding)
             end

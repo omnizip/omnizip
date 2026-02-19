@@ -44,13 +44,14 @@ module Omnizip
       #     archive.add('dir/file2.txt', 'more content')
       #   end
       #   File.binwrite('output.zip', buffer.string)
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def create(format = :zip, **options, &block)
         buffer = StringIO.new(String.new(encoding: Encoding::BINARY))
 
         case format
         when :zip
           create_zip(buffer, options, &block)
-        when :seven_zip, :"7z"
+        when :seven_zip, :'7z'
           raise NotImplementedError, "7z format support coming in Phase 2"
         else
           raise ArgumentError, "Unsupported format: #{format}"
@@ -58,6 +59,7 @@ module Omnizip
 
         buffer.tap(&:rewind)
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Open archive from memory
       #
@@ -80,7 +82,7 @@ module Omnizip
         case format
         when :zip
           open_zip(buffer, &block)
-        when :seven_zip, :"7z"
+        when :seven_zip, :'7z'
           raise NotImplementedError, "7z format support coming in Phase 2"
         else
           raise ArgumentError, "Unsupported format: #{format}"
@@ -165,7 +167,7 @@ module Omnizip
         result = nil
         Omnizip::Zip::InputStream.open(buffer) do |zis|
           archive = Buffer::MemoryArchive.new(zis, :zip)
-          result = block ? block.call(archive) : archive
+          result = block ? yield(archive) : archive
         end
         result
       end

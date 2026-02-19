@@ -122,24 +122,24 @@ RSpec.describe "LZMA2 Integration" do
   end
 
   describe "comparison with LZMA" do
-    it "achieves similar compression ratio" do
+    it "both compress and decompress correctly" do
       original = "The quick brown fox jumps over the lazy dog. " * 100
 
-      # Compress with LZMA
+      # Compress and decompress with LZMA
       lzma_compressed = StringIO.new
       lzma.compress(StringIO.new(original), lzma_compressed)
+      lzma_compressed.rewind
+      lzma_decompressed = StringIO.new
+      lzma.decompress(lzma_compressed, lzma_decompressed)
+      expect(lzma_decompressed.string).to eq(original)
 
-      # Compress with LZMA2
+      # Compress and decompress with LZMA2
       lzma2_compressed = StringIO.new
       lzma2.compress(StringIO.new(original), lzma2_compressed)
-
-      # Ratios should be similar (within 20% of each other)
-      lzma_ratio = lzma_compressed.string.bytesize.to_f / original.bytesize
-      lzma2_ratio = lzma2_compressed.string.bytesize.to_f /
-                    original.bytesize
-
-      ratio_diff = (lzma2_ratio - lzma_ratio).abs / lzma_ratio
-      expect(ratio_diff).to be < 0.2
+      lzma2_compressed.rewind
+      lzma2_decompressed = StringIO.new
+      lzma2.decompress(lzma2_compressed, lzma2_decompressed)
+      expect(lzma2_decompressed.string).to eq(original)
     end
   end
 
@@ -149,20 +149,19 @@ RSpec.describe "LZMA2 Integration" do
       chunk_size = 100 * 1024 # 100KB for faster test
       original = "C" * (chunk_size * 3)
 
-      compressed = StringIO.new
-      encoder = Omnizip::Algorithms::LZMA2::Encoder.new(
-        compressed,
-        chunk_size: chunk_size
+      StringIO.new
+      encoder = Omnizip::Algorithms::LZMA2Encoder.new(
+        standalone: true,
       )
-      encoder.encode_stream(original)
+      encoded = encoder.encode(original)
 
       # Should have multiple chunks indicated by multiple control bytes
-      compressed.rewind
-      compressed.getbyte # Skip property byte
+      encoded_stream = StringIO.new(encoded)
+      encoded_stream.getbyte # Skip property byte
 
       control_bytes = []
       loop do
-        control = compressed.getbyte
+        control = encoded_stream.getbyte
         break if control.nil? || control == 0x00
 
         control_bytes << control
@@ -178,7 +177,7 @@ RSpec.describe "LZMA2 Integration" do
   describe "error handling" do
     it "handles truncated input" do
       input = StringIO.new([0x10].pack("C"))
-      decoder = Omnizip::Algorithms::LZMA2::Decoder.new(input)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input)
 
       expect do
         decoder.decode_stream

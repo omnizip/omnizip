@@ -112,7 +112,7 @@ module Omnizip
         # @return [Boolean] true if device (block or character)
         def device?
           type = @mode & S_IFMT
-          type == S_IFBLK || type == S_IFCHR
+          [S_IFBLK, S_IFCHR].include?(type)
         end
 
         # Check if entry is the trailer
@@ -157,11 +157,11 @@ module Omnizip
             @rdev_major & 0xFFFFFFFF,
             @rdev_minor & 0xFFFFFFFF,
             @namesize & 0xFFFFFFFF,
-            @checksum & 0xFFFFFFFF
+            @checksum & 0xFFFFFFFF,
           )
 
           # Assemble complete entry
-          result = String.new
+          result = +""
           result << header
           result << @name
           result << "\x00"
@@ -169,14 +169,14 @@ module Omnizip
           # Pad header+name to 4-byte boundary
           header_name_size = header.bytesize + @name.bytesize + 1
           padding = padding_to_align(header_name_size, NEWC_ALIGNMENT)
-          result << ("\x00" * padding) if padding > 0
+          result << ("\x00" * padding) if padding.positive?
 
           # Add file data
           result << @data
 
           # Pad data to 4-byte boundary
           data_padding = padding_to_align(@data.bytesize, NEWC_ALIGNMENT)
-          result << ("\x00" * data_padding) if data_padding > 0
+          result << ("\x00" * data_padding) if data_padding.positive?
 
           result
         end
@@ -187,21 +187,21 @@ module Omnizip
         def to_odc_binary
           # ODC format uses 6-character octal fields
           header = format(
-            "%06o%06o%06o%06o%06o%06o%06o%06o%011lo%06o%011lo",
+            "%06o%06o%06o%06o%06o%06o%06o%06o%011o%06o%011o",
             MAGIC_BINARY,
-            @dev_major << 8 | @dev_minor,
+            (@dev_major << 8) | @dev_minor,
             @ino & 0o777777,
             @mode & 0o777777,
             @uid & 0o777777,
             @gid & 0o777777,
             @nlink & 0o777777,
-            @rdev_major << 8 | @rdev_minor,
+            (@rdev_major << 8) | @rdev_minor,
             @mtime & 0o77777777777,
             @namesize & 0o777777,
-            @filesize & 0o77777777777
+            @filesize & 0o77777777777,
           )
 
-          result = String.new
+          result = +""
           result << header
           result << @name
           result << "\x00"
@@ -218,7 +218,7 @@ module Omnizip
         def self.parse(io, format: nil)
           # Read magic to detect format
           magic = io.read(6)
-          io.seek(-6, IO::SEEK_CUR) # Rewind
+          io.seek(-6, ::IO::SEEK_CUR) # Rewind
 
           format ||= detect_format(magic)
 
@@ -279,14 +279,14 @@ module Omnizip
           # Skip padding to 4-byte boundary
           header_name_size = NEWC_HEADER_SIZE + namesize
           padding = padding_to_align(header_name_size, NEWC_ALIGNMENT)
-          io.read(padding) if padding > 0
+          io.read(padding) if padding.positive?
 
           # Read file data
           data = io.read(filesize)
 
           # Skip padding to 4-byte boundary
           data_padding = padding_to_align(filesize, NEWC_ALIGNMENT)
-          io.read(data_padding) if data_padding > 0
+          io.read(data_padding) if data_padding.positive?
 
           new(
             magic: magic,
@@ -304,7 +304,7 @@ module Omnizip
             namesize: namesize,
             checksum: checksum,
             name: name,
-            data: data || ""
+            data: data || "",
           )
         end
 
@@ -358,7 +358,7 @@ module Omnizip
             namesize: namesize,
             checksum: 0,
             name: name,
-            data: data || ""
+            data: data || "",
           )
         end
 

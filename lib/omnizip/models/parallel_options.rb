@@ -52,7 +52,9 @@ module Omnizip
         raise ArgumentError, "threads must be > 0" if threads <= 0
         raise ArgumentError, "queue_size must be > 0" if queue_size <= 0
         raise ArgumentError, "chunk_size must be > 0" if chunk_size <= 0
-        raise ArgumentError, "strategy must be :dynamic or :static" unless %i[dynamic static].include?(strategy)
+        raise ArgumentError, "strategy must be :dynamic or :static" unless %i[
+          dynamic static
+        ].include?(strategy)
         raise ArgumentError, "batch_size must be > 0" if batch_size <= 0
 
         true

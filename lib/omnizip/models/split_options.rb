@@ -57,7 +57,7 @@ module Omnizip
       def volume_filename(base_path, volume_number)
         # Extract base and extension
         base = base_path.sub(/\.\d{3}$/, "")
-        base = base.sub(/\.[a-z]{2}$/, "") if @naming_pattern == NAMING_ALPHA
+        base = base.sub(/\.[a-z]{2,}$/, "") if @naming_pattern == NAMING_ALPHA
 
         case @naming_pattern
         when NAMING_NUMERIC
@@ -99,24 +99,17 @@ module Omnizip
       # @return [String] Alpha suffix (aa, ab, ..., az, ba, ..., zz, aaa, ...)
       def alpha_suffix(volume_number)
         # Convert 1 -> aa, 2 -> ab, ..., 26 -> az, 27 -> ba, etc.
-        # This is essentially base-26 with 'a'=0
-        num = volume_number - 1
-        String.new
+        num = volume_number - 1 # Convert to 0-based
 
-        # First character (rightmost)
-        result = ("a".ord + (num % 26)).chr
+        # For two-character format (minimum):
+        # Second character cycles through a-z (rightmost, least significant)
+        second = ("a".ord + (num % 26)).chr
 
-        # Remaining characters (leftmost)
-        num /= 26
-        while num.positive?
-          num -= 1
-          result.prepend(("a".ord + (num % 26)).chr)
-          num /= 26
-        end
+        # First character represents which group of 26 we're in
+        first_index = num / 26
+        first = ("a".ord + first_index).chr
 
-        # Ensure at least 2 characters
-        result = "a#{result}" if result.length == 1
-        result
+        first + second
       end
     end
   end

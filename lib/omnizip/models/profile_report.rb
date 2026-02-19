@@ -24,29 +24,29 @@ module Omnizip
       end
 
       def total_execution_time
-        results.map(&:total_time).compact.sum
+        results.filter_map(&:total_time).sum
       end
 
       def total_memory_allocated
-        results.map(&:memory_allocated).compact.sum
+        results.filter_map(&:memory_allocated).sum
       end
 
       def total_gc_runs
-        results.map(&:gc_runs).compact.sum
+        results.filter_map(&:gc_runs).sum
       end
 
       def slowest_operations(limit: 5)
-        results.select { |r| r.total_time }
-               .sort_by(&:total_time)
-               .reverse
-               .take(limit)
+        results.select(&:total_time)
+          .sort_by(&:total_time)
+          .reverse
+          .take(limit)
       end
 
       def memory_intensive_operations(limit: 5)
-        results.select { |r| r.memory_allocated }
-               .sort_by(&:memory_allocated)
-               .reverse
-               .take(limit)
+        results.select(&:memory_allocated)
+          .sort_by(&:memory_allocated)
+          .reverse
+          .take(limit)
       end
 
       def add_result(result)
@@ -69,12 +69,12 @@ module Omnizip
             total_execution_time: total_execution_time,
             total_memory_allocated: total_memory_allocated,
             total_gc_runs: total_gc_runs,
-            operation_count: results.size
+            operation_count: results.size,
           },
           results: results.map(&:to_h),
           hot_paths: hot_paths,
           bottlenecks: bottlenecks,
-          metadata: metadata
+          metadata: metadata,
         }
       end
     end

@@ -20,9 +20,9 @@ module Omnizip
       def self.open(file_path, &block)
         stream = new(file_path)
 
-        if block_given?
+        if block
           begin
-            block.call(stream)
+            yield(stream)
           ensure
             stream.close
           end
@@ -55,7 +55,8 @@ module Omnizip
       # @param comment [String] Entry comment
       # @param compression [Symbol] Compression method (:store or :deflate)
       # @param level [Integer] Compression level (1-9)
-      def put_next_entry(name, time: Time.now, comment: "", compression: :deflate, level: 6)
+      def put_next_entry(name, time: Time.now, comment: "",
+compression: :deflate, level: 6)
         close_entry if @current_entry
 
         @current_entry = {
@@ -110,10 +111,10 @@ module Omnizip
 
         # Update entry info
         @current_entry.merge!({
-          crc32: crc32,
-          compressed_size: compressed_data.bytesize,
-          uncompressed_size: @current_entry_data.bytesize,
-        })
+                                crc32: crc32,
+                                compressed_size: compressed_data.bytesize,
+                                uncompressed_size: @current_entry_data.bytesize,
+                              })
 
         # Update local file header with correct sizes
         current_pos = @io.pos
@@ -150,7 +151,8 @@ module Omnizip
         central_directory_size = @io.pos - central_directory_offset
 
         # Write end of central directory
-        write_end_of_central_directory(central_directory_offset, central_directory_size)
+        write_end_of_central_directory(central_directory_offset,
+                                       central_directory_size)
 
         @io.close if @owns_io
         @closed = true
@@ -195,7 +197,7 @@ module Omnizip
           crc32: @current_entry[:crc32],
           compressed_size: @current_entry[:compressed_size],
           uncompressed_size: @current_entry[:uncompressed_size],
-          filename: @current_entry[:name]
+          filename: @current_entry[:name],
         )
 
         @io.write(header.to_binary)
@@ -225,10 +227,10 @@ module Omnizip
       def write_central_directory
         @entries.each do |entry|
           external_attrs = if entry[:directory]
-                            UNIX_DIR_PERMISSIONS | ATTR_DIRECTORY
-                          else
-                            UNIX_FILE_PERMISSIONS
-                          end
+                             UNIX_DIR_PERMISSIONS | ATTR_DIRECTORY
+                           else
+                             UNIX_FILE_PERMISSIONS
+                           end
 
           header = Omnizip::Formats::Zip::CentralDirectoryHeader.new(
             version_made_by: VERSION_MADE_BY_UNIX | version_for_method(entry[:compression]),
@@ -246,7 +248,7 @@ module Omnizip
             local_header_offset: entry[:offset],
             filename: entry[:name],
             extra_field: "",
-            comment: entry[:comment] || ""
+            comment: entry[:comment] || "",
           )
 
           @io.write(header.to_binary)
@@ -262,7 +264,7 @@ module Omnizip
           total_entries: @entries.size,
           central_directory_size: size,
           central_directory_offset: offset,
-          comment: comment
+          comment: comment,
         )
 
         @io.write(eocd.to_binary)

@@ -63,18 +63,18 @@ module Omnizip
 
       def list_archive(archive_file, verbose, patterns, excludes, count_only)
         archive = if archive_file.end_with?(".zip")
-                   Omnizip::Zip::File.open(archive_file)
-                 elsif archive_file.end_with?(".rar")
-                   Formats::Rar::Reader.new(archive_file).open
-                 else
-                   Formats::SevenZip::Reader.new(archive_file).open
-                 end
+                    Omnizip::Zip::File.open(archive_file)
+                  elsif archive_file.end_with?(".rar")
+                    Formats::Rar::Reader.new(archive_file).open
+                  else
+                    Formats::SevenZip::Reader.new(archive_file).open
+                  end
 
         entries = if patterns || excludes
-                   filter_entries(archive, patterns, excludes)
-                 else
-                   archive.respond_to?(:entries) ? archive.entries : archive.to_a
-                 end
+                    filter_entries(archive, patterns, excludes)
+                  else
+                    archive.respond_to?(:entries) ? archive.entries : archive.to_a
+                  end
 
         if count_only
           puts "Matches: #{entries.size}"
@@ -101,14 +101,10 @@ module Omnizip
         filter = Extraction::FilterChain.new
 
         # Add include patterns
-        if patterns
-          patterns.each { |pattern| filter.include_pattern(pattern) }
-        end
+        patterns&.each { |pattern| filter.include_pattern(pattern) }
 
         # Add exclude patterns
-        if excludes
-          excludes.each { |pattern| filter.exclude_pattern(pattern) }
-        end
+        excludes&.each { |pattern| filter.exclude_pattern(pattern) }
 
         entries = archive.respond_to?(:entries) ? archive.entries : archive.to_a
         filter.filter(entries)
@@ -150,7 +146,7 @@ module Omnizip
             size,
             compressed,
             mtime,
-            name
+            name,
           )
         end
       end

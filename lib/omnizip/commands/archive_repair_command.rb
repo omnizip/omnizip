@@ -64,13 +64,13 @@ module Omnizip
         repair_options = {
           use_external_rev: !@options[:no_external_rev],
           verify_repaired: !@options[:no_verify],
-          verbose: @options[:verbose]
+          verbose: @options[:verbose],
         }
 
         result = Omnizip::Formats::Rar.repair(
           input_path,
           output_path,
-          repair_options
+          repair_options,
         )
 
         display_repair_result(input_path, output_path, result)

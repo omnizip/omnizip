@@ -57,11 +57,11 @@ module Omnizip
 
           File.open(output_path, "wb") do |output|
             original_name = options[:original_name] ||
-                            File.basename(input_path)
+              File.basename(input_path)
             compress_stream(
               StringIO.new(input_data),
               output,
-              options.merge(original_name: original_name)
+              options.merge(original_name: original_name),
             )
           end
         end
@@ -95,7 +95,7 @@ module Omnizip
           # Compress data with Deflate
           deflate = Zlib::Deflate.new(
             level,
-            Zlib::MAX_WBITS + 16 # Use GZIP wrapper
+            Zlib::MAX_WBITS + 16, # Use GZIP wrapper
           )
           compressed = deflate.deflate(input_data, Zlib::FINISH)
           deflate.close

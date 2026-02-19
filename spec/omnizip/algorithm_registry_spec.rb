@@ -3,12 +3,26 @@
 require "spec_helper"
 
 RSpec.describe Omnizip::AlgorithmRegistry do
-  before do
-    described_class.reset!
-  end
+  # Save the currently registered algorithms before each test
+  around do |example|
+    # Get current algorithms before reset
+    saved_algorithms = {}
+    described_class.available.each do |name|
+      saved_algorithms[name] =
+        described_class.instance_variable_get(:@algorithms)[name]
+    end
 
-  after do
+    # Reset for isolated testing
     described_class.reset!
+
+    # Run the example
+    example.run
+
+    # Restore the original algorithms that were registered at load time
+    described_class.reset!
+    saved_algorithms.each do |name, klass|
+      described_class.register(name, klass)
+    end
   end
 
   describe ".register" do

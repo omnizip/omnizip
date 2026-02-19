@@ -114,7 +114,7 @@ begin
 
   count = 0
   Zip::InputStream.open(batch_path) do |zis|
-    while entry = zis.get_next_entry
+    while zis.get_next_entry
       count += 1
     end
   end
@@ -160,7 +160,7 @@ begin
 
     Zip::InputStream.open(comp_path) do |zis|
       entry = zis.get_next_entry
-      ratio = entry.size > 0 ? (100 - (entry.compressed_size * 100 / entry.size)) : 0
+      ratio = entry.size.positive? ? (100 - (entry.compressed_size * 100 / entry.size)) : 0
       puts "✓ #{method.to_s.capitalize}: #{entry.compressed_size}/#{entry.size} bytes (#{ratio}% savings)"
     end
   end
@@ -184,8 +184,7 @@ begin
   puts "Note: File-based API (Zip::File) works for creation and basic reads."
   puts "      Full round-trip with Zip::File will be completed in v1.2."
   puts
-
-rescue => e
+rescue StandardError => e
   puts "❌ Error: #{e.message}"
   puts e.backtrace.first(5)
   exit 1

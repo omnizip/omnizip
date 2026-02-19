@@ -41,7 +41,7 @@ module Omnizip
               current_parent = parent.parent_directory_number
             end
 
-            "/#{parts.join("/")}"
+            "/#{parts.join('/')}"
           end
         end
 

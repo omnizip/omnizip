@@ -14,7 +14,7 @@ RSpec.describe Omnizip::Zip::Entry do
       compression_method: 8,
       last_mod_date: 0x4E71, # 2019-03-17
       last_mod_time: 0x8C20, # 17:33:00
-      external_attributes: 0o644 << 16
+      external_attributes: 0o644 << 16,
     )
   end
 
@@ -32,7 +32,7 @@ RSpec.describe Omnizip::Zip::Entry do
     it "sets ftype to :directory for directories" do
       dir_header = Omnizip::Formats::Zip::CentralDirectoryHeader.new(
         filename: "dir/",
-        external_attributes: Omnizip::Formats::Zip::Constants::ATTR_DIRECTORY
+        external_attributes: Omnizip::Formats::Zip::Constants::ATTR_DIRECTORY,
       )
       dir_entry = described_class.new(dir_header)
       expect(dir_entry.ftype).to eq(:directory)
@@ -192,7 +192,7 @@ RSpec.describe Omnizip::Zip::Entry do
 
     it "returns false for entries with different names" do
       other_header = Omnizip::Formats::Zip::CentralDirectoryHeader.new(
-        filename: "other.txt"
+        filename: "other.txt",
       )
       other = described_class.new(other_header)
       expect(entry).not_to eq(other)

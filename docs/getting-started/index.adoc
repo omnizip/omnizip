@@ -1,0 +1,42 @@
+---
+title: Getting Started
+nav_order: 2
+has_children: true
+---
+
+== Getting Started with Omnizip
+
+Welcome to Omnizip! This section will help you get up and running quickly with Omnizip's compression and archiving features.
+
+== What You'll Learn
+
+This section covers:
+
+* **Installation** - How to install Omnizip in your environment
+* **Quick Start** - Your first compression operations in minutes
+* **Basic Usage** - Common operations and workflows
+
+== Prerequisites
+
+* Ruby 3.0 or later
+* Bundler (for project integration)
+* Basic familiarity with Ruby
+
+== Topics
+
+link:installation.html[**Installation**]::
+Install Omnizip via RubyGems or Bundler
+
+link:quick-start.html[**Quick Start**]::
+5-minute tutorial to get started with compression
+
+link:basic-usage.html[**Basic Usage**]::
+Common operations and usage patterns
+
+== Next Steps
+
+After completing the Getting Started guide, explore:
+
+* link:../guides/[How-To Guides] for specific tasks
+* link:../reference/[API Reference] for detailed documentation
+* link:../comparison/[Comparison] to see how Omnizip compares to other tools

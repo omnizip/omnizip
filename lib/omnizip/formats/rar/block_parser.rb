@@ -98,7 +98,10 @@ module Omnizip
           entry.split_after = head_flags.anybits?(FILE_SPLIT_AFTER)
 
           # Skip remaining header data and file data
-          remaining = head_size - (name_size + 25)
+          # Fixed fields: TYPE(1) + FLAGS(2) + SIZE(2) + PACK_SIZE(4) + UNPACK_SIZE(4) +
+          #               HOST_OS(1) + FILE_CRC(4) + FILE_TIME(4) + VERSION(1) + METHOD(1) +
+          #               NAME_SIZE(2) + ATTR(4) = 30 bytes
+          remaining = head_size - (name_size + 30)
           remaining += 8 if head_flags.anybits?(FILE_LARGE)
           io.read(remaining) if remaining.positive?
           io.read(pack_size) # Skip compressed data

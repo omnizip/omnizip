@@ -75,7 +75,7 @@ module Omnizip
         unless checksum_class
           raise UnknownAlgorithmError,
                 "Unknown checksum: '#{name}'. Available: " \
-                "#{available.join(", ")}"
+                "#{available.join(', ')}"
         end
 
         checksum_class

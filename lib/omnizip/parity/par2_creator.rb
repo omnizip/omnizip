@@ -2,8 +2,7 @@
 
 require "digest"
 require "fileutils"
-require_relative "reed_solomon"
-require_relative "galois_field"
+require_relative "reed_solomon_encoder"
 
 module Omnizip
   module Parity
@@ -32,10 +31,10 @@ module Omnizip
       PACKET_SIGNATURE = "PAR2\x00PKT".b.freeze
 
       # Packet type identifiers
-      PACKET_TYPE_MAIN = "PAR 2.0\x00Main\x00\x00\x00\x00".freeze
-      PACKET_TYPE_FILE_DESC = "PAR 2.0\x00FileDesc".freeze
-      PACKET_TYPE_IFSC = "PAR 2.0\x00IFSC\x00\x00\x00\x00".freeze
-      PACKET_TYPE_RECOVERY = "PAR 2.0\x00RecvSlic".freeze
+      PACKET_TYPE_MAIN = "PAR 2.0\x00Main\x00\x00\x00\x00"
+      PACKET_TYPE_FILE_DESC = "PAR 2.0\x00FileDesc"
+      PACKET_TYPE_IFSC = "PAR 2.0\x00IFSC\x00\x00\x00\x00"
+      PACKET_TYPE_RECOVERY = "PAR 2.0\x00RecvSlic"
 
       # Default block size (16KB)
       DEFAULT_BLOCK_SIZE = 16384
@@ -60,7 +59,7 @@ module Omnizip
         :hash_full,      # MD5 of full file
         :size,           # File size
         :blocks,         # Array of file blocks
-        keyword_init: true
+        keyword_init: true,
       )
 
       # Initialize PAR2 creator
@@ -68,7 +67,8 @@ module Omnizip
       # @param redundancy [Integer] Redundancy percentage (0-100)
       # @param block_size [Integer] Block size in bytes
       # @param progress [Proc, nil] Progress callback proc
-      def initialize(redundancy: 5, block_size: DEFAULT_BLOCK_SIZE, progress: nil)
+      def initialize(redundancy: 5, block_size: DEFAULT_BLOCK_SIZE,
+progress: nil)
         @redundancy = validate_redundancy(redundancy)
         @block_size = validate_block_size(block_size)
         @progress_callback = progress
@@ -95,6 +95,12 @@ module Omnizip
       def create(base_name)
         validate_files!
 
+        # CRITICAL FIX: Sort files by file_id (MD5 hash) to match PAR2 spec
+        # Par2cmdline creates recovery blocks with files sorted by file_id MD5.
+        # The verifier also sorts by file_id, so ALL operations
+        # (file descriptions, IFSC packets, recovery blocks) must use the same order.
+        @files.sort_by!(&:file_id)
+
         # Calculate total blocks and recovery blocks needed
         total_blocks = calculate_total_blocks
         recovery_blocks = calculate_recovery_blocks(total_blocks)
@@ -108,7 +114,7 @@ module Omnizip
         volume_files = create_recovery_volumes(
           base_name,
           recovery_blocks,
-          total_blocks
+          total_blocks,
         )
 
         report_progress(100, "PAR2 creation complete")
@@ -126,6 +132,7 @@ module Omnizip
         unless redundancy.between?(0, 100)
           raise ArgumentError, "Redundancy must be 0-100, got #{redundancy}"
         end
+
         redundancy
       end
 
@@ -184,7 +191,7 @@ module Omnizip
             hash_16k: hash_16k,
             hash_full: hash_full,
             size: file_size,
-            blocks: blocks
+            blocks: blocks,
           )
         end
       end
@@ -227,6 +234,9 @@ module Omnizip
       def create_index_file(base_name)
         file_path = "#{base_name}.par2"
 
+        # Ensure directory exists
+        FileUtils.mkdir_p(File.dirname(file_path))
+
         File.open(file_path, "wb") do |io|
           write_main_packet(io)
           write_file_description_packets(io)
@@ -249,13 +259,10 @@ module Omnizip
       #
       # @return [String] Packet data
       def build_main_packet_data
-        data = String.new
-        data << @set_id                          # Recovery Set ID (16 bytes)
-        data << [@block_size].pack("Q<")         # Block size (8 bytes)
-        data << [calculate_total_blocks].pack("Q<") # Recovery file count
-        data << [@files.size].pack("Q<")         # Non-recovery file count
+        data = +""
+        data << [@block_size].pack("Q<") # Block size (8 bytes)
 
-        # File IDs of all files in set
+        # File IDs of all files in set (16 bytes each)
         @files.each do |file_info|
           data << file_info.file_id
         end
@@ -278,7 +285,7 @@ module Omnizip
       # @param file_info [FileInfo] File information
       # @return [String] Packet data
       def build_file_desc_packet_data(file_info)
-        data = String.new
+        data = +""
         data << file_info.file_id                # File ID (16 bytes)
         data << file_info.hash_full              # File hash (16 bytes)
         data << file_info.hash_16k               # Hash of first 16K (16 bytes)
@@ -289,7 +296,7 @@ module Omnizip
         data << filename
         data << "\x00"
         padding = (4 - ((filename.bytesize + 1) % 4)) % 4
-        data << ("\x00" * padding) if padding > 0
+        data << ("\x00" * padding) if padding.positive?
 
         data
       end
@@ -312,7 +319,7 @@ module Omnizip
       # @param block [String] Block data
       # @return [String] Packet data
       def build_ifsc_packet_data(file_info, block)
-        data = String.new
+        data = +""
         data << file_info.file_id                # File ID (16 bytes)
         data << Digest::MD5.digest(block)        # Block hash (16 bytes)
         data << calculate_block_crc32(block)     # Block CRC32 (4 bytes)
@@ -334,19 +341,25 @@ module Omnizip
       # @param num_recovery [Integer] Number of recovery blocks
       # @param total_blocks [Integer] Total data blocks
       # @return [Array<String>] Paths to created files
-      def create_recovery_volumes(base_name, num_recovery, total_blocks)
+      def create_recovery_volumes(base_name, num_recovery, _total_blocks)
         return [] if num_recovery.zero?
 
-        # Initialize Reed-Solomon encoder
-        rs_encoder = ReedSolomon.new(block_size: @block_size)
-
-        # Collect all data blocks from all files
+        # Collect all data blocks from all files (already sorted alphabetically)
         all_data_blocks = @files.flat_map(&:blocks)
 
-        report_progress(10, "Generating recovery blocks (this may take a while)")
+        # Generate exponents for recovery blocks (0, 1, 2, ...)
+        # PAR2 uses sequential exponents starting from 0
+        exponents = (0...num_recovery).to_a
 
-        # Generate parity blocks using Reed-Solomon encoding
-        parity_blocks = rs_encoder.encode(all_data_blocks, num_parity: num_recovery)
+        report_progress(10,
+                        "Generating recovery blocks (this may take a while)")
+
+        # Generate parity blocks using new Reed-Solomon encoder
+        parity_blocks = ReedSolomonEncoder.encode(
+          all_data_blocks,
+          @block_size,
+          exponents,
+        )
 
         report_progress(60, "Writing recovery volume files")
 
@@ -380,7 +393,7 @@ module Omnizip
           blocks_in_volume = 2**volume_num
           blocks_in_volume = [
             blocks_in_volume,
-            parity_blocks.size - current_block
+            parity_blocks.size - current_block,
           ].min
 
           # Create volume file
@@ -388,13 +401,13 @@ module Omnizip
             "%s.vol%02d+%02d.par2",
             base_name,
             current_block,
-            blocks_in_volume
+            blocks_in_volume,
           )
 
           write_recovery_volume(
             file_path,
             parity_blocks[current_block, blocks_in_volume],
-            current_block
+            current_block,
           )
 
           volume_files << file_path
@@ -411,6 +424,9 @@ module Omnizip
       # @param blocks [Array<String>] Recovery blocks
       # @param start_exponent [Integer] Starting exponent
       def write_recovery_volume(file_path, blocks, start_exponent)
+        # Ensure directory exists
+        FileUtils.mkdir_p(File.dirname(file_path))
+
         File.open(file_path, "wb") do |io|
           # Write main packet (same as index file)
           write_main_packet(io)
@@ -430,7 +446,7 @@ module Omnizip
       # @param exponent [Integer] Recovery exponent
       # @return [String] Packet data
       def build_recovery_packet_data(block, exponent)
-        data = String.new
+        data = +""
         data << [exponent].pack("L<")            # Exponent (4 bytes)
         data << block                            # Recovery data
         data
@@ -449,12 +465,12 @@ module Omnizip
         packet_length = 64 + packet_data.bytesize
 
         # Build complete packet
-        packet = String.new
+        packet = +""
         packet << PACKET_SIGNATURE                # Magic (8 bytes)
         packet << [packet_length].pack("Q<")      # Length (8 bytes)
 
         # Calculate packet hash (MD5 of everything after length field)
-        packet_body = String.new
+        packet_body = +""
         packet_body << @set_id                    # Recovery Set ID (16 bytes)
         packet_body << packet_type                # Packet type (16 bytes)
         packet_body << packet_data                # Packet data
@@ -506,7 +522,7 @@ module Omnizip
             hash_16k: hash_16k,
             hash_full: hash_full,
             size: file_size,
-            blocks: blocks
+            blocks: blocks,
           )
         end
       end

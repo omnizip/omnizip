@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require_relative "constants"
 require_relative "lz77_encoder"
 require_relative "huffman_coder"
@@ -33,8 +34,37 @@ module Omnizip
           # Step 2: Huffman coding
           compressed = @huffman.encode(tokens)
 
-          # Step 3: Write to output
-          @output_stream.write(compressed)
+          # Step 3: Serialize trees and write to output
+          output = serialize_with_trees(
+            compressed,
+            @huffman.literal_tree,
+            @huffman.distance_tree,
+          )
+
+          @output_stream.write(output)
+        end
+
+        private
+
+        # Serialize compressed data with Huffman trees
+        #
+        # @param compressed [String] Compressed data
+        # @param literal_tree [Hash] Literal Huffman tree
+        # @param distance_tree [Hash] Distance Huffman tree
+        # @return [String] Serialized output
+        def serialize_with_trees(compressed, literal_tree, distance_tree)
+          literal_json = literal_tree.to_json
+          distance_json = distance_tree.to_json
+
+          # Pack: literal_size (4 bytes), distance_size (4 bytes),
+          #       literal_tree, distance_tree, compressed_data
+          [
+            literal_json.bytesize,
+            distance_json.bytesize,
+            literal_json,
+            distance_json,
+            compressed,
+          ].pack("NNA#{literal_json.bytesize}A#{distance_json.bytesize}A*")
         end
 
         # Encode data block

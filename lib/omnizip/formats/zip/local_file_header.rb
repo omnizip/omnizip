@@ -58,17 +58,17 @@ module Omnizip
 
         # Check if entry is encrypted
         def encrypted?
-          (flags & FLAG_ENCRYPTED) != 0
+          flags.anybits?(FLAG_ENCRYPTED)
         end
 
         # Check if data descriptor follows
         def has_data_descriptor?
-          (flags & FLAG_DATA_DESCRIPTOR) != 0
+          flags.anybits?(FLAG_DATA_DESCRIPTOR)
         end
 
         # Check if UTF-8 encoding is used
         def utf8?
-          (flags & FLAG_UTF8) != 0
+          flags.anybits?(FLAG_UTF8)
         end
 
         # Serialize to binary format
@@ -100,7 +100,10 @@ module Omnizip
           compressed_size, uncompressed_size,
           filename_length, extra_field_length = data.unpack("VvvvvvVVVvv")
 
-          raise Omnizip::FormatError, "Invalid local file header signature" unless signature == LOCAL_FILE_HEADER_SIGNATURE
+          unless signature == LOCAL_FILE_HEADER_SIGNATURE
+            raise Omnizip::FormatError,
+                  "Invalid local file header signature"
+          end
 
           offset = 30
           filename = data[offset, filename_length].force_encoding("UTF-8")
@@ -121,7 +124,7 @@ module Omnizip
             filename_length: filename_length,
             extra_field_length: extra_field_length,
             filename: filename,
-            extra_field: extra_field
+            extra_field: extra_field,
           )
         end
 

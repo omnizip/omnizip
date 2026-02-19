@@ -42,7 +42,8 @@ RSpec.describe Omnizip::Profile do
   describe ".list" do
     it "returns all profile names" do
       names = described_class.list
-      expect(names).to include(:fast, :balanced, :maximum, :text, :binary, :archive)
+      expect(names).to include(:fast, :balanced, :maximum, :text, :binary,
+                               :archive)
     end
   end
 
@@ -279,15 +280,15 @@ RSpec.describe Omnizip::Profile do
 
       it "raises error for duplicate registration" do
         registry.register(profile)
-        expect {
+        expect do
           registry.register(profile)
-        }.to raise_error(ArgumentError, /already registered/)
+        end.to raise_error(ArgumentError, /already registered/)
       end
 
       it "raises error for non-profile object" do
-        expect {
+        expect do
           registry.register("not a profile")
-        }.to raise_error(ArgumentError, /must be a CompressionProfile/)
+        end.to raise_error(ArgumentError, /must be a CompressionProfile/)
       end
     end
 
@@ -300,7 +301,7 @@ RSpec.describe Omnizip::Profile do
           name: :fast,
           algorithm: :lzma,
           level: 5,
-          description: "Replacement"
+          description: "Replacement",
         )
 
         registry.register!(custom)
@@ -453,7 +454,7 @@ RSpec.describe Omnizip::Profile do
 
       it "validates profile settings" do
         builder = Omnizip::Profile::CustomProfile::Builder.new(:test)
-        builder.level = 10  # Invalid level
+        builder.level = 10 # Invalid level
 
         expect { builder.valid? }.to raise_error(ArgumentError)
       end

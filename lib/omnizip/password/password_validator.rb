@@ -66,10 +66,10 @@ module Omnizip
         score += [password.length * 4, 40].min
 
         # Character variety (up to 60 points)
-        score += 15 if password =~ /[a-z]/
-        score += 15 if password =~ /[A-Z]/
-        score += 15 if password =~ /[0-9]/
-        score += 15 if password =~ /[^a-zA-Z0-9]/
+        score += 15 if /[a-z]/.match?(password)
+        score += 15 if /[A-Z]/.match?(password)
+        score += 15 if /[0-9]/.match?(password)
+        score += 15 if /[^a-zA-Z0-9]/.match?(password)
 
         [score, 100].min
       end
@@ -97,29 +97,30 @@ module Omnizip
       def check_length(password)
         return if password.length >= min_length
 
-        raise ArgumentError, "Password too short (minimum: #{min_length} characters)"
+        raise ArgumentError,
+              "Password too short (minimum: #{min_length} characters)"
       end
 
       def check_uppercase(password)
-        return if password =~ /[A-Z]/
+        return if /[A-Z]/.match?(password)
 
         raise ArgumentError, "Password must contain uppercase letters"
       end
 
       def check_lowercase(password)
-        return if password =~ /[a-z]/
+        return if /[a-z]/.match?(password)
 
         raise ArgumentError, "Password must contain lowercase letters"
       end
 
       def check_numbers(password)
-        return if password =~ /[0-9]/
+        return if /[0-9]/.match?(password)
 
         raise ArgumentError, "Password must contain numbers"
       end
 
       def check_special(password)
-        return if password =~ /[^a-zA-Z0-9]/
+        return if /[^a-zA-Z0-9]/.match?(password)
 
         raise ArgumentError, "Password must contain special characters"
       end

@@ -124,7 +124,10 @@ RSpec.describe Omnizip::Metadata do
 
       it "rejects overly long comments" do
         long_comment = "a" * 70_000
-        expect { subject.validate_comment(long_comment) }.to raise_error(ArgumentError, /too long/)
+        expect do
+          subject.validate_comment(long_comment)
+        end.to raise_error(ArgumentError,
+                           /too long/)
       end
     end
 
@@ -134,7 +137,10 @@ RSpec.describe Omnizip::Metadata do
       end
 
       it "rejects times outside DOS range" do
-        expect { subject.validate_time(Time.new(1970, 1, 1)) }.to raise_error(ArgumentError, /DOS range/)
+        expect do
+          subject.validate_time(Time.new(1970, 1,
+                                         1))
+        end.to raise_error(ArgumentError, /DOS range/)
       end
     end
 
@@ -144,7 +150,10 @@ RSpec.describe Omnizip::Metadata do
       end
 
       it "rejects invalid permissions" do
-        expect { subject.validate_permissions(0o1000) }.to raise_error(ArgumentError, /out of range/)
+        expect do
+          subject.validate_permissions(0o1000)
+        end.to raise_error(ArgumentError,
+                           /out of range/)
       end
     end
   end
@@ -172,6 +181,7 @@ RSpec.describe Omnizip::Metadata do
 
       archive.entries.each do |entry|
         next if entry.directory?
+
         expect(entry.unix_perms).to eq(0o644)
       end
     end

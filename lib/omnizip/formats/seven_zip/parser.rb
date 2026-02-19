@@ -36,31 +36,39 @@ module Omnizip
           byte
         end
 
-        # Read variable-length number (7-Zip specific encoding)
-        # First byte indicates how many additional bytes to read
+        # Read variable-length integer (7-Zip VLI format)
+        #
+        # 7-Zip VLI encoding uses the first byte's high bits to determine
+        # the number of additional bytes:
+        #   0xxxxxxx               : value = xxxxxxx (0-127)
+        #   10xxxxxx BYTE y[1]     : value = (xxxxxx << 8) + y
+        #   110xxxxx BYTE y[2]     : value = (xxxxx << 16) + y
+        #   1110xxxx BYTE y[3]     : value = (xxxx << 24) + y
+        #   ...up to 8 bytes total
         #
         # @return [Integer] Decoded number
         def read_number
           first_byte = read_byte
 
-          # Single byte number (0-127)
+          # Single byte encoding (0-127)
           return first_byte if first_byte.nobits?(0x80)
 
-          # Multi-byte number
-          value = read_byte
+          # Determine number of additional bytes from high bits
+          mask = 0x80
+          extra_bytes = 0
 
-          # Two-byte number
-          return ((first_byte & 0x3F) << 8) | value if first_byte.nobits?(0x40)
-
-          # Multi-byte number (3-8 bytes)
-          value |= read_byte << 8
-          mask = 0x20
-          (2...8).each do |i|
-            return value | ((first_byte & (mask - 1)) << (8 * i)) if
-              first_byte.nobits?(mask)
-
-            value |= read_byte << (8 * i)
+          while first_byte.anybits?(mask)
+            extra_bytes += 1
             mask >>= 1
+          end
+
+          # Calculate value: data bits from first byte + additional bytes
+          # The data bits start after the leading 1s and 0
+          data_bits = first_byte & (mask - 1)
+          value = data_bits
+
+          extra_bytes.times do
+            value = (value << 8) | read_byte
           end
 
           value
@@ -129,8 +137,8 @@ module Omnizip
             @position += num_bytes
             decode_bit_vector(bits_data, num_items)
           else
-            # All bits are set
-            Array.new(num_items, true)
+            # All bits are set (return 1 for each item, not true)
+            Array.new(num_items, 1)
           end
         end
 
@@ -187,22 +195,39 @@ module Omnizip
           # Read number of pack streams
           num_pack_streams = read_number
 
-          # Read pack sizes
-          expect_property(PropertyId::SIZE)
-          num_pack_streams.times do
-            stream_info.pack_sizes << read_number
-          end
+          # Read properties in any order (7z format allows variable ordering)
+          sizes_read = false
 
-          # Optional: read CRCs
-          if !eof? && peek_byte == PropertyId::CRC
-            read_byte
-            defined_vec = read_bit_vector(num_pack_streams)
-            num_pack_streams.times do |i|
-              stream_info.pack_crcs << (defined_vec[i] ? read_uint32 : nil)
+          until eof? || peek_byte == PropertyId::K_END
+            prop_type = peek_byte
+
+            case prop_type
+            when PropertyId::SIZE
+              read_byte
+              num_pack_streams.times do
+                stream_info.pack_sizes << read_number
+              end
+              sizes_read = true
+            when PropertyId::CRC
+              read_byte
+              defined_vec = read_bit_vector(num_pack_streams)
+              num_pack_streams.times do |i|
+                stream_info.pack_crcs << (defined_vec[i] ? read_uint32 : nil)
+              end
+            when PropertyId::K_END
+              break
+            else
+              # Unknown property - skip it
+              read_byte
+              skip_data unless eof?
             end
           end
 
-          expect_property(PropertyId::K_END)
+          # Verify required SIZE property was present
+          raise "Missing SIZE property in pack info" unless sizes_read
+
+          # Optional K_END (for backward compatibility)
+          read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 
         # Read folders section
@@ -212,11 +237,20 @@ module Omnizip
         def read_folders(stream_info)
           num_folders = read_number
 
-          # Read each folder
-          num_folders.times do
-            folder = Models::Folder.new
-            read_folder(folder)
-            stream_info.folders << folder
+          # Read External flag (similar to names)
+          external = read_byte
+
+          # Only read folders if they're stored inline (external == 0)
+          if external.zero?
+            # Read each folder
+            num_folders.times do
+              folder = Models::Folder.new
+              read_folder(folder)
+              stream_info.folders << folder
+            end
+          else
+            # External folders not supported
+            raise "External folders not supported"
           end
         end
 
@@ -305,29 +339,49 @@ module Omnizip
         #
         # @param stream_info [StreamInfo] Stream info to populate
         def read_unpack_info(stream_info)
-          # Read folders - FOLDER property is explicit
-          expect_property(PropertyId::FOLDER)
-          read_folders(stream_info)
-          # No END marker after folders - go straight to next property
+          # Read properties in any order (7z format allows variable ordering)
+          folders_read = false
+          unpack_sizes_read = false
 
-          # Read unpack sizes
-          expect_property(PropertyId::CODERS_UNPACK_SIZE)
-          stream_info.folders.each do |folder|
-            folder.coders.each do
-              folder.unpack_sizes << read_number
+          until eof? || peek_byte == PropertyId::K_END
+            prop_type = read_byte
+
+            case prop_type
+            when PropertyId::FOLDER
+              read_folders(stream_info)
+              folders_read = true
+            when PropertyId::CODERS_UNPACK_SIZE
+              # Read unpack sizes for each folder based on numOutStreams
+              stream_info.folders.each do |folder|
+                # For folders with 0 coders (Copy method), treat as having 1 output stream
+                num_out_streams = folder.num_out_streams
+                num_out_streams = 1 if num_out_streams.zero?
+
+                num_out_streams.times do
+                  folder.unpack_sizes << read_number
+                end
+              end
+              unpack_sizes_read = true
+            when PropertyId::CRC
+              # Optional: read CRCs
+              defined_vec = read_bit_vector(stream_info.num_folders)
+              stream_info.num_folders.times do |i|
+                stream_info.folders[i].unpack_crc = read_uint32 if defined_vec[i]
+              end
+            when PropertyId::K_END
+              break
+            else
+              # Skip unknown properties
+              skip_data unless eof?
             end
           end
 
-          # Optional: read CRCs
-          if !(eof? || peek_byte == PropertyId::K_END) && (peek_byte == PropertyId::CRC)
-            read_byte
-            defined_vec = read_bit_vector(stream_info.num_folders)
-            stream_info.num_folders.times do |i|
-              stream_info.folders[i].unpack_crc = read_uint32 if defined_vec[i]
-            end
-          end
+          # Verify required properties were present
+          raise "Missing FOLDER property in unpack info" unless folders_read
+          raise "Missing CODERS_UNPACK_SIZE property in unpack info" unless unpack_sizes_read
 
-          expect_property(PropertyId::K_END)
+          # Optional K_END (for backward compatibility)
+          read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 
         # Read substreams info section
@@ -353,14 +407,30 @@ module Omnizip
             read_byte
             stream_info.folders.each_with_index do |folder, i|
               num_streams = stream_info.num_unpack_streams_in_folders[i]
+              start_idx = stream_info.unpack_sizes.size
+
               if num_streams > 1
                 (num_streams - 1).times do
-                  stream_info.unpack_sizes << read_number
+                  size = read_number
+                  stream_info.unpack_sizes << size
                 end
               end
-              # Last stream size = folder unpack size - sum of others
-              sum = stream_info.unpack_sizes[(-num_streams + 1)..]&.sum || 0
-              stream_info.unpack_sizes << (folder.unpack_sizes.sum - sum)
+              # Last stream size = folder's final output size - sum of sizes we just read for this folder
+              folder_total_size = folder.uncompressed_size
+              sum = stream_info.unpack_sizes[start_idx..]&.sum || 0
+              last_size = folder_total_size - sum
+              stream_info.unpack_sizes << last_size
+            end
+          else
+            # No SIZE property - use folder unpack sizes directly
+            # This happens when each folder has exactly one stream
+            stream_info.folders.each_with_index do |folder, i|
+              num_streams = stream_info.num_unpack_streams_in_folders[i]
+              if num_streams == 1
+                # Single stream - use folder's total unpack size
+                folder_size = folder.unpack_sizes.empty? ? 0 : folder.unpack_sizes.sum
+                stream_info.unpack_sizes << folder_size
+              end
             end
           end
 
@@ -374,7 +444,8 @@ module Omnizip
             end
           end
 
-          expect_property(PropertyId::K_END) unless eof?
+          # Optional K_END (for backward compatibility)
+          read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 
         # Read files info section
@@ -428,18 +499,17 @@ module Omnizip
           external = read_byte
 
           if external.zero?
-            # Names stored inline
+            # Names stored inline as UTF-16LE null-terminated strings
             entries.each do |entry|
-              name = String.new
+              name_bytes = +""
               loop do
                 ch1 = read_byte
                 ch2 = read_byte
-                char_code = ch1 | (ch2 << 8)
-                break if char_code.zero?
+                break if ch1.zero? && ch2.zero?
 
-                name << [char_code].pack("U")
+                name_bytes << [ch1, ch2].pack("CC")
               end
-              entry.name = name
+              entry.name = name_bytes.encode("UTF-8", "UTF-16LE")
             end
           end
 
@@ -455,8 +525,10 @@ module Omnizip
           skip_size
           empty_stream = read_bit_vector(entries.size)
           entries.each_with_index do |entry, i|
-            entry.has_stream = !empty_stream[i]
-            entry.is_dir = empty_stream[i]
+            # Bit vector: 0 = has stream (file), 1 = empty (directory)
+            # Convert to boolean: has_stream = (bit == 0)
+            entry.has_stream = (empty_stream[i].zero?)
+            entry.is_dir = (empty_stream[i] == 1)
           end
         end
 

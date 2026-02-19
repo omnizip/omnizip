@@ -27,4 +27,28 @@ Gemfile.lock
 benchmark/data/
 benchmark/results/
 *.dat
-_site
+
+# Build artifacts
+docs/_site/
+.kilocode
+
+# Temporary development files at root level (patterns)
+TODO*.md
+DISTANCE*.md
+comparison.md
+direct_test.xz
+xz_ref.xz
+xz_reference_*.bin
+xz_reference_*.txt
+magic.mgc
+
+spec/fixtures/7zip/reference_source
+*.bak
+*.bak2
+lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak3
+lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak4
+lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak5
+lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak6
+
+CLAUDE.md
+

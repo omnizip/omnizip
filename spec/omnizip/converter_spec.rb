@@ -56,7 +56,7 @@ RSpec.describe Omnizip::Converter do
         test_zip.path,
         output_7z.path,
         compression: :lzma2,
-        compression_level: 9
+        compression_level: 9,
       )
 
       expect(result).to be_a(Omnizip::Models::ConversionResult)
@@ -97,12 +97,16 @@ RSpec.describe Omnizip::Converter do
 
     it "rejects invalid formats" do
       subject.target_format = :invalid
-      expect { subject.validate }.to raise_error(ArgumentError, /Invalid target format/)
+      expect do
+        subject.validate
+      end.to raise_error(ArgumentError, /Invalid target format/)
     end
 
     it "rejects invalid compression levels" do
       subject.compression_level = 10
-      expect { subject.validate }.to raise_error(ArgumentError, /Invalid compression level/)
+      expect do
+        subject.validate
+      end.to raise_error(ArgumentError, /Invalid compression level/)
     end
 
     it "converts to hash" do
@@ -121,7 +125,7 @@ RSpec.describe Omnizip::Converter do
         source_size: 1000,
         target_size: 800,
         duration: 1.5,
-        entry_count: 3
+        entry_count: 3,
       )
     end
 
@@ -147,7 +151,8 @@ RSpec.describe Omnizip::Converter do
 
     it "converts to hash" do
       hash = result.to_h
-      expect(hash).to include(:source_path, :target_path, :duration, :entry_count)
+      expect(hash).to include(:source_path, :target_path, :duration,
+                              :entry_count)
     end
 
     it "formats as string" do

@@ -1,0 +1,608 @@
+= PAR2 Parity Archives
+:toc:
+:toclevels: 3
+
+== Purpose
+
+PAR2 (Parity Archive 2) provides error correction and repair capabilities for archives using Reed-Solomon error correction codes. Protect your data against corruption during transfer or storage.
+
+== Features
+
+* **Error Detection** - Verify file integrity with MD5 checksums
+* **Error Correction** - Recover corrupted or missing blocks
+* **Configurable Redundancy** - Choose protection level (0-100%)
+* **Multi-file Support** - Protect multiple files with single PAR2 set
+* **Block-level Recovery** - Efficient partial repairs
+* **Progress Tracking** - Real-time feedback during operations
+
+== Quick Start
+
+=== Protect a File
+
+[source,ruby]
+----
+# Create PAR2 protection with 5% redundancy
+Omnizip::Parity.create('important.zip', redundancy: 5)
+# Creates: important.par2, important.vol00+01.par2, etc.
+----
+
+=== Verify Integrity
+
+[source,ruby]
+----
+# Check if files are intact
+result = Omnizip::Parity.verify('important.par2')
+
+if result.all_ok?
+  puts "All files intact"
+elsif result.repairable?
+  puts "Damage detected but can be repaired"
+else
+  puts "Damage exceeds recovery capacity"
+end
+----
+
+=== Repair Damage
+
+[source,ruby]
+----
+# Automatically repair damaged files
+result = Omnizip::Parity.repair('important.par2')
+
+if result.success?
+  puts "Recovered: #{result.recovered_files.join(', ')}"
+else
+  puts "Repair failed: #{result.error_message}"
+end
+----
+
+== Creating PAR2 Protection
+
+=== Basic Creation
+
+[source,ruby]
+----
+# Protect single file
+Omnizip::Parity.create('backup.7z', redundancy: 10)
+
+# Protect multiple files with pattern
+Omnizip::Parity.create('data/*.dat', redundancy: 15)
+
+# Custom block size
+Omnizip::Parity.create('large.zip',
+  redundancy: 10,
+  block_size: 32768  # 32KB blocks
+)
+----
+
+=== With Progress Tracking
+
+[source,ruby]
+----
+# Track PAR2 creation progress
+Omnizip::Parity.create('archive.7z',
+  redundancy: 10,
+  progress: ->(pct, msg) do
+    puts "[#{pct}%] #{msg}"
+  end
+)
+
+# Output:
+# [0%] Initializing PAR2 creation
+# [10%] Generating recovery blocks (this may take a while)
+# [60%] Writing recovery volume files
+# [90%] Finalizing recovery volumes
+# [100%] PAR2 creation complete
+----
+
+=== Custom Output Location
+
+[source,ruby]
+----
+# Save PAR2 files to different directory
+Omnizip::Parity.create('data/backup.zip',
+  redundancy: 10,
+  output_dir: 'recovery/'
+)
+# Creates: recovery/backup.par2, recovery/backup.vol*.par2
+----
+
+== Verifying Files
+
+=== Basic Verification
+
+[source,ruby]
+----
+result = Omnizip::Parity.verify('backup.par2')
+
+# Check overall status
+result.all_ok?           # => true if no damage
+result.repairable?       # => true if can be repaired
+
+# Detailed information
+result.damaged_files     # => ['file1.txt']
+result.damaged_blocks    # => [5, 12, 18]
+result.missing_files     # => []
+result.total_blocks      # => 100
+result.recovery_blocks   # => 10
+result.damage_count      # => 3
+----
+
+=== Verification Details
+
+[source,ruby]
+----
+result = Omnizip::Parity.verify('backup.par2')
+
+if result.damaged_files.any?
+  puts "Damaged files:"
+  result.damaged_files.each { |f| puts "  - #{f}" }
+  puts "\nDamaged blocks: #{result.damaged_blocks.size}"
+end
+
+if result.missing_files.any?
+  puts "Missing files:"
+  result.missing_files.each { |f| puts "  - #{f}" }
+end
+
+if result.repairable?
+  puts "\n✓ Can repair with #{result.recovery_blocks} recovery blocks"
+else
+  puts "\n✗ Cannot repair: need #{result.damage_count} blocks, " \
+       "have #{result.recovery_blocks}"
+end
+----
+
+== Repairing Files
+
+=== Basic Repair
+
+[source,ruby]
+----
+# Repair damaged files in place
+result = Omnizip::Parity.repair('backup.par2')
+
+if result.success?
+  puts "Successfully recovered:"
+  result.recovered_files.each { |f| puts "  - #{f}" }
+  puts "Recovered #{result.recovered_blocks} blocks"
+else
+  puts "Repair failed: #{result.error_message}"
+  
+  if result.has_unrecoverable?
+    puts "Unrecoverable files:"
+    result.unrecoverable.each { |f| puts "  - #{f}" }
+  end
+end
+----
+
+=== Repair with Progress
+
+[source,ruby]
+----
+# Track repair progress
+result = Omnizip::Parity.repair('large.par2',
+  progress: ->(pct, msg) do
+    puts "[#{pct}%] #{msg}"
+  end
+)
+
+# Output:
+# [0%] Verifying files
+# [10%] Loading recovery blocks
+# [30%] Calculating repairs
+# [50%] Recovering damaged blocks
+# [80%] Writing repaired files
+# [100%] Repair complete
+----
+
+=== Repair to Different Location
+
+[source,ruby]
+----
+# Repair files to separate directory
+result = Omnizip::Parity.repair('backup.par2',
+  output_dir: 'repaired/'
+)
+
+# Original damaged files remain untouched
+# Repaired files written to repaired/
+----
+
+== Checking Protection Status
+
+=== Quick Check
+
+[source,ruby]
+----
+# Check if file has PAR2 protection
+if Omnizip::Parity.protected?('backup.zip')
+  puts "File is protected by PAR2"
+else
+  puts "No PAR2 protection found"
+end
+----
+
+=== Detailed Information
+
+[source,ruby]
+----
+# Get PAR2 protection details
+info = Omnizip::Parity.info('backup.zip')
+
+if info
+  puts "PAR2 Protection Information:"
+  puts "  PAR2 file: #{info[:par2_file]}"
+  puts "  Block size: #{info[:block_size]} bytes"
+  puts "  Total blocks: #{info[:total_blocks]}"
+  puts "  Recovery blocks: #{info[:recovery_blocks]}"
+  puts "  Redundancy: #{info[:redundancy]}%"
+  puts "  Protected files: #{info[:file_count]}"
+else
+  puts "No PAR2 protection found"
+end
+----
+
+== Best Practices
+
+=== Redundancy Guidelines
+
+[cols="20,30,50",options="header"]
+|===
+|Redundancy |Speed |Use Case
+
+|**5%**
+|Fast
+|Minimal protection, quick creation
+
+|**10%**
+|Good
+|Balanced protection (recommended)
+
+|**15-20%**
+|Slower
+|High redundancy for critical data
+
+|**25%+**
+|Slowest
+|Maximum protection, important archives
+|===
+
+=== Block Size Guidelines
+
+[cols="20,30,50",options="header"]
+|===
+|Block Size |File Size |Notes
+
+|**16KB**
+|< 100MB
+|Default, good for most files
+
+|**32KB**
+|100MB - 1GB
+|Better for medium files
+
+|**64KB**
+|> 1GB
+|Optimal for very large files
+|===
+
+=== Recommended Workflows
+
+==== Workflow 1: Backup with Protection
+
+[source,ruby]
+----
+def protected_backup(files, archive_path)
+  # Step 1: Create compressed archive
+  Omnizip::Formats::SevenZip::Writer.new(archive_path,
+    algorithm: :lzma2,
+    level: 9
+  ) do |zip|
+    files.each { |f| zip.add_file(f) }
+  end
+  
+  # Step 2: Add PAR2 protection
+  Omnizip::Parity.create(archive_path,
+    redundancy: 10,
+    progress: ->(pct, msg) { puts "#{pct}%: #{msg}" }
+  )
+  
+  puts "✓ Backup created with 10% PAR2 protection"
+end
+
+files = Dir.glob('important_data/**/*').select { |f| File.file?(f) }
+protected_backup(files, 'backup.7z')
+----
+
+==== Workflow 2: Verify Before Extract
+
+[source,ruby]
+----
+def safe_extract(archive_path, output_dir)
+  par2_file = archive_path.sub(/\.\w+$/, '.par2')
+  
+  # Check if PAR2 protection exists
+  if File.exist?(par2_file)
+    puts "Verifying archive integrity..."
+    result = Omnizip::Parity.verify(par2_file)
+    
+    unless result.all_ok?
+      if result.repairable?
+        puts "Archive damaged, attempting repair..."
+        repair_result = Omnizip::Parity.repair(par2_file)
+        
+        unless repair_result.success?
+          raise "Repair failed: #{repair_result.error_message}"
+        end
+        
+        puts "✓ Archive repaired successfully"
+      else
+        raise "Archive is corrupted beyond repair"
+      end
+    else
+      puts "✓ Archive integrity verified"
+    end
+  end
+  
+  # Extract archive
+  Omnizip::Formats::SevenZip::Reader.new(archive_path) do |zip|
+    zip.extract_all(output_dir)
+  end
+  
+  puts "✓ Extraction complete"
+end
+
+safe_extract('backup.7z', 'restored/')
+----
+
+==== Workflow 3: Incremental Backups
+
+[source,ruby]
+----
+def incremental_backup_with_parity(source_dir, backup_dir)
+  timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+  archive_name = "backup_#{timestamp}.7z"
+  archive_path = File.join(backup_dir, archive_name)
+  
+  FileUtils.mkdir_p(backup_dir)
+  
+  # Create archive
+  puts "Creating archive: #{archive_name}"
+  Omnizip::Formats::SevenZip::Writer.new(archive_path,
+    algorithm: :lzma2,
+    level: 7
+  ) do |zip|
+    Dir.glob("#{source_dir}/**/*").each do |file|
+      next if File.directory?(file)
+      relative_path = file.sub("#{source_dir}/", '')
+      zip.add_file(file, archive_path: relative_path)
+    end
+  end
+  
+  # Add PAR2 protection
+  puts "Adding PAR2 protection..."
+  Omnizip::Parity.create(archive_path,
+    redundancy: 10,
+    output_dir: backup_dir
+  )
+  
+  # Verify immediately
+  par2_file = File.join(backup_dir, "#{archive_name.sub('.7z', '')}.par2")
+  verify_result = Omnizip::Parity.verify(par2_file)
+  
+  if verify_result.all_ok?
+    puts "✓ Backup complete and verified"
+  else
+    puts "⚠️  Warning: Verification failed immediately after creation!"
+  end
+end
+
+incremental_backup_with_parity('my_project/', 'backups/')
+----
+
+== Error Recovery Examples
+
+=== Example 1: Automatic Corruption Detection
+
+[source,ruby]
+----
+def monitor_archive_health(archive_path)
+  return unless Omnizip::Parity.protected?(archive_path)
+  
+  par2_file = archive_path.sub(/\.\w+$/, '.par2')
+  result = Omnizip::Parity.verify(par2_file)
+  
+  status = if result.all_ok?
+    "✓ HEALTHY"
+  elsif result.repairable?
+    "⚠️  DAMAGED (repairable)"
+  else
+    "✗ CORRUPTED (unrecoverable)"
+  end
+  
+  puts "#{File.basename(archive_path)}: #{status}"
+  
+  if result.damaged_blocks.any?
+    puts "  Damaged blocks: #{result.damaged_blocks.size}"
+    puts "  Recovery blocks: #{result.recovery_blocks}"
+  end
+end
+
+# Monitor all archives in backup directory
+Dir.glob('backups/*.{7z,zip}').each do |archive|
+  monitor_archive_health(archive)
+end
+----
+
+=== Example 2: Batch Repair
+
+[source,ruby]
+----
+def batch_repair_archives(backup_dir)
+  par2_files = Dir.glob("#{backup_dir}/*.par2")
+  
+  results = {
+    verified: [],
+    repaired: [],
+    failed: []
+  }
+  
+  par2_files.each do |par2_file|
+    archive_name = File.basename(par2_file, '.par2')
+    
+    result = Omnizip::Parity.verify(par2_file)
+    
+    if result.all_ok?
+      results[:verified] << archive_name
+    elsif result.repairable?
+      repair_result = Omnizip::Parity.repair(par2_file)
+      
+      if repair_result.success?
+        results[:repaired] << archive_name
+      else
+        results[:failed] << archive_name
+      end
+    else
+      results[:failed] << archive_name
+    end
+  end
+  
+  # Print summary
+  puts "\n=== Repair Summary ==="
+  puts "Verified OK: #{results[:verified].size}"
+  puts "Repaired: #{results[:repaired].size}"
+  puts "Failed: #{results[:failed].size}"
+  
+  results[:repaired].each { |name| puts "  ✓ #{name}" }
+  results[:failed].each { |name| puts "  ✗ #{name}" }
+end
+
+batch_repair_archives('backups/')
+----
+
+== Technical Details
+
+=== PAR2 File Structure
+
+PAR2 creates multiple files:
+
+[source]
+----
+backup.par2          # Index file with file descriptions
+backup.vol00+01.par2 # 1 recovery block
+backup.vol01+02.par2 # 2 recovery blocks  
+backup.vol03+04.par2 # 4 recovery blocks
+backup.vol07+08.par2 # 8 recovery blocks
+----
+
+Volume distribution follows powers of 2 for efficient recovery.
+
+=== Reed-Solomon Error Correction
+
+PAR2 uses Reed-Solomon codes over GF(2^16):
+
+* **Systematic Codes** - Data blocks stored unchanged
+* **Parity Blocks** - Generated using Galois field mathematics
+* **Erasure Decoding** - Recover up to N missing blocks with N parity blocks
+* **Error Detection** - Identify corrupted blocks via MD5 checksums
+
+=== Block-level Processing
+
+Files are divided into fixed-size blocks:
+
+[source]
+----
+File (160KB) with 16KB blocks:
+┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+│ B0  │ B1  │ B2  │ B3  │ B4  │ B5  │ B6  │ B7  │ B8  │ B9  │
+└─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+  ↓ Reed-Solomon Encoding
+┌─────┬─────┐
+│ P0  │ P1  │  ← Parity blocks (10% redundancy = 1 block)
+└─────┴─────┘
+
+Can recover any 1 missing or corrupted block
+----
+
+=== Performance Characteristics
+
+[cols="30,30,40",options="header"]
+|===
+|Operation |Speed |Notes
+
+|**Create 5%**
+|Moderate
+|~2-3 minutes per GB
+
+|**Create 10%**
+|Slow
+|~4-6 minutes per GB
+
+|**Create 20%**
+|Very Slow
+|~10-15 minutes per GB
+
+|**Verify**
+|Fast
+|~30 seconds per GB
+
+|**Repair**
+|Moderate
+|Depends on damage extent
+|===
+
+## Command-Line Usage
+
+=== Create PAR2
+
+[source,bash]
+----
+# Create with default 5% redundancy
+$ omnizip parity create backup.7z
+
+# Custom redundancy
+$ omnizip parity create --redundancy 10 backup.7z
+
+# Multiple files
+$ omnizip parity create --redundancy 5 data/*.dat
+
+# With custom block size
+$ omnizip parity create --block-size 32768 large.zip
+----
+
+=== Verify PAR2
+
+[source,bash]
+----
+# Verify archive integrity
+$ omnizip parity verify backup.par2
+
+# Output:
+# Verifying backup.par2...
+# ✓ All files intact
+# Total blocks: 100
+# Recovery blocks available: 10
+----
+
+=== Repair with PAR2
+
+[source,bash]
+----
+# Repair damaged files
+$ omnizip parity repair backup.par2
+
+# Output:
+# Repairing backup.par2...
+# Loading recovery blocks...
+# Recovering damaged blocks...
+# ✓ Repair successful
+# Recovered files: backup.7z
+# Recovered blocks: 3
+----
+
+== See Also
+
+* link:archive-formats.adoc[Archive Formats]
+* link:advanced-features.adoc[Advanced Features]
+* link:../README.adoc[Main README]

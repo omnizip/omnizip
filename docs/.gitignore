@@ -1,0 +1,21 @@
+# Jekyll build files
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Lychee cache
+.lycheecache
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Ruby
+*.gem
+*.rbc

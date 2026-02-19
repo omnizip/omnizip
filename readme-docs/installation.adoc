@@ -1,0 +1,228 @@
+= Installation Guide
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document provides installation instructions for Omnizip in various Ruby environments.
+
+== Installation via Bundler
+
+Add this line to your application's `Gemfile`:
+
+[source,ruby]
+----
+gem 'omnizip'
+----
+
+And then execute:
+
+[source,sh]
+----
+$ bundle install
+----
+
+== Installation via gem command
+
+Install the gem directly:
+
+[source,sh]
+----
+$ gem install omnizip
+----
+
+== Verify Installation
+
+After installation, verify that Omnizip is available:
+
+[source,sh]
+----
+# Check version
+$ omnizip version
+Omnizip v1.0.0
+Pure Ruby implementation of 7-Zip algorithms
+
+# List available algorithms
+$ omnizip list
+Available compression algorithms:
+  lzma
+  lzma2
+  bzip2
+  ppmd7
+  ppmd8
+  deflate
+  deflate64
+  zstd
+----
+
+Or in Ruby code:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Check available algorithms
+puts Omnizip::AlgorithmRegistry.available.inspect
+# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstd]
+
+# Get version
+puts Omnizip::VERSION
+# => "1.0.0"
+----
+
+== System Requirements
+
+=== Ruby Version
+
+* **Minimum:** Ruby 3.0.0 or later
+* **Recommended:** Ruby 3.2.0 or later
+
+=== Supported Ruby Implementations
+
+* **MRI (CRuby)** - Fully supported
+* **JRuby** - Fully supported (pure Ruby implementation)
+* **TruffleRuby** - Fully supported (pure Ruby implementation)
+
+=== Operating Systems
+
+* **Linux** - Fully supported (primary development platform)
+* **macOS** - Fully supported
+* **Windows** - Fully supported
+* **BSD** - Should work (not officially tested)
+
+=== Dependencies
+
+Omnizip has minimal dependencies:
+
+**Runtime Dependencies:**
+* `lutaml-model` (~> 0.7) - Model serialization
+* `marcel` (~> 1.1) - MIME type detection
+* `thor` - CLI framework
+
+**Development Dependencies:**
+* `rake` - Build automation
+* `rspec` - Testing framework
+* `rubocop` - Code style enforcement
+
+All dependencies are automatically installed via Bundler or gem install.
+
+== Platform-Specific Notes
+
+=== Windows
+
+On Windows, some features may have limitations:
+
+* Symbolic links require administrator privileges
+* Unix permissions are emulated
+* NTFS alternate data streams are supported
+
+=== Unix/Linux/macOS
+
+Full feature support including:
+
+* Symbolic and hard links
+* Unix permissions
+* Extended attributes
+* All archive formats
+
+== Development Installation
+
+For development work on Omnizip itself:
+
+[source,sh]
+----
+# Clone the repository
+$ git clone https://github.com/metanorma/omnizip.git
+$ cd omnizip
+
+# Install dependencies
+$ bundle install
+
+# Run tests
+$ bundle exec rspec
+
+# Run linter
+$ bundle exec rubocop
+----
+
+== Troubleshooting
+
+=== Common Issues
+
+**Issue:** `gem install omnizip` fails with dependency errors
+
+**Solution:** Ensure you have Ruby 3.0.0 or later:
+[source,sh]
+----
+$ ruby --version
+ruby 3.2.0 (2022-12-25 revision a528908271)
+----
+
+**Issue:** `require 'omnizip'` fails in Ruby code
+
+**Solution:** Make sure the gem is installed:
+[source,sh]
+----
+$ gem list omnizip
+# Should show: omnizip (1.0.0)
+----
+
+**Issue:** CLI command not found (`omnizip: command not found`)
+
+**Solution:** Ensure gem binaries are in PATH:
+[source,sh]
+----
+$ gem environment
+# Check "EXECUTABLE DIRECTORY" value
+# Add it to PATH if needed
+
+# Or use bundle exec:
+$ bundle exec omnizip version
+----
+
+=== Getting Help
+
+If you encounter issues:
+
+1. Check the link:../README.adoc[Main README]
+2. Search existing GitHub issues
+3. Create a new issue with:
+   * Ruby version (`ruby --version`)
+   * Operating system
+   * Error message
+   * Steps to reproduce
+
+== Upgrading
+
+To upgrade to a newer version:
+
+[source,sh]
+----
+# Via gem
+$ gem update omnizip
+
+# Via Bundler
+$ bundle update omnizip
+----
+
+Check for breaking changes in the CHANGELOG before upgrading major versions.
+
+== Uninstallation
+
+To remove Omnizip:
+
+[source,sh]
+----
+# Via gem
+$ gem uninstall omnizip
+
+# Via Bundler (remove from Gemfile, then)
+$ bundle install
+----
+
+== See Also
+
+* link:cli-usage.adoc[CLI Usage Guide]
+* link:api-usage.adoc[Library API Usage]
+* link:../README.adoc[Main README]
+* link:../CONTRIBUTING.md[Contributing Guide]

@@ -23,7 +23,7 @@ RSpec.describe Omnizip::Pipe do
         input_io,
         output_io,
         format: :zip,
-        entry_name: "custom.txt"
+        entry_name: "custom.txt",
       )
 
       output_io.rewind
@@ -36,7 +36,7 @@ RSpec.describe Omnizip::Pipe do
         input_io,
         output_io,
         format: :zip,
-        level: 9
+        level: 9,
       )
 
       expect(output_io.string).not_to be_empty
@@ -55,9 +55,9 @@ RSpec.describe Omnizip::Pipe do
     end
 
     it "raises error for unsupported format" do
-      expect {
+      expect do
         described_class.compress(input_io, output_io, format: :invalid)
-      }.to raise_error(ArgumentError, /Unsupported format/)
+      end.to raise_error(ArgumentError, /Unsupported format/)
     end
 
     context "with real files" do
@@ -91,7 +91,9 @@ RSpec.describe Omnizip::Pipe do
   end
 
   describe ".decompress" do
-    let(:test_data) { { "file1.txt" => "Content 1", "file2.txt" => "Content 2" } }
+    let(:test_data) do
+      { "file1.txt" => "Content 1", "file2.txt" => "Content 2" }
+    end
     let(:archive_io) do
       Omnizip::Buffer.create_from_hash(test_data, :zip)
     end
@@ -100,7 +102,7 @@ RSpec.describe Omnizip::Pipe do
       let(:output_dir) { Dir.mktmpdir }
 
       after do
-        FileUtils.rm_rf(output_dir) if File.exist?(output_dir)
+        FileUtils.rm_rf(output_dir)
       end
 
       it "extracts to directory" do
@@ -149,9 +151,10 @@ RSpec.describe Omnizip::Pipe do
     end
 
     it "raises error when neither output_dir nor output specified" do
-      expect {
+      expect do
         described_class.decompress(archive_io)
-      }.to raise_error(ArgumentError, /output_dir or output must be specified/)
+      end.to raise_error(ArgumentError,
+                         /output_dir or output must be specified/)
     end
   end
 
@@ -202,7 +205,7 @@ RSpec.describe Omnizip::Pipe do
         compressor = Omnizip::Pipe::StreamCompressor.new(
           input_io,
           output_io,
-          :zip
+          :zip,
         )
 
         bytes = compressor.compress
@@ -217,7 +220,7 @@ RSpec.describe Omnizip::Pipe do
           input_io,
           output_io,
           :zip,
-          chunk_size: 10
+          chunk_size: 10,
         )
 
         compressor.compress
@@ -231,7 +234,7 @@ RSpec.describe Omnizip::Pipe do
           input_io,
           output_io,
           :zip,
-          progress: ->(read, written) { progress_calls << [read, written] }
+          progress: ->(read, written) { progress_calls << [read, written] },
         )
 
         compressor.compress
@@ -243,12 +246,12 @@ RSpec.describe Omnizip::Pipe do
         compressor = Omnizip::Pipe::StreamCompressor.new(
           input_io,
           output_io,
-          :seven_zip
+          :seven_zip,
         )
 
-        expect {
+        expect do
           compressor.compress
-        }.to raise_error(NotImplementedError, /7z pipe compression/)
+        end.to raise_error(NotImplementedError, /7z pipe compression/)
       end
     end
   end
@@ -268,7 +271,7 @@ RSpec.describe Omnizip::Pipe do
         it "decompresses to output stream" do
           decompressor = Omnizip::Pipe::StreamDecompressor.new(
             archive_io,
-            output: output_stream
+            output: output_stream,
           )
 
           bytes = decompressor.decompress
@@ -281,7 +284,7 @@ RSpec.describe Omnizip::Pipe do
           decompressor = Omnizip::Pipe::StreamDecompressor.new(
             archive_io,
             output: output_stream,
-            chunk_size: 5
+            chunk_size: 5,
           )
 
           decompressor.decompress
@@ -294,53 +297,56 @@ RSpec.describe Omnizip::Pipe do
         let(:output_dir) { Dir.mktmpdir }
 
         after do
-          FileUtils.rm_rf(output_dir) if File.exist?(output_dir)
+          FileUtils.rm_rf(output_dir)
         end
 
         it "extracts to directory" do
           decompressor = Omnizip::Pipe::StreamDecompressor.new(
             archive_io,
-            output_dir: output_dir
+            output_dir: output_dir,
           )
 
           result = decompressor.decompress
 
           expect(result).to be_a(Hash)
           expect(result["test.txt"]).to eq("Test content".bytesize)
-          expect(File.read(File.join(output_dir, "test.txt"))).to eq("Test content")
+          expect(File.read(File.join(output_dir,
+                                     "test.txt"))).to eq("Test content")
         end
 
         it "preserves directory structure" do
           nested_files = {
             "dir1/file1.txt" => "Content 1",
-            "dir2/file2.txt" => "Content 2"
+            "dir2/file2.txt" => "Content 2",
           }
           nested_archive = StringIO.new(
-            Omnizip::Buffer.create_from_hash(nested_files, :zip).string
+            Omnizip::Buffer.create_from_hash(nested_files, :zip).string,
           )
 
           decompressor = Omnizip::Pipe::StreamDecompressor.new(
             nested_archive,
             output_dir: output_dir,
-            preserve_paths: true
+            preserve_paths: true,
           )
 
           decompressor.decompress
 
-          expect(File.exist?(File.join(output_dir, "dir1", "file1.txt"))).to be true
-          expect(File.exist?(File.join(output_dir, "dir2", "file2.txt"))).to be true
+          expect(File.exist?(File.join(output_dir, "dir1",
+                                       "file1.txt"))).to be true
+          expect(File.exist?(File.join(output_dir, "dir2",
+                                       "file2.txt"))).to be true
         end
 
         it "flattens structure when preserve_paths is false" do
           nested_files = { "dir/file.txt" => "Content" }
           nested_archive = StringIO.new(
-            Omnizip::Buffer.create_from_hash(nested_files, :zip).string
+            Omnizip::Buffer.create_from_hash(nested_files, :zip).string,
           )
 
           decompressor = Omnizip::Pipe::StreamDecompressor.new(
             nested_archive,
             output_dir: output_dir,
-            preserve_paths: false
+            preserve_paths: false,
           )
 
           decompressor.decompress
@@ -362,7 +368,7 @@ RSpec.describe Omnizip::Pipe do
         StringIO.new(original_data),
         compressed_io,
         format: :zip,
-        entry_name: "data.txt"
+        entry_name: "data.txt",
       )
 
       # Decompress
@@ -396,7 +402,7 @@ RSpec.describe Omnizip::Pipe do
         input,
         output,
         format: :zip,
-        chunk_size: 64 * 1024
+        chunk_size: 64 * 1024,
       )
 
       # Verify compression worked

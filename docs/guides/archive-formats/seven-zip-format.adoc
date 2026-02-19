@@ -1,0 +1,35 @@
+---
+title: 7z Format
+nav_order: 1
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== 7z Format
+
+=== General
+
+The 7z format is a compressed archive format created by 7-Zip.
+
+=== Features
+
+* High compression ratio (LZMA2)
+* Solid archives
+* Multi-volume support
+* AES-256 encryption
+
+=== Usage
+
+[source,bash]
+----
+# Create 7z archive
+omnizip archive create backup.7z documents/
+
+# Extract 7z archive
+omnizip archive extract backup.7z output/
+----
+
+=== See Also
+
+* link:../compression-algorithms/lzma2.html[LZMA2 Algorithm]
+

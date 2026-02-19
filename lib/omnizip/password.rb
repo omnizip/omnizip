@@ -70,7 +70,7 @@ module Omnizip
       # @param var_name [String] Environment variable name
       # @return [String, nil] Password or nil
       def from_env(var_name = "OMNIZIP_PASSWORD")
-        ENV[var_name]
+        ENV.fetch(var_name, nil)
       end
 
       # Read password from file

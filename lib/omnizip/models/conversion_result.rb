@@ -78,9 +78,12 @@ module Omnizip
       # Get average processing speed
       # @return [Float] MB/s processing speed
       def processing_speed
-        return 0.0 if duration.zero?
+        return 0.0 if duration.zero? || source_size.zero?
 
-        (source_size / duration / 1_048_576.0).round(2)
+        speed = source_size / duration / 1_048_576.0
+        rounded = speed.round(2)
+        # Return actual speed if rounding would give 0 but speed is positive
+        rounded.zero? && speed.positive? ? speed : rounded
       end
 
       # Convert to hash
@@ -98,7 +101,7 @@ module Omnizip
           duration: duration,
           entry_count: entry_count,
           processing_speed: processing_speed,
-          warnings: warnings
+          warnings: warnings,
         }
       end
 
@@ -106,8 +109,8 @@ module Omnizip
       # @return [String] Formatted result
       def to_s
         "Converted #{source_path} (#{format_size(source_size)}) to " \
-        "#{target_path} (#{format_size(target_size)}) in #{duration.round(2)}s. " \
-        "#{size_reduction > 0 ? "Saved #{size_reduction}%" : "Increased #{-size_reduction}%"}"
+          "#{target_path} (#{format_size(target_size)}) in #{duration.round(2)}s. " \
+          "#{size_reduction.positive? ? "Saved #{size_reduction.to_i}%" : "Increased #{(-size_reduction).to_i}%"}"
       end
 
       private

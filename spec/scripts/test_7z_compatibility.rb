@@ -51,7 +51,7 @@ def test_7z_compatibility
     writer = Omnizip::Formats::SevenZip::Writer.new(
       archive_path,
       algorithm: :lzma2,
-      level: 5
+      level: 5,
     )
     writer.add_file(file1)
     writer.add_file(file2)

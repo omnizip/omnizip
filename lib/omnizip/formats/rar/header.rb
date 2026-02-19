@@ -37,17 +37,25 @@ module Omnizip
         # @param io [IO] Input stream
         # @raise [RuntimeError] if invalid header
         def parse(io)
-          signature = io.read(8)
+          # RAR4 signature is 7 bytes, RAR5 is 8 bytes
+          # Read 7 bytes first to check for RAR4
+          signature = io.read(7)
           return unless signature
 
           sig_bytes = signature.bytes
 
-          if sig_bytes[0..6] == RAR5_SIGNATURE
-            @version = 5
-            parse_rar5_header(io)
-          elsif sig_bytes[0..6] == RAR4_SIGNATURE
+          if sig_bytes == RAR4_SIGNATURE
             @version = 4
             parse_rar4_header(io)
+          elsif sig_bytes == RAR5_SIGNATURE[0..6]
+            # Might be RAR5, read one more byte
+            extra_byte = io.read(1)
+            if extra_byte && (sig_bytes + extra_byte.bytes) == RAR5_SIGNATURE
+              @version = 5
+              parse_rar5_header(io)
+            else
+              raise "Invalid RAR signature: #{(sig_bytes + (extra_byte&.bytes || [])).inspect}"
+            end
           else
             raise "Invalid RAR signature: #{sig_bytes.inspect}"
           end
@@ -107,7 +115,8 @@ module Omnizip
           @comment_present = head_flags.anybits?(ARCHIVE_COMMENT)
 
           # Skip rest of archive header
-          remaining = head_size - 7
+          # head_size includes TYPE(1) + FLAGS(2) + SIZE(2) = 5 bytes already read
+          remaining = head_size - 5
           io.read(remaining) if remaining.positive?
         end
 

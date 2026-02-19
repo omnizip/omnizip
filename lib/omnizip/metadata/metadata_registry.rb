@@ -46,19 +46,19 @@ module Omnizip
     end
 
     # Register ZIP format metadata support
-    MetadataRegistry.register(:zip, [
-      :comment,
-      :mtime,
-      :unix_permissions,
-      :external_attributes,
-      :filename,
-      :extra_field
-    ])
+    MetadataRegistry.register(:zip, %i[
+                                comment
+                                mtime
+                                unix_permissions
+                                external_attributes
+                                filename
+                                extra_field
+                              ])
 
     # Register 7z format metadata support (limited)
-    MetadataRegistry.register(:seven_zip, [
-      :mtime,
-      :attributes
-    ])
+    MetadataRegistry.register(:seven_zip, %i[
+                                mtime
+                                attributes
+                              ])
   end
 end

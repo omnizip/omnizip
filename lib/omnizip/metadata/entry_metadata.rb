@@ -36,7 +36,10 @@ module Omnizip
       # Set modification time
       # @param value [Time] New modification time
       def mtime=(value)
-        raise ArgumentError, "mtime must be a Time object" unless value.is_a?(Time)
+        unless value.is_a?(Time)
+          raise ArgumentError,
+                "mtime must be a Time object"
+        end
 
         entry.header.last_mod_time = dos_time(value)
         entry.header.last_mod_date = dos_date(value)
@@ -52,8 +55,14 @@ module Omnizip
       # Set Unix permissions
       # @param perms [Integer] Unix permissions (e.g., 0644, 0755)
       def unix_permissions=(perms)
-        raise ArgumentError, "permissions must be an integer" unless perms.is_a?(Integer)
-        raise ArgumentError, "permissions out of range" unless (0..0o777).cover?(perms)
+        unless perms.is_a?(Integer)
+          raise ArgumentError,
+                "permissions must be an integer"
+        end
+        unless (0..0o777).cover?(perms)
+          raise ArgumentError,
+                "permissions out of range"
+        end
 
         entry.unix_perms = perms
         @modified = true
@@ -101,7 +110,7 @@ module Omnizip
           size: entry.size,
           compressed_size: entry.compressed_size,
           crc: entry.crc,
-          directory: entry.directory?
+          directory: entry.directory?,
         }
       end
 

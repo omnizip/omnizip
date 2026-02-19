@@ -19,7 +19,7 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
   end
 
   after do
-    FileUtils.rm_rf(temp_dir) if Dir.exist?(temp_dir)
+    FileUtils.rm_rf(temp_dir)
   end
 
   describe "#initialize" do
@@ -33,11 +33,10 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
 
     it "accepts custom options" do
       writer = described_class.new(output_iso,
-        volume_id: "TEST_DISC",
-        level: 1,
-        rock_ridge: false,
-        joliet: false
-      )
+                                   volume_id: "TEST_DISC",
+                                   level: 1,
+                                   rock_ridge: false,
+                                   joliet: false)
 
       expect(writer.volume_id).to eq("TEST_DISC")
       expect(writer.level).to eq(1)
@@ -51,14 +50,14 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
 
     it "adds file to ISO" do
       writer.add_file(test_file)
-      expect(writer.files).to have(1).item
+      expect(writer.files.length).to eq(1)
       expect(writer.files.first[:source]).to eq(File.expand_path(test_file))
     end
 
     it "raises error if file doesn't exist" do
-      expect {
+      expect do
         writer.add_file("nonexistent.txt")
-      }.to raise_error(ArgumentError, /File not found/)
+      end.to raise_error(ArgumentError, /File not found/)
     end
 
     it "accepts custom ISO path" do
@@ -83,9 +82,9 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
     end
 
     it "raises error if directory doesn't exist" do
-      expect {
+      expect do
         writer.add_directory("nonexistent_dir")
-      }.to raise_error(ArgumentError, /Directory not found/)
+      end.to raise_error(ArgumentError, /Directory not found/)
     end
 
     it "accepts custom ISO path" do
@@ -111,7 +110,7 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
 
       # ISO should be at least system area + volume descriptors
       min_size = Omnizip::Formats::Iso::SECTOR_SIZE *
-                 (Omnizip::Formats::Iso::SYSTEM_AREA_SECTORS + 3)
+        (Omnizip::Formats::Iso::SYSTEM_AREA_SECTORS + 3)
       expect(File.size(output_iso)).to be >= min_size
     end
 

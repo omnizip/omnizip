@@ -108,9 +108,9 @@ module Omnizip
 
             # Decompress
             reader.send(:decompress_data,
-                       compressed_data,
-                       reader_entry.compression_method,
-                       reader_entry.uncompressed_size)
+                        compressed_data,
+                        reader_entry.compression_method,
+                        reader_entry.uncompressed_size)
           end
         end
       end
@@ -131,7 +131,9 @@ module Omnizip
                      options.dup
                    when Hash
                      Omnizip::Models::ParallelOptions.new.tap do |opts|
-                       options.each { |k, v| opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=") }
+                       options.each do |k, v|
+                         opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=")
+                       end
                      end
                    else
                      Omnizip::Models::ParallelOptions.new
@@ -159,10 +161,13 @@ module Omnizip
       # @option options [Proc] :progress progress callback
       # @return [Array<String>] extracted file paths
       def extract(archive, dest, **options)
-        raise Errno::ENOENT, "Archive not found: #{archive}" unless ::File.exist?(archive)
+        unless ::File.exist?(archive)
+          raise Errno::ENOENT,
+                "Archive not found: #{archive}"
+        end
 
         overwrite = options.fetch(:overwrite, false)
-        progress_callback = options[:progress]
+        options[:progress]
 
         @stats[:start_time] = Time.now
 
@@ -216,7 +221,9 @@ module Omnizip
 
         # Handle errors
         unless errors.empty?
-          error_msgs = errors.map { |e| "#{e.work&.entry&.name}: #{e.error}" }.join("\n")
+          error_msgs = errors.map do |e|
+            "#{e.work&.entry&.name}: #{e.error}"
+          end.join("\n")
           raise Omnizip::ExtractionError, "Extraction errors:\n#{error_msgs}"
         end
 
@@ -294,7 +301,7 @@ module Omnizip
               ::File.binwrite(dest_path, result[:data])
 
               # Set permissions if Unix
-              if result[:unix_perms] > 0
+              if result[:unix_perms].positive?
                 ::File.chmod(result[:unix_perms] & 0o777, dest_path)
               end
 

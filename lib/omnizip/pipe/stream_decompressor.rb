@@ -84,9 +84,7 @@ module Omnizip
               @output.write(chunk)
               @bytes_written += chunk.bytesize
 
-              if @progress_callback
-                @progress_callback.call(entry.name, @bytes_written)
-              end
+              @progress_callback&.call(entry.name, @bytes_written)
             end
 
             break # Only extract first file for streaming
@@ -106,7 +104,7 @@ module Omnizip
       #
       # @return [Hash<String, Integer>] Filename => bytes mapping
       def decompress_to_directory
-        FileUtils.mkdir_p(@output_dir) unless Dir.exist?(@output_dir)
+        FileUtils.mkdir_p(@output_dir)
 
         # Read archive into memory
         archive_data = @input.read
@@ -144,9 +142,11 @@ module Omnizip
       # @param entry [Object] File entry
       # @return [Integer] Bytes written
       def extract_file(entry)
-        dest_path = @preserve_paths ?
-                    File.join(@output_dir, entry.name) :
-                    File.join(@output_dir, File.basename(entry.name))
+        dest_path = if @preserve_paths
+                      File.join(@output_dir, entry.name)
+                    else
+                      File.join(@output_dir, File.basename(entry.name))
+                    end
 
         # Create parent directory if needed
         FileUtils.mkdir_p(File.dirname(dest_path))
@@ -158,9 +158,7 @@ module Omnizip
             bytes += chunk.bytesize
             @bytes_written += chunk.bytesize
 
-            if @progress_callback
-              @progress_callback.call(entry.name, @bytes_written)
-            end
+            @progress_callback&.call(entry.name, @bytes_written)
           end
         end
 

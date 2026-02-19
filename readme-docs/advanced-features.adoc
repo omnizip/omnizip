@@ -1,0 +1,515 @@
+= Advanced Features
+:toc:
+:toclevels: 3
+
+== Purpose
+
+This document covers advanced Omnizip features including progress tracking, selective extraction, parallel processing, and metadata management.
+
+== Progress Tracking
+
+=== Progress Reporters
+
+Omnizip provides multiple progress reporter types:
+
+[cols="30,70",options="header"]
+|===
+|Reporter |Description
+
+|**ConsoleReporter**
+|Displays progress bar in terminal
+
+|**CallbackReporter**
+|Calls custom callback function
+
+|**LogReporter**
+|Writes progress to log file
+
+|**SilentReporter**
+|No output (default)
+|===
+
+=== Using Progress Callbacks
+
+[source,ruby]
+----
+# Console progress bar
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  progress: :console
+) do |zip|
+  zip.add_directory('large_folder/')
+end
+
+# Custom callback
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  progress: ->(current, total, file) do
+    percentage = (current.to_f / total * 100).round(1)
+    puts "#{percentage}%: Processing #{file}"
+  end
+) do |zip|
+  zip.add_directory('data/')
+end
+
+# Log to file
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  progress: Omnizip::Progress::LogReporter.new('progress.log')
+) do |zip|
+  zip.add_file('large_file.dat')
+end
+----
+
+== ETA Calculation
+
+=== Estimated Time of Arrival
+
+Smart completion time estimation with exponential smoothing:
+
+[source,ruby]
+----
+# ETA with progress tracking
+progress = Omnizip::Progress::OperationProgress.new(
+  total_items: 1000,
+  enable_eta: true
+)
+
+1000.times do |i|
+  # Simulate work
+  sleep(0.01)
+  
+  # Update progress
+  progress.increment
+  
+  # Get ETA
+  eta = progress.eta_result
+  if eta
+    puts "Progress: #{progress.percentage}%, ETA: #{eta.formatted_remaining}"
+  end
+end
+----
+
+=== ETA Configuration
+
+[source,ruby]
+----
+# Configure ETA calculation
+eta_calculator = Omnizip::Eta::TimeEstimator.new(
+  smoothing_factor: 0.3,  # Exponential smoothing
+  min_samples: 5          # Minimum samples before showing ETA
+)
+
+progress = Omnizip::Progress::OperationProgress.new(
+  total_items: 500,
+  eta_calculator: eta_calculator
+)
+----
+
+== Selective Extraction
+
+=== Glob Pattern Matching
+
+[source,ruby]
+----
+# Extract only specific file patterns
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+  # Extract all .txt files
+  zip.extract_matching('*.txt', 'output/')
+  
+  # Extract all files in docs/ directory
+  zip.extract_matching('docs/**/*', 'output/')
+  
+  # Extract with multiple patterns
+  zip.extract_matching(['*.pdf', '*.doc'], 'output/')
+end
+----
+
+=== Regex Pattern Matching
+
+[source,ruby]
+----
+# Extract files matching regex
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+  # Extract all image files
+  zip.extract_regex(/\.(jpg|png|gif)$/i, 'images/')
+  
+  # Extract files containing "report" in name
+  zip.extract_regex(/report.*\.pdf$/i, 'reports/')
+end
+----
+
+=== Predicate-based Extraction
+
+[source,ruby]
+----
+# Extract files matching custom criteria
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+  # Extract large files only
+  zip.extract_if('output/') do |entry|
+    entry.size > 1_000_000  # > 1MB
+  end
+  
+  # Extract recent files
+  zip.extract_if('output/') do |entry|
+    entry.mtime > Time.now - 86400  # Last 24 hours
+  end
+end
+----
+
+== Parallel Processing
+
+=== Multi-threaded Compression
+
+[source,ruby]
+----
+# Enable parallel compression using Ractors
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  parallel: true,
+  threads: 4
+) do |zip|
+  # Files will be compressed in parallel
+  Dir.glob('data/**/*').each { |f| zip.add_file(f) }
+end
+----
+
+=== Parallel Options
+
+[source,ruby]
+----
+parallel_opts = Omnizip::Models::ParallelOptions.new(
+  enabled: true,
+  max_threads: 4,
+  chunk_size: 1024 * 1024,  # 1MB chunks
+  queue_size: 10
+)
+
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  parallel_options: parallel_opts
+) do |zip|
+  zip.add_directory('large_dataset/')
+end
+----
+
+== Chunked Processing
+
+=== Memory-efficient Large Files
+
+[source,ruby]
+----
+# Process files in chunks to reduce memory usage
+chunked_reader = Omnizip::Chunked::Reader.new(
+  'huge_file.dat',
+  chunk_size: 64 * 1024 * 1024  # 64MB chunks
+)
+
+chunked_reader.each_chunk do |chunk|
+  # Process chunk without loading entire file
+  process_data(chunk)
+end
+----
+
+=== Chunked Writing
+
+[source,ruby]
+----
+# Write large files in chunks
+chunked_writer = Omnizip::Chunked::Writer.new(
+  'output.dat',
+  chunk_size: 32 * 1024 * 1024  # 32MB chunks
+)
+
+loop do
+  data = generate_data  # Generate data dynamically
+  break if data.nil?
+  
+  chunked_writer.write_chunk(data)
+end
+
+chunked_writer.finalize
+----
+
+== Metadata Management
+
+=== Reading Archive Metadata
+
+[source,ruby]
+----
+# Read archive metadata
+metadata = Omnizip::Metadata::ArchiveMetadata.new('archive.7z')
+
+puts "Created: #{metadata.created_at}"
+puts "Modified: #{metadata.modified_at}"
+puts "Creator: #{metadata.creator}"
+puts "Comment: #{metadata.comment}"
+puts "Encrypted: #{metadata.encrypted?}"
+----
+
+=== Editing Archive Metadata
+
+[source,ruby]
+----
+# Edit archive metadata
+editor = Omnizip::Metadata::MetadataEditor.new('archive.7z')
+
+editor.update do |meta|
+  meta.comment = "Updated backup archive"
+  meta.creator = "Backup System v2.0"
+  meta.custom_fields[:backup_id] = "20240115-001"
+end
+
+editor.save
+----
+
+=== Entry Metadata
+
+[source,ruby]
+----
+# Read and modify entry metadata
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+  zip.entries.each do |entry|
+    meta = entry.metadata
+    
+    puts "Name: #{meta.name}"
+    puts "Size: #{meta.size}"
+    puts "Compressed: #{meta.compressed_size}"
+    puts "Modified: #{meta.mtime}"
+    puts "Permissions: #{meta.permissions.to_s(8)}"
+  end
+end
+----
+
+== Link Handling
+
+=== Symbolic Links
+
+[source,ruby]
+----
+# Create archive with symbolic links
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  preserve_symlinks: true
+) do |zip|
+  zip.add_file('link_to_file')  # Preserves as symlink
+  zip.add_directory('folder_with_links/', recursive: true)
+end
+
+# Extract preserving symlinks
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+  zip.extract_all('output/', preserve_symlinks: true)
+end
+----
+
+=== Hard Links
+
+[source,ruby]
+----
+# Detect and preserve hard links
+handler = Omnizip::LinkHandler::HardLink.new
+
+# Add files with hard link detection
+Omnizip::Formats::SevenZip::Writer.new('archive.7z') do |zip|
+  files = Dir.glob('data/**/*')
+  
+  files.each do |file|
+    if handler.is_hardlink?(file)
+      # Store as link reference
+      zip.add_hardlink(file, handler.link_target(file))
+    else
+      zip.add_file(file)
+    end
+  end
+end
+----
+
+== Stream Processing
+
+=== Pipe-based Compression
+
+[source,ruby]
+----
+# Compress from stdin to stdout
+Omnizip::Pipe::StreamCompressor.new(:lzma2, level: 9) do |compressor|
+  STDIN.each_line do |line|
+    compressed = compressor.compress(line)
+    STDOUT.write(compressed)
+  end
+end
+----
+
+=== Stream Decompression
+
+[source,ruby]
+----
+# Decompress from stdin to stdout
+Omnizip::Pipe::StreamDecompressor.new(:lzma2) do |decompressor|
+  while (chunk = STDIN.read(8192))
+    decompressed = decompressor.decompress(chunk)
+    STDOUT.write(decompressed)
+  end
+end
+----
+
+== Temporary File Management
+
+=== Automatic Cleanup
+
+[source,ruby]
+----
+# Temp files automatically cleaned up
+Omnizip::Temp.with_tmpfile('archive') do |temp_path|
+  # Create temporary archive
+  Omnizip::Formats::SevenZip::Writer.new(temp_path) do |zip|
+    zip.add_file('data.txt')
+  end
+  
+  # Process archive
+  process_archive(temp_path)
+  
+  # Temp file automatically deleted after block
+end
+----
+
+=== Temp Directory Management
+
+[source,ruby]
+----
+# Temporary directory with cleanup
+Omnizip::Temp.with_tmpdir do |temp_dir|
+  # Extract to temp directory
+  Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |zip|
+    zip.extract_all(temp_dir)
+  end
+  
+  # Process files
+  process_files(temp_dir)
+  
+  # Directory and contents deleted after block
+end
+----
+
+== Platform-specific Features
+
+=== NTFS Alternate Data Streams (Windows)
+
+[source,ruby]
+----
+# Preserve NTFS streams on Windows
+if Omnizip::Platform.windows?
+  Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+    preserve_ntfs_streams: true
+  ) do |zip|
+    zip.add_file('file_with_streams.txt')
+  end
+end
+----
+
+=== Extended Attributes (Unix)
+
+[source,ruby]
+----
+# Preserve extended attributes on Unix
+if Omnizip::Platform.unix?
+  Omnizip::Formats::Tar::Writer.open('archive.tar',
+    preserve_xattr: true
+  ) do |tar|
+    tar.add_file('file_with_xattr')
+  end
+end
+----
+
+== Examples
+
+=== Example 1: Selective Backup with Progress
+
+[source,ruby]
+----
+def selective_backup(source_dir, archive_path)
+  total_files = Dir.glob("#{source_dir}/**/*").count { |f| File.file?(f) }
+  current = 0
+  
+  Omnizip::Formats::SevenZip::Writer.new(archive_path,
+    progress: ->(cur, tot, file) do
+      pct = (cur.to_f / tot * 100).round(1)
+      puts "\r[#{pct}%] #{file}".ljust(80)
+    end
+  ) do |zip|
+    Dir.glob("#{source_dir}/**/*") do |file|
+      next if File.directory?(file)
+      
+      # Skip temporary and cache files
+      next if file =~ /\.(tmp|cache|log)$/
+      
+      # Skip if file is too large
+      next if File.size(file) > 100 * 1024 * 1024  # > 100MB
+      
+      zip.add_file(file)
+      current += 1
+    end
+  end
+  
+  puts "\nBackup complete: #{current}/#{total_files} files archived"
+end
+
+selective_backup('my_project/', 'backup.7z')
+----
+
+=== Example 2: Parallel Archive Processing
+
+[source,ruby]
+----
+def parallel_process_archives(archive_paths)
+  require 'parallel'
+  
+  Parallel.each(archive_paths, in_threads: 4) do |archive_path|
+    begin
+      # Extract with progress
+      output_dir = "extracted_#{File.basename(archive_path, '.*')}"
+      
+      Omnizip::Formats::SevenZip::Reader.open(archive_path,
+        parallel: true
+      ) do |zip|
+        zip.extract_all(output_dir)
+      end
+      
+      puts "✓ Processed: #{archive_path}"
+    rescue => e
+      puts "✗ Failed: #{archive_path} - #{e.message}"
+    end
+  end
+end
+
+archives = Dir.glob('archives/*.7z')
+parallel_process_archives(archives)
+----
+
+=== Example 3: Streaming Large File Compression
+
+[source,ruby]
+----
+def stream_compress_large_file(input_path, output_path)
+  chunk_size = 64 * 1024 * 1024  # 64MB chunks
+  
+  # Setup chunked reader and compressor
+  reader = Omnizip::Chunked::Reader.new(input_path, chunk_size: chunk_size)
+  compressor = Omnizip::Pipe::StreamCompressor.new(:lzma2, level: 9)
+  
+  File.open(output_path, 'wb') do |output|
+    reader.each_chunk.with_index do |chunk, idx|
+      compressed = compressor.compress(chunk)
+      output.write(compressed)
+      
+      # Progress
+      progress = ((idx + 1).to_f / reader.chunk_count * 100).round(1)
+      print "\rCompressing: #{progress}%"
+    end
+  end
+  
+  puts "\n✓ Compression complete"
+end
+
+stream_compress_large_file('huge_file.dat', 'huge_file.dat.lzma')
+----
+
+== See Also
+
+* link:compression-profiles.adoc[Compression Profiles]
+* link:format-converter.adoc[Format Converter]
+* link:performance-profiler.adoc[Performance Profiler]
+* link:../README.adoc[Main README]

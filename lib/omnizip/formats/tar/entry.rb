@@ -11,9 +11,8 @@ module Omnizip
       class Entry
         include Constants
 
-        attr_accessor :name, :mode, :uid, :gid, :size, :mtime
-        attr_accessor :typeflag, :linkname, :uname, :gname
-        attr_accessor :devmajor, :devminor, :prefix
+        attr_accessor :name, :mode, :uid, :gid, :size, :mtime, :typeflag,
+                      :linkname, :uname, :gname, :devmajor, :devminor, :prefix
         attr_reader :data
 
         # Initialize a new TAR entry

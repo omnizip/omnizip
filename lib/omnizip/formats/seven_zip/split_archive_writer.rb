@@ -40,7 +40,7 @@ module Omnizip
             algorithm: :lzma2,
             level: 5,
             solid: true,
-            filters: []
+            filters: [],
           }.merge(options)
           @split_options = split_options || Models::SplitOptions.new
           @split_options.validate!
@@ -133,7 +133,7 @@ module Omnizip
           compressor = StreamCompressor.new(
             algorithm: @options[:algorithm],
             level: @options[:level],
-            filters: @options[:filters]
+            filters: @options[:filters],
           )
 
           files_with_data = @entries.select(&:has_stream?)
@@ -143,6 +143,7 @@ module Omnizip
             result = compressor.compress_files(files_with_data)
             files_with_data.each_with_index do |entry, i|
               entry.crc = result[:crcs][i]
+              entry.size = result[:unpack_sizes][i]
             end
 
             {
@@ -150,11 +151,11 @@ module Omnizip
               folders: [{
                 method_id: compressor.method_id,
                 properties: compressor.properties,
-                unpack_size: result[:unpack_size]
+                unpack_size: result[:unpack_size],
               }],
               pack_sizes: [result[:packed_size]],
               unpack_sizes: result[:unpack_sizes],
-              digests: result[:crcs]
+              digests: result[:crcs],
             }
           else
             # Non-solid: compress each file separately
@@ -181,7 +182,7 @@ module Omnizip
               folders << {
                 method_id: compressor.method_id,
                 properties: compressor.properties,
-                unpack_size: data.bytesize
+                unpack_size: data.bytesize,
               }
             end
 
@@ -190,7 +191,7 @@ module Omnizip
               folders: folders,
               pack_sizes: pack_sizes,
               unpack_sizes: unpack_sizes,
-              digests: digests
+              digests: digests,
             }
           end
         end
@@ -208,9 +209,10 @@ module Omnizip
               pack_sizes: compressed_result[:pack_sizes],
               pack_crcs: [],
               folders: compressed_result[:folders],
-              digests: compressed_result[:digests]
+              unpack_sizes: compressed_result[:unpack_sizes],
+              digests: compressed_result[:digests],
             },
-            entries: @entries
+            entries: @entries,
           }
 
           header_writer.write_next_header(header_options)
@@ -238,6 +240,14 @@ module Omnizip
 
           while remaining.positive?
             available = @split_options.volume_size - @volumes.last.size
+
+            # If current volume is full, start a new one
+            if available <= 0
+              close_current_volume
+              start_continuation_volume
+              available = @split_options.volume_size
+            end
+
             chunk_size = [available, remaining].min
 
             if chunk_size.positive?
@@ -248,13 +258,6 @@ module Omnizip
               @global_offset += chunk_size
               offset += chunk_size
               remaining -= chunk_size
-            end
-
-            # Start new volume if needed
-            if remaining.positive? &&
-               @volumes.last.size >= @split_options.volume_size
-              close_current_volume
-              start_continuation_volume
             end
           end
         end
@@ -286,7 +289,7 @@ module Omnizip
           header_writer = HeaderWriter.new
           start_header = header_writer.write_start_header(
             header_data,
-            header_offset
+            header_offset,
           )
 
           # Open first volume and write start header

@@ -1,0 +1,309 @@
+---
+title: Omnizip vs 7-Zip
+nav_order: 3
+parent: Comparison
+---
+
+== Omnizip vs 7-Zip
+
+Comparison between Omnizip and the native 7-Zip compression tool.
+
+== Overview
+
+Omnizip is a pure Ruby implementation of 7-Zip algorithms, while 7-Zip is the original C++ implementation. This comparison helps you understand when to use each tool.
+
+== Key Differences
+
+[cols="40,30,30",options="header"]
+|===
+|Aspect |Omnizip |7-Zip
+
+|**Implementation**
+|Pure Ruby
+|C++
+
+|**Dependencies**
+|None
+|System libraries
+
+|**Performance**
+|10-60x slower
+|Optimized (baseline)
+
+|**Portability**
+|Runs anywhere Ruby runs
+|Requires compilation
+
+|**API**
+|Ruby API + CLI
+|CLI only
+
+|**Integration**
+|Native Ruby
+|External process
+
+|**Platforms**
+|All (Ruby)
+|Multi-platform
+
+|===
+
+== Feature Parity
+
+=== Supported Features
+
+**Both Support:**
+
+* LZMA/LZMA2 compression
+* BZip2 compression
+* PPMd compression
+* Deflate compression
+* BCJ filters (all architectures)
+* AES-256 encryption
+* Solid archives
+* .7z format (full compatibility)
+
+**7-Zip Advantages:**
+
+* Native performance
+* GUI application
+* SFX (self-extracting) archives
+* Multi-volume archives
+* Many additional formats (CAB, WIM, etc.)
+* Advanced recovery features
+
+**Omnizip Advantages:**
+
+* Pure Ruby (no compilation)
+* Programmatic Ruby API
+* Rubyzip compatibility
+* Better error messages
+* Easier debugging
+* No external dependencies
+
+== Performance Comparison
+
+=== Compression Speed
+
+**Test File:** 10KB text data, LZMA level 5
+
+* **Omnizip:** ~0.21s (pure Ruby)
+* **7-Zip:** ~0.015s (native C++)
+* **Ratio:** 14x slower
+
+=== Decompression Speed
+
+**Test File:** 10KB compressed data
+
+* **Omnizip:** ~0.03s (pure Ruby)
+* **7-Zip:** ~0.003s (native C++)
+* **Ratio:** 10x slower
+
+=== Memory Usage
+
+* **Omnizip:** Moderate (Ruby overhead)
+* **7-Zip:** Minimal (optimized C++)
+
+See link:../guides/performance-tuning.html[Performance Tuning] for detailed benchmarks.
+
+== Compatibility
+
+=== Archive Format
+
+**100% Compatible** - Archives created by either tool can be read by the other:
+
+[source,sh]
+----
+# Create with Omnizip
+omnizip archive create test.7z file.txt
+
+# Extract with 7-Zip
+7z x test.7z
+
+# Create with 7-Zip
+7z a test2.7z file.txt
+
+# Extract with Omnizip
+omnizip archive extract test2.7z
+----
+
+=== Algorithm Support
+
+Both implementations use the same algorithms:
+
+* LZMA SDK algorithms
+* Same compression levels
+* Same filter implementations
+* Compatible encryption
+
+== Use Cases
+
+=== Choose Omnizip When
+
+* **Ruby-native environment** - No compilation needed
+* **Programmatic control** - Direct Ruby API access
+* **Cross-platform** - Guaranteed Ruby portability
+* **Embedded in Ruby apps** - No external dependencies
+* **Development/testing** - Easy debugging in Ruby
+* **Moderate file sizes** - Performance acceptable
+
+[source,ruby]
+----
+# Native Ruby integration
+require 'omnizip'
+
+Omnizip::Archive.create('backup.7z') do |archive|
+  Dir.glob('**/*').each do |file|
+    archive.add_file(file) if File.file?(file)
+  end
+end
+----
+
+=== Choose 7-Zip When
+
+* **Maximum performance** - Critical path compression
+* **Very large files** - Multi-GB archives
+* **Production workloads** - High throughput needed
+* **GUI operations** - Visual file management
+* **Batch processing** - System-level operations
+* **Advanced features** - SFX, recovery, etc.
+
+[source,sh]
+----
+# Command-line batch processing
+7z a -t7z -m0=lzma2 -mx=9 backup.7z /data/*
+----
+
+== Integration Patterns
+
+=== Ruby Application with Omnizip
+
+[source,ruby]
+----
+require 'omnizip'
+
+class BackupService
+  def create_backup(source_dir, output_file)
+    Omnizip::Archive.create(output_file, format: :seven_zip) do |archive|
+      archive.add_directory(source_dir)
+    end
+  end
+
+  def restore_backup(archive_file, target_dir)
+    Omnizip::Archive.open(archive_file) do |archive|
+      archive.extract_all(target_dir)
+    end
+  end
+end
+----
+
+=== Ruby Application with 7-Zip (Shell)
+
+[source,ruby]
+----
+class BackupService
+  def create_backup(source_dir, output_file)
+    # Requires 7-Zip installed on system
+    system("7z a -t7z #{output_file} #{source_dir}/*")
+  end
+
+  def restore_backup(archive_file, target_dir)
+    system("7z x #{archive_file} -o#{target_dir}")
+  end
+end
+----
+
+== Benchmark Results
+
+=== Compression Ratio
+
+Both achieve identical compression ratios (same algorithms):
+
+[source,text]
+----
+Test File: 1MB text file
+
+Omnizip (LZMA, level 9): 245KB (75.9% reduction)
+7-Zip (LZMA, level 9):  245KB (75.9% reduction)
+
+Result: Identical compression
+----
+
+=== Processing Time
+
+[source,text]
+----
+File Size: 1MB
+Algorithm: LZMA, Level 5
+
+Omnizip:
+  Compression:   2.1s
+  Decompression: 0.3s
+
+7-Zip:
+  Compression:   0.15s
+  Decompression: 0.03s
+
+Result: 7-Zip is 10-15x faster
+----
+
+== Decision Matrix
+
+[cols="40,30,30",options="header"]
+|===
+|Requirement |Omnizip |7-Zip
+
+|Pure Ruby environment
+|✅ Perfect
+|❌ External
+
+|No dependencies
+|✅ None
+|❌ System install
+
+|Maximum performance
+|❌ Slower
+|✅ Optimized
+
+|Programmatic API
+|✅ Native
+|❌ Shell only
+
+|Large files (>100MB)
+|⚠️ Slower
+|✅ Fast
+
+|Ruby integration
+|✅ Direct
+|⚠️ Shell exec
+
+|Cross-platform
+|✅ Ruby
+|✅ Available
+
+|GUI interface
+|❌ None
+|✅ Available
+
+|===
+
+== Summary
+
+**Omnizip** and **7-Zip** are complementary tools:
+
+* **Same algorithms** - Identical compression ratios
+* **Same format** - 100% compatible archives
+* **Different goals** - Ruby integration vs. performance
+
+Choose based on your primary need:
+
+* **Ruby integration** → Omnizip
+* **Maximum speed** → 7-Zip
+
+Both can coexist in the same project!
+
+== See Also
+
+* link:feature-matrix.html[Complete Feature Matrix]
+* link:../guides/performance-tuning.html[Performance Tuning]
+* link:../getting-started/quick-start.html[Quick Start Guide]

@@ -133,9 +133,11 @@ module Omnizip
       # @yield [profile] Yields each profile
       # @yieldparam profile [CompressionProfile] A registered profile
       # @return [void]
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def each(&block)
         all.each(&block)
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Get profile information as hash
       #
@@ -151,7 +153,7 @@ module Omnizip
       # @return [String]
       def inspect
         @mutex.synchronize do
-          "#<#{self.class.name} profiles=#{@profiles.keys.join(", ")}>"
+          "#<#{self.class.name} profiles=#{@profiles.keys.join(', ')}>"
         end
       end
     end

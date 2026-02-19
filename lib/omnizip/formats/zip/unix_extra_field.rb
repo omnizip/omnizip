@@ -57,7 +57,7 @@ module Omnizip
           # Return with tag and size
           [
             UNIX_EXTRA_FIELD_TAG,
-            data.bytesize
+            data.bytesize,
           ].pack("vv") + data
         end
 
@@ -89,7 +89,7 @@ module Omnizip
             version: version,
             uid: uid,
             gid: gid,
-            link_target: link_target
+            link_target: link_target,
           )
         end
 
@@ -118,7 +118,7 @@ module Omnizip
             version: 1,
             uid: uid,
             gid: gid,
-            link_target: target
+            link_target: target,
           )
         end
 
@@ -128,7 +128,7 @@ module Omnizip
             version: 1,
             uid: uid,
             gid: gid,
-            link_target: nil
+            link_target: nil,
           )
         end
 
@@ -144,7 +144,7 @@ module Omnizip
             version: @version,
             uid: @uid,
             gid: @gid,
-            link_target: @link_target
+            link_target: @link_target,
           }
         end
       end

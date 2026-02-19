@@ -38,7 +38,7 @@ module Omnizip
       #
       # @return [String] Clear string
       def clear
-        "\r#{" " * width}\r"
+        "\r#{' ' * width}\r"
       end
 
       private
@@ -52,7 +52,7 @@ module Omnizip
         filled = ((percentage / 100.0) * bar_width).round
         empty = bar_width - filled
 
-        bar = "[#{"=" * filled}#{">" if filled.positive?}#{" " * [empty - 1,
+        bar = "[#{'=' * filled}#{'>' if filled.positive?}#{' ' * [empty - 1,
                                                                   0].max}]"
 
         if use_color
@@ -76,7 +76,7 @@ module Omnizip
         parts << format(
           "(%d/%d files)",
           progress.files_processed,
-          progress.operation_progress.total_files
+          progress.operation_progress.total_files,
         )
 
         # Current file (truncate if too long)
@@ -145,7 +145,7 @@ module Omnizip
           yellow: 33,
           red: 31,
           blue: 34,
-          cyan: 36
+          cyan: 36,
         }
 
         code = color_codes[color] || 0

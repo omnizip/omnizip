@@ -44,11 +44,11 @@ module Omnizip
 
         CliOutputFormatter.verbose_puts(
           "Decompressing #{input_file} to #{output_file}...",
-          verbose
+          verbose,
         )
         CliOutputFormatter.verbose_puts(
           "Algorithm: #{algorithm_name}",
-          verbose
+          verbose,
         )
 
         start_time = Time.now
@@ -65,7 +65,7 @@ module Omnizip
           puts CliOutputFormatter.format_compression_stats(
             output_size,
             input_size,
-            elapsed
+            elapsed,
           )
         else
           puts "Decompressed: #{input_file} -> #{output_file}"

@@ -14,7 +14,7 @@ RSpec.describe Omnizip::Models::AlgorithmMetadata do
         min_compression_level: 0,
         default_compression_level: 5,
         supports_streaming: true,
-        supports_multithreading: false
+        supports_multithreading: false,
       )
 
       expect(metadata.name).to eq("lzma")
@@ -47,7 +47,7 @@ RSpec.describe Omnizip::Models::AlgorithmMetadata do
         min_compression_level: 0,
         default_compression_level: 5,
         supports_streaming: true,
-        supports_multithreading: false
+        supports_multithreading: false,
       )
     end
 

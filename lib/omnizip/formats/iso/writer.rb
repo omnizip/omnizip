@@ -107,7 +107,7 @@ module Omnizip
           @files << {
             source: File.expand_path(file_path),
             iso_path: sanitize_path(iso_path),
-            stat: File.stat(file_path)
+            stat: File.stat(file_path),
           }
         end
 
@@ -141,7 +141,7 @@ module Omnizip
               @files,
               @directories,
               level: @level,
-              rock_ridge: @rock_ridge
+              rock_ridge: @rock_ridge,
             )
             dir_structure = builder.build
 
@@ -154,7 +154,7 @@ module Omnizip
               application: @application,
               level: @level,
               rock_ridge: @rock_ridge,
-              joliet: @joliet
+              joliet: @joliet,
             )
 
             # Write ISO structure
@@ -182,7 +182,7 @@ module Omnizip
             application: "OMNIZIP",
             level: 2,
             rock_ridge: true,
-            joliet: true
+            joliet: true,
           }
         end
 
@@ -195,12 +195,12 @@ module Omnizip
           @directories << {
             source: File.expand_path(dir_path),
             iso_path: iso_path,
-            stat: File.stat(dir_path)
+            stat: File.stat(dir_path),
           }
 
           # Add all contents
           Dir.foreach(dir_path) do |entry|
-            next if entry == "." || entry == ".."
+            next if [".", ".."].include?(entry)
 
             source_path = File.join(dir_path, entry)
             target_path = "#{iso_path}/#{entry}"
@@ -221,11 +221,11 @@ module Omnizip
           @directories << {
             source: File.expand_path(dir_path),
             iso_path: iso_path,
-            stat: File.stat(dir_path)
+            stat: File.stat(dir_path),
           }
 
           Dir.foreach(dir_path) do |entry|
-            next if entry == "." || entry == ".."
+            next if [".", ".."].include?(entry)
 
             source_path = File.join(dir_path, entry)
             next if File.directory?(source_path)
@@ -243,7 +243,9 @@ module Omnizip
           path = path.gsub(%r{^/+}, "").gsub(%r{/+$}, "")
 
           # Normalize separators
-          path.split("/").map { |component| sanitize_filename(component) }.join("/")
+          path.split("/").map do |component|
+            sanitize_filename(component)
+          end.join("/")
         end
 
         # Sanitize filename for ISO level
@@ -257,7 +259,8 @@ module Omnizip
             base = name.upcase.gsub(/[^A-Z0-9_]/, "_")[0, 8]
             ext = ""
             if name.include?(".")
-              ext = "." + name.split(".").last.upcase.gsub(/[^A-Z0-9]/, "")[0, 3]
+              ext = "." + name.split(".").last.upcase.gsub(/[^A-Z0-9]/, "")[0,
+                                                                            3]
             end
             base + ext
           when 2
@@ -302,8 +305,8 @@ module Omnizip
         #
         # @return [String] Terminator sector (2048 bytes)
         def build_terminator
-          sector = String.new
-          sector << [Iso::VD_TERMINATOR].pack("C")  # Type
+          sector = +""
+          sector << [Iso::VD_TERMINATOR].pack("C") # Type
           sector << VolumeDescriptor::ISO_IDENTIFIER # "CD001"
           sector << [1].pack("C")                    # Version
           sector << ("\x00" * (Iso::SECTOR_SIZE - 7))
@@ -327,7 +330,8 @@ module Omnizip
           io.write("\x00" * padding) if padding < Iso::SECTOR_SIZE
 
           # Big-endian path table (required by spec)
-          path_table_be = build_path_table(dir_structure[:directories], big_endian: true)
+          path_table_be = build_path_table(dir_structure[:directories],
+                                           big_endian: true)
           io.write(path_table_be)
 
           # Pad to sector boundary
@@ -341,9 +345,9 @@ module Omnizip
         # @param big_endian [Boolean] Use big-endian format
         # @return [String] Path table data
         def build_path_table(directories, big_endian: false)
-          table = String.new
+          table = +""
 
-          directories.each_with_index do |dir, idx|
+          directories.each_with_index do |dir, _idx|
             name = dir[:name]
             parent = dir[:parent_idx] || 1
 
@@ -403,7 +407,7 @@ module Omnizip
         # @param dir_info [Hash] Directory information
         # @return [String] Directory record data
         def build_directory_data(dir_info)
-          data = String.new
+          data = +""
 
           # Add "." entry (current directory)
           data << build_directory_entry("\x00", dir_info, is_self: true)
@@ -428,7 +432,7 @@ module Omnizip
         # @param is_self [Boolean] Is this the "." entry
         # @return [String] Directory entry record
         def build_directory_entry(name, entry_info, is_self:)
-          record = String.new
+          record = +""
 
           # Extended attribute length (0)
           ext_attr_len = 0
@@ -496,7 +500,7 @@ module Omnizip
             time.hour,         # Hour (0-23)
             time.min,          # Minute (0-59)
             time.sec,          # Second (0-59)
-            0                  # GMT offset (0 = GMT)
+            0, # GMT offset (0 = GMT)
           ].pack("C7")
         end
 

@@ -134,7 +134,7 @@ module Omnizip
             description: "Branch converter for PowerPC executables",
             architecture: "PowerPC",
             alignment: 4,
-            endian: "big"
+            endian: "big",
           }
         end
       end

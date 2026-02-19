@@ -20,9 +20,9 @@ module Benchmark
 
       # Register profiler strategies
       @profiler.register_profiler(:method,
-                                   Omnizip::Profiler::MethodProfiler.new)
+                                  Omnizip::Profiler::MethodProfiler.new)
       @profiler.register_profiler(:memory,
-                                   Omnizip::Profiler::MemoryProfiler.new)
+                                  Omnizip::Profiler::MemoryProfiler.new)
     end
 
     def run_all
@@ -122,7 +122,7 @@ module Benchmark
 
       return if suggestions.empty?
 
-      puts "\n#{"=" * 80}"
+      puts "\n#{'=' * 80}"
       puts "OPTIMIZATION SUGGESTIONS"
       puts "=" * 80
 

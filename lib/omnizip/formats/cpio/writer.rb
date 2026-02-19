@@ -52,10 +52,15 @@ module Omnizip
         # @raise [ArgumentError] if file doesn't exist
         def add_file(file_path, cpio_path = nil)
           raise ArgumentError, "File not found: #{file_path}" unless
-            File.exist?(file_path)
+            File.exist?(file_path) || File.symlink?(file_path)
 
-          cpio_path ||= file_path
-          stat = File.stat(file_path)
+          # Default to basename if no cpio_path specified
+          cpio_path = File.basename(file_path) if cpio_path.nil?
+          # Use lstat to not follow symlinks
+          stat = File.lstat(file_path)
+
+          # Normalize path: remove leading slashes to make relative
+          cpio_path = cpio_path.sub(%r{^/+}, "")
 
           # Read file data unless it's a symlink
           data = if File.symlink?(file_path)
@@ -81,8 +86,11 @@ module Omnizip
           raise ArgumentError, "Directory not found: #{dir_path}" unless
             Dir.exist?(dir_path)
 
-          cpio_path ||= dir_path
-          stat = File.stat(dir_path)
+          # Default to basename if no cpio_path specified
+          cpio_path = File.basename(dir_path) if cpio_path.nil?
+          # Normalize path: remove leading slashes to make relative
+          cpio_path = cpio_path.sub(%r{^/+}, "")
+          stat = File.lstat(dir_path)
 
           # Add directory entry
           entry = create_entry_from_stat(cpio_path, stat, "")
@@ -92,13 +100,14 @@ module Omnizip
           # Add contents if recursive
           if recursive
             Dir.foreach(dir_path) do |item|
-              next if item == "." || item == ".."
+              next if [".", ".."].include?(item)
 
               item_path = File.join(dir_path, item)
               item_cpio_path = "#{cpio_path}/#{item}"
 
               if File.directory?(item_path)
-                add_directory(item_path, recursive: true, cpio_path: item_cpio_path)
+                add_directory(item_path, recursive: true,
+                                         cpio_path: item_cpio_path)
               else
                 add_file(item_path, item_cpio_path)
               end
@@ -131,7 +140,7 @@ module Omnizip
         # @return [Symbol] Validated format
         # @raise [ArgumentError] if format invalid
         def validate_format(format)
-          unless [:newc, :crc, :odc].include?(format)
+          unless %i[newc crc odc].include?(format)
             raise ArgumentError, "Invalid CPIO format: #{format}. " \
                                  "Must be :newc, :crc, or :odc"
           end
@@ -161,7 +170,7 @@ module Omnizip
             namesize: path.bytesize + 1,
             checksum: @format == :crc ? calculate_checksum(data) : 0,
             name: path,
-            data: data
+            data: data,
           )
         end
 
@@ -205,7 +214,7 @@ module Omnizip
             namesize: TRAILER_NAME.bytesize + 1,
             checksum: 0,
             name: TRAILER_NAME,
-            data: ""
+            data: "",
           )
 
           write_entry(io, trailer)

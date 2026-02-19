@@ -182,7 +182,7 @@ module Omnizip
         Tempfile.new(
           ["omnizip_chunk_", ".tmp"],
           @temp_dir,
-          binmode: true
+          binmode: true,
         )
       end
     end

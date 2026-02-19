@@ -12,6 +12,8 @@ module Omnizip
     # Rubyzip-compatible File class
     # Provides drop-in replacement for Zip::File from rubyzip
     class File
+      include Enumerable
+
       attr_reader :name, :entries, :comment
 
       # Open a ZIP archive
@@ -20,12 +22,12 @@ module Omnizip
       # @param options [Hash] Additional options
       # @yield [file] Block to execute with the opened archive
       # @return [File] The opened archive (if no block given)
-      def self.open(file_path, create: false, **options, &block)
+      def self.open(file_path, create: false, **options)
         file = new(file_path, create: create, **options)
 
         if block_given?
           begin
-            block.call(file)
+            yield(file)
           ensure
             file.close
           end
@@ -69,12 +71,12 @@ module Omnizip
       # @param entry_name [String] Name in the archive
       # @param src_path [String, nil] Source file path (optional if block given)
       # @yield Block that returns content to add
-      def add(entry_name, src_path = nil, &block)
+      def add(entry_name, src_path = nil)
         # Handle directory entries (ending with /)
         if entry_name.end_with?("/") && !src_path && !block_given?
           add_directory(entry_name)
         elsif block_given?
-          data = block.call
+          data = yield
           add_data(entry_name, data)
         elsif src_path
           add_file_from_path(entry_name, src_path)
@@ -98,26 +100,30 @@ module Omnizip
       # @param entry [Entry, String] Entry object or name
       # @yield [stream] Block to read from the stream
       # @return [String] Entry content (if no block given)
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
       def get_input_stream(entry, &block)
         entry = get_entry(entry) if entry.is_a?(String)
         raise Errno::ENOENT, "Entry not found: #{entry}" unless entry
 
         content = read_entry_data(entry)
 
-        if block_given?
+        if block
           require "stringio"
           StringIO.open(content, "rb", &block)
         else
           content
         end
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters
       alias_method :read, :get_input_stream
 
       # Iterate over all entries
       # @yield [entry] Block to execute for each entry
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def each(&block)
         entries.each(&block)
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Extract an entry to a destination path
       # @param entry [Entry, String] Entry object or name
@@ -129,7 +135,7 @@ module Omnizip
         # Handle existing file
         if ::File.exist?(dest_path)
           if on_exists_proc
-            action = on_exists_proc.call(entry, dest_path)
+            action = yield(entry, dest_path)
             return if action == false
           else
             raise "Destination file already exists: #{dest_path}"
@@ -164,10 +170,12 @@ module Omnizip
       # Replace entry content
       # @param entry_name [String] Entry name
       # @param src_path [String, nil] Source file path
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def replace(entry_name, src_path = nil, &block)
         remove(entry_name)
         add(entry_name, src_path, &block)
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Get archive comment
       def comment
@@ -202,16 +210,17 @@ module Omnizip
       # Glob entries by pattern
       # @param pattern [String] Glob pattern
       # @return [Array<Entry>] Matching entries
+      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
       def glob(pattern, &block)
-        require "fnmatch"
         matching = entries.select { |e| ::File.fnmatch(pattern, e.name) }
 
-        if block_given?
+        if block
           matching.each(&block)
         else
           matching
         end
       end
+      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters
 
       # Extract files matching a pattern
       # @param pattern [String, Regexp, Array] Pattern(s) to match
@@ -258,7 +267,7 @@ module Omnizip
       # Get archive metadata
       # @return [Omnizip::Metadata::ArchiveMetadata] Archive metadata
       def metadata
-        @archive_metadata ||= Omnizip::Metadata::ArchiveMetadata.new(self)
+        @metadata ||= Omnizip::Metadata::ArchiveMetadata.new(self)
       end
 
       # Save metadata changes
@@ -272,7 +281,7 @@ module Omnizip
       def commit
         write_archive if @modified
         @modified = false
-        @reader = nil  # Invalidate reader after writing
+        @reader = nil # Invalidate reader after writing
       end
 
       # Close the archive
@@ -289,7 +298,9 @@ module Omnizip
         @reader = Omnizip::Formats::Zip::Reader.new(@name)
         @reader.read
 
-        @entries = @reader.entries.map { |header| Entry.new(header, filepath: @name) }
+        @entries = @reader.entries.map do |header|
+          Entry.new(header, filepath: @name)
+        end
       end
 
       # Add file from filesystem path
@@ -323,7 +334,7 @@ module Omnizip
 
       # Add directory entry
       def add_directory(entry_name)
-        entry_name = entry_name.end_with?("/") ? entry_name : "#{entry_name}/"
+        entry_name = "#{entry_name}/" unless entry_name.end_with?("/")
         header = create_header(entry_name, "", directory: true)
         entry = Entry.new(header, filepath: @name)
         @entries << entry
@@ -334,16 +345,22 @@ module Omnizip
         require_relative "../formats/zip/central_directory_header"
 
         now = Time.now
-        crc32 = directory ? 0 : Omnizip::Checksums::Crc32.new.tap { |c| c.update(data) }.value
+        crc32 = if directory
+                  0
+                else
+                  Omnizip::Checksums::Crc32.new.tap do |c|
+                    c.update(data)
+                  end.value
+                end
 
         external_attrs = if directory
-                          Omnizip::Formats::Zip::Constants::UNIX_DIR_PERMISSIONS |
-                            Omnizip::Formats::Zip::Constants::ATTR_DIRECTORY
-                        elsif stat
-                          (stat.mode & 0o777) << 16
-                        else
-                          Omnizip::Formats::Zip::Constants::UNIX_FILE_PERMISSIONS
-                        end
+                           Omnizip::Formats::Zip::Constants::UNIX_DIR_PERMISSIONS |
+                             Omnizip::Formats::Zip::Constants::ATTR_DIRECTORY
+                         elsif stat
+                           (stat.mode & 0o777) << 16
+                         else
+                           Omnizip::Formats::Zip::Constants::UNIX_FILE_PERMISSIONS
+                         end
 
         Omnizip::Formats::Zip::CentralDirectoryHeader.new(
           version_made_by: Omnizip::Formats::Zip::Constants::VERSION_MADE_BY_UNIX |
@@ -362,7 +379,7 @@ module Omnizip
           local_header_offset: 0, # Will be set during write
           filename: filename,
           extra_field: "",
-          comment: ""
+          comment: "",
         ).tap do |header|
           # Store original data in header for writing
           header.instance_variable_set(:@_original_data, data)
@@ -407,9 +424,9 @@ module Omnizip
 
           # Decompress
           @reader.send(:decompress_data,
-                      compressed_data,
-                      reader_entry.compression_method,
-                      reader_entry.uncompressed_size)
+                       compressed_data,
+                       reader_entry.compression_method,
+                       reader_entry.uncompressed_size)
         end
       end
 
@@ -423,7 +440,7 @@ module Omnizip
           ::File.binwrite(dest_path, content)
 
           # Set permissions if Unix
-          if entry.unix_perms > 0
+          if entry.unix_perms.positive?
             ::File.chmod(entry.unix_perms & 0o777, dest_path)
           end
         end
@@ -435,6 +452,7 @@ module Omnizip
         entry_data = {}
         entries.each do |entry|
           next if entry.directory?
+
           header = entry.header
           cached = header.instance_variable_get(:@_original_data)
           entry_data[entry.name] = cached || read_entry_data(entry)

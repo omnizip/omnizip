@@ -1,0 +1,247 @@
+= Compression Profiles
+:toc:
+:toclevels: 3
+
+== Purpose
+
+Compression profiles provide intelligent compression strategy selection based on file type, automatically choosing optimal algorithms and settings for different content types.
+
+== Available Profiles
+
+=== Built-in Profiles
+
+[cols="20,20,60",options="header"]
+|===
+|Profile |Algorithm |Best For
+
+|**Fast**
+|Deflate (level 1)
+|Quick compression, minimal CPU usage
+
+|**Balanced**
+|Deflate (level 6)
+|General-purpose compression (default)
+
+|**Maximum**
+|LZMA2 (level 9)
+|Maximum compression ratio, larger files
+
+|**Text**
+|PPMd7
+|Text files, source code, documents
+
+|**Binary**
+|LZMA2 + BCJ
+|Executables, compiled binaries
+
+|**Archive**
+|Store (no compression)
+|Pre-compressed archives (zip, 7z, etc.)
+|===
+
+== Using Profiles
+
+=== Explicit Profile Selection
+
+[source,ruby]
+----
+# Get a profile by name
+profile = Omnizip::Profile.get(:maximum)
+
+# Use profile for compression
+Omnizip::Formats::SevenZip::Writer.new('archive.7z', profile: profile) do |zip|
+  zip.add_file('large_file.dat')
+end
+----
+
+=== Auto-detection Based on File Type
+
+[source,ruby]
+----
+# Detect optimal profile for a file
+profile = Omnizip::Profile.detect('document.txt')
+puts "Selected: #{profile.name}"  # => :text
+
+# Apply detected profile
+Omnizip::Formats::SevenZip::Writer.new('archive.7z', profile: profile) do |zip|
+  zip.add_file('document.txt')
+end
+----
+
+=== Profile-based Compression
+
+[source,ruby]
+----
+# Compress with auto-detected profile
+files = ['app.exe', 'readme.txt', 'data.zip']
+
+Omnizip::Formats::SevenZip::Writer.new('backup.7z') do |zip|
+  files.each do |file|
+    # Auto-detect and apply optimal profile for each file
+    profile = Omnizip::Profile.detect(file)
+    zip.add_file(file, profile: profile)
+  end
+end
+----
+
+== Custom Profiles
+
+=== Creating Custom Profiles
+
+[source,ruby]
+----
+# Define a custom profile
+Omnizip::Profile.define(:my_profile) do |p|
+  p.algorithm = :lzma2
+  p.level = 7
+  p.filter = :bcj_x86
+  p.solid = true
+  p.description = "Custom profile for my use case"
+end
+
+# Use custom profile
+profile = Omnizip::Profile.get(:my_profile)
+----
+
+=== Extending Existing Profiles
+
+[source,ruby]
+----
+# Extend fast profile with slightly better compression
+Omnizip::Profile.define(:my_fast, base: :fast) do |p|
+  p.level = 2
+  p.description = "Slightly better than fast"
+end
+----
+
+== Profile Auto-detection
+
+=== By MIME Type
+
+The profile system automatically selects profiles based on file MIME types:
+
+[source,ruby]
+----
+# Text files → Text profile (PPMd7)
+Omnizip::Profile.for_file_type('text/plain')
+
+# Executables → Binary profile (LZMA2 + BCJ)
+Omnizip::Profile.for_file_type('application/x-executable')
+
+# Archives → Archive profile (Store)
+Omnizip::Profile.for_file_type('application/zip')
+----
+
+=== By File Category
+
+[source,ruby]
+----
+# Select by category
+Omnizip::Profile.for_file_type(:text)       # → text profile
+Omnizip::Profile.for_file_type(:executable) # → binary profile
+Omnizip::Profile.for_file_type(:archive)    # → archive profile
+----
+
+== Profile Configuration
+
+=== Profile Attributes
+
+Each profile has the following configurable attributes:
+
+[source,ruby]
+----
+profile = Omnizip::Profile.get(:maximum)
+
+profile.name         # => :maximum
+profile.algorithm    # => :lzma2
+profile.level        # => 9
+profile.filter       # => nil
+profile.solid        # => true
+profile.description  # => "Maximum compression..."
+----
+
+=== Listing Available Profiles
+
+[source,ruby]
+----
+# List all profile names
+Omnizip::Profile.list
+# => [:fast, :balanced, :maximum, :text, :binary, :archive]
+
+# Get profile details
+Omnizip::Profile.list.each do |name|
+  profile = Omnizip::Profile.get(name)
+  puts "#{name}: #{profile.description}"
+end
+----
+
+== Examples
+
+=== Example 1: Backup with Optimal Compression
+
+[source,ruby]
+----
+def backup_with_profiles(source_dir, archive_path)
+  Omnizip::Formats::SevenZip::Writer.new(archive_path) do |zip|
+    Dir.glob("#{source_dir}/**/*").each do |file|
+      next if File.directory?(file)
+      
+      # Auto-detect and use optimal profile
+      profile = Omnizip::Profile.detect(file)
+      relative_path = file.sub("#{source_dir}/", '')
+      
+      puts "Adding #{relative_path} with #{profile.name} profile"
+      zip.add_file(file, archive_path: relative_path, profile: profile)
+    end
+  end
+end
+
+backup_with_profiles('my_project/', 'backup.7z')
+----
+
+=== Example 2: Custom Profile for Log Files
+
+[source,ruby]
+----
+# Create specialized profile for log files
+Omnizip::Profile.define(:logs, base: :text) do |p|
+  p.level = 9           # Maximum compression for logs
+  p.solid = true        # Solid compression for similar files
+  p.description = "Optimized for log files"
+end
+
+# Use for log archival
+Dir.glob('logs/*.log').each do |log|
+  Omnizip::Formats::SevenZip::Writer.new("#{log}.7z", 
+                                          profile: :logs) do |zip|
+    zip.add_file(log)
+  end
+end
+----
+
+=== Example 3: Mixed Content with Auto-detection
+
+[source,ruby]
+----
+# Archive with mixed file types
+files = {
+  'report.pdf' => :balanced,      # Documents
+  'app.exe' => :binary,            # Executables
+  'source.cpp' => :text,           # Source code
+  'backup.zip' => :archive         # Pre-compressed
+}
+
+Omnizip::Formats::SevenZip::Writer.new('mixed.7z') do |zip|
+  files.each do |file, expected_profile|
+    profile = Omnizip::Profile.detect(file)
+    puts "#{file}: detected #{profile.name}, expected #{expected_profile}"
+    zip.add_file(file, profile: profile)
+  end
+end
+----
+
+== See Also
+
+* link:../README.adoc#compression-levels[Compression Levels]
+* link:advanced-features.adoc[Advanced Features]
+* link:performance-profiler.adoc[Performance Profiler]

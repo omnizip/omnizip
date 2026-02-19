@@ -8,7 +8,7 @@ RSpec.describe Omnizip::Formats::Zip::Writer do
   let(:writer) { described_class.new(output_path) }
 
   after do
-    File.delete(output_path) if File.exist?(output_path)
+    FileUtils.rm_f(output_path)
   end
 
   describe "#initialize" do
@@ -83,8 +83,6 @@ RSpec.describe Omnizip::Formats::Zip::Writer do
 
   describe "#write integration" do
     it "creates archive readable by Reader" do
-      skip "Requires working Reader implementation"
-
       data = "Test content for round-trip"
       writer.add_data("roundtrip.txt", data)
       writer.write

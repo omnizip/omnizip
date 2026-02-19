@@ -1,0 +1,114 @@
+---
+title: compress - Compress Files
+nav_order: 52
+parent: Reference
+---
+
+== compress Command
+
+=== General
+
+Compress individual files using various compression algorithms.
+
+=== Syntax
+
+[source,bash]
+----
+omnizip compress [OPTIONS] INPUT OUTPUT
+----
+
+=== Arguments
+
+`INPUT`:: Input file path (use `-` for stdin)
+`OUTPUT`:: Output file path (use `-` for stdout)
+
+=== Options
+
+`--algorithm ALGORITHM`:: Compression algorithm (default: lzma)
+`--format FORMAT`:: Archive format (zip, 7z) for pipe mode
+`--level LEVEL`:: Compression level (1-9, default: 5)
+`--entry-name NAME`:: Entry name for pipe mode
+`--verbose`, `-v`:: Enable verbose output
+
+=== Examples
+
+==== Basic Compression
+
+[source,bash]
+----
+omnizip compress input.txt output.lzma
+----
+
+==== With Algorithm
+
+[source,bash]
+----
+# LZMA
+omnizip compress input.txt output.lzma --algorithm lzma
+
+# BZip2
+omnizip compress input.txt output.bz2 --algorithm bzip2
+
+# Zstandard
+omnizip compress input.txt output.zst --algorithm zstandard
+----
+
+==== With Level
+
+[source,bash]
+----
+# Fast
+omnizip compress input.txt output.lzma --level 1
+
+# Maximum
+omnizip compress input.txt output.lzma --level 9
+----
+
+==== Pipe Mode
+
+[source,bash]
+----
+# From stdin
+cat input.txt | omnizip compress - output.lzma
+
+# To stdout
+omnizip compress input.txt - > output.lzma
+
+# Full pipe
+cat input.txt | omnizip compress - - | other-command
+----
+
+==== With Format
+
+[source,bash]
+----
+# Create ZIP
+cat input.txt | omnizip compress - output.zip --format zip
+
+# Create 7z
+cat input.txt | omnizip compress - output.7z --format 7z
+----
+
+=== Algorithms
+
+Available algorithms:
+
+* `lzma` - LZMA compression
+* `lzma2` - LZMA2 compression (default)
+* `bzip2` - BZip2 compression
+* `ppmd7` - PPMd7 compression
+* `deflate` - Deflate compression
+* `zstandard` - Zstandard compression
+
+=== Performance Tips
+
+1. **Use level 1-3** for temporary files
+2. **Use level 5-7** for general compression
+3. **Use level 8-9** for long-term storage
+4. **Use Zstandard** for speed-sensitive applications
+5. **Use LZMA2** for maximum compression
+
+=== See Also
+
+* link:overview.html[CLI Overview] - Command-line interface
+* link:../api/overview.html[Ruby API Overview] - Programmatic interface

@@ -55,7 +55,7 @@ module Omnizip
       # @param pattern [String] Glob pattern
       # @return [String] Regex pattern
       def glob_to_regex(pattern)
-        result = String.new
+        result = +""
         i = 0
 
         while i < pattern.length
@@ -102,7 +102,7 @@ module Omnizip
               alternatives = pattern[(i + 1)...j].split(",")
               # Convert each alternative recursively
               alt_patterns = alternatives.map { |alt| glob_to_regex(alt) }
-              result << "(?:#{alt_patterns.join("|")})"
+              result << "(?:#{alt_patterns.join('|')})"
               i = j
             else
               # Unclosed brace, treat as literal

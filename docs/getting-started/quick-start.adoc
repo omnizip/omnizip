@@ -1,0 +1,185 @@
+---
+title: Quick Start
+nav_order: 2
+parent: Getting Started
+---
+
+== Quick Start
+
+=== General
+
+Get started with Omnizip in 5 minutes. This guide covers the most common operations.
+
+=== Installing Omnizip
+
+First, install the gem:
+
+[source,bash]
+----
+gem install omnizip
+----
+
+Or add to your Gemfile:
+
+[source,ruby]
+----
+gem 'omnizip'
+----
+
+Then run `bundle install`.
+
+=== Compressing a File
+
+==== Command Line
+
+[source,bash]
+----
+omnizip compress input.txt output.lzma --level 9
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip.compress_file('input.txt', 'output.lzma', level: 9)
+----
+
+=== Creating an Archive
+
+==== Command Line
+
+[source,bash]
+----
+omnizip archive create backup.7z documents/ photos/
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z')
+writer.add_directory('documents/')
+writer.add_directory('photos/')
+writer.close
+----
+
+=== Extracting an Archive
+
+==== Command Line
+
+[source,bash]
+----
+omnizip archive extract backup.7z output/
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
+reader.extract_all('output/')
+reader.close
+----
+
+=== Listing Archive Contents
+
+==== Command Line
+
+[source,bash]
+----
+omnizip archive list backup.7z
+----
+
+==== Ruby API
+
+[source,ruby]
+----
+require 'omnizip'
+
+reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
+reader.open
+reader.each_file do |entry|
+  puts "#{entry.name}: #{entry.size} bytes"
+end
+reader.close
+----
+
+=== Using Different Compression Algorithms
+
+==== LZMA (High Compression)
+
+[source,bash]
+----
+omnizip compress input.txt output.lzma --algorithm lzma --level 9
+----
+
+[source,ruby]
+----
+Omnizip.compress_file('input.txt', 'output.lzma',
+  algorithm: :lzma,
+  level: 9
+)
+----
+
+==== BZip2 (Text Files)
+
+[source,bash]
+----
+omnizip compress input.txt output.bz2 --algorithm bzip2 --level 9
+----
+
+[source,ruby]
+----
+Omnizip.compress_file('input.txt', 'output.bz2',
+  algorithm: :bzip2,
+  level: 9
+)
+----
+
+==== Zstandard (Fast)
+
+[source,bash]
+----
+omnizip compress input.txt output.zst --algorithm zstandard --level 3
+----
+
+[source,ruby]
+----
+Omnizip.compress_file('input.txt', 'output.zst',
+  algorithm: :zstandard,
+  level: 3
+)
+----
+
+=== Common Compression Levels
+
+[cols="1,2,2"]
+|===
+|Level |Speed |Ratio
+
+|0-1
+|Fastest
+|Low (2-3x)
+
+|3-5
+|Fast
+|Medium (3-5x)
+
+|7-9
+|Slow
+|High (5-10x)
+|===
+
+=== Next Steps
+
+* link:your-first-archive[Create Your First Archive] - More detailed examples
+* link:../guides/basic-usage[Basic Usage Guide] - Comprehensive operations guide
+* link:../guides/compression-algorithms/[Compression Algorithms] - Algorithm details
+* link:../reference/cli[CLI Reference] - Complete command documentation
+* link:../reference/api[API Reference] - Complete Ruby API documentation

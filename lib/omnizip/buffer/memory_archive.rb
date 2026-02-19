@@ -79,9 +79,9 @@ module Omnizip
       #
       # @example Add with block
       #   archive.add_data('file.txt') { File.read('source.txt') }
-      def add_data(name, **options, &block)
+      def add_data(name, **options)
         ensure_write_mode!
-        data = block.call
+        data = yield
         add(name, data, **options)
       end
 
@@ -98,14 +98,14 @@ module Omnizip
       #   end
       #
       # @raise [RuntimeError] If stream is not an InputStream
-      def each_entry(&block)
+      def each_entry
         ensure_read_mode!
 
         case stream
         when Omnizip::Zip::InputStream
           while (zip_entry = stream.get_next_entry)
             entry = Entry.new(zip_entry, stream)
-            block.call(entry)
+            yield(entry)
           end
         else
           raise NotImplementedError,

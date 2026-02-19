@@ -11,6 +11,7 @@ module Omnizip
         SIGNATURE_SIZE = 6
         START_HEADER_SIZE = 32 # 0x20
         MAJOR_VERSION = 0
+        MINOR_VERSION = 4
 
         # Property IDs for .7z format structure
         module PropertyId
@@ -80,6 +81,14 @@ module Omnizip
           BCJ_ARM = 0x03030501
           BCJ_ARMT = 0x03030701
           BCJ_SPARC = 0x03030805
+          ARM64 = 0x03030601
+
+          # BCJ2 filter
+          BCJ2 = 0x03030111
+
+          # Swap filters for byte order conversion
+          SWAP2 = 0x03030204
+          SWAP4 = 0x03030208
 
           # Delta filter
           DELTA = 0x03
@@ -93,8 +102,17 @@ module Omnizip
             when BCJ_ARMT then "BCJ-ARMT"
             when BCJ_SPARC then "BCJ-SPARC"
             when DELTA then "Delta"
+            when ARM64 then "BCJ-ARM64"
+            when BCJ2 then "BCJ2"
+            when SWAP2 then "Swap2"
+            when SWAP4 then "Swap4"
             else "Unknown(0x#{id.to_s(16)})"
             end
+          end
+
+          def self.bcj_filter?(id)
+            [BCJ_X86, BCJ_PPC, BCJ_IA64, BCJ_ARM, BCJ_ARMT, BCJ_SPARC,
+             ARM64].include?(id)
           end
         end
 

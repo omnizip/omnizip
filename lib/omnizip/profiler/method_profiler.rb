@@ -29,7 +29,7 @@ module Omnizip
           total_time: wall_time,
           wall_time: wall_time,
           gc_runs: gc_runs,
-          call_count: @call_counts[operation_name]
+          call_count: @call_counts[operation_name],
         )
       end
 

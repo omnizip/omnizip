@@ -43,7 +43,7 @@ module Omnizip
           @output = output
           @model = Model.new(
             options[:model_order] || Model::DEFAULT_ORDER,
-            options[:mem_size] || Model::DEFAULT_MEM_SIZE
+            options[:mem_size] || Model::DEFAULT_MEM_SIZE,
           )
           @range_encoder = LZMA::RangeEncoder.new(output)
         end
@@ -80,7 +80,7 @@ module Omnizip
           encode_range(
             prob[:cumulative_freq],
             prob[:freq],
-            prob[:total_freq]
+            prob[:total_freq],
           )
           if prob[:escape]
             # Encode escape and try shorter context
@@ -109,7 +109,7 @@ module Omnizip
           encode_range(
             root_prob[:cumulative_freq],
             root_prob[:freq],
-            root_prob[:total_freq]
+            root_prob[:total_freq],
           )
         end
 
@@ -133,7 +133,7 @@ module Omnizip
           {
             cumulative_freq: cum_freq,
             freq: state.freq,
-            total_freq: context.total_freq
+            total_freq: context.total_freq,
           }
         end
 

@@ -9,10 +9,10 @@ module Omnizip
       # for different CPIO archive formats.
       module Constants
         # Magic numbers for different CPIO formats
-        MAGIC_BINARY = 0o070707       # Old binary format
-        MAGIC_ODC = "070707".freeze   # Old portable ASCII format
-        MAGIC_NEWC = "070701".freeze  # New ASCII format (SVR4, most common)
-        MAGIC_CRC = "070702".freeze   # New ASCII with CRC
+        MAGIC_BINARY = 0o070707 # Old binary format
+        MAGIC_ODC = "070707"   # Old portable ASCII format
+        MAGIC_NEWC = "070701"  # New ASCII format (SVR4, most common)
+        MAGIC_CRC = "070702"   # New ASCII with CRC
 
         # File type masks (from POSIX)
         S_IFMT = 0o170000   # File type mask
@@ -45,7 +45,7 @@ module Omnizip
         NEWC_HEADER_SIZE = 110
 
         # Trailer entry name
-        TRAILER_NAME = "TRAILER!!!".freeze
+        TRAILER_NAME = "TRAILER!!!"
 
         # Alignment for newc format (4 bytes)
         NEWC_ALIGNMENT = 4

@@ -113,7 +113,7 @@ module Omnizip
       #
       # @return [Omnizip::Models::ParallelOptions] configuration
       def default_config
-        @config ||= Omnizip::Models::ParallelOptions.new
+        @default_config ||= Omnizip::Models::ParallelOptions.new
       end
 
       # Reset configuration to defaults

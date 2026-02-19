@@ -34,7 +34,7 @@ module Omnizip
 
       # Execute the archive create command.
       #
-      # @param output_file [String] Path to output .7z archive
+      # @param output_file [String] Path to output archive
       # @param inputs [Array<String>] Paths to files/directories to archive
       # @return [void]
       def run(output_file, *inputs)
@@ -47,6 +47,161 @@ module Omnizip
           opts = apply_profile(first_file, opts)
         end
 
+        # Determine format from extension or --format option
+        format = opts[:format] || detect_format(output_file)
+
+        if format == "rar"
+          create_rar_archive(output_file, inputs, opts)
+        else
+          create_7z_archive(output_file, inputs, opts)
+        end
+      end
+
+      private
+
+      def detect_format(filename)
+        case File.extname(filename).downcase
+        when ".rar" then "rar"
+        else "7z"
+        end
+      end
+
+      def create_rar_archive(output_file, inputs, opts)
+        version = opts[:rar_version] || 5
+        compression = (opts[:rar_compression] || "store").to_sym
+        level = opts[:level] || 3
+        include_mtime = opts[:include_mtime] || false
+        include_crc32 = opts[:include_crc32] || false
+        solid = opts[:solid] || false
+        multi_volume = opts[:multi_volume] || false
+        volume_size = opts[:volume_size]
+        volume_naming = opts[:volume_naming] || "part"
+        password = opts[:password]
+        kdf_iterations = opts[:kdf_iterations] || 262_144
+        recovery = opts[:recovery] || false
+        recovery_percent = opts[:recovery_percent] || 5
+        verbose = opts[:verbose] || false
+
+        if verbose
+          CliOutputFormatter.verbose_puts(
+            "Creating RAR#{version} archive: #{output_file}",
+            true,
+          )
+          CliOutputFormatter.verbose_puts(
+            "Compression: #{compression}, Level: #{level}",
+            true,
+          )
+          CliOutputFormatter.verbose_puts(
+            "Include mtime: #{include_mtime}, Include CRC32: #{include_crc32}",
+            true,
+          )
+          if solid
+            CliOutputFormatter.verbose_puts(
+              "Solid compression: enabled",
+              true,
+            )
+          end
+          if multi_volume && volume_size
+            CliOutputFormatter.verbose_puts(
+              "Multi-volume: enabled (size: #{volume_size}, naming: #{volume_naming})",
+              true,
+            )
+          end
+          if password
+            CliOutputFormatter.verbose_puts(
+              "Encryption: enabled (AES-256-CBC, KDF iterations: #{kdf_iterations})",
+              true,
+            )
+          end
+          if recovery
+            CliOutputFormatter.verbose_puts(
+              "PAR2 recovery: enabled (redundancy: #{recovery_percent}%)",
+              true,
+            )
+          end
+        end
+
+        start_time = Time.now
+
+        require_relative "../formats/rar"
+
+        writer_opts = {
+          version: version,
+          compression: compression,
+          level: level,
+          include_mtime: include_mtime,
+          include_crc32: include_crc32,
+        }
+
+        # Add solid compression for RAR5
+        writer_opts[:solid] = solid if version == 5 && solid
+
+        # Add multi-volume options for RAR5
+        if version == 5 && multi_volume && volume_size
+          writer_opts[:multi_volume] = true
+          writer_opts[:volume_size] = volume_size
+          writer_opts[:volume_naming] = volume_naming
+        end
+
+        # Add encryption options for RAR5
+        if version == 5 && password
+          writer_opts[:password] = password
+          writer_opts[:kdf_iterations] = kdf_iterations
+        end
+
+        # Add recovery options for RAR5
+        if version == 5 && recovery
+          writer_opts[:recovery] = true
+          writer_opts[:recovery_percent] = recovery_percent
+        end
+
+        result_files = Omnizip::Formats::Rar.create(output_file,
+                                                    writer_opts) do |rar|
+          inputs.each do |input|
+            if File.directory?(input)
+              raise ArgumentError,
+                    "RAR5 writer does not support directories yet. Add individual files."
+            else
+              CliOutputFormatter.verbose_puts(
+                "Adding file: #{input}",
+                verbose,
+              )
+              rar.add_file(input)
+            end
+          end
+        end
+
+        elapsed = Time.now - start_time
+
+        # Handle result based on whether recovery or multi-volume is enabled
+        files = result_files.is_a?(Array) ? result_files : [result_files]
+        files.find { |f| f.end_with?(".rar") } || files.first
+        archive_size = files.sum { |f| File.size(f) }
+
+        if verbose
+          puts ""
+          puts "Archive created successfully"
+          if files.size > 1
+            puts "Files created: #{files.size}"
+            puts "  Archive volumes: #{files.count { |f| f.end_with?('.rar') }}"
+            if recovery
+              puts "  PAR2 files: #{files.count { |f| f.include?('.par2') }}"
+            end
+            puts "Total size: #{format_bytes(archive_size)}"
+          else
+            puts "Archive size: #{format_bytes(archive_size)}"
+          end
+          puts "Time elapsed: #{elapsed.round(2)}s"
+        elsif files.size == 1
+          puts "Created: #{files.first}"
+        else
+          puts "Created: #{files.size} files (#{files.count do |f|
+            f.end_with?('.rar')
+          end} volumes)"
+        end
+      end
+
+      def create_7z_archive(output_file, inputs, opts)
         algorithm = (opts[:algorithm] || "lzma2").to_sym
         level = opts[:level] || 5
         solid = opts.fetch(:solid, true)
@@ -60,44 +215,44 @@ module Omnizip
         if verbose
           CliOutputFormatter.verbose_puts(
             "Creating archive: #{output_file}",
-            true
+            true,
           )
           CliOutputFormatter.verbose_puts(
             "Algorithm: #{algorithm}, Level: #{level}, " \
             "Solid: #{solid}",
-            true
+            true,
           )
           if volume_size
             CliOutputFormatter.verbose_puts(
               "Volume size: #{format_bytes(volume_size)}",
-              true
+              true,
             )
           end
           unless filters.empty?
             CliOutputFormatter.verbose_puts(
-              "Filters: #{filters.join(", ")}",
-              true
+              "Filters: #{filters.join(', ')}",
+              true,
             )
           end
           if encrypt_headers
             CliOutputFormatter.verbose_puts(
               "Header encryption: enabled",
-              true
+              true,
             )
           end
           if preserve_ntfs_streams && Omnizip::Platform.supports_ntfs_streams?
             CliOutputFormatter.verbose_puts(
               "NTFS streams: preserving",
-              true
+              true,
             )
           end
         end
 
         start_time = Time.now
 
-        create_archive(output_file, inputs, algorithm, level, solid,
-                       filters, volume_size, password, encrypt_headers,
-                       preserve_ntfs_streams, verbose)
+        create_7z_archive_writer(output_file, inputs, algorithm, level, solid,
+                                 filters, volume_size, password, encrypt_headers,
+                                 preserve_ntfs_streams, verbose)
 
         elapsed = Time.now - start_time
 
@@ -117,8 +272,6 @@ module Omnizip
           puts "Created: #{output_file}"
         end
       end
-
-      private
 
       def validate_inputs(output_file, inputs)
         raise Omnizip::IOError, "No input files specified" if
@@ -148,14 +301,14 @@ module Omnizip
         filter_str.split(",").map(&:strip).map(&:to_sym)
       end
 
-      def create_archive(output_file, inputs, algorithm, level, solid,
+      def create_7z_archive_writer(output_file, inputs, algorithm, level, solid,
                          filters, volume_size, password, encrypt_headers,
-                         preserve_ntfs_streams, verbose)
+                         _preserve_ntfs_streams, verbose)
         writer_opts = {
           algorithm: algorithm,
           level: level,
           solid: solid,
-          filters: filters
+          filters: filters,
         }
         writer_opts[:volume_size] = volume_size if volume_size
         writer_opts[:password] = password if password
@@ -167,13 +320,13 @@ module Omnizip
           if File.directory?(input)
             CliOutputFormatter.verbose_puts(
               "Adding directory: #{input}",
-              verbose
+              verbose,
             )
             writer.add_directory(input)
           else
             CliOutputFormatter.verbose_puts(
               "Adding file: #{input}",
-              verbose
+              verbose,
             )
             writer.add_file(input)
           end
@@ -222,7 +375,7 @@ module Omnizip
           # Check directories for first file
           if File.directory?(input)
             Dir.foreach(input) do |entry|
-              next if entry == "." || entry == ".."
+              next if [".", ".."].include?(entry)
 
               full_path = File.join(input, entry)
               return full_path if File.file?(full_path)

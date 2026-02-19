@@ -55,7 +55,7 @@ module Omnizip
           {
             available: true,
             executable: exe,
-            version: version
+            version: version,
           }
         end
 
@@ -63,7 +63,7 @@ module Omnizip
         #
         # @return [String, nil] Path to executable or nil
         def self.find_rar_executable
-          if RUBY_PLATFORM =~ /win32|mingw/
+          if RUBY_PLATFORM.match?(/win32|mingw/)
             find_windows_rar
           else
             find_unix_rar
@@ -104,7 +104,7 @@ module Omnizip
 
           @files << {
             source: File.expand_path(file_path),
-            archive_path: archive_path
+            archive_path: archive_path,
           }
         end
 
@@ -121,7 +121,7 @@ module Omnizip
           @directories << {
             source: File.expand_path(dir_path),
             recursive: recursive,
-            archive_path: archive_path
+            archive_path: archive_path,
           }
         end
 
@@ -162,7 +162,7 @@ module Omnizip
             password: nil,
             volume_size: nil,
             test_after_create: false,
-            license_confirmed: false
+            license_confirmed: false,
           }
         end
 
@@ -275,7 +275,7 @@ module Omnizip
           # Check common installation paths
           paths = [
             "C:\\Program Files\\WinRAR\\Rar.exe",
-            "C:\\Program Files (x86)\\WinRAR\\Rar.exe"
+            "C:\\Program Files (x86)\\WinRAR\\Rar.exe",
           ]
 
           # Check PATH

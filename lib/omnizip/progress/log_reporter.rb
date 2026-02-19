@@ -43,14 +43,14 @@ module Omnizip
             progress.operation_progress.total_bytes,
             progress.current_file || "unknown",
             progress.rate_formatted,
-            progress.eta_formatted
+            progress.eta_formatted,
           )
         else
           log_file.puts format(
             "[%s] Progress: %.1f%% - %s",
             timestamp,
             progress.percentage,
-            progress.current_file || "processing"
+            progress.current_file || "processing",
           )
         end
 
@@ -66,7 +66,7 @@ module Omnizip
           "[%s] Started: %d files, %d bytes",
           timestamp,
           progress.operation_progress.total_files,
-          progress.operation_progress.total_bytes
+          progress.operation_progress.total_bytes,
         )
         log_file.flush
       end
@@ -79,7 +79,7 @@ module Omnizip
         log_file.puts format(
           "[%s] Completed in %.2fs",
           timestamp,
-          progress.elapsed_seconds
+          progress.elapsed_seconds,
         )
         log_file.flush
 

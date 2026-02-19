@@ -1,0 +1,246 @@
+---
+title: Parallel Processing
+nav_order: 2
+parent: Advanced Features
+grand_parent: Guides
+---
+
+== Purpose
+
+Parallel processing leverages multiple CPU cores to significantly speed up compression and extraction operations. This feature allows you to process large archives or multiple files simultaneously, reducing overall processing time.
+
+== Benefits
+
+* **2-3x Faster**: Achieve 2-3x speedup on multi-core systems
+* **Better Resource Utilization**: Use all available CPU cores effectively
+* **Reduced Wait Time**: Process large batches of files quickly
+* **Scalable**: Performance improves with more CPU cores
+
+== When to Use Parallel Processing
+
+[cols="1,3"]
+|===
+|Scenario |Parallel Benefit
+
+|Large Archives (>100 files)
+|Distribute file processing across cores
+
+|Batch Operations
+|Process multiple archives simultaneously
+
+|Multi-core Servers
+|Maximize server resource utilization
+
+|Time-Critical Tasks
+|Reduce processing time for urgent operations
+|===
+
+== Parallel Compression
+
+=== Compress Directory in Parallel
+
+Automatically distribute files across available cores:
+
+[source,ruby]
+----
+# Compress using all available cores
+Omnizip.compress_directory(
+  'large_project/',
+  'backup.zip',
+  parallel: true,
+  threads: 4  # Or omit to use all cores
+)
+----
+
+=== Custom Thread Count
+
+Control the number of parallel workers:
+
+[source,ruby]
+----
+# Use specific number of threads
+Omnizip::Archive.create('archive.7z', format: :seven_zip) do |archive|
+  archive.add_directory(
+    'data/',
+    parallel: true,
+    threads: 8,  # Use 8 worker threads
+    chunk_size: 1.megabyte  # Process 1MB chunks
+  )
+end
+----
+
+== Parallel Extraction
+
+=== Extract Multiple Files Simultaneously
+
+Extract files in parallel for faster extraction:
+
+[source,ruby]
+----
+# Extract with parallel processing
+Omnizip.extract_archive(
+  'large-archive.zip',
+  'output/',
+  parallel: true,
+  threads: 4
+)
+----
+
+=== With Progress Tracking
+
+Combine parallel processing with progress monitoring:
+
+[source,ruby]
+----
+Omnizip.extract_archive('backup.zip', 'restored/') do |progress|
+  puts "Extracted #{progress.files_processed}/#{progress.total_files} files"
+  puts "Using #{progress.active_threads} parallel threads"
+  puts "Speed: #{progress.throughput_mb_s} MB/s"
+end
+----
+
+== Performance Characteristics
+
+[cols="2,1,1,1,1"]
+|===
+|Workload |1 Thread |2 Threads |4 Threads |8 Threads
+
+|100 small files
+|10s
+|6s
+|4s
+|3s
+
+|10 large files
+|60s
+|35s
+|20s
+|15s
+
+|Mixed workload
+|30s
+|18s
+|12s
+|10s
+|===
+
+*Note: Performance varies based on CPU, disk speed, and file characteristics.*
+
+== Configuration Options
+
+=== Thread Count
+
+Control parallelism level:
+
+[source,ruby]
+----
+# Auto-detect (recommended)
+parallel: true
+
+# Specific thread count
+parallel: true, threads: 4
+
+# Match CPU cores
+parallel: true, threads: Etc.nprocessors
+----
+
+=== Chunk Size
+
+Configure work distribution:
+
+[source,ruby]
+----
+# Smaller chunks = better distribution, more overhead
+chunk_size: 512.kilobytes
+
+# Larger chunks = less overhead, less parallel benefit
+chunk_size: 10.megabytes
+
+# Default: 1MB (good balance)
+chunk_size: 1.megabyte
+----
+
+== Use Cases
+
+=== Server Deployments
+
+Maximize server hardware utilization:
+
+[source,ruby]
+----
+# Backup server with 16 cores
+Omnizip.compress_directory(
+  '/var/www/',
+  '/backups/www-backup.7z',
+  format: :seven_zip,
+  compression: :lzma2,
+  parallel: true,
+  threads: 16
+)
+----
+
+=== Batch Processing
+
+Process multiple archives efficiently:
+
+[source,ruby]
+----
+# Extract multiple archives in parallel
+archives = Dir.glob('downloads/*.zip')
+
+archives.each_slice(4) do |batch|
+  threads = batch.map do |archive|
+    Thread.new do
+      Omnizip.extract_archive(
+        archive,
+        "extracted/#{File.basename(archive, '.zip')}/"
+      )
+    end
+  end
+
+  threads.each(&:join)
+end
+----
+
+== Best Practices
+
+. **Match Thread Count to Cores**: Use `Etc.nprocessors` for optimal performance
+. **Consider Disk I/O**: More threads may not help with slow disks
+. **Monitor Memory**: Each thread uses additional memory
+. **Test Your Workload**: Measure actual speedup for your use case
+. **Combine with Streaming**: Use both for maximum efficiency
+
+== Limitations
+
+* Ruby GIL limits true parallelism (use JRuby for better results)
+* Memory usage increases with thread count
+* I/O-bound operations see less benefit
+* Very small files have overhead from thread management
+
+== Platform Considerations
+
+[cols="1,3"]
+|===
+|Platform |Notes
+
+|MRI Ruby
+|Limited by GIL, 2-3x speedup typical
+
+|JRuby
+|No GIL, better parallel scalability
+
+|TruffleRuby
+|Excellent parallel performance
+
+|Windows
+|Similar performance to Unix systems
+
+|Linux/macOS
+|Full parallel processing support
+|===
+
+== See Also
+
+* link:streaming.html[Streaming] - Combine for memory efficiency
+* link:progress-tracking.html[Progress Tracking] - Monitor parallel operations
+* link:../../compatibility.html[Compatibility] - Format support for parallel processing

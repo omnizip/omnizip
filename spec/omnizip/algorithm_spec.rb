@@ -9,7 +9,7 @@ RSpec.describe Omnizip::Algorithm do
         Omnizip::Models::AlgorithmMetadata.new(
           name: "test",
           description: "Test algorithm",
-          version: "1.0"
+          version: "1.0",
         )
       end
     end

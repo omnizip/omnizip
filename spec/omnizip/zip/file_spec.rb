@@ -48,9 +48,9 @@ RSpec.describe Omnizip::Zip::File do
 
     context "with non-existent file" do
       it "raises error without create flag" do
-        expect {
+        expect do
           described_class.open("nonexistent.zip")
-        }.to raise_error(Errno::ENOENT)
+        end.to raise_error(Errno::ENOENT)
       end
     end
   end
@@ -107,9 +107,9 @@ RSpec.describe Omnizip::Zip::File do
 
     it "raises error without source or block" do
       described_class.open(zip_path, create: true) do |zip|
-        expect {
+        expect do
           zip.add("test.txt")
-        }.to raise_error(ArgumentError)
+        end.to raise_error(ArgumentError)
       end
     end
   end
@@ -199,8 +199,7 @@ RSpec.describe Omnizip::Zip::File do
 
     it "iterates over all entries" do
       described_class.open(zip_path) do |zip|
-        names = []
-        zip.each { |entry| names << entry.name }
+        names = zip.map(&:name)
         expect(names).to contain_exactly("file1.txt", "file2.txt", "file3.txt")
       end
     end
@@ -228,9 +227,9 @@ RSpec.describe Omnizip::Zip::File do
       File.write(extract_path, "existing")
 
       described_class.open(zip_path) do |zip|
-        expect {
+        expect do
           zip.extract("test.txt", extract_path)
-        }.to raise_error(/already exists/)
+        end.to raise_error(/already exists/)
       end
     end
 
@@ -239,7 +238,7 @@ RSpec.describe Omnizip::Zip::File do
 
       described_class.open(zip_path) do |zip|
         overwrite = false
-        zip.extract("test.txt", extract_path) do |entry, dest|
+        zip.extract("test.txt", extract_path) do |_entry, _dest|
           overwrite = true
           true
         end

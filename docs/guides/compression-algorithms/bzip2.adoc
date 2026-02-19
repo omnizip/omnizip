@@ -1,0 +1,113 @@
+---
+title: BZip2
+nav_order: 4
+parent: Compression Algorithms
+grand_parent: Guides
+---
+
+== Purpose
+
+BZip2 is a compression algorithm based on the Burrows-Wheeler Transform (BWT) that provides excellent compression ratios for text files and source code. It's particularly effective for files with repetitive patterns.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression Ratio
+|Very Good (better than Deflate)
+
+|Compression Speed
+|Medium
+
+|Decompression Speed
+|Medium
+
+|Memory Usage
+|Medium (dependent on block size)
+
+|Best For
+|Text files, source code, structured data
+|===
+
+== When to Use BZip2
+
+**Choose BZip2 when**:
+
+* Compressing text files or source code
+* Need better compression than Deflate
+* Working with structured data (XML, JSON, CSV)
+* Compatibility with Unix/Linux systems is needed
+
+**Consider alternatives when**:
+
+* Speed is critical (use Zstandard)
+* Maximum compression needed (use LZMA2)
+* Binary data (use LZMA2)
+
+== Basic Usage
+
+=== Compress with BZip2
+
+[source,ruby]
+----
+# Create BZip2-compressed file
+Omnizip.compress_file('data.txt', 'data.txt.bz2',
+  algorithm: :bzip2,
+  level: 9
+)
+
+# Create archive with BZip2 compression
+Omnizip::Archive.create('backup.tar.bz2', format: :tar_bzip2) do |archive|
+  archive.add_directory('project/')
+end
+----
+
+=== Decompress BZip2
+
+[source,ruby]
+----
+# Decompress BZip2 file
+Omnizip.decompress_file('data.txt.bz2', 'data.txt')
+
+# Extract BZip2 archive
+Omnizip.extract_archive('backup.tar.bz2', 'output/')
+----
+
+== Compression Levels
+
+BZip2 supports levels 1-9:
+
+[cols="1,2,2,2"]
+|===
+|Level |Speed |Ratio |Best For
+
+|1
+|Fast
+|Good
+|Quick compression
+
+|5
+|Medium
+|Very Good
+|**Default** - balanced
+
+|9
+|Slow
+|Best
+|Maximum compression
+|===
+
+== Technical Details
+
+* **Algorithm**: Burrows-Wheeler Transform + Move-to-Front + Huffman coding
+* **Block Size**: 100KB to 900KB (level dependent)
+* **File Extension**: `.bz2`
+* **Container**: Can be used within TAR archives (`.tar.bz2` or `.tbz2`)
+
+== See Also
+
+* link:lzma.html[LZMA] - Better compression for general data
+* link:deflate.html[Deflate] - Faster alternative
+* link:../../compatibility.html[Compatibility] - BZip2 support across tools

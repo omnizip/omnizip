@@ -39,27 +39,31 @@ module Omnizip
       # This groups similar characters together, making the data
       # more compressible for subsequent stages (MTF, RLE, Huffman).
       class Bwt
-        # Encode data using Burrows-Wheeler Transform
+        # Encode data using Burrows-Wheeler Transform (optimized)
         #
         # @param data [String] Input data to transform
         # @return [Array<String, Integer>] Transformed data and primary idx
         def encode(data)
           return ["".b, 0] if data.empty?
 
-          # Build suffix array using rotation indices
-          rotations = build_rotation_indices(data)
+          n = data.length
+          bytes = data.bytes
 
-          # Sort rotations lexicographically
-          sorted_indices = rotations.sort_by do |idx|
-            rotate_at(data, idx)
+          # Build suffix array without creating rotation strings
+          # Use direct byte comparison for efficiency
+          suffix_array = (0...n).to_a
+
+          # Sort using optimized comparison that avoids string allocation
+          suffix_array.sort! do |a, b|
+            compare_rotations(bytes, a, b, n)
           end
 
-          # Find primary index (original string position)
-          primary_index = sorted_indices.index(0)
+          # Find primary index (position where suffix starts at 0)
+          primary_index = suffix_array.index(0)
 
-          # Extract last column from sorted rotations
-          transformed = sorted_indices.map do |idx|
-            data.getbyte((idx - 1) % data.length)
+          # Extract last column (character before each suffix)
+          transformed = suffix_array.map do |idx|
+            bytes[(idx - 1) % n]
           end.pack("C*").b
 
           [transformed, primary_index]
@@ -137,22 +141,32 @@ module Omnizip
 
         private
 
-        # Build array of rotation indices for the input data
+        # Compare two rotations without creating strings
+        # This is the key optimization - avoids O(n²) memory allocation
         #
-        # @param data [String] Input data
-        # @return [Array<Integer>] Array of indices [0, 1, 2, ..., n-1]
-        def build_rotation_indices(data)
-          (0...data.length).to_a
-        end
+        # @param bytes [Array<Integer>] Byte array
+        # @param a [Integer] First rotation start index
+        # @param b [Integer] Second rotation start index
+        # @param n [Integer] Length
+        # @return [Integer] -1, 0, or 1 for comparison result
+        def compare_rotations(bytes, a, b, n)
+          # Fast path: compare first few bytes directly
+          8.times do |offset|
+            byte_a = bytes[(a + offset) % n]
+            byte_b = bytes[(b + offset) % n]
+            cmp = byte_a <=> byte_b
+            return cmp if cmp != 0
+          end
 
-        # Get rotation of data starting at given index
-        #
-        # @param data [String] Input data
-        # @param start_idx [Integer] Starting index for rotation
-        # @return [String] Rotated string
-        def rotate_at(data, start_idx)
-          len = data.length
-          (0...len).map { |i| data.getbyte((start_idx + i) % len) }.pack("C*").b
+          # Continue comparing remaining bytes
+          (8...n).each do |offset|
+            byte_a = bytes[(a + offset) % n]
+            byte_b = bytes[(b + offset) % n]
+            cmp = byte_a <=> byte_b
+            return cmp if cmp != 0
+          end
+
+          0
         end
 
         # Build next array for BWT decode

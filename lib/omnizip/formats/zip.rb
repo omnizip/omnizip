@@ -20,7 +20,7 @@ module Omnizip
         # Create a ZIP archive
         def create(file_path, &block)
           writer = Writer.new(file_path)
-          block.call(writer) if block_given?
+          yield(writer) if block
           writer
         end
 

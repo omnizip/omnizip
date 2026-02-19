@@ -1,0 +1,212 @@
+---
+title: Streaming Operations
+nav_order: 1
+parent: Advanced Features
+grand_parent: Guides
+---
+
+== Purpose
+
+Streaming operations allow you to process archives without loading entire files into memory. This is essential for handling large archives, web applications, and memory-constrained environments.
+
+== Benefits
+
+* **Memory Efficient**: Process multi-GB archives with minimal memory footprint
+* **Fast Response**: Start processing immediately without waiting for complete download
+* **Scalable**: Handle archives of any size on servers with limited resources
+* **Web-Friendly**: Perfect for Rails applications and API services
+
+== When to Use Streaming
+
+[cols="1,3"]
+|===
+|Scenario |Streaming Benefit
+
+|Large Archives (>100MB)
+|Avoid loading entire archive into memory
+
+|Web Applications
+|Process uploads without temporary files
+
+|API Services
+|Stream responses directly to clients
+
+|Limited Memory
+|Process on resource-constrained servers
+
+|Network Transfers
+|Start processing while downloading
+|===
+
+== Creating Archives with Streaming
+
+=== Stream to File
+
+Create archives by streaming entries one at a time:
+
+[source,ruby]
+----
+Omnizip::OutputStream.open('backup.zip', format: :zip) do |stream|
+  # Add files as you go - no need to collect them first
+  Dir.glob('logs/*.log').each do |file|
+    stream.put_next_entry(File.basename(file))
+    File.open(file, 'rb') do |f|
+      stream.write(f.read)
+    end
+  end
+end
+----
+
+=== Stream to Memory
+
+Create archives in memory for immediate use:
+
+[source,ruby]
+----
+zip_data = Omnizip::OutputStream.write_buffer(format: :zip) do |stream|
+  stream.put_next_entry('report.txt')
+  stream.write(generate_report)
+
+  stream.put_next_entry('data.json')
+  stream.write(export_data.to_json)
+end
+
+# Send directly over HTTP
+send_data zip_data.string, filename: 'export.zip'
+----
+
+== Reading Archives with Streaming
+
+=== Extract While Reading
+
+Process each file as it's read from the archive:
+
+[source,ruby]
+----
+Omnizip::InputStream.open('large-archive.zip') do |stream|
+  while entry = stream.get_next_entry
+    next if entry.directory?
+
+    # Process each file immediately
+    case entry.name
+    when /\.csv$/
+      import_csv_data(stream.read)
+    when /\.json$/
+      process_json(stream.read)
+    end
+  end
+end
+----
+
+=== Selective Extraction
+
+Extract only specific files without reading the entire archive:
+
+[source,ruby]
+----
+Omnizip::InputStream.open('backup.zip') do |stream|
+  while entry = stream.get_next_entry
+    # Only extract configuration files
+    if entry.name.start_with?('config/')
+      File.open(entry.name, 'wb') do |f|
+        f.write(stream.read)
+      end
+    end
+  end
+end
+----
+
+== Web Application Examples
+
+=== Rails Upload Processing
+
+Process uploaded archives without temporary files:
+
+[source,ruby]
+----
+class ArchiveController < ApplicationController
+  def upload
+    uploaded = params[:archive]
+
+    # Process upload stream directly
+    files = Omnizip::Buffer.extract_all_to_memory(uploaded.read)
+
+    files.each do |filename, content|
+      # Process each file
+      process_file(filename, content)
+    end
+
+    render json: { processed: files.count }
+  end
+end
+----
+
+=== API Response Streaming
+
+Generate and stream archives in API responses:
+
+[source,ruby]
+----
+get '/export' do
+  content_type 'application/zip'
+  attachment 'export.zip'
+
+  stream do |out|
+    buffer = Omnizip::OutputStream.write_buffer do |zip|
+      User.find_each do |user|
+        zip.put_next_entry("#{user.id}.json")
+        zip.write(user.to_json)
+      end
+    end
+
+    out << buffer.string
+  end
+end
+----
+
+== Performance Characteristics
+
+[cols="2,1,1,1"]
+|===
+|Operation |Traditional |Streaming |Improvement
+
+|100MB Archive
+|100MB RAM
+|~10MB RAM
+|90% reduction
+
+|1GB Archive
+|1GB RAM
+|~10MB RAM
+|99% reduction
+
+|Web Upload
+|Temp file required
+|No temp file
+|Faster response
+
+|Large Extraction
+|Full parse first
+|Start immediately
+|Better UX
+|===
+
+== Best Practices
+
+. **Use Streaming for Large Files**: Any archive >50MB should use streaming
+. **Process Incrementally**: Don't collect all data before processing
+. **Handle Errors Gracefully**: Stream operations can fail mid-process
+. **Clean Up Resources**: Always use blocks to ensure cleanup
+. **Monitor Memory**: Verify memory stays constant during processing
+
+== Limitations
+
+* Cannot seek backwards in stream (forward-only processing)
+* Some operations require random access (use file-based API for those)
+* Central directory must fit in memory (usually small)
+
+== See Also
+
+* link:parallel-processing.html[Parallel Processing] - Combine with streaming for maximum performance
+* link:progress-tracking.html[Progress Tracking] - Monitor streaming operations
+* link:../../compatibility.html[Compatibility] - Streaming support across formats

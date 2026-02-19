@@ -1,0 +1,67 @@
+# Lychee link checker configuration for Omnizip documentation
+
+# Check all links recursively
+include_verbatim = false
+
+# Follow redirects
+max_redirects = 5
+
+# Timeout for requests (seconds)
+timeout = 30
+
+# Number of concurrent requests
+max_concurrency = 10
+
+# Accept HTTP status codes
+accept = [200, 201, 204, 206, 301, 302, 303, 304, 307, 308]
+
+# Retry failed requests
+max_retries = 3
+
+# User agent string
+user_agent = "lychee/omnizip-docs"
+
+# Exclude patterns (use regex syntax)
+exclude = [
+  # Exclude localhost and example URLs
+  "http://localhost.*",
+  "http://127\\.0\\.0\\.1.*",
+  "http://example\\.com.*",
+  "https://example\\.com.*",
+
+  # Exclude email addresses
+  "mailto:.*",
+
+  # Exclude same-page anchors (handled by Jekyll/AsciiDoc)
+  "^#.*",
+
+  # Exclude common placeholder URLs
+  "http://www\\.example\\.com.*",
+  "https://www\\.example\\.com.*",
+
+  # Exclude GitHub edit links (these are templates)
+  ".*/edit/.*",
+
+  # Exclude all internal site links - they work on deployed site
+  # but fail when checking local files due to baseurl path issues
+  "https?://metanorma\\.github\\.io/omnizip/.*",
+
+  # Exclude root-relative links with baseurl (local checking issue)
+  # These work when deployed but fail on local file system checks
+  "^/omnizip/.*"
+]
+
+# Cache responses to avoid repeated checks
+cache = true
+
+# Only check unique links
+no_progress = true
+
+# Check HTTPS certificates
+insecure = false
+
+# Scheme (http, https, file)
+scheme = ["https", "http"]
+
+# Don't fail on missing local files
+skip_missing = true

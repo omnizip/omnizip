@@ -18,7 +18,15 @@ module Omnizip
       # @param options [Hash, ConversionOptions] Conversion options
       # @return [ConversionResult] Conversion result
       def convert(source_path, target_path, **options)
-        # Validate input files
+        # Find appropriate strategy first
+        strategy_class = ConversionRegistry.find_strategy(source_path,
+                                                          target_path)
+        unless strategy_class
+          raise ArgumentError, "No conversion strategy available for " \
+                               "#{source_path} -> #{target_path}"
+        end
+
+        # Then validate input files
         unless File.exist?(source_path)
           raise Errno::ENOENT, "Source file not found: #{source_path}"
         end
@@ -26,13 +34,6 @@ module Omnizip
         # Create options object
         opts = options.is_a?(Models::ConversionOptions) ? options : create_options(**options)
         opts.validate
-
-        # Find appropriate strategy
-        strategy_class = ConversionRegistry.find_strategy(source_path, target_path)
-        unless strategy_class
-          raise ArgumentError, "No conversion strategy available for " \
-                              "#{source_path} -> #{target_path}"
-        end
 
         # Perform conversion
         strategy = strategy_class.new(source_path, target_path, opts)
@@ -78,9 +79,10 @@ module Omnizip
 
         sources.each do |source|
           target = generate_target_path(source, target_format)
-          result = convert(source, target, target_format: target_format, **options)
+          result = convert(source, target, target_format: target_format,
+                                           **options)
           results << result
-          block.call(result) if block_given?
+          yield(result) if block
         end
 
         results

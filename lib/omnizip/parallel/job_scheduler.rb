@@ -47,7 +47,8 @@ module Omnizip
       # @param worker_count [Integer] number of workers
       # @param bytes_per_second [Float] processing rate
       # @return [Float] estimated seconds to completion
-      def estimate_completion_time(jobs, worker_count:, bytes_per_second: 10_000_000)
+      def estimate_completion_time(jobs, worker_count:,
+bytes_per_second: 10_000_000)
         total_bytes = jobs.sum { |job| job.respond_to?(:size) ? job.size : 0 }
         return 0.0 if total_bytes.zero? || worker_count.zero?
 
@@ -114,7 +115,9 @@ module Omnizip
         return {} if jobs.empty? || worker_count.zero?
 
         # Sort jobs by size (largest first) for better balance
-        sorted_jobs = jobs.sort_by { |job| -(job.respond_to?(:size) ? job.size : 0) }
+        sorted_jobs = jobs.sort_by do |job|
+          -(job.respond_to?(:size) ? job.size : 0)
+        end
 
         # Initialize worker assignments
         assignments = (0...worker_count).to_h { |i| [i, []] }
@@ -171,7 +174,9 @@ module Omnizip
         return {} if jobs.empty? || worker_count.zero?
 
         # Sort jobs by size (largest first)
-        sorted_jobs = jobs.sort_by { |job| -(job.respond_to?(:size) ? job.size : 0) }
+        sorted_jobs = jobs.sort_by do |job|
+          -(job.respond_to?(:size) ? job.size : 0)
+        end
 
         # First-fit decreasing bin packing
         bins = Array.new(worker_count) { { jobs: [], total_size: 0 } }

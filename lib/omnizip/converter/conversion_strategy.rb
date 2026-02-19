@@ -42,7 +42,7 @@ module Omnizip
       # @param source [String] Source file path
       # @param target [String] Target file path
       # @return [Boolean] True if can handle
-      def self.can_convert?(source, target)
+      def self.can_convert?(_source, _target)
         false
       end
 
@@ -95,21 +95,21 @@ module Omnizip
           target_size: target_size,
           duration: duration,
           entry_count: entry_count,
-          warnings: warnings
+          warnings: warnings,
         )
       end
 
       # Check if metadata is compatible between formats
       # @param entry [Entry] Entry to check
       # @return [Boolean] True if fully compatible
-      def metadata_compatible?(entry)
+      def metadata_compatible?(_entry)
         # ZIP supports most metadata
         # 7z has limited metadata support
         case [source_format, target_format]
-        when [:zip, :seven_zip]
+        when %i[zip seven_zip]
           # Some metadata loss (comments, extra fields)
           false
-        when [:seven_zip, :zip]
+        when %i[seven_zip zip]
           # Can preserve most 7z metadata in ZIP
           true
         else

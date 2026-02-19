@@ -64,7 +64,7 @@ module Omnizip
         # Check if this is a directory entry
         def directory?
           filename.end_with?("/") ||
-            (external_attributes & ATTR_DIRECTORY) != 0
+            external_attributes.anybits?(ATTR_DIRECTORY)
         end
 
         # Check if ZIP64 format is needed
@@ -77,12 +77,12 @@ module Omnizip
 
         # Check if entry is encrypted
         def encrypted?
-          (flags & FLAG_ENCRYPTED) != 0
+          flags.anybits?(FLAG_ENCRYPTED)
         end
 
         # Check if UTF-8 encoding is used
         def utf8?
-          (flags & FLAG_UTF8) != 0
+          flags.anybits?(FLAG_UTF8)
         end
 
         # Get Unix permissions from external attributes
@@ -147,7 +147,10 @@ module Omnizip
           disk_number_start, internal_attributes,
           external_attributes, local_header_offset = data.unpack("VvvvvvvVVVvvvvvVV")
 
-          raise Omnizip::FormatError, "Invalid central directory signature" unless signature == CENTRAL_DIRECTORY_SIGNATURE
+          unless signature == CENTRAL_DIRECTORY_SIGNATURE
+            raise Omnizip::FormatError,
+                  "Invalid central directory signature"
+          end
 
           offset = 46
           filename = data[offset, filename_length].force_encoding("UTF-8")
@@ -178,7 +181,7 @@ module Omnizip
             local_header_offset: local_header_offset,
             filename: filename,
             extra_field: extra_field,
-            comment: comment
+            comment: comment,
           )
         end
 

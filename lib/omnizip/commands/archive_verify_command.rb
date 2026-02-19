@@ -63,7 +63,7 @@ module Omnizip
 
         result = Omnizip::Formats::Rar.verify(
           archive_path,
-          use_recovery: !@options[:no_recovery]
+          use_recovery: !@options[:no_recovery],
         )
 
         display_verification_result(archive_path, result)

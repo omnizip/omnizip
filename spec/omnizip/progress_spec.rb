@@ -17,7 +17,7 @@ RSpec.describe Omnizip::Progress do
       tracker = described_class.track(
         total_files: 10,
         total_bytes: 1000,
-        reporter: :console
+        reporter: :console,
       )
 
       expect(tracker.reporters).to all(be_a(Omnizip::Progress::ProgressReporter))
@@ -27,7 +27,7 @@ RSpec.describe Omnizip::Progress do
       callback_called = false
       tracker = described_class.track(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       ) do |_progress|
         callback_called = true
       end
@@ -100,7 +100,7 @@ RSpec.describe Omnizip::Progress do
       described_class.new(
         total_files: 100,
         total_bytes: 10_000,
-        update_interval: 0.1
+        update_interval: 0.1,
       )
     end
 
@@ -133,7 +133,7 @@ RSpec.describe Omnizip::Progress do
     end
 
     it "is thread-safe" do
-      threads = 10.times.map do |i|
+      threads = Array.new(10) do |i|
         Thread.new do
           tracker.update(files: i, bytes: i * 100)
         end
@@ -162,7 +162,7 @@ RSpec.describe Omnizip::Progress do
       reporter = described_class.new
       tracker = Omnizip::Progress::ProgressTracker.new(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       )
 
       expect do
@@ -176,7 +176,7 @@ RSpec.describe Omnizip::Progress do
       reporter = described_class.new
       tracker = Omnizip::Progress::ProgressTracker.new(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       )
 
       expect { reporter.report(tracker) }.not_to raise_error
@@ -192,7 +192,7 @@ RSpec.describe Omnizip::Progress do
 
       tracker = Omnizip::Progress::ProgressTracker.new(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       )
 
       reporter.report(tracker)
@@ -206,7 +206,7 @@ RSpec.describe Omnizip::Progress do
     let(:tracker) do
       Omnizip::Progress::ProgressTracker.new(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       )
     end
 
@@ -245,7 +245,7 @@ RSpec.describe Omnizip::Progress do
     let(:tracker) do
       Omnizip::Progress::ProgressTracker.new(
         total_files: 100,
-        total_bytes: 10_000
+        total_bytes: 10_000,
       )
     end
 
@@ -278,7 +278,7 @@ RSpec.describe Omnizip::Progress do
     let(:tracker) do
       Omnizip::Progress::ProgressTracker.new(
         total_files: 10,
-        total_bytes: 1000
+        total_bytes: 1000,
       )
     end
 

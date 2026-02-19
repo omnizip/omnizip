@@ -29,7 +29,7 @@ module Omnizip
                      update_interval: 0.5, eta_strategy: :exponential_smoothing)
         @operation_progress = OperationProgress.new(
           total_files: total_files,
-          total_bytes: total_bytes
+          total_bytes: total_bytes,
         )
         @eta_estimator = ETA.create_estimator(eta_strategy)
         @reporters = Array(reporters)
@@ -49,13 +49,13 @@ module Omnizip
           operation_progress.update(
             files: files,
             bytes: bytes,
-            current_file: current_file
+            current_file: current_file,
           )
 
           # Add sample to ETA estimator
           eta_estimator.add_sample(
             bytes_processed: bytes,
-            files_processed: files
+            files_processed: files,
           )
 
           # Report if enough time has passed

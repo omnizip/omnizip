@@ -24,7 +24,7 @@ RSpec.describe Omnizip::Algorithms::PPMd7 do
 
     it "model has proper initialization" do
       encoder = described_class::Encoder.new(
-        StringIO.new(String.new(encoding: Encoding::BINARY))
+        StringIO.new(String.new(encoding: Encoding::BINARY)),
       )
       expect(encoder.model.max_order).to eq(6)
       expect(encoder.model.root_context.num_symbols).to eq(256)

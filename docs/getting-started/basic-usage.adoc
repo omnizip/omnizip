@@ -1,0 +1,271 @@
+---
+title: Basic Usage
+nav_order: 3
+parent: Getting Started
+---
+
+== Basic Usage
+
+This guide covers common usage patterns and operations with Omnizip.
+
+== File Compression
+
+=== Compressing Files
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Basic compression
+Omnizip.compress_file('input.txt', 'output.lzma')
+
+# With specific algorithm
+Omnizip.compress_file('input.txt', 'output.bz2', algorithm: :bzip2)
+
+# With compression level (1-9)
+Omnizip.compress_file('input.txt', 'output.lzma', level: 9)
+----
+
+=== Decompressing Files
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Auto-detect algorithm
+Omnizip.decompress_file('compressed.lzma', 'restored.txt')
+
+# Specify algorithm explicitly
+Omnizip.decompress_file('compressed.bz2', 'restored.txt', algorithm: :bzip2)
+----
+
+== Archive Operations
+
+=== Creating Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create ZIP from directory
+Omnizip.compress_directory('my_folder/', 'backup.zip')
+
+# Create 7z archive
+Omnizip.compress_directory('my_folder/', 'backup.7z', format: :seven_zip)
+
+# Add individual files
+Omnizip::Archive.create('custom.zip') do |archive|
+  archive.add_file('file1.txt')
+  archive.add_file('file2.txt')
+  archive.add_directory('folder/')
+end
+----
+
+=== Extracting Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Extract entire archive
+Omnizip.extract_archive('backup.zip', 'output/')
+
+# Extract with pattern matching
+Omnizip::Archive.open('backup.zip') do |archive|
+  archive.extract_matching('*.txt', 'output/')
+end
+----
+
+=== Reading Archive Contents
+
+[source,ruby]
+----
+require 'omnizip'
+
+# List all entries
+entries = Omnizip.list_archive('backup.zip')
+entries.each do |entry|
+  puts "#{entry.name}: #{entry.size} bytes"
+end
+
+# Read specific file without extraction
+content = Omnizip.read_from_archive('backup.zip', 'config.json')
+puts content
+----
+
+== Stream Processing
+
+=== In-Memory Compression
+
+[source,ruby]
+----
+require 'omnizip'
+require 'stringio'
+
+# Compress string data
+data = "Hello, World!" * 1000
+input = StringIO.new(data)
+output = StringIO.new
+
+algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new(level: 5)
+algorithm.compress(input, output)
+
+compressed_data = output.string
+puts "Compressed: #{data.bytesize} → #{compressed_data.bytesize} bytes"
+----
+
+=== Streaming Large Files
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Stream compression for large files
+File.open('large_input.txt', 'rb') do |input|
+  File.open('large_output.lzma', 'wb') do |output|
+    algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new
+    algorithm.compress(input, output)
+  end
+end
+----
+
+== Algorithm Selection
+
+=== Available Algorithms
+
+[source,ruby]
+----
+require 'omnizip'
+
+# List available algorithms
+puts Omnizip::AlgorithmRegistry.available.inspect
+# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstd]
+
+# Get algorithm metadata
+lzma = Omnizip::AlgorithmRegistry.get(:lzma)
+metadata = lzma.metadata
+puts "#{metadata.name}: #{metadata.description}"
+----
+
+=== Algorithm Characteristics
+
+**LZMA/LZMA2**::
+Best compression ratio, slower speed. Use for maximum compression.
+
+**BZip2**::
+Good compression, moderate speed. Excellent for text files.
+
+**PPMd7/PPMd8**::
+Excellent for text compression. Statistical modeling.
+
+**Deflate/Deflate64**::
+ZIP-compatible. Fast compression, good for general use.
+
+**Zstandard**::
+Modern algorithm. Fast compression and decompression.
+
+== Error Handling
+
+=== Handling Compression Errors
+
+[source,ruby]
+----
+require 'omnizip'
+
+begin
+  Omnizip.compress_file('input.txt', 'output.lzma')
+rescue Omnizip::Error => e
+  puts "Compression failed: #{e.message}"
+rescue Errno::ENOENT => e
+  puts "File not found: #{e.message}"
+end
+----
+
+=== Verifying Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Verify archive integrity
+begin
+  Omnizip::Archive.open('archive.zip') do |archive|
+    archive.verify
+  end
+  puts "Archive is valid"
+rescue Omnizip::CorruptArchiveError => e
+  puts "Archive is corrupted: #{e.message}"
+end
+----
+
+== Performance Tips
+
+=== Choosing Compression Level
+
+[source,ruby]
+----
+# Fast compression (level 1-3)
+Omnizip.compress_file('file.txt', 'fast.lzma', level: 1)
+
+# Balanced (level 4-6) - Default: 5
+Omnizip.compress_file('file.txt', 'balanced.lzma', level: 5)
+
+# Maximum compression (level 7-9)
+Omnizip.compress_file('file.txt', 'best.lzma', level: 9)
+----
+
+=== Memory-Efficient Processing
+
+[source,ruby]
+----
+# Use streaming for large files
+File.open('huge_file.txt', 'rb') do |input|
+  File.open('huge_file.lzma', 'wb') do |output|
+    algorithm = Omnizip::AlgorithmRegistry.get(:lzma).new
+    algorithm.compress(input, output)
+  end
+end
+# File is processed in chunks, not loaded entirely into memory
+----
+
+== Common Patterns
+
+=== Batch Compression
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Compress multiple files
+Dir.glob('*.txt').each do |file|
+  output = "#{file}.lzma"
+  Omnizip.compress_file(file, output, level: 7)
+  puts "Compressed: #{file} → #{output}"
+end
+----
+
+=== Temporary Archives
+
+[source,ruby]
+----
+require 'omnizip'
+require 'tempfile'
+
+# Create temporary archive
+Tempfile.create(['backup', '.zip']) do |tmpfile|
+  Omnizip::Archive.create(tmpfile.path) do |archive|
+    archive.add_directory('data/')
+  end
+
+  # Use archive...
+  puts "Temporary archive: #{tmpfile.path}"
+end
+# Archive is automatically deleted
+----
+
+== See Also
+
+* link:../guides/creating-archives.html[Creating Archives Guide]
+* link:../guides/extracting-archives.html[Extracting Archives Guide]
+* link:../guides/performance-tuning.html[Performance Tuning]
+* link:../reference/api/overview.html[Ruby API Reference]

@@ -93,12 +93,12 @@ module Omnizip
                       ::Tempfile.new(
                         [@prefix, @suffix],
                         @directory,
-                        binmode: true
+                        binmode: true,
                       )
                     else
                       ::Tempfile.new(
                         [@prefix, @suffix],
-                        binmode: true
+                        binmode: true,
                       )
                     end
         @path = @tempfile.path

@@ -110,7 +110,7 @@ module Omnizip
           elapsed_seconds: elapsed_seconds,
           remaining_bytes: remaining_bytes,
           remaining_files: remaining_files,
-          complete: complete?
+          complete: complete?,
         }
       end
     end

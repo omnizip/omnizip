@@ -476,7 +476,7 @@ RSpec.describe Omnizip::Chunked do
         result = described_class.compress_file(
           input_file,
           output_archive,
-          chunk_size: 64 * 1024
+          chunk_size: 64 * 1024,
         )
 
         expect(result).to eq(output_archive)
@@ -489,7 +489,7 @@ RSpec.describe Omnizip::Chunked do
           input_file,
           output_archive,
           chunk_size: 64 * 1024,
-          progress: ->(_processed, _total, pct) { progresses << pct }
+          progress: ->(_processed, _total, pct) { progresses << pct },
         )
 
         expect(progresses).not_to be_empty
@@ -509,7 +509,7 @@ RSpec.describe Omnizip::Chunked do
         described_class.compress_file(
           input_file,
           output_archive,
-          chunk_size: 64 * 1024
+          chunk_size: 64 * 1024,
         )
       end
 
@@ -517,7 +517,7 @@ RSpec.describe Omnizip::Chunked do
         result = described_class.decompress_file(
           output_archive,
           extracted_file,
-          chunk_size: 64 * 1024
+          chunk_size: 64 * 1024,
         )
 
         expect(result).to eq(extracted_file)
@@ -528,7 +528,7 @@ RSpec.describe Omnizip::Chunked do
         described_class.decompress_file(
           output_archive,
           extracted_file,
-          chunk_size: 64 * 1024
+          chunk_size: 64 * 1024,
         )
 
         original = File.binread(input_file)
@@ -542,7 +542,7 @@ RSpec.describe Omnizip::Chunked do
           output_archive,
           extracted_file,
           chunk_size: 64 * 1024,
-          progress: ->(_processed, _total, pct) { progresses << pct }
+          progress: ->(_processed, _total, pct) { progresses << pct },
         )
 
         expect(progresses).not_to be_empty

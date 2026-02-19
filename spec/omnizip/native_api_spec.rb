@@ -29,18 +29,18 @@ RSpec.describe "Native Omnizip API" do
     end
 
     it "raises error for non-existent file" do
-      expect {
+      expect do
         Omnizip.compress_file("nonexistent.txt", zip_path)
-      }.to raise_error(Errno::ENOENT, /Input file not found/)
+      end.to raise_error(Errno::ENOENT, /Input file not found/)
     end
 
     it "raises error for directory input" do
       dir = File.join(tmpdir, "testdir")
       FileUtils.mkdir_p(dir)
 
-      expect {
+      expect do
         Omnizip.compress_file(dir, zip_path)
-      }.to raise_error(ArgumentError, /Input is a directory/)
+      end.to raise_error(ArgumentError, /Input is a directory/)
     end
   end
 
@@ -95,18 +95,18 @@ RSpec.describe "Native Omnizip API" do
     end
 
     it "raises error for non-existent directory" do
-      expect {
+      expect do
         Omnizip.compress_directory("nonexistent_dir", zip_path)
-      }.to raise_error(Errno::ENOENT)
+      end.to raise_error(Errno::ENOENT)
     end
 
     it "raises error for file input" do
       file = File.join(tmpdir, "file.txt")
       File.write(file, "Not a directory")
 
-      expect {
+      expect do
         Omnizip.compress_directory(file, zip_path)
-      }.to raise_error(ArgumentError, /not a directory/)
+      end.to raise_error(ArgumentError, /not a directory/)
     end
   end
 
@@ -126,7 +126,8 @@ RSpec.describe "Native Omnizip API" do
       expect(files.size).to eq(4)
       expect(File.read(File.join(output_dir, "file1.txt"))).to eq("Content 1")
       expect(File.read(File.join(output_dir, "file2.txt"))).to eq("Content 2")
-      expect(File.read(File.join(output_dir, "dir/file3.txt"))).to eq("Content 3")
+      expect(File.read(File.join(output_dir,
+                                 "dir/file3.txt"))).to eq("Content 3")
     end
 
     it "overwrites files when overwrite is true" do
@@ -153,15 +154,15 @@ RSpec.describe "Native Omnizip API" do
       FileUtils.mkdir_p(output_dir)
       File.write(File.join(output_dir, "file.txt"), "Existing")
 
-      expect {
+      expect do
         Omnizip.extract_archive(zip_path, output_dir, overwrite: false)
-      }.to raise_error(/File exists/)
+      end.to raise_error(/File exists/)
     end
 
     it "raises error for non-existent archive" do
-      expect {
+      expect do
         Omnizip.extract_archive("nonexistent.zip", tmpdir)
-      }.to raise_error(Errno::ENOENT)
+      end.to raise_error(Errno::ENOENT)
     end
   end
 
@@ -195,7 +196,7 @@ RSpec.describe "Native Omnizip API" do
         :compression_method,
         :crc,
         :time,
-        :directory
+        :directory,
       )
       expect(file_entry[:directory]).to be false
 
@@ -204,9 +205,9 @@ RSpec.describe "Native Omnizip API" do
     end
 
     it "raises error for non-existent archive" do
-      expect {
+      expect do
         Omnizip.list_archive("nonexistent.zip")
-      }.to raise_error(Errno::ENOENT)
+      end.to raise_error(Errno::ENOENT)
     end
   end
 
@@ -225,15 +226,15 @@ RSpec.describe "Native Omnizip API" do
     end
 
     it "raises error for non-existent entry" do
-      expect {
+      expect do
         Omnizip.read_from_archive(zip_path, "nonexistent.txt")
-      }.to raise_error(Errno::ENOENT, /Entry not found/)
+      end.to raise_error(Errno::ENOENT, /Entry not found/)
     end
 
     it "raises error for non-existent archive" do
-      expect {
+      expect do
         Omnizip.read_from_archive("nonexistent.zip", "file.txt")
-      }.to raise_error(Errno::ENOENT, /Archive not found/)
+      end.to raise_error(Errno::ENOENT, /Archive not found/)
     end
   end
 
@@ -264,17 +265,17 @@ RSpec.describe "Native Omnizip API" do
       source = File.join(tmpdir, "file.txt")
       File.write(source, "Content")
 
-      expect {
+      expect do
         Omnizip.add_to_archive("nonexistent.zip", "file.txt", source)
-      }.to raise_error(Errno::ENOENT, /Archive not found/)
+      end.to raise_error(Errno::ENOENT, /Archive not found/)
     end
 
     it "raises error for non-existent source file" do
       Omnizip::Zip::File.create(zip_path) { |z| z.add("test.txt") { "Test" } }
 
-      expect {
+      expect do
         Omnizip.add_to_archive(zip_path, "new.txt", "nonexistent.txt")
-      }.to raise_error(Errno::ENOENT, /Source file not found/)
+      end.to raise_error(Errno::ENOENT, /Source file not found/)
     end
   end
 
@@ -296,9 +297,9 @@ RSpec.describe "Native Omnizip API" do
     end
 
     it "raises error for non-existent archive" do
-      expect {
+      expect do
         Omnizip.remove_from_archive("nonexistent.zip", "file.txt")
-      }.to raise_error(Errno::ENOENT)
+      end.to raise_error(Errno::ENOENT)
     end
   end
 
@@ -344,7 +345,7 @@ RSpec.describe "Native Omnizip API" do
       # Create with native API
       Omnizip.compress_file(
         File.join(tmpdir, "test.txt").tap { |f| File.write(f, "Test") },
-        zip_path
+        zip_path,
       )
 
       # Read with both APIs

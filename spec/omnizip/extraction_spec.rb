@@ -12,7 +12,7 @@ RSpec.describe Omnizip::Extraction do
   let(:output_dir) { File.join(temp_dir, "output") }
 
   after do
-    FileUtils.rm_rf(temp_dir) if File.exist?(temp_dir)
+    FileUtils.rm_rf(temp_dir)
   end
 
   # Mock archive entry class
@@ -234,7 +234,7 @@ RSpec.describe Omnizip::Extraction do
         MockEntry.new("file.txt"),
         MockEntry.new("test.txt"),
         MockEntry.new("file.rb"),
-        MockEntry.new("readme.txt")
+        MockEntry.new("readme.txt"),
       ]
 
       filtered = chain.filter(entries)
@@ -245,13 +245,13 @@ RSpec.describe Omnizip::Extraction do
   describe Omnizip::Extraction::SelectiveExtractor do
     let(:archive) do
       MockArchive.new([
-        ["README.md", "readme content"],
-        ["src/app.rb", "ruby code"],
-        ["src/lib/util.rb", "utility code"],
-        ["test/spec.rb", "test code"],
-        ["docs/guide.txt", "guide text"],
-        ["data.json", "json data"]
-      ])
+                        ["README.md", "readme content"],
+                        ["src/app.rb", "ruby code"],
+                        ["src/lib/util.rb", "utility code"],
+                        ["test/spec.rb", "test code"],
+                        ["docs/guide.txt", "guide text"],
+                        ["data.json", "json data"],
+                      ])
     end
 
     describe "#list_matches" do
@@ -269,10 +269,10 @@ RSpec.describe Omnizip::Extraction do
         matches = extractor.list_matches
 
         expect(matches.map(&:name)).to match_array([
-          "src/app.rb",
-          "src/lib/util.rb",
-          "test/spec.rb"
-        ])
+                                                     "src/app.rb",
+                                                     "src/lib/util.rb",
+                                                     "test/spec.rb",
+                                                   ])
       end
 
       it "lists files matching filter chain" do
@@ -284,9 +284,9 @@ RSpec.describe Omnizip::Extraction do
         matches = extractor.list_matches
 
         expect(matches.map(&:name)).to match_array([
-          "src/app.rb",
-          "src/lib/util.rb"
-        ])
+                                                     "src/app.rb",
+                                                     "src/lib/util.rb",
+                                                   ])
       end
     end
 
@@ -307,7 +307,7 @@ RSpec.describe Omnizip::Extraction do
 
         expect(result).to include(
           "README.md" => "readme content",
-          "data.json" => "json data"
+          "data.json" => "json data",
         )
       end
     end
@@ -321,7 +321,8 @@ RSpec.describe Omnizip::Extraction do
         paths = extractor.extract(output_dir)
 
         expect(paths).to eq([File.join(output_dir, "README.md")])
-        expect(File.read(File.join(output_dir, "README.md"))).to eq("readme content")
+        expect(File.read(File.join(output_dir,
+                                   "README.md"))).to eq("readme content")
       end
 
       it "preserves directory structure by default" do
@@ -366,7 +367,7 @@ RSpec.describe Omnizip::Extraction do
     it "stores patterns and predicates" do
       rule = described_class.new(
         patterns: ["*.txt", /\.log$/],
-        predicates: [proc { |e| e.size > 100 }]
+        predicates: [proc { |e| e.size > 100 }],
       )
 
       expect(rule.patterns).to eq(["*.txt", /\.log$/])
@@ -413,8 +414,7 @@ RSpec.describe Omnizip::Extraction do
       matches = [MockEntry.new("a.txt"), MockEntry.new("b.txt")]
       result = described_class.new("*.txt", matches: matches, total_scanned: 10)
 
-      collected = []
-      result.each { |m| collected << m }
+      collected = result.map { |m| m }
 
       expect(collected).to eq(matches)
     end
@@ -423,17 +423,17 @@ RSpec.describe Omnizip::Extraction do
   describe "Integration" do
     let(:archive) do
       MockArchive.new([
-        ["README.md", "readme"],
-        ["LICENSE", "license"],
-        ["src/app.rb", "app"],
-        ["src/lib/util.rb", "util"],
-        ["src/lib/helper.rb", "helper"],
-        ["test/app_spec.rb", "spec"],
-        ["test/util_spec.rb", "spec"],
-        ["docs/guide.txt", "guide"],
-        ["docs/api.md", "api"],
-        ["config.yml", "config"]
-      ])
+                        ["README.md", "readme"],
+                        ["LICENSE", "license"],
+                        ["src/app.rb", "app"],
+                        ["src/lib/util.rb", "util"],
+                        ["src/lib/helper.rb", "helper"],
+                        ["test/app_spec.rb", "spec"],
+                        ["test/util_spec.rb", "spec"],
+                        ["docs/guide.txt", "guide"],
+                        ["docs/api.md", "api"],
+                        ["config.yml", "config"],
+                      ])
     end
 
     it "extracts using module-level API" do
@@ -441,7 +441,7 @@ RSpec.describe Omnizip::Extraction do
       paths = Omnizip::Extraction.extract_matching(
         archive,
         "*.md",
-        output_dir
+        output_dir,
       )
 
       expect(paths.size).to eq(1)
@@ -453,7 +453,7 @@ RSpec.describe Omnizip::Extraction do
       paths = Omnizip::Extraction.extract_matching(
         archive,
         ["*.md", "*.yml"],
-        output_dir
+        output_dir,
       )
 
       expect(paths.size).to eq(2)
@@ -462,12 +462,12 @@ RSpec.describe Omnizip::Extraction do
     it "lists matches without extracting" do
       matches = Omnizip::Extraction.list_matching(archive, "**/*.rb")
       expect(matches.map(&:name)).to match_array([
-        "src/app.rb",
-        "src/lib/util.rb",
-        "src/lib/helper.rb",
-        "test/app_spec.rb",
-        "test/util_spec.rb"
-      ])
+                                                   "src/app.rb",
+                                                   "src/lib/util.rb",
+                                                   "src/lib/helper.rb",
+                                                   "test/app_spec.rb",
+                                                   "test/util_spec.rb",
+                                                 ])
     end
 
     it "counts matches" do
@@ -478,12 +478,12 @@ RSpec.describe Omnizip::Extraction do
     it "extracts to memory" do
       files = Omnizip::Extraction.extract_to_memory_matching(
         archive,
-        "*.{md,yml}"
+        "*.{md,yml}",
       )
 
       expect(files).to include(
         "README.md" => "readme",
-        "config.yml" => "config"
+        "config.yml" => "config",
       )
     end
 
@@ -496,7 +496,7 @@ RSpec.describe Omnizip::Extraction do
       paths = Omnizip::Extraction.extract_with_filter(
         archive,
         filter,
-        output_dir
+        output_dir,
       )
 
       expect(paths.size).to eq(3)

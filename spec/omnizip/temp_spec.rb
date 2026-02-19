@@ -438,7 +438,7 @@ RSpec.describe Omnizip::Temp do
         end
 
         result = described_class.new(test_zip, dest_dir)
-                                .extract_with_count(file_count)
+          .extract_with_count(file_count)
 
         expect(Dir.exist?(result)).to be true
       end
@@ -530,7 +530,7 @@ RSpec.describe Omnizip::Temp do
     end
 
     it "handles concurrent operations" do
-      threads = 5.times.map do
+      threads = Array.new(5) do
         Thread.new do
           described_class.file do |path|
             File.write(path, "thread_#{Thread.current.object_id}")

@@ -53,28 +53,28 @@ module Omnizip
         if verbose
           CliOutputFormatter.verbose_puts(
             "Extracting archive: #{archive_file}",
-            true
+            true,
           )
           CliOutputFormatter.verbose_puts(
             "Output directory: #{output_dir}",
-            true
+            true,
           )
           if patterns
             CliOutputFormatter.verbose_puts(
               "Include patterns: #{patterns.join(', ')}",
-              true
+              true,
             )
           end
           if excludes
             CliOutputFormatter.verbose_puts(
               "Exclude patterns: #{excludes.join(', ')}",
-              true
+              true,
             )
           end
           if regex
             CliOutputFormatter.verbose_puts(
               "Regex pattern: #{regex}",
-              true
+              true,
             )
           end
         end
@@ -82,10 +82,10 @@ module Omnizip
         start_time = Time.now
 
         file_count = if patterns || excludes || regex
-                      extract_with_patterns(archive_file, output_dir, verbose)
-                    else
-                      extract_archive(archive_file, output_dir, verbose)
-                    end
+                       extract_with_patterns(archive_file, output_dir, verbose)
+                     else
+                       extract_archive(archive_file, output_dir, verbose)
+                     end
 
         elapsed = Time.now - start_time
 
@@ -141,13 +141,13 @@ module Omnizip
           if entry.directory?
             CliOutputFormatter.verbose_puts(
               "Creating directory: #{entry.name}",
-              verbose
+              verbose,
             )
             FileUtils.mkdir_p(output_path)
           else
             CliOutputFormatter.verbose_puts(
               "Extracting: #{entry.name}",
-              verbose
+              verbose,
             )
 
             # Ensure parent directory exists
@@ -169,15 +169,15 @@ module Omnizip
       def extract_with_patterns(archive_file, output_dir, verbose)
         # Determine archive type and open appropriately
         archive = case File.extname(archive_file).downcase
-                 when ".zip"
-                   Omnizip::Zip::File.open(archive_file)
-                 when ".rar"
-                   Formats::Rar::Reader.new(archive_file).open
-                 when ".tar"
-                   Formats::Tar::Reader.new(archive_file).read
-                 else
-                   Formats::SevenZip::Reader.new(archive_file).open
-                 end
+                  when ".zip"
+                    Omnizip::Zip::File.open(archive_file)
+                  when ".rar"
+                    Formats::Rar::Reader.new(archive_file).open
+                  when ".tar"
+                    Formats::Tar::Reader.new(archive_file).read
+                  else
+                    Formats::SevenZip::Reader.new(archive_file).open
+                  end
 
         # Build filter chain
         filter = Extraction::FilterChain.new
@@ -205,21 +205,21 @@ module Omnizip
         extract_options = {
           preserve_paths: !options[:flatten],
           flatten: options[:flatten] || false,
-          overwrite: true
+          overwrite: true,
         }
 
         extracted = Extraction.extract_with_filter(
           archive,
           filter,
           output_dir,
-          extract_options
+          extract_options,
         )
 
         if verbose
           extracted.each do |path|
             CliOutputFormatter.verbose_puts(
               "Extracted: #{File.basename(path)}",
-              verbose
+              verbose,
             )
           end
         end
@@ -232,11 +232,11 @@ module Omnizip
       def extract_gzip(archive_file, output_dir, verbose)
         output_file = File.join(
           output_dir,
-          File.basename(archive_file, ".*")
+          File.basename(archive_file, ".*"),
         )
         CliOutputFormatter.verbose_puts(
           "Decompressing GZIP: #{archive_file}",
-          verbose
+          verbose,
         )
         FileUtils.mkdir_p(output_dir)
         Formats::Gzip.decompress(archive_file, output_file)
@@ -245,11 +245,11 @@ module Omnizip
       def extract_bzip2(archive_file, output_dir, verbose)
         output_file = File.join(
           output_dir,
-          File.basename(archive_file, ".*")
+          File.basename(archive_file, ".*"),
         )
         CliOutputFormatter.verbose_puts(
           "Decompressing BZIP2: #{archive_file}",
-          verbose
+          verbose,
         )
         FileUtils.mkdir_p(output_dir)
         Formats::Bzip2File.decompress(archive_file, output_file)
@@ -258,11 +258,11 @@ module Omnizip
       def extract_xz(archive_file, output_dir, verbose)
         output_file = File.join(
           output_dir,
-          File.basename(archive_file, ".*")
+          File.basename(archive_file, ".*"),
         )
         CliOutputFormatter.verbose_puts(
           "Decompressing XZ: #{archive_file}",
-          verbose
+          verbose,
         )
         FileUtils.mkdir_p(output_dir)
         Formats::Xz.decompress(archive_file, output_file)

@@ -109,7 +109,7 @@ module Omnizip
         HardLink.new(
           target: original_path,
           path: path,
-          inode: inode_number(path)
+          inode: inode_number(path),
         )
       end
 

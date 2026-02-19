@@ -13,17 +13,17 @@ module Omnizip
       module RockRidge
         # SUSP/Rock Ridge signature identifiers
         module Signatures
-          SP = "SP".freeze # System Use Sharing Protocol indicator
-          CE = "CE".freeze # Continuation area
-          PX = "PX".freeze # POSIX file attributes
-          PN = "PN".freeze # POSIX device number
-          SL = "SL".freeze # Symbolic link
-          NM = "NM".freeze # Alternate name
-          CL = "CL".freeze # Child link
-          PL = "PL".freeze # Parent link
-          RE = "RE".freeze # Relocated directory
-          TF = "TF".freeze # Time stamps
-          SF = "SF".freeze # Sparse file
+          SP = "SP" # System Use Sharing Protocol indicator
+          CE = "CE" # Continuation area
+          PX = "PX" # POSIX file attributes
+          PN = "PN" # POSIX device number
+          SL = "SL" # Symbolic link
+          NM = "NM" # Alternate name
+          CL = "CL" # Child link
+          PL = "PL" # Parent link
+          RE = "RE" # Relocated directory
+          TF = "TF" # Time stamps
+          SF = "SF" # Sparse file
         end
 
         # System Use Entry
@@ -46,8 +46,8 @@ module Omnizip
           #
           # @return [String] Binary representation
           def to_binary
-            result = String.new
-            result << @signature     # 2 bytes
+            result = +""
+            result << @signature # 2 bytes
             result << [@length].pack("C")  # 1 byte
             result << [@version].pack("C") # 1 byte
             result << @data
@@ -77,7 +77,7 @@ module Omnizip
         # @param is_symlink [Boolean] Is this a symbolic link
         # @return [String] Updated record with Rock Ridge fields
         def self.add_extensions(record_data, file_stat, name, is_symlink: false)
-          system_use = String.new
+          system_use = +""
 
           # Add SP entry (first entry in root directory only)
           # This indicates Rock Ridge is being used
@@ -109,7 +109,7 @@ module Omnizip
         # @param stat [File::Stat] File statistics
         # @return [SUEntry] PX entry
         def self.build_px_entry(stat)
-          data = String.new
+          data = +""
 
           # File mode (both-endian)
           data << [stat.mode].pack("V")
@@ -151,7 +151,7 @@ module Omnizip
 
           flags = 0b00000110 # Modify and access times, short format
 
-          data = String.new
+          data = +""
           data << [flags].pack("C")
 
           # Modification time (7-byte format)
@@ -174,7 +174,7 @@ module Omnizip
           # Bit 2: PARENT (name is "..")
           flags = 0
 
-          data = String.new
+          data = +""
           data << [flags].pack("C")
           data << name
 
@@ -190,7 +190,7 @@ module Omnizip
           # Bit 0: CONTINUE (link continues in next SL)
           flags = 0
 
-          data = String.new
+          data = +""
           data << [flags].pack("C")
 
           # Component flags
@@ -213,7 +213,7 @@ module Omnizip
         # @param stat [File::Stat] File statistics
         # @return [SUEntry] PN entry
         def self.build_pn_entry(stat)
-          data = String.new
+          data = +""
 
           # Device number high (both-endian)
           dev_high = (stat.rdev >> 32) & 0xFFFFFFFF
@@ -240,7 +240,7 @@ module Omnizip
             time.hour,
             time.min,
             time.sec,
-            0 # GMT offset
+            0, # GMT offset
           ].pack("C7")
         end
 
@@ -283,7 +283,7 @@ module Omnizip
             nlink: data[8, 4].unpack1("V"),
             uid: data[16, 4].unpack1("V"),
             gid: data[24, 4].unpack1("V"),
-            ino: data[32, 4].unpack1("V")
+            ino: data[32, 4].unpack1("V"),
           }
         end
 
@@ -314,7 +314,7 @@ module Omnizip
         # @param entry [SUEntry] NM entry
         # @return [String] Alternate name
         def self.parse_nm_entry(entry)
-          entry.data[1..-1]
+          entry.data[1..]
         end
 
         # Parse SL entry

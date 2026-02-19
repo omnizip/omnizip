@@ -1,0 +1,107 @@
+---
+title: GZIP Format
+nav_order: 5
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== Purpose
+
+GZIP is the standard compression format on Unix/Linux systems for single files. It uses the Deflate algorithm and is widely supported across all platforms.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression
+|Deflate
+
+|Encryption
+|None
+
+|Archive Support
+|Single file only (use with TAR for multiple files)
+
+|Large Files
+|Yes
+
+|Best For
+|Single file compression, web servers, Unix systems
+|===
+
+== Basic Usage
+
+=== Compress a File
+
+[source,ruby]
+----
+# Compress single file
+Omnizip.compress_file('data.txt', 'data.txt.gz')
+
+# With compression level
+Omnizip.compress_file('data.txt', 'data.txt.gz',
+  level: 9  # Maximum compression
+)
+----
+
+=== Decompress a File
+
+[source,ruby]
+----
+# Decompress GZIP file
+Omnizip.decompress_file('data.txt.gz', 'data.txt')
+
+# Decompress to automatically named file
+Omnizip.decompress_file('data.txt.gz')  # Creates data.txt
+----
+
+== GZIP vs Other Formats
+
+[cols="2,1,1,1"]
+|===
+|Feature |GZIP |XZ |ZIP
+
+|Compression
+|Good
+|Excellent
+|Good
+
+|Speed
+|Fast
+|Slow
+|Fast
+
+|Archive Support
+|No
+|No
+|Yes
+
+|Unix Standard
+|Yes
+|Growing
+|No
+|===
+
+== Streaming Compression
+
+GZIP supports streaming for large files:
+
+[source,ruby]
+----
+# Stream compress large file
+File.open('large.bin', 'rb') do |input|
+  Omnizip::Gzip::Writer.open('large.bin.gz') do |output|
+    while chunk = input.read(65536)
+      output.write(chunk)
+    end
+  end
+end
+----
+
+== See Also
+
+* link:tar-format.html[TAR Format] - Multi-file archives with GZIP
+* link:xz-format.html[XZ Format] - Better compression alternative
+* link:deflate.html[Deflate Algorithm] - Compression algorithm details

@@ -42,7 +42,7 @@ module Omnizip
         else
           2 # Damage not repairable
         end
-      rescue => e
+      rescue StandardError => e
         report_error(e)
         2
       end
@@ -54,7 +54,7 @@ module Omnizip
       # @return [Hash] Default options
       def default_options
         {
-          verbose: false
+          verbose: false,
         }
       end
 

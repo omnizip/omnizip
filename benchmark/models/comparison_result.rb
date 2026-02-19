@@ -31,7 +31,7 @@ module Benchmark
         return nil unless both_successful?
 
         return nil if seven_zip_result.compression_time.nil? ||
-                      seven_zip_result.compression_time.zero?
+          seven_zip_result.compression_time.zero?
 
         (omnizip_result.compression_time /
          seven_zip_result.compression_time).round(2)
@@ -41,7 +41,7 @@ module Benchmark
         return nil unless both_successful?
 
         return nil if seven_zip_result.decompression_time.nil? ||
-                      seven_zip_result.decompression_time.zero?
+          seven_zip_result.decompression_time.zero?
 
         (omnizip_result.decompression_time /
          seven_zip_result.decompression_time).round(2)
@@ -60,8 +60,8 @@ module Benchmark
             size_difference_bytes: size_difference_bytes,
             size_difference_percentage: size_difference_percentage,
             compression_speed_ratio: compression_speed_ratio,
-            decompression_speed_ratio: decompression_speed_ratio
-          }
+            decompression_speed_ratio: decompression_speed_ratio,
+          },
         }
       end
     end

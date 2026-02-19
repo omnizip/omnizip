@@ -97,8 +97,8 @@ module Omnizip
             new_immhi = (absolute >> 2) & 0x7FFFF
 
             new_instruction = (instruction & 0x9F00001F) |
-                              (new_immlo << 29) |
-                              (new_immhi << 5)
+              (new_immlo << 29) |
+              (new_immhi << 5)
             write_uint32_le(result, i, new_instruction)
           end
 
@@ -156,8 +156,8 @@ module Omnizip
             new_immhi = (offset >> 2) & 0x7FFFF
 
             new_instruction = (instruction & 0x9F00001F) |
-                              (new_immlo << 29) |
-                              (new_immhi << 5)
+              (new_immlo << 29) |
+              (new_immhi << 5)
             write_uint32_le(result, i, new_instruction)
           end
 
@@ -178,7 +178,7 @@ module Omnizip
                          "executables",
             architecture: "ARM64 / AArch64",
             alignment: 4,
-            endian: "little"
+            endian: "little",
           }
         end
       end

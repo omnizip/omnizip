@@ -1,236 +1,237 @@
 # frozen_string_literal: true
 
-require "stringio"
-require_relative "../algorithm_registry"
-require_relative "xz/stream_header"
-require_relative "xz/stream_footer"
-require_relative "xz/block_header"
+require_relative "xz_impl/constants"
+require_relative "xz_impl/stream_encoder"
+require_relative "xz_impl/writer"
+require_relative "xz/reader"
+require_relative "../algorithms/lzma"
 
 module Omnizip
   module Formats
     # XZ compression format
-    #
-    # XZ is a container format that wraps LZMA2 compression with
-    # additional features like integrity checks and indexing.
-    #
-    # Format structure:
-    # - Stream header (12 bytes)
-    # - Blocks:
-    #   - Block header (variable)
-    #   - Compressed data (LZMA2)
-    #   - Block padding (to 4-byte boundary)
-    #   - Check (CRC32/CRC64/etc, optional)
-    # - Index (variable)
-    # - Stream footer (12 bytes)
-    module Xz
-      # Check types
-      CHECK_NONE = 0
-      CHECK_CRC32 = 1
-      CHECK_CRC64 = 4
-      CHECK_SHA256 = 10
-
+    # Creates .xz files compatible with XZ Utils
+    class Xz
       class << self
-        # Compress a file with XZ
-        #
-        # @param input_path [String] Input file path
-        # @param output_path [String] Output XZ file path
+        # Create a .xz file from input data
+        # @param input [String, IO] Input data to compress
+        # @param output [String, IO] Output file path or IO object
         # @param options [Hash] Compression options
-        # @option options [Integer] :compression_level Level (0-9)
-        # @option options [Integer] :check_type Check type
-        def compress(input_path, output_path, options = {})
-          input_data = File.binread(input_path)
+        # @option options [Integer] :dict_size Dictionary size (default: 8MB to match XZ Utils preset 6)
+        # @option options [Integer] :check Check type (default: CRC64)
+        def create(input, output = nil, options = {})
+          encoder = XzFormat::StreamEncoder.new(
+            check_type: options[:check] || XzConst::CHECK_CRC64,
+            dict_size: options[:dict_size] || (64 * 1024 * 1024),
+          )
 
-          File.open(output_path, "wb") do |output|
-            compress_stream(StringIO.new(input_data), output, options)
-          end
-        end
+          compressed = encoder.encode(input)
 
-        # Decompress an XZ file
-        #
-        # @param input_path [String] Input XZ file path
-        # @param output_path [String] Output file path
-        def decompress(input_path, output_path)
-          File.open(input_path, "rb") do |input|
-            File.open(output_path, "wb") do |output|
-              decompress_stream(input, output)
+          if output
+            if output.respond_to?(:write)
+              output.write(compressed)
+            else
+              File.binwrite(output, compressed)
             end
+          else
+            compressed
           end
         end
 
-        # Compress data stream with XZ
-        #
-        # @param input_io [IO] Input stream
-        # @param output_io [IO] Output stream
-        # @param options [Hash] Compression options
-        def compress_stream(input_io, output_io, options = {})
-          input_data = input_io.read
-          check_type = options[:check_type] || CHECK_CRC32
-          level = options[:compression_level] || options[:level] || 6
+        # Convenience method with block syntax
+        # @example
+        #   Xz.create_file('output.xz') do |xz|
+        #     xz.add_data('Hello, XZ!')
+        #   end
+        def create_file(path, options = {})
+          builder = Builder.new(options)
+          yield builder if block_given?
 
-          # Write stream header
-          header = StreamHeader.new(check_type)
-          output_io.write(header.encode)
-
-          # Compress data with LZMA2
-          lzma2 = AlgorithmRegistry.get(:lzma2).new
-          compressed_io = StringIO.new
-          compressed_io.set_encoding(Encoding::BINARY)
-
-          lzma2.compress(
-            StringIO.new(input_data),
-            compressed_io,
-            build_compression_options(level)
-          )
-
-          compressed_io.rewind
-          compressed_data = compressed_io.read
-
-          # Write block header
-          block_header = BlockHeader.new(
-            uncompressed_size: input_data.bytesize,
-            filters: [{ id: BlockHeader::FILTER_LZMA2 }]
-          )
-          output_io.write(block_header.encode)
-
-          # Write compressed data
-          output_io.write(compressed_data)
-
-          # Pad to 4-byte boundary
-          padding = (4 - (compressed_data.bytesize % 4)) % 4
-          output_io.write("\0" * padding) if padding.positive?
-
-          # Write check
-          write_check(output_io, input_data, check_type)
-
-          # Write index (simplified - single block)
-          write_index(output_io, input_data.bytesize, compressed_data.bytesize)
-
-          # Write stream footer
-          footer = StreamFooter.new(check_type, 2) # Index is 2 blocks
-          output_io.write(footer.encode)
+          compressed = create(builder.data, nil, options)
+          File.binwrite(path, compressed)
         end
 
-        # Decompress XZ stream
+        # Decode XZ data (alias for decompress with no output)
+        # @param input [String, IO] Input XZ data or file path
+        # @return [String] Decompressed data
+        def decode(input)
+          decompress(input)
+        end
+
+        # Decompress XZ, LZIP (.lz), or LZMA_Alone (.lzma) data
         #
-        # @param input_io [IO] Input stream
-        # @param output_io [IO] Output stream
-        def decompress_stream(input_io, output_io)
-          # Read stream header
-          header_data = input_io.read(StreamHeader::SIZE)
-          StreamHeader.decode(header_data)
+        # This method automatically detects the format based on magic bytes and
+        # routes to the appropriate decoder:
+        # - XZ format (.xz): Container format with stream header/footer/index
+        # - LZIP format (.lz): Standalone format with "LZIP" magic and CRC32 footer
+        # - LZMA_Alone format (.lzma): Legacy standalone format with properties byte
+        #
+        # @param input [String, IO] Input data or file path
+        # @param output [String, IO, nil] Output file path or IO object
+        # @param options [Hash] Options (reserved for future use)
+        # @return [String, nil] Decompressed data (if output is nil)
+        def decompress(input, output = nil, _options = {})
+          # Handle raw data string vs file path
+          data = if input.respond_to?(:read)
+                   # Already an IO object - read content
+                   if input.respond_to?(:size)
+                     # Seekable IO (File, etc.) - read without consuming
+                     original_pos = input.pos
+                     content = input.read
+                     input.seek(original_pos)
+                   else
+                     # Non-seekable IO - read and consume
+                     content = input.read
+                   end
+                   content
+                 elsif input.is_a?(String)
+                   # Could be file path or raw data
+                   # If string contains null byte, it's definitely data (not a path)
+                   # Also check if it's a valid file path first
+                   if !input.include?("\0") && File.exist?(input)
+                     File.binread(input)
+                   else
+                     input.b
+                   end
+                 else
+                   raise ArgumentError,
+                         "Input must be a String or IO object"
+                 end
 
-          # Read block header
-          BlockHeader.decode(input_io)
+          # Detect format and decode
+          decompressed = decode_lzma_data(data)
 
-          # Read compressed data
-          # For simplicity, read until we hit index/footer
-          # In a full implementation, we'd use block_header.compressed_size
-          compressed_data = StringIO.new
-          compressed_data.set_encoding(Encoding::BINARY)
-
-          # Read data in chunks until we can't decompress anymore
-          chunk_size = 4096
-          buffer = +""
-
-          loop do
-            chunk = input_io.read(chunk_size)
-            break if chunk.nil? || chunk.empty?
-
-            buffer << chunk
-
-            # Try to find the index marker (0x00 byte)
-            # This is a simplified approach
-            next unless buffer.include?("\0\0\0\0")
-
-            # Found potential padding/index
-            # Extract just the compressed data
-            compressed_end = buffer.index("\0\0\0\0")
-            compressed_data.write(buffer[0...compressed_end])
-            break
+          if output
+            if output.respond_to?(:write)
+              output.write(decompressed)
+            else
+              File.binwrite(output, decompressed)
+            end
+            nil
+          else
+            decompressed
           end
-
-          compressed_data.rewind
-
-          # Decompress with LZMA2
-          lzma2 = AlgorithmRegistry.get(:lzma2).new
-          decompressed_io = StringIO.new
-          decompressed_io.set_encoding(Encoding::BINARY)
-
-          lzma2.decompress(compressed_data, decompressed_io)
-
-          # Write decompressed data
-          decompressed_io.rewind
-          output_io.write(decompressed_io.read)
-        end
-
-        # Register XZ format when loaded
-        def register!
-          require_relative "../format_registry"
-          FormatRegistry.register(".xz", Omnizip::Formats::Xz)
         end
 
         private
 
-        # Build compression options
-        #
-        # @param level [Integer] Compression level
-        # @return [Object] Compression options
-        def build_compression_options(level)
-          require_relative "../models/compression_options"
+        # Decode LZMA-based data by detecting format
+        # @param data [String] Input data
+        # @return [String] Decompressed data
+        def decode_lzma_data(data)
+          format = detect_lzma_format(data)
 
-          Models::CompressionOptions.new.tap do |opts|
-            opts.level = level
-          end
-        end
-
-        # Write integrity check
-        #
-        # @param output [IO] Output stream
-        # @param data [String] Data to check
-        # @param check_type [Integer] Check type
-        def write_check(output, data, check_type)
-          case check_type
-          when CHECK_NONE
-            # No check
-          when CHECK_CRC32
-            crc32 = Zlib.crc32(data)
-            output.write([crc32].pack("V"))
-          when CHECK_CRC64
-            # Simplified CRC64 (would need proper implementation)
-            crc64 = Zlib.crc32(data).to_i
-            output.write([crc64, 0].pack("VV"))
+          case format
+          when :lz
+            decode_lzip(data)
+          when :lzma_alone
+            decode_lzma_alone(data)
+          when :xz
+            decode_xz_stream(data)
           else
-            raise Error, "Unsupported check type: #{check_type}"
+            raise FormatError, "Unknown LZMA format: cannot detect valid format"
           end
         end
 
-        # Write index
-        #
-        # @param output [IO] Output stream
-        # @param uncompressed_size [Integer] Original size
-        # @param compressed_size [Integer] Compressed size
-        def write_index(output, uncompressed_size, _compressed_size)
-          # Simplified index: just marks end of blocks
-          # Real implementation would include record offsets
-          index = [
-            0x00,                    # Index indicator
-            0x01,                    # Number of records (1 block)
-            uncompressed_size & 0xFF # Simplified unpadded size
-          ].pack("C C C")
+        # Detect LZMA format from magic bytes
+        # @param data [String] Input data
+        # @return [Symbol] Format type (:xz, :lz, :lzma_alone)
+        def detect_lzma_format(data)
+          return :unknown if data.nil? || data.bytesize < 4
 
-          # Pad to 4-byte boundary
-          padding = (4 - (index.bytesize % 4)) % 4
-          index << ("\0" * padding) if padding.positive?
+          first_bytes = data.byteslice(0, 6).bytes.to_a
 
-          # Add CRC32 of index
-          crc32 = Zlib.crc32(index)
-          output.write(index)
-          output.write([crc32].pack("V"))
+          # Check XZ magic: FD 37 7A 58 5A 00
+          # Reference: xz-file-format-1.2.1.txt Section 2.1.1.1
+          if first_bytes[0] == 0xFD && first_bytes[1] == 0x37 &&
+              first_bytes[2] == 0x7A && first_bytes[3] == 0x58 &&
+              first_bytes[4] == 0x5A && first_bytes[5].zero?
+            return :xz
+          end
+
+          # Check LZIP magic: 4C 5A 49 50 ("LZIP")
+          # Reference: /Users/mulgogi/src/external/xz/src/liblzma/common/lzip_decoder.c:106
+          if first_bytes[0] == 0x4C && first_bytes[1] == 0x5A &&
+              first_bytes[2] == 0x49 && first_bytes[3] == 0x50
+            return :lz
+          end
+
+          # Default to LZMA_Alone (legacy format, no magic bytes)
+          # The format starts with properties byte, dictionary size, and uncompressed size
+          # Reference: /Users/mulgogi/src/external/xz/src/liblzma/common/alone_decoder.c
+          :lzma_alone
+        end
+
+        # Decode LZIP format (.lz files)
+        # @param data [String] Input data
+        # @return [String] Decompressed data
+        def decode_lzip(data)
+          input = StringIO.new(data)
+          decoder = Omnizip::Algorithms::LZMA::LzipDecoder.new(input)
+          decoder.decode_stream
+        rescue StandardError => e
+          raise FormatError, "Failed to decode LZIP format: #{e.message}"
+        end
+
+        # Decode LZMA_Alone format (.lzma files)
+        # @param data [String] Input data
+        # @return [String] Decompressed data
+        def decode_lzma_alone(data)
+          input = StringIO.new(data)
+          decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(input)
+          decoder.decode_stream
+        rescue StandardError => e
+          raise FormatError, "Failed to decode LZMA_Alone format: #{e.message}"
+        end
+
+        # Decode XZ format stream
+        # @param data [String] Input data
+        # @return [String] Decompressed data
+        def decode_xz_stream(data)
+          input_io = StringIO.new(data.b)
+          reader = Reader.new(input_io)
+          reader.read
+        rescue StandardError => e
+          raise FormatError, "Failed to decode XZ format: #{e.message}"
+        end
+
+        # Alias for compatibility
+        alias decode decompress
+        alias extract decompress
+
+        # Entry method for archive-like interface
+        # @param input [String, IO] Input XZ data or file path
+        # @param options [Hash] Options (reserved)
+        # @yield [Entry] Yields entry (XZ has single data stream)
+        # @return [String, Entry] Decompressed data or Entry if no block given
+        def extract_entry(input, options = {})
+          data = decompress(input, nil, options)
+
+          entry = Entry.new(data)
+          if block_given?
+            yield entry
+          else
+            entry
+          end
+        end
+      end
+
+      # Builder class for convenient file creation
+      class Builder
+        attr_reader :data
+
+        def initialize(_options = {})
+          @data = String.new(encoding: Encoding::BINARY)
+        end
+
+        def add_data(content)
+          @data << content.to_s.dup.force_encoding(Encoding::BINARY)
+        end
+
+        def add_file(path)
+          content = File.binread(path)
+          add_data(content)
         end
       end
     end
   end
 end
-
-# Auto-register on load
-Omnizip::Formats::Xz.register!

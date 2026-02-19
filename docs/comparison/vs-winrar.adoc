@@ -1,0 +1,100 @@
+---
+title: Omnizip vs WinRAR
+nav_order: 4
+parent: Comparison
+---
+
+== Omnizip vs WinRAR
+
+Comparison between Omnizip and the commercial WinRAR utility.
+
+== Overview
+
+WinRAR is a commercial Windows archiving tool with proprietary RAR format support. Omnizip is an open-source pure Ruby library focused on cross-platform compression.
+
+== Key Differences
+
+[cols="40,30,30",options="header"]
+|===
+|Aspect |Omnizip |WinRAR
+
+|License
+|LGPL 2.1 (Open Source)
+|Proprietary (Paid)
+
+|Platform
+|Cross-platform (Ruby)
+|Windows primary
+
+|Implementation
+|Pure Ruby
+|C++ (native)
+
+|RAR Write Support
+|❌
+|✅
+
+|RAR Read Support
+|✅
+|✅
+
+|7z Format
+|✅
+|✅
+
+|ZIP Format
+|✅
+|✅
+
+|API Integration
+|Ruby API
+|CLI only
+
+|GUI
+|❌
+|✅
+
+|===
+
+== Format Support Comparison
+
+**Omnizip:**
+
+* ZIP (read/write)
+* 7z (read/write)
+* RAR (read-only)
+* TAR (read/write)
+* ISO (read-only)
+
+**WinRAR:**
+
+* RAR (read/write) - Proprietary
+* ZIP (read/write)
+* 7z (read/write)
+* TAR, GZ, BZ2, XZ, etc.
+* Many archive formats
+
+== When to Choose Each
+
+=== Choose Omnizip When
+
+* Need open-source solution
+* Ruby application integration
+* Cross-platform deployment
+* No licensing costs
+* RAR read-only sufficient
+* Programmatic control needed
+
+=== Choose WinRAR When
+
+* Need RAR format creation
+* Windows-centric environment
+* GUI required
+* Commercial support needed
+* Advanced recovery features
+* Maximum compatibility
+
+== See Also
+
+* link:feature-matrix.html[Feature Comparison Matrix]
+* link:vs-7zip.html[Omnizip vs 7-Zip]

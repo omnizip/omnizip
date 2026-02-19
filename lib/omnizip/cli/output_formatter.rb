@@ -40,7 +40,7 @@ module Omnizip
           "Input size:  #{format_size(input_size)}",
           "Output size: #{format_size(output_size)}",
           "Ratio:       #{ratio}%",
-          "Time:        #{elapsed_time.round(3)}s"
+          "Time:        #{elapsed_time.round(3)}s",
         ].join("\n")
       end
 

@@ -1,220 +1,145 @@
 # frozen_string_literal: true
 
-# Copyright (C) 2025 Ribose Inc.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
-
 require_relative "constants"
 require_relative "properties"
-require_relative "chunk_manager"
-require_relative "../lzma/encoder"
+require_relative "simple_lzma2_encoder"
 
 module Omnizip
   module Algorithms
-    class LZMA2
-      # LZMA2 Encoder - wraps LZMA encoder with chunking
+    # LZMA2 encoder - delegates to XzLZMA2Encoder
+    #
+    # This class provides a backward-compatible API that delegates to the
+    # complete XzLZMA2Encoder implementation ported from XZ Utils.
+    #
+    # Based on XZ Utils lzma2_encoder.c
+    class LZMA2Encoder
+      attr_reader :dict_size, :lc, :lp, :pb
+
+      # Initialize the encoder
       #
-      # This class implements the LZMA2 encoding algorithm by:
-      # 1. Splitting input into manageable chunks
-      # 2. Compressing each chunk with LZMA
-      # 3. Deciding whether to use compressed or uncompressed data
-      # 4. Writing control bytes and chunk data
+      # @param dict_size [Integer] Dictionary size (default: 8MB)
+      # @param lc [Integer] Literal context bits (default: 3)
+      # @param lp [Integer] Literal position bits (default: 0)
+      # @param pb [Integer] Position bits (default: 2)
+      # @param standalone [Boolean] If true, write property byte for
+      #   standalone LZMA2 files (default: false)
+      def initialize(
+        dict_size: 8 * 1024 * 1024,
+        lc: 3,
+        lp: 0,
+        pb: 2,
+        standalone: false,
+        **
+      )
+        @dict_size = dict_size
+        @lc = lc
+        @lp = lp
+        @pb = pb
+        @standalone = standalone
+
+        # Create the SimpleLZMA2Encoder (uses working XzEncoder internally)
+        @encoder = LZMA2::SimpleLZMA2Encoder.new(
+          dict_size: dict_size,
+          lc: lc,
+          lp: lp,
+          pb: pb,
+          standalone: standalone,
+        )
+      end
+
+      # Encode data into LZMA2 format
       #
-      # The encoder produces a stream with:
-      # - Property byte (dictionary size encoding)
-      # - Sequence of chunks, each with:
-      #   * Control byte
-      #   * Uncompressed size (if needed)
-      #   * Compressed size (if needed)
-      #   * Chunk data
-      # - End marker (0x00)
-      class Encoder
-        include Constants
+      # @param input [String] Input data to compress
+      # @return [String] LZMA2 compressed data
+      def encode(input)
+        @encoder.encode(input)
+      end
 
-        attr_reader :dict_size, :chunk_size
+      # Compress data from input stream to output stream
+      # This method provides compatibility with the AlgorithmRegistry interface
+      #
+      # @param input_io [IO] Input stream to read from
+      # @param output_io [IO] Output stream to write to
+      # @param level [Integer] Compression level (not used, kept for compatibility)
+      # @return [Integer] Number of bytes written
+      def compress(input_io, output_io, _level = nil)
+        input_data = input_io.read
+        compressed = encode(input_data)
+        output_io.write(compressed)
+        compressed.bytesize
+      end
 
-        # LZMA header size: 1 prop + 4 dict_size + 8 uncompressed_size
-        LZMA_HEADER_SIZE = 13
+      # Decompress data from input stream to output stream
+      # This method provides compatibility with the AlgorithmRegistry interface
+      #
+      # @param input_io [IO] Input stream to read from
+      # @param output_io [IO] Output stream to write to
+      # @param size [Integer] Expected uncompressed size (optional)
+      # @return [Integer] Number of bytes written
+      def decompress(input_io, output_io, _size = nil)
+        # Check if this is being called for 7-Zip format (raw LZMA2 stream)
+        # 7-Zip stores LZMA2 without a property byte
+        # We can detect this by checking if input_io is a StringIO (which is used
+        # by StreamDecompressor for 7-Zip format)
+        raw_mode = input_io.is_a?(StringIO)
 
-        # Initialize the encoder
-        #
-        # @param output [IO] Output stream for compressed data
-        # @param options [Hash] Encoding options
-        # @option options [Integer] :dict_size Dictionary size
-        # @option options [Integer] :chunk_size Chunk size
-        def initialize(output, options = {})
-          @output = output
-          @dict_size = options[:dict_size] || (1 << 23)
-          @chunk_size = options[:chunk_size] || CHUNK_SIZE_DEFAULT
+        # Create a decoder instance
+        decoder = LZMA2::Decoder.new(input_io, raw_mode: raw_mode)
 
-          @properties = Properties.new(@dict_size)
-          @chunk_manager = ChunkManager.new(@chunk_size)
+        # For raw_mode (7-Zip format), we need to provide dict_size
+        # Use default 8MB if not specified
+        if raw_mode
+          # Re-create decoder with dict_size option
+          decoder = LZMA2::Decoder.new(input_io,
+                                       raw_mode: true,
+                                       dict_size: @dict_size)
         end
 
-        # Encode a stream of data
-        #
-        # @param input [String, IO] Input data to compress
-        # @return [void]
-        def encode_stream(input)
-          data = input.is_a?(String) ? input : input.read
-          # Ensure binary encoding without modifying frozen string
-          data = data.dup.force_encoding("ASCII-8BIT")
+        # Decode the stream
+        result = decoder.decode_stream
 
-          # Write property byte
-          write_property_byte
+        # Write to output
+        output_io.write(result)
 
-          # Create and encode chunks
-          chunks = @chunk_manager.create_chunks(data)
-          encode_chunks(chunks)
+        result.bytesize
+      end
 
-          # Write end marker
-          write_end_marker
+      # Encode dictionary size for LZMA2 properties
+      # Returns a single byte encoding the dictionary size
+      #
+      # @param dict_size [Integer] Dictionary size to encode
+      # @return [Integer] Encoded dictionary size byte
+      def self.encode_dict_size(dict_size)
+        # LZMA2 dictionary size encoding (XZ Utils format)
+        # Byte value d encodes dictionary size as:
+        #   If d < 40: size = 2^((d/2) + 12)  (for even d)
+        #           or size = 3 * 2^((d-1)/2 + 11)  (for odd d)
+        #   If d == 40: size = 0xFFFFFFFF (4GB - 1)
+
+        # Clamp to valid range
+        d = [dict_size, LZMA2Constants::DICT_SIZE_MIN].max
+
+        # For 8MB (8 * 1024 * 1024 = 8388608 = 2^23):
+        # We want: 2^((d/2) + 12) = 2^23
+        # So: (d/2) + 12 = 23
+        # Therefore: d/2 = 11, d = 22
+
+        # Calculate log2 of dict_size
+        log2_size = 0
+        temp = d
+        while temp > 1
+          log2_size += 1
+          temp >>= 1
         end
 
-        private
-
-        # Write LZMA2 property byte
-        #
-        # @return [void]
-        def write_property_byte
-          @output.putc(@properties.prop_byte)
-        end
-
-        # Encode all chunks
-        #
-        # @param chunks [Array<ChunkManager::Chunk>] Chunks to encode
-        # @return [void]
-        def encode_chunks(chunks)
-          chunks.each_with_index do |chunk, index|
-            encode_chunk(chunk, index.zero?)
-          end
-        end
-
-        # Encode a single chunk
-        #
-        # @param chunk [ChunkManager::Chunk] Chunk to encode
-        # @param reset_dict [Boolean] Whether to reset dictionary
-        # @return [void]
-        def encode_chunk(chunk, reset_dict)
-          # Try compressing the chunk
-          compressed = compress_chunk_data(chunk.data)
-          chunk.compressed_data = compressed
-
-          # Decide whether to use compression
-          if @chunk_manager.should_compress?(chunk)
-            write_compressed_chunk(chunk, reset_dict)
-          else
-            write_uncompressed_chunk(chunk, reset_dict)
-          end
-        end
-
-        # Compress chunk data using LZMA
-        #
-        # @param data [String] Data to compress
-        # @return [String] Compressed data (without LZMA header)
-        def compress_chunk_data(data)
-          output_buffer = StringIO.new
-          output_buffer.set_encoding("ASCII-8BIT")
-
-          # Create LZMA encoder with current properties
-          lzma_options = {
-            dict_size: @properties.actual_dict_size,
-            lc: 3,
-            lp: 0,
-            pb: 2
-          }
-
-          encoder = LZMA::Encoder.new(output_buffer, lzma_options)
-          encoder.encode_stream(data)
-
-          # Strip LZMA header (13 bytes) - LZMA2 manages headers differently
-          full_output = output_buffer.string
-          full_output.byteslice(LZMA_HEADER_SIZE..-1) || ""
-        end
-
-        # Write compressed chunk
-        #
-        # @param chunk [ChunkManager::Chunk] Chunk to write
-        # @param reset_dict [Boolean] Whether to reset dictionary
-        # @return [void]
-        def write_compressed_chunk(chunk, reset_dict)
-          control = build_compressed_control(reset_dict)
-          @output.putc(control)
-
-          # Write uncompressed size (2 bytes, big-endian)
-          write_size_bytes(chunk.uncompressed_size - 1, 2)
-
-          # Write compressed size (2 bytes, big-endian)
-          # Subtract 1 as per LZMA2 spec
-          write_size_bytes(chunk.output_size - 1, 2)
-
-          # Write compressed data
-          @output.write(chunk.output_data)
-        end
-
-        # Write uncompressed chunk
-        #
-        # @param chunk [ChunkManager::Chunk] Chunk to write
-        # @param reset_dict [Boolean] Whether to reset dictionary
-        # @return [void]
-        def write_uncompressed_chunk(chunk, reset_dict)
-          control = if reset_dict
-                      CONTROL_UNCOMPRESSED_RESET
-                    else
-                      CONTROL_UNCOMPRESSED_NO_RESET
-                    end
-          @output.putc(control)
-
-          # Write uncompressed size (2 bytes, big-endian)
-          write_size_bytes(chunk.uncompressed_size - 1, 2)
-
-          # Write uncompressed data
-          @output.write(chunk.data)
-        end
-
-        # Build control byte for compressed chunk
-        #
-        # @param reset_dict [Boolean] Whether to reset dictionary
-        # @return [Integer] Control byte value
-        def build_compressed_control(_reset_dict)
-          # For simplicity, always use LZMA with reset
-          # Future: could optimize to reuse dictionary
-          CONTROL_LZMA_RESET_NO_PROPS
-        end
-
-        # Write size as bytes
-        #
-        # @param size [Integer] Size value
-        # @param num_bytes [Integer] Number of bytes to write
-        # @return [void]
-        def write_size_bytes(size, num_bytes)
-          # Write in big-endian order
-          (num_bytes - 1).downto(0) do |i|
-            @output.putc((size >> (i * 8)) & 0xFF)
-          end
-        end
-
-        # Write end marker
-        #
-        # @return [void]
-        def write_end_marker
-          @output.putc(CONTROL_END)
+        # Encoding formula for power-of-2 sizes:
+        # d = 2 * (log2_size - 12)
+        if d == (1 << log2_size)
+          # Exact power of 2
+          [(log2_size - 12) * 2, 40].min
+        else
+          # Between 2^n and 2^n + 2^(n-1), use odd encoding
+          [((log2_size - 12) * 2) + 1, 40].min
         end
       end
     end

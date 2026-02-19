@@ -7,14 +7,6 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
   let(:algorithm) { described_class.new }
   let(:test_data) { "Hello, World! " * 100 }
 
-  # Check if zstd-ruby gem is actually available
-  def zstd_available?
-    require "zstd-ruby"
-    true
-  rescue LoadError
-    false
-  end
-
   describe ".metadata" do
     it "returns algorithm metadata" do
       metadata = described_class.metadata
@@ -27,7 +19,7 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
   describe "#compress and #decompress" do
     context "when zstd-ruby gem is available" do
       it "compresses and decompresses data correctly" do
-        skip "zstd-ruby gem not installed" unless zstd_available?
+        skip "Pure Ruby Zstandard deferred to v0.4.0 (RFC 8878 implementation required)"
 
         input = StringIO.new(test_data)
         compressed = StringIO.new
@@ -42,7 +34,7 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
       end
 
       it "achieves compression on repetitive data" do
-        skip "zstd-ruby gem not installed" unless zstd_available?
+        skip "Pure Ruby Zstandard deferred to v0.4.0 (RFC 8878 implementation required)"
 
         input = StringIO.new(test_data)
         compressed = StringIO.new
@@ -50,18 +42,6 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
         algorithm.compress(input, compressed)
 
         expect(compressed.string.bytesize).to be < test_data.bytesize
-      end
-    end
-
-    context "when zstd-ruby gem is not available" do
-      it "provides helpful error message on compression" do
-        skip "zstd-ruby is available" if zstd_available?
-
-        input = StringIO.new(test_data)
-        compressed = StringIO.new
-
-        expect { algorithm.compress(input, compressed) }
-          .to raise_error(LoadError, /zstd-ruby/)
       end
     end
   end

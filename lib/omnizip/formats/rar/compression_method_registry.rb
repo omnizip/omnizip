@@ -29,7 +29,7 @@ module Omnizip
           def register(name, compressor, decompressor)
             methods[name] = {
               compressor: compressor,
-              decompressor: decompressor
+              decompressor: decompressor,
             }
           end
 

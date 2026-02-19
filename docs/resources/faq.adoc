@@ -1,0 +1,185 @@
+---
+title: FAQ
+nav_order: 71
+---
+
+== Frequently Asked Questions
+
+=== General Questions
+
+==== What is Omnizip?
+
+Omnizip is a pure Ruby compression library supporting multiple compression algorithms (LZMA, LZMA2, BZip2, PPMd, Deflate, Zstandard) and archive formats (7z, ZIP, RAR, TAR, etc.) with zero external dependencies.
+
+==== Why use Omnizip?
+
+* **Portability** - Works on all Ruby platforms (MRI, JRuby, TruffleRuby)
+* **No Dependencies** - Zero external dependencies or native extensions
+* **Comprehensive** - Support for 10+ archive formats and 6 compression algorithms
+* **Extensible** - Registry-based plugin architecture
+
+==== How fast is Omnizip?
+
+Pure Ruby implementation is 10-60x slower than native implementations:
+
+* LZMA encode: 13-15x slower
+* LZMA decode: 8-10x slower
+* BWT transform: 50-60x slower
+
+This is an acceptable trade-off for maximum portability.
+
+=== Installation
+
+==== What Ruby version is required?
+
+Ruby 3.0 or higher is required.
+
+==== Does Omnizip work on JRuby?
+
+Yes, Omnizip works on JRuby 9.4+.
+
+==== Does Omnizip work on TruffleRuby?
+
+Yes, Omnizip works on TruffleRuby 22+.
+
+=== Usage
+
+==== How do I compress a file?
+
+[source,bash]
+----
+omnizip compress input.txt output.lzma
+----
+
+[source,ruby]
+----
+Omnizip.compress_file('input.txt', 'output.lzma')
+----
+
+==== How do I create an archive?
+
+[source,bash]
+----
+omnizip archive create backup.7z documents/
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('backup.7z')
+writer.add_directory('documents/')
+writer.close
+----
+
+==== How do I extract an archive?
+
+[source,bash]
+----
+omnizip archive extract backup.7z output/
+----
+
+[source,ruby]
+----
+reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
+reader.extract_all('output/')
+reader.close
+----
+
+==== What compression level should I use?
+
+* **Levels 1-3**: Fast compression for temporary files
+* **Levels 4-6**: Balanced speed/ratio for general use (default: 5)
+* **Levels 7-9**: Maximum compression for storage
+
+=== Compatibility
+
+==== Can Omnizip extract 7-Zip archives?
+
+Yes, Omnizip can extract archives created by 7-Zip.
+
+==== Can Omnizip create ZIP files?
+
+Yes, Omnizip can create ZIP files compatible with all ZIP tools.
+
+==== Can Omnizip create RAR archives?
+
+Yes, Omnizip can create RAR5 archives using pure Ruby implementation.
+
+=== Performance
+
+==== How can I speed up compression?
+
+1. Use lower compression levels (--level 1-3)
+2. Use faster algorithms (zstandard, deflate)
+3. Enable parallel processing (--threads)
+4. Use compression profiles for automatic selection
+
+==== Why is compression slow?
+
+Pure Ruby implementation prioritizes portability over performance. Native implementations are 10-60x faster but require platform-specific compilation.
+
+=== Troubleshooting
+
+==== Compression failed with "Algorithm not found"
+
+Ensure the algorithm name is correct:
+
+[source,bash]
+----
+omnizip list  # See available algorithms
+----
+
+==== Archive extraction failed
+
+Verify the archive is not corrupted:
+
+[source,bash]
+----
+omnizip archive list archive.7z
+----
+
+Try different extraction options or check file integrity.
+
+==== Out of memory error
+
+For large files, consider:
+
+1. Using chunked processing
+2. Reducing compression level
+3. Using faster algorithms
+
+=== Advanced
+
+==== How do I use filters?
+
+[source,bash]
+----
+omnizip archive create binaries.7z app.exe --filters bcj_x86
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('binaries.7z',
+  filters: [:bcj_x86]
+)
+----
+
+==== How do I encrypt archives?
+
+[source,bash]
+----
+omnizip archive create secure.7z data/ --password "PASSWORD"
+----
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('secure.7z',
+  password: 'PASSWORD'
+)
+----
+
+=== See Also
+
+* link:../getting-started/[Getting Started]
+* link:../guides/[Usage Guides]
+* link:../troubleshooting/[Troubleshooting]
+* link:../resources/quick-reference[Quick Reference]

@@ -1,0 +1,64 @@
+---
+title: Format Conversion
+nav_order: 3
+parent: Guides
+---
+
+== Format Conversion
+
+Converting archives between different formats.
+
+== ZIP to 7z
+
+[source,ruby]
+----
+require 'omnizip'
+
+Omnizip::Archive.open('input.zip') do |zip_archive|
+  Omnizip::Archive.create('output.7z', format: :seven_zip) do |sevenz_archive|
+    zip_archive.entries.each do |entry|
+      next if entry.directory?
+      data = zip_archive.read(entry.name)
+      sevenz_archive.add_data(entry.name, data)
+    end
+  end
+end
+----
+
+== 7z to ZIP
+
+[source,ruby]
+----
+Omnizip::Archive.open('input.7z') do |sevenz_archive|
+  Omnizip::Archive.create('output.zip', format: :zip) do |zip_archive|
+    sevenz_archive.entries.each do |entry|
+      next if entry.directory?
+      data = sevenz_archive.read(entry.name)
+      zip_archive.add_data(entry.name, data)
+    end
+  end
+end
+----
+
+== Batch Conversion
+
+[source,ruby]
+----
+Dir.glob('*.zip').each do |zip_file|
+  sevenz_file = zip_file.sub('.zip', '.7z')
+
+  Omnizip::Archive.open(zip_file) do |src|
+    Omnizip::Archive.create(sevenz_file, format: :seven_zip, level: 9) do |dest|
+      src.entries.each do |entry|
+        next if entry.directory?
+        dest.add_data(entry.name, src.read(entry.name))
+      end
+    end
+  end
+end
+----
+
+== See Also
+
+* link:creating-archives.html[Creating Archives]
+* link:../comparison/feature-matrix.html[Format Comparison]

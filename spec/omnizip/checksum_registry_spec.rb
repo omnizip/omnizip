@@ -32,7 +32,7 @@ RSpec.describe Omnizip::ChecksumRegistry do
         described_class.register(:crc32, Omnizip::Checksums::Crc64)
       end.to raise_error(
         ArgumentError,
-        "Checksum 'crc32' is already registered"
+        "Checksum 'crc32' is already registered",
       )
     end
 
@@ -78,7 +78,7 @@ RSpec.describe Omnizip::ChecksumRegistry do
         described_class.get(:unknown)
       end.to raise_error(
         Omnizip::UnknownAlgorithmError,
-        /Unknown checksum: 'unknown'/
+        /Unknown checksum: 'unknown'/,
       )
     end
 
@@ -87,7 +87,7 @@ RSpec.describe Omnizip::ChecksumRegistry do
         described_class.get(:nonexistent)
       end.to raise_error(
         Omnizip::UnknownAlgorithmError,
-        /Available: crc32, crc64/
+        /Available: crc32, crc64/,
       )
     end
   end

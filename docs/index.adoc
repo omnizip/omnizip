@@ -1,0 +1,218 @@
+---
+title: Home
+nav_order: 0
+---
+
+== Omnizip: Pure Ruby compression library
+
+=== Purpose
+
+Omnizip is a comprehensive pure Ruby implementation of compression algorithms and archive formats. Built on an extensible, registry-based architecture with clean object-oriented design, Omnizip provides full-featured compression capabilities without external dependencies.
+
+This implementation supports multiple compression algorithms (LZMA, LZMA2, BZip2, PPMd7/8, Deflate, Deflate64, Zstandard), preprocessing filters (BCJ variants, Delta), encryption (AES-256), and complete support for multiple archive formats (.7z, ZIP, RAR, TAR, ISO, CPIO, GZIP, XZ, BZIP2).
+
+It provides both a command-line interface and a programmatic Ruby API, making it ideal for applications requiring portable, dependency-free compression without relying on system-level libraries or external binaries.
+
+**Pure Ruby Implementation:** Works on all Ruby platforms (MRI, JRuby, TruffleRuby) with zero external dependencies. Performance is 10-60x slower than native implementations, which is an acceptable trade-off for maximum portability.
+
+=== Quick Start
+
+Get started with Omnizip in minutes:
+
+* link:getting-started/installation.html[Install the gem and dependencies]
+* link:getting-started/quick-start.html[Compress your first file in 5 minutes]
+* link:getting-started/your-first-archive.html[Create your first archive]
+
+=== Documentation Map
+
+==== New to Omnizip?
+
+Follow this learning path:
+
+. Install Omnizip
+** link:getting-started/installation.html[Installation Guide]
+
+. Quick Start (5 minutes)
+** link:getting-started/quick-start.html[Quick Start Guide]
+
+. Create Your First Archive
+** link:getting-started/your-first-archive.html[Create Your First Archive]
+
+. Learn Basic Operations
+** link:guides/creating-archives.html[Create archives]
+** link:guides/extracting-archives.html[Extract from archives]
+
+==== Looking for Something Specific?
+
+**Working with Files**
+
+* link:guides/creating-archives.html[Create new archives]
+* link:guides/extracting-archives.html[Extract from archives]
+* link:guides/format-conversion.html[Convert between formats]
+
+**Compression Algorithms**
+
+* link:guides/compression-algorithms/lzma.html[LZMA/LZMA2 compression]
+* link:guides/compression-algorithms/bzip2.html[BZip2 compression]
+* link:guides/compression-algorithms/ppmd.html[PPMd7/PPMd8 compression]
+* link:guides/compression-algorithms/deflate.html[Deflate/Deflate64 compression]
+* link:guides/compression-algorithms/zstandard.html[Zstandard compression]
+
+**Archive Formats**
+
+* link:guides/archive-formats/seven-zip-format.html[7z archives]
+* link:guides/archive-formats/zip-format.html[ZIP archives]
+* link:guides/archive-formats/rar-format.html[RAR4/RAR5 archives]
+* link:guides/archive-formats/tar-format.html[TAR archives]
+* link:guides/archive-formats/gzip-format.html[GZIP files]
+* link:guides/archive-formats/xz-format.html[XZ files]
+
+**Advanced Features**
+
+* link:guides/advanced-features/streaming.html[Streaming operations]
+* link:guides/advanced-features/parallel-processing.html[Parallel processing]
+* link:guides/advanced-features/encryption.html[Encryption]
+* link:guides/parity-archives.html[PAR2 error correction]
+
+**Reference Materials**
+
+* link:resources/quick-reference.html[Cheat sheet for common operations]
+* link:reference/cli/overview.html[Command-line interface documentation]
+* link:reference/api/overview.html[Ruby API documentation]
+* link:concepts/index.html[Core concepts explained]
+* link:developer/architecture.html[Design and implementation details]
+
+=== Supported Compression Algorithms
+
+Omnizip supports 6 major compression algorithms:
+
+[cols="1,3,2"]
+|===
+|Algorithm |Description |Best For
+
+|LZMA/LZMA2
+|Dictionary-based compression with high ratio
+|Archives, backups, general compression
+
+|BZip2
+|Burrows-Wheeler Transform compression
+|Text files, source code
+
+|PPMd7/PPMd8
+|Prediction by Partial Matching
+|Text, documents, natural language
+
+|Deflate/Deflate64
+|ZIP-compatible compression
+|Cross-platform compatibility
+
+|Zstandard
+|Modern fast compression
+|Speed-sensitive applications
+|===
+
+=== Supported Archive Formats
+
+Omnizip supports 10 archive formats:
+
+[cols="1,3,2"]
+|===
+|Format |Description |Common Use
+
+|.7z
+|7-Zip archives with solid compression
+|Software distribution, backups
+
+|ZIP
+|ZIP archives with ZIP64 support
+|Cross-platform archives
+
+|RAR4/RAR5
+|RAR archives with multi-volume support
+|Binary distribution, file sharing
+
+|TAR
+|TAR archives with POSIX extensions
+|Unix backups, software packaging
+
+|ISO 9660
+|ISO optical disc images
+|CD/DVD images
+
+|CPIO
+|CPIO archives
+|Unix system backups
+
+|GZIP
+|GZIP compressed files
+|Single file compression
+
+|XZ
+|XZ compressed files with LZMA2
+|System package compression
+
+|BZIP2
+|BZIP2 compressed files
+|Text file compression
+|===
+
+=== Key Features
+
+* **Pure Ruby** - No native dependencies, works on any Ruby platform
+* **Registry-Based** - Extensible plugin architecture for algorithms and formats
+* **Multiple Formats** - Support for 10+ archive formats
+* **Compression Profiles** - Smart algorithm selection based on file type
+* **Solid Archives** - Shared dictionary for better compression ratios
+* **Multi-Volume** - Split archives across multiple files
+* **Encryption** - AES-256 password protection
+* **PAR2 Support** - Error correction and recovery records
+* **CLI Tools** - Complete command-line interface
+* **Ruby API** - Full programmatic access
+* **Enumerable** - All collections support Ruby's Enumerable interface
+
+=== Example Usage
+
+.Compressing a file
+[source,ruby]
+----
+require 'omnizip'
+
+# Simple one-liner
+Omnizip.compress_file('input.txt', 'output.zip')
+
+# With options
+Omnizip.compress_file('input.txt', 'output.lzma',
+  algorithm: :lzma,
+  level: 9
+)
+----
+
+.Command-line interface
+[source,bash]
+----
+# Compress a file
+omnizip compress input.txt output.lzma --level 9
+
+# Create a .7z archive
+omnizip archive create backup.7z documents/ photos/
+
+# Extract an archive
+omnizip archive extract backup.7z output/
+
+# List archive contents
+omnizip archive list backup.7z
+----
+
+=== Getting help
+
+* **Documentation**: Browse the guides and reference sections
+* **Issues**: Report bugs at https://github.com/metanorma/omnizip/issues
+* **Source**: View the code at https://github.com/metanorma/omnizip
+
+=== Related sections
+
+* link:getting-started/index.html[Installation and quick start]
+* link:guides/index.html[Comprehensive usage guides]
+* link:reference/index.html[API and CLI documentation]
+* link:concepts/index.html[Core concepts and architecture]
+* link:troubleshooting/index.html[Common problems and solutions]

@@ -57,7 +57,7 @@ module Omnizip
           output,
           format,
           compression: compression,
-          **options
+          **options,
         )
         compressor.compress
       end
@@ -79,7 +79,7 @@ module Omnizip
           input,
           output_dir: output_dir,
           output: output,
-          **options
+          **options,
         )
         decompressor.decompress
       end
@@ -106,7 +106,7 @@ module Omnizip
       # @param input [String, IO] Input path or IO object
       # @return [Boolean] True if input is stdin
       def stdin?(input)
-        input == "-" || input == $stdin
+        ["-", $stdin].include?(input)
       end
 
       # Detect if output is stdout
@@ -114,7 +114,7 @@ module Omnizip
       # @param output [String, IO] Output path or IO object
       # @return [Boolean] True if output is stdout
       def stdout?(output)
-        output == "-" || output == $stdout
+        ["-", $stdout].include?(output)
       end
     end
   end

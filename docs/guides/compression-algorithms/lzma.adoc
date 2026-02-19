@@ -1,0 +1,398 @@
+---
+title: LZMA
+nav_order: 1
+parent: Compression Algorithms
+grand_parent: Guides
+---
+
+== Purpose
+
+LZMA (Lempel-Ziv-Markov chain Algorithm) is a high-ratio compression algorithm that uses dictionary-based compression combined with range coding. It's the foundation of 7-Zip compression and offers excellent compression ratios with reasonable decompression speed.
+
+== Implementation Status
+
+**Encoder**: ✅ Production-ready, SDK-compatible +
+**Decoder**: ⚠️  Basic functionality working
+
+The LZMA encoder produces byte-for-byte identical output to the reference LZMA SDK implementation. This ensures perfect compatibility with 7-Zip, RAR5, and other tools using LZMA compression.
+
+[NOTE]
+====
+The encoder is fully production-ready for creating LZMA-compressed streams. The decoder handles simple cases correctly but may need enhancement for complex multi-byte scenarios. This does not affect the encoder's SDK compatibility.
+====
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Compression Ratio
+|Excellent (among the best)
+
+|Compression Speed
+|Slow to medium
+
+|Decompression Speed
+|Fast
+
+|Memory Usage
+|Medium to high (dictionary dependent)
+
+|Best For
+|General-purpose compression, long-term storage
+|===
+
+== When to Use LZMA
+
+**Choose LZMA when**:
+
+* Maximum compression ratio is priority
+* Files will be compressed once, decompressed many times
+* Storage space is more valuable than compression time
+* Working with general-purpose data (not specific file types)
+
+**Avoid LZMA when**:
+
+* Speed is more important than compression ratio (use Deflate or Zstandard)
+* Working with already-compressed data (images, videos)
+* Memory is very constrained (use lower dictionary sizes)
+
+== Basic Usage
+
+=== Compress with LZMA
+
+[source,ruby]
+----
+# Create LZMA-compressed archive
+Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
+  archive.compression = :lzma
+  archive.level = 7
+  archive.add_directory('project/')
+end
+----
+
+=== Decompress LZMA
+
+[source,ruby]
+----
+# Extract LZMA-compressed archive
+Omnizip::Archive.open('backup.7z') do |archive|
+  archive.extract_all('restored/')
+end
+----
+
+== Compression Levels
+
+LZMA supports levels 1-9 with different trade-offs:
+
+[cols="1,2,2,2,2"]
+|===
+|Level |Dictionary |Speed |Ratio |Best For
+
+|1-2
+|1-2 MB
+|Fast
+|Good
+|Quick compression
+
+|3-4
+|4 MB
+|Medium
+|Very Good
+|Balanced use
+
+|5-6
+|8-16 MB
+|Slow
+|Excellent
+|**Default** - good balance
+
+|7-8
+|32 MB
+|Very Slow
+|Excellent+
+|Maximum compression
+
+|9
+|64 MB
+|Slowest
+|Best
+|Long-term archival
+|===
+
+.Compression Level Example
+[source,ruby]
+----
+# Fast compression (level 3)
+Omnizip.compress_file('data.txt', 'fast.7z',
+  compression: :lzma,
+  level: 3
+)
+
+# Maximum compression (level 9)
+Omnizip.compress_file('data.txt', 'maximum.7z',
+  compression: :lzma,
+  level: 9
+)
+
+# Results comparison:
+# Level 3: 1.2 MB in 2 seconds
+# Level 9: 0.9 MB in 12 seconds (25% better, 6x slower)
+----
+
+== Performance Characteristics
+
+=== Compression Performance
+
+[cols="2,1,1,1"]
+|===
+|File Size |Level 5 Time |Level 9 Time |Ratio Improvement
+
+|1 MB
+|0.3s
+|1.5s
+|~10%
+
+|10 MB
+|3s
+|15s
+|~15%
+
+|100 MB
+|30s
+|180s
+|~20%
+
+|1 GB
+|5min
+|30min
+|~25%
+|===
+
+=== Memory Requirements
+
+Dictionary size determines memory usage:
+
+[cols="1,1,1,1"]
+|===
+|Level |Dictionary |Compression RAM |Decompression RAM
+
+|1-2
+|1-2 MB
+|~10 MB
+|~2 MB
+
+|3-4
+|4 MB
+|~40 MB
+|~5 MB
+
+|5-6
+|8-16 MB
+|~100 MB
+|~20 MB
+
+|7-9
+|32-64 MB
+|~400 MB
+|~70 MB
+|===
+
+== Algorithm Details
+
+=== How LZMA Works
+
+LZMA operates in three stages:
+
+. **LZ77 Matching**: Find repeated sequences in a sliding window dictionary
+. **Range Encoding**: Encode matches and literals using adaptive probability models
+. **State Machine**: Track context for better prediction
+
+[source]
+----
+Input Data
+    │
+    ▼
+┌─────────────┐
+│ LZ77 Match  │ Find repeated sequences
+│   Finder    │ in dictionary window
+└──────┬──────┘
+       │ Matches + Literals
+       ▼
+┌─────────────┐
+│   Range     │ Encode using probability
+│   Encoder   │ models and arithmetic coding
+└──────┬──────┘
+       │ Compressed bitstream
+       ▼
+┌─────────────┐
+│   Output    │ Final compressed data
+│   Stream    │
+└─────────────┘
+----
+
+=== Dictionary Size Impact
+
+Larger dictionaries find more matches but use more memory:
+
+[source,ruby]
+----
+# Small dictionary (fast, less compression)
+Omnizip.compress_file('file.txt', 'small-dict.7z',
+  compression: :lzma,
+  dictionary_size: 1.megabyte  # 1 MB dictionary
+)
+
+# Large dictionary (slow, better compression)
+Omnizip.compress_file('file.txt', 'large-dict.7z',
+  compression: :lzma,
+  dictionary_size: 64.megabytes  # 64 MB dictionary
+)
+----
+
+== Optimization Tips
+
+=== Choose Appropriate Level
+
+[source,ruby]
+----
+# For testing/development (fast feedback)
+level: 3
+
+# For production backups (balanced)
+level: 5  # Default
+
+# For archival/distribution (maximum compression)
+level: 9
+----
+
+=== Adjust Dictionary Size
+
+Match dictionary to file characteristics:
+
+[source,ruby]
+----
+# Small files (<1 MB)
+dictionary_size: 1.megabyte
+
+# Medium files (1-100 MB)
+dictionary_size: 8.megabytes  # Default for level 5
+
+# Large files (>100 MB)
+dictionary_size: 32.megabytes
+----
+
+=== Combine with Filters
+
+Improve compression of executables:
+
+[source,ruby]
+----
+# Compress executable with BCJ filter
+Omnizip::Archive.create('app.7z', format: :seven_zip) do |archive|
+  archive.compression = :lzma
+  archive.level = 9
+  archive.filter = :bcj_x86  # For x86 executables
+  archive.add_file('application.exe')
+end
+
+# Can improve compression by 10-30% for executables
+----
+
+== Comparison with Other Algorithms
+
+[cols="2,1,1,1,1"]
+|===
+|Algorithm |Ratio |Comp Speed |Decomp Speed |Use Case
+
+|**LZMA**
+|Excellent
+|Slow
+|Fast
+|General purpose
+
+|LZMA2
+|Excellent
+|Slow
+|Fast
+|Multi-threading
+
+|Deflate
+|Good
+|Fast
+|Fast
+|Speed priority
+
+|PPMd
+|Excellent
+|Very Slow
+|Slow
+|Text files
+
+|Zstandard
+|Very Good
+|Very Fast
+|Very Fast
+|Real-time compression
+|===
+
+== Common Use Cases
+
+=== Software Distribution
+
+[source,ruby]
+----
+# Package software release with maximum compression
+Omnizip::Archive.create("app-v1.0.7z", format: :seven_zip) do |archive|
+  archive.compression = :lzma
+  archive.level = 9
+  archive.solid = true  # Even better compression
+  archive.add_directory('release/')
+end
+----
+
+=== Data Archival
+
+[source,ruby]
+----
+# Archive old data with best compression
+Omnizip.compress_directory(
+  'old_logs_2023/',
+  'archive_2023.7z',
+  compression: :lzma,
+  level: 9,
+  description: "Archived logs from 2023"
+)
+----
+
+=== Backup Systems
+
+[source,ruby]
+----
+# Daily backup with good compression
+Omnizip.compress_directory(
+  '/var/www/',
+  "backup_#{Date.today}.7z",
+  compression: :lzma,
+  level: 6,  # Balanced
+  parallel: true  # Speed up with parallel processing
+)
+----
+
+== Technical Specifications
+
+* **Algorithm Family**: Dictionary-based + Statistical
+* **Window Size**: Up to 4 GB (theoretical), typically 1-64 MB
+* **Match Length**: 2-273 bytes
+* **Range Encoding**: Arithmetic coding with adaptive probability
+* **Context**: Up to 4 bits of context for better prediction
+* **Bit Compatibility**: 100% compatible with 7-Zip LZMA
+
+== See Also
+
+* link:lzma2.html[LZMA2] - Enhanced LZMA with better multi-threading
+* link:deflate.html[Deflate] - Faster alternative for less compression
+* link:ppmd.html[PPMd] - Better for text files
+* link:../advanced-features/parallel-processing.html[Parallel Processing] - Speed up compression
+* link:../../compatibility.html[Compatibility Matrix] - Algorithm support across tools

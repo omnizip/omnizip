@@ -58,7 +58,7 @@ begin
   details = Omnizip.list_archive(backup_zip, details: true)
   details.each do |entry|
     type = entry[:directory] ? "[DIR]" : "[FILE]"
-    ratio = entry[:size] > 0 ? (100 * entry[:compressed_size].to_f / entry[:size]).round(1) : 0
+    ratio = entry[:size].positive? ? (100 * entry[:compressed_size].to_f / entry[:size]).round(1) : 0
     puts "   #{type} #{entry[:name]}"
     puts "       Size: #{entry[:size]} bytes, Compressed: #{entry[:compressed_size]} bytes (#{ratio}%)"
   end
@@ -145,7 +145,6 @@ begin
   puts "  - Clear, readable code"
   puts "  - Full control when needed via low-level API"
 
-ensure
   # Cleanup (optional - tmpdir usually handles this)
   # FileUtils.rm_rf(tmpdir)
 end

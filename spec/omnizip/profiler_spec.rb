@@ -244,8 +244,8 @@ RSpec.describe Omnizip::Profiler::ReportGenerator do
         operation_name: "test_op",
         total_time: 1.5,
         memory_allocated: 1024 * 1024,
-        call_count: 10
-      )
+        call_count: 10,
+      ),
     )
   end
 
@@ -271,7 +271,7 @@ RSpec.describe Omnizip::Profiler::ReportGenerator do
     let(:temp_file) { "tmp/test_report.txt" }
 
     after do
-      File.delete(temp_file) if File.exist?(temp_file)
+      FileUtils.rm_f(temp_file)
     end
 
     it "saves text report to file" do
@@ -287,7 +287,7 @@ RSpec.describe Omnizip::Profiler::ReportGenerator do
       expect(File.exist?(json_file)).to be true
       content = JSON.parse(File.read(json_file))
       expect(content["profile_name"]).to eq("test_report")
-      File.delete(json_file) if File.exist?(json_file)
+      FileUtils.rm_f(json_file)
     end
   end
 end
@@ -315,7 +315,7 @@ RSpec.describe Omnizip::OptimizationRegistry do
     it "raises error for unregistered strategy" do
       expect do
         described_class.get(:nonexistent)
-      end.to raise_error(Omnizip::Error::OptimizationNotFound)
+      end.to raise_error(Omnizip::OptimizationNotFound)
     end
   end
 
@@ -345,7 +345,7 @@ RSpec.describe Omnizip::Models::PerformanceResult do
       operation_name: "test_op",
       total_time: 2.0,
       memory_allocated: 2048,
-      call_count: 5
+      call_count: 5,
     )
   end
 
@@ -384,7 +384,7 @@ RSpec.describe Omnizip::Models::OptimizationSuggestion do
         title: "Test optimization",
         description: "Test description",
         severity: :high,
-        category: :memory
+        category: :memory,
       )
       expect(suggestion.title).to eq("Test optimization")
       expect(suggestion.severity).to eq(:high)
@@ -396,7 +396,7 @@ RSpec.describe Omnizip::Models::OptimizationSuggestion do
           title: "Test",
           description: "Test",
           severity: :invalid,
-          category: :memory
+          category: :memory,
         )
       end.to raise_error(ArgumentError, /Invalid severity/)
     end
@@ -407,7 +407,7 @@ RSpec.describe Omnizip::Models::OptimizationSuggestion do
           title: "Test",
           description: "Test",
           severity: :high,
-          category: :invalid
+          category: :invalid,
         )
       end.to raise_error(ArgumentError, /Invalid category/)
     end
@@ -419,7 +419,7 @@ RSpec.describe Omnizip::Models::OptimizationSuggestion do
         title: "Test",
         description: "Test",
         severity: :critical,
-        category: :memory
+        category: :memory,
       )
       expect(suggestion.critical?).to be true
     end
@@ -433,7 +433,7 @@ RSpec.describe Omnizip::Models::OptimizationSuggestion do
         severity: :high,
         category: :memory,
         impact_estimate: 0.8,
-        implementation_effort: 2.0
+        implementation_effort: 2.0,
       )
       expect(suggestion.priority_score).to be > 0
     end

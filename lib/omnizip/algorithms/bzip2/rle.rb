@@ -143,7 +143,7 @@ module Omnizip
         def consecutive_match?(array, byte, count)
           return false if array.length < count
 
-          array[-count..].all? { |b| b == byte }
+          array[-count..].all?(byte)
         end
       end
     end

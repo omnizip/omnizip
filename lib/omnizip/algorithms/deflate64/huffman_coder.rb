@@ -43,9 +43,7 @@ module Omnizip
           @distance_tree = build_tree(distance_freqs)
 
           # Encode tokens
-          bitstream = encode_tokens(tokens)
-
-          bitstream
+          encode_tokens(tokens)
         end
 
         # Decode bitstream using Huffman coding
@@ -124,7 +122,7 @@ module Omnizip
               symbol: nil,
               freq: left[:freq] + right[:freq],
               left: left,
-              right: right
+              right: right,
             }
 
             nodes << parent
@@ -146,8 +144,8 @@ module Omnizip
           if node[:symbol]
             codes[node[:symbol]] = code
           else
-            generate_codes(node[:left], code + "0", codes)
-            generate_codes(node[:right], code + "1", codes)
+            generate_codes(node[:left], "#{code}0", codes)
+            generate_codes(node[:right], "#{code}1", codes)
           end
 
           codes
@@ -190,6 +188,13 @@ module Omnizip
 
           while pos < bits.length
             symbol, length = decode_symbol(bits, pos, @literal_tree)
+
+            # Check for decoding failure
+            if symbol.nil?
+              raise Omnizip::DecompressionError,
+                    "Failed to decode symbol at bit position #{pos}"
+            end
+
             pos += length
 
             break if symbol == END_OF_BLOCK
@@ -201,6 +206,13 @@ module Omnizip
 
               dist_symbol, dist_length =
                 decode_symbol(bits, pos, @distance_tree)
+
+              # Check for distance decoding failure
+              if dist_symbol.nil?
+                raise Omnizip::DecompressionError,
+                      "Failed to decode distance at bit position #{pos}"
+              end
+
               pos += dist_length
 
               distance = code_to_distance(dist_symbol)
@@ -208,7 +220,7 @@ module Omnizip
               tokens << {
                 type: :match,
                 length: match_length,
-                distance: distance
+                distance: distance,
               }
             end
           end
@@ -249,20 +261,85 @@ module Omnizip
         end
 
         # Convert distance to Huffman code
+        # Uses DEFLATE distance code table
         def distance_to_code(distance)
-          Math.log2(distance).to_i
+          case distance
+          when 1..4
+            distance - 1
+          when 5..8
+            4 + ((distance - 5) / 2)
+          when 9..16
+            6 + ((distance - 9) / 4)
+          when 17..32
+            8 + ((distance - 17) / 8)
+          when 33..64
+            10 + ((distance - 33) / 16)
+          when 65..128
+            12 + ((distance - 65) / 32)
+          when 129..256
+            14 + ((distance - 129) / 64)
+          when 257..512
+            16 + ((distance - 257) / 128)
+          when 513..1024
+            18 + ((distance - 513) / 256)
+          when 1025..2048
+            20 + ((distance - 1025) / 512)
+          when 2049..4096
+            22 + ((distance - 2049) / 1024)
+          when 4097..8192
+            24 + ((distance - 4097) / 2048)
+          when 8193..16384
+            26 + ((distance - 8193) / 4096)
+          when 16385..32768
+            28 + ((distance - 16385) / 8192)
+          when 32769..65536
+            29
+          else
+            29 # Max distance code for 64KB window
+          end
         end
 
         # Convert Huffman code to distance
+        # Uses DEFLATE distance code table (base distances)
         def code_to_distance(code)
-          2**code
+          case code
+          when 0..3
+            code + 1
+          when 4..5
+            5 + ((code - 4) * 2)
+          when 6..7
+            9 + ((code - 6) * 4)
+          when 8..9
+            17 + ((code - 8) * 8)
+          when 10..11
+            33 + ((code - 10) * 16)
+          when 12..13
+            65 + ((code - 12) * 32)
+          when 14..15
+            129 + ((code - 14) * 64)
+          when 16..17
+            257 + ((code - 16) * 128)
+          when 18..19
+            513 + ((code - 18) * 256)
+          when 20..21
+            1025 + ((code - 20) * 512)
+          when 22..23
+            2049 + ((code - 22) * 1024)
+          when 24..25
+            4097 + ((code - 24) * 2048)
+          when 26..27
+            8193 + ((code - 26) * 4096)
+          when 28..29
+            16385 + ((code - 28) * 8192)
+          else
+            1 # Default to distance 1
+          end
         end
 
         # Convert bit string to bytes
         def bits_to_bytes(bits)
-          bytes = []
-          bits.scan(/.{1,8}/).each do |byte_bits|
-            bytes << byte_bits.ljust(8, "0").to_i(2)
+          bytes = bits.scan(/.{1,8}/).map do |byte_bits|
+            byte_bits.ljust(8, "0").to_i(2)
           end
           bytes.pack("C*")
         end

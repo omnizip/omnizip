@@ -34,7 +34,8 @@ module Omnizip
       # @return [Integer] Compression method ID
       # @raise [NotImplementedError] Subclasses must implement
       def compression_method
-        raise NotImplementedError, "#{self.class} must implement #compression_method"
+        raise NotImplementedError,
+              "#{self.class} must implement #compression_method"
       end
 
       # Get extra field data for ZIP header
@@ -52,19 +53,19 @@ module Omnizip
       # Check if this strategy supports the given data
       # @param data [String] Data to check
       # @return [Boolean] True if supported
-      def supports?(data)
+      def supports?(_data)
         true
       end
 
       # Get encryption method name
       # @return [Symbol] Method name
       def method_name
-        self.class.name.split("::").last.
-          gsub(/Strategy$/, "").
-          gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').
-          gsub(/([a-z\d])([A-Z])/, '\1_\2').
-          downcase.
-          to_sym
+        self.class.name.split("::").last
+          .gsub(/Strategy$/, "")
+          .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+          .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+          .downcase
+          .to_sym
       end
 
       protected
@@ -87,7 +88,7 @@ module Omnizip
           salt,
           iterations,
           32, # 256 bits
-          OpenSSL::Digest::SHA256.new
+          OpenSSL::Digest.new("SHA256"),
         )
       end
     end

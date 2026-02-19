@@ -12,8 +12,8 @@ module Omnizip
       # Get an optimization strategy by name
       def get(name)
         strategies[name] || raise(
-          Error::OptimizationNotFound,
-          "Optimization strategy not found: #{name}"
+          Omnizip::OptimizationNotFound,
+          "Optimization strategy not found: #{name}",
         )
       end
 
@@ -73,7 +73,7 @@ module Omnizip
           name: name,
           description: "No description provided",
           category: :general,
-          impact: :unknown
+          impact: :unknown,
         }
       end
     end

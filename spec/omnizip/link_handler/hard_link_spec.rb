@@ -15,7 +15,7 @@ RSpec.describe Omnizip::LinkHandler::HardLink do
       link = described_class.new(
         target: "/path/to/target",
         path: "/path/to/link",
-        inode: 12345
+        inode: 12345,
       )
       expect(link.target).to eq("/path/to/target")
       expect(link.path).to eq("/path/to/link")
@@ -101,7 +101,7 @@ RSpec.describe Omnizip::LinkHandler::HardLink do
       link = described_class.new(
         target: "/path/to/target",
         path: "/link",
-        inode: 12345
+        inode: 12345,
       )
       hash = link.to_h
 
@@ -124,7 +124,7 @@ RSpec.describe Omnizip::LinkHandler::HardLink do
       link = described_class.new(
         target: "/target",
         path: "/link",
-        inode: 12345
+        inode: 12345,
       )
       expect(link.inspect).to include("HardLink")
       expect(link.inspect).to include("/target")

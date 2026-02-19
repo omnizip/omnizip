@@ -34,6 +34,11 @@ module Omnizip
         def encrypt(plaintext)
           cipher = create_cipher(:encrypt)
 
+          # Handle empty data - just call final() for padding
+          if plaintext.empty?
+            return cipher.final
+          end
+
           result = cipher.update(plaintext)
           result << cipher.final
 
@@ -46,6 +51,11 @@ module Omnizip
         # @return [String] Decrypted data
         def decrypt(ciphertext)
           cipher = create_cipher(:decrypt)
+
+          # Handle empty or very small ciphertext
+          if ciphertext.empty?
+            return ""
+          end
 
           result = cipher.update(ciphertext)
           result << cipher.final

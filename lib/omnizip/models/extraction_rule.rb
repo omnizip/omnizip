@@ -107,7 +107,7 @@ module Omnizip
           preserve_paths: true,
           flatten: false,
           overwrite: false,
-          dest_prefix: nil
+          dest_prefix: nil,
         }
       end
     end

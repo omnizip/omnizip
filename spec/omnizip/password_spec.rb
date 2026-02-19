@@ -42,16 +42,22 @@ RSpec.describe Omnizip::Password do
       end
 
       it "rejects nil passwords" do
-        expect { subject.validate(nil) }.to raise_error(ArgumentError, /cannot be nil/)
+        expect do
+          subject.validate(nil)
+        end.to raise_error(ArgumentError, /cannot be nil/)
       end
 
       it "rejects empty passwords" do
-        expect { subject.validate("") }.to raise_error(ArgumentError, /cannot be empty/)
+        expect do
+          subject.validate("")
+        end.to raise_error(ArgumentError, /cannot be empty/)
       end
 
       it "rejects too short passwords" do
         validator = described_class.new(min_length: 12)
-        expect { validator.validate("short") }.to raise_error(ArgumentError, /too short/)
+        expect do
+          validator.validate("short")
+        end.to raise_error(ArgumentError, /too short/)
       end
     end
 
@@ -96,8 +102,12 @@ RSpec.describe Omnizip::Password do
     end
 
     it "validates password" do
-      expect { described_class.new(nil) }.to raise_error(ArgumentError, /cannot be nil/)
-      expect { described_class.new("") }.to raise_error(ArgumentError, /cannot be empty/)
+      expect do
+        described_class.new(nil)
+      end.to raise_error(ArgumentError, /cannot be nil/)
+      expect do
+        described_class.new("")
+      end.to raise_error(ArgumentError, /cannot be empty/)
     end
   end
 
@@ -201,7 +211,8 @@ RSpec.describe Omnizip::Password do
 
     it "lists all strategies" do
       strategies = described_class.strategies
-      expect(strategies).to include(:winzip_aes, :traditional, :zip_crypto, :aes256)
+      expect(strategies).to include(:winzip_aes, :traditional, :zip_crypto,
+                                    :aes256)
     end
   end
 end

@@ -1,0 +1,479 @@
+= Archive Formats
+:toc:
+:toclevels: 3
+
+== Purpose
+
+Omnizip supports multiple archive formats with full read/write capabilities. This document provides detailed usage examples for each supported format.
+
+== Supported Formats
+
+[cols="20,20,20,40",options="header"]
+|===
+|Format |Read |Write |Notes
+
+|**7z**
+|✅
+|✅
+|Full support, solid compression, split archives
+
+|**ZIP**
+|✅
+|✅
+|ZIP64, WinZip AES, full compatibility
+
+|**RAR**
+|✅
+|🟡
+|Read RAR3/RAR5, write via external WinRAR
+
+|**TAR**
+|✅
+|✅
+|POSIX extensions, permissions, links
+
+|**ISO 9660**
+|✅
+|✅
+|Rock Ridge, Joliet, CD/DVD images
+
+|**CPIO**
+|✅
+|✅
+|newc, CRC formats, initramfs
+
+|**GZIP**
+|✅
+|✅
+|Single file compression
+
+|**XZ**
+|✅
+|✅
+|LZMA2-based format
+
+|**BZIP2**
+|✅
+|✅
+|Single file compression
+|===
+
+== 7-Zip Format (.7z)
+
+=== Creating 7z Archives
+
+[source,ruby]
+----
+# Basic 7z archive
+Omnizip::Formats::SevenZip::Writer.new('archive.7z') do |sz|
+  sz.add_file('file1.txt')
+  sz.add_file('file2.dat')
+  sz.add_directory('folder/')
+end
+
+# With compression options
+Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  algorithm: :lzma2,
+  level: 9,
+  solid: true
+) do |sz|
+  sz.add_directory('data/')
+end
+
+# With password encryption
+Omnizip::Formats::SevenZip::Writer.new('secure.7z',
+  password: 'secret123',
+  encrypt_header: true
+) do |sz|
+  sz.add_file('confidential.doc')
+end
+----
+
+=== Extracting 7z Archives
+
+[source,ruby]
+----
+# Extract all files
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |sz|
+  sz.extract_all('output/')
+end
+
+# Extract with password
+Omnizip::Formats::SevenZip::Reader.open('secure.7z',
+  password: 'secret123'
+) do |sz|
+  sz.extract_all('output/')
+end
+
+# List contents
+Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |sz|
+  sz.entries.each do |entry|
+    puts "#{entry.name}: #{entry.size} bytes"
+  end
+end
+----
+
+=== Split Archives (Multi-volume)
+
+[source,ruby]
+----
+# Create split archive (100MB volumes)
+Omnizip::Formats::SevenZip::SplitArchiveWriter.new('archive.7z',
+  volume_size: 100 * 1024 * 1024
+) do |sz|
+  sz.add_directory('large_dataset/')
+end
+# Creates: archive.7z.001, archive.7z.002, etc.
+
+# Extract split archive
+Omnizip::Formats::SevenZip::SplitArchiveReader.open('archive.7z.001') do |sz|
+  sz.extract_all('output/')  # Auto-reads all volumes
+end
+----
+
+== ZIP Format
+
+=== Creating ZIP Archives
+
+[source,ruby]
+----
+# Basic ZIP
+Omnizip::Formats::Zip::Writer.open('archive.zip') do |zip|
+  zip.add_file('file.txt')
+  zip.add_directory('data/')
+end
+
+# With WinZip AES encryption
+Omnizip::Formats::Zip::Writer.open('secure.zip',
+  password: 'secret',
+  encryption: :aes256
+) do |zip|
+  zip.add_file('private.doc')
+end
+
+# ZIP64 for large archives
+Omnizip::Formats::Zip::Writer.open('large.zip',
+  zip64: true
+) do |zip|
+  zip.add_file('huge_file.bin')  # >4GB file
+end
+----
+
+=== Extracting ZIP Archives
+
+[source,ruby]
+----
+# Extract ZIP
+Omnizip::Formats::Zip::Reader.open('archive.zip') do |zip|
+  zip.extract_all('output/')
+end
+
+# Extract with password
+Omnizip::Formats::Zip::Reader.open('secure.zip',
+  password: 'secret'
+) do |zip|
+  zip.extract_all('output/')
+end
+----
+
+== RAR Format
+
+=== Extracting RAR Archives
+
+[source,ruby]
+----
+# Extract RAR (read-only)
+Omnizip::Formats::Rar::Reader.open('archive.rar') do |rar|
+  rar.extract_all('output/')
+end
+
+# Multi-volume RAR
+Omnizip::Formats::Rar::Reader.open('archive.part001.rar') do |rar|
+  rar.extract_all('output/')  # Handles all .part00N.rar files
+end
+
+# With password
+Omnizip::Formats::Rar::Reader.open('secure.rar',
+  password: 'secret'
+) do |rar|
+  rar.extract_all('output/')
+end
+----
+
+=== Creating RAR Archives (External)
+
+[source,ruby]
+----
+# Requires licensed WinRAR installation
+if Omnizip::Formats::Rar::ExternalWriter.available?
+  writer = Omnizip::Formats::Rar::ExternalWriter.new('archive.rar',
+    license_confirmed: true,
+    compression_level: 5
+  )
+  
+  writer.add_file('file.txt')
+  writer.write
+else
+  puts "WinRAR not installed. Use 7z format instead:"
+  # Create 7z archive as alternative
+end
+----
+
+== TAR Format
+
+=== Creating TAR Archives
+
+[source,ruby]
+----
+# Basic TAR
+Omnizip::Formats::Tar::Writer.open('archive.tar') do |tar|
+  tar.add_file('file.txt')
+  tar.add_directory('data/', recursive: true)
+end
+
+# Preserve permissions
+Omnizip::Formats::Tar::Writer.open('backup.tar',
+  preserve_permissions: true
+) do |tar|
+  tar.add_file('/etc/config')
+  tar.add_symlink('link', '/path/to/target')
+end
+----
+
+=== Extracting TAR Archives
+
+[source,ruby]
+----
+# Extract TAR
+Omnizip::Formats::Tar::Reader.open('archive.tar') do |tar|
+  tar.extract_all('output/')
+end
+----
+
+=== Combined TAR+Compression
+
+[source,ruby]
+----
+# Create .tar.gz
+require 'zlib'
+File.open('archive.tar.gz', 'wb') do |gz_file|
+  Zlib::GzipWriter.wrap(gz_file) do |gz|
+    Omnizip::Formats::Tar::Writer.new(gz) do |tar|
+      tar.add_directory('data/')
+    end
+  end
+end
+
+# Create .tar.xz
+Omnizip::Formats::Xz.compress_stream do |xz|
+  Omnizip::Formats::Tar::Writer.new(xz) do |tar|
+    tar.add_directory('data/')
+  end
+end
+----
+
+== ISO 9660 Format
+
+=== Creating ISO Images
+
+[source,ruby]
+----
+# Basic ISO
+Omnizip::Formats::Iso::Writer.new('disk.iso',
+  volume_label: 'MY_DISK'
+) do |iso|
+  iso.add_file('README.txt')
+  iso.add_directory('docs/', recursive: true)
+  iso.write
+end
+
+# With Rock Ridge (Unix metadata)
+Omnizip::Formats::Iso::Writer.new('backup.iso',
+  rock_ridge: true
+) do |iso|
+  iso.add_directory('/home/user/data', recursive: true)
+  iso.write
+end
+
+# With Joliet (long filenames, Unicode)
+Omnizip::Formats::Iso::Writer.new('unicode.iso',
+  joliet: true,
+  volume_label: '日本語ディスク'
+) do |iso|
+  iso.add_file('文書.txt')
+  iso.write
+end
+----
+
+=== Extracting ISO Images
+
+[source,ruby]
+----
+# Extract ISO
+Omnizip::Formats::Iso::Reader.open('disk.iso') do |iso|
+  iso.extract_all('output/')
+end
+
+# List ISO contents
+Omnizip::Formats::Iso::Reader.open('disk.iso') do |iso|
+  iso.entries.each do |entry|
+    puts "#{entry.name}: #{entry.size} bytes"
+  end
+end
+----
+
+== CPIO Format
+
+=== Creating CPIO Archives
+
+[source,ruby]
+----
+# Create CPIO (newc format)
+Omnizip::Formats::Cpio::Writer.new('archive.cpio',
+  format: :newc
+) do |cpio|
+  cpio.add_file('file.txt')
+  cpio.add_directory('data/')
+  cpio.write
+end
+
+# CPIO with CRC
+Omnizip::Formats::Cpio::Writer.new('archive.cpio',
+  format: :crc
+) do |cpio|
+  cpio.add_file('important.dat')
+  cpio.write
+end
+
+# For initramfs
+Omnizip::Formats::Cpio::Writer.new('initramfs.cpio',
+  format: :newc
+) do |cpio|
+  cpio.add_directory('/boot/initramfs/', recursive: true)
+  cpio.write
+end
+----
+
+=== Extracting CPIO Archives
+
+[source,ruby]
+----
+# Extract CPIO
+Omnizip::Formats::Cpio::Reader.new('archive.cpio') do |cpio|
+  cpio.extract_all('output/')
+end
+----
+
+== Single-File Formats
+
+=== GZIP
+
+[source,ruby]
+----
+# Compress file
+Omnizip::Formats::Gzip.compress('input.txt', 'output.txt.gz')
+
+# Decompress file
+Omnizip::Formats::Gzip.decompress('output.txt.gz', 'restored.txt')
+
+# With compression level
+Omnizip::Formats::Gzip.compress('data.txt', 'data.txt.gz', level: 9)
+----
+
+=== XZ (LZMA2)
+
+[source,ruby]
+----
+# Compress file
+Omnizip::Formats::Xz.compress('input.txt', 'output.txt.xz')
+
+# Decompress file
+Omnizip::Formats::Xz.decompress('output.txt.xz', 'restored.txt')
+
+# With high compression
+Omnizip::Formats::Xz.compress('large.dat', 'large.dat.xz', level: 9)
+----
+
+=== BZIP2
+
+[source,ruby]
+----
+# Compress file
+Omnizip::Formats::Bzip2File.compress('input.txt', 'output.txt.bz2')
+
+# Decompress file
+Omnizip::Formats::Bzip2File.decompress('output.txt.bz2', 'restored.txt')
+
+# With compression level
+Omnizip::Formats::Bzip2File.compress('data.txt', 'data.txt.bz2', level: 9)
+----
+
+== Format Comparison
+
+[cols="15,15,15,15,40",options="header"]
+|===
+|Format |Compression |Speed |Size |Best For
+
+|**7z**
+|Excellent
+|Slow
+|Smallest
+|Maximum compression, solid archives
+
+|**ZIP**
+|Good
+|Fast
+|Medium
+|Compatibility, wide support
+
+|**RAR**
+|Excellent
+|Medium
+|Small
+|Read-only, recovery records
+
+|**TAR**
+|None*
+|Very Fast
+|Large
+|Unix backups, containers
+
+|**ISO**
+|None
+|Fast
+|Large
+|CD/DVD images, bootable media
+
+|**CPIO**
+|None*
+|Very Fast
+|Large
+|initramfs, RPM packages
+
+|**GZIP**
+|Good
+|Fast
+|Medium
+|Quick compression, streaming
+
+|**XZ**
+|Excellent
+|Slow
+|Smallest
+|Maximum compression, single files
+
+|**BZIP2**
+|Very Good
+|Medium
+|Small
+|Good balance, text files
+|===
+
+_* TAR and CPIO are container formats, combine with GZIP/XZ/BZIP2 for compression_
+
+== See Also
+
+* link:compression-profiles.adoc[Compression Profiles]
+* link:format-converter.adoc[Format Converter]
+* link:par2-archives.adoc[PAR2 Archives]
+* link:../README.adoc[Main README]

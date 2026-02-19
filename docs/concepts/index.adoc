@@ -1,0 +1,129 @@
+---
+title: Core Concepts
+nav_order: 40
+---
+
+== Core Concepts
+
+Understanding the fundamental concepts behind Omnizip's architecture.
+
+=== Registry-Based Architecture
+
+Omnizip uses a registry pattern for extensibility:
+
+==== Algorithm Registry
+
+Manages compression algorithms:
+
+[source,ruby]
+----
+# List algorithms
+Omnizip::AlgorithmRegistry.registered
+
+# Get algorithm
+algorithm = Omnizip::AlgorithmRegistry.get(:lzma2).new(level: 9)
+
+# Register custom algorithm
+Omnizip::AlgorithmRegistry.register(:custom, CustomAlgorithm)
+----
+
+==== Filter Registry
+
+Manages preprocessing filters:
+
+[source,ruby]
+----
+# List filters
+Omnizip::FilterRegistry.registered
+
+# Get filter
+filter = Omnizip::FilterRegistry.get(:bcj_x86).new
+----
+
+==== Format Registry
+
+Manages archive formats:
+
+[source,ruby]
+----
+# List formats
+Omnizip::FormatRegistry.registered
+
+# Get format
+format = Omnizip::FormatRegistry.get(:seven_zip)
+----
+
+=== Compression Pipeline
+
+Omnizip's compression process:
+
+. **Input** - Raw data stream
+. **Filter Chain** - Optional preprocessing (BCJ, Delta)
+. **Compression** - Algorithm compression (LZMA2, etc.)
+. **Archive Container** - Format packaging (7z, ZIP)
+. **Output** - Compressed archive
+
+=== Solid Compression
+
+Solid archives use a shared dictionary across multiple files:
+
+* **Advantage**: 10-30% better compression for similar files
+* **Disadvantage**: Cannot extract individual files independently
+* **Best for**: Source code, text documents, log files
+
+=== Multi-Volume Archives
+
+Split large archives across multiple files:
+
+* **Naming**: archive.7z.001, archive.7z.002, etc.
+* **Use case**: Large files, optical media, file size limits
+* **Extraction**: Automatic from any volume
+
+=== Encryption
+
+Omnizip supports AES-256 encryption:
+
+* **7z**: Header + file encryption
+* **RAR5**: File-only encryption
+* **Algorithm**: AES-256-CBC with PBKDF2 key derivation
+
+=== Checksums
+
+Integrity verification:
+
+* **CRC32**: Fast, common checksum
+* **CRC64**: More reliable for large files
+* **SHA256**: Cryptographic verification
+* **BLAKE2sp**: Fast, secure checksum
+
+=== Compression Algorithms
+
+==== Dictionary-Based (LZMA/LZMA2)
+
+* Sliding window dictionary
+* Range encoding for probabilities
+* High compression ratios
+
+==== Statistical (BZip2)
+
+* Burrows-Wheeler Transform
+* Move-to-Front coding
+* Huffman encoding
+
+==== Context Modeling (PPMd)
+
+* Prediction by Partial Matching
+* Context-based probability models
+* Excellent for text
+
+==== Dictionary + Huffman (Deflate)
+
+* LZ77 sliding window
+* Huffman coding
+* ZIP-compatible
+
+=== See Also
+
+* link:../developer/architecture[Architecture Details]
+* link:../guides/compression-algorithms/[Algorithm Guides]
+* link:../guides/archive-formats/[Format Guides]

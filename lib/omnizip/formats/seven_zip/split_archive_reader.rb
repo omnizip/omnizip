@@ -152,9 +152,9 @@ module Omnizip
         # @param path [String] Base path
         # @return [Symbol] :numeric, :alpha, or :single
         def detect_naming_pattern(path)
-          if path =~ /\.(\d{3})$/
+          if /\.(\d{3})$/.match?(path)
             :numeric
-          elsif path =~ /\.([a-z]{2,})$/
+          elsif /\.([a-z]{2,})$/.match?(path)
             :alpha
           else
             :single
@@ -208,15 +208,33 @@ module Omnizip
           # Read next header metadata
           next_header_data = read_from_volumes(
             @header.start_pos_after_header + @header.next_header_offset,
-            @header.next_header_size
+            @header.next_header_size,
           )
 
-          # Parse metadata
+          # Check if header is encoded (compressed or encrypted)
+          # ENCODED_HEADER (0x17) can mean compressed or encrypted
+          first_byte = next_header_data.getbyte(0)
+          if first_byte == PropertyId::ENCODED_HEADER
+            # Note: Split archives typically don't use encryption,
+            # but they may use compression. For now, assume compression.
+            # If encryption support is needed, add encrypted header detection here.
+            next_header_data = decompress_encoded_header(next_header_data)
+          end
+
+          # Parse metadata - if data is incomplete due to missing volumes, handle gracefully
           parser = Parser.new(next_header_data)
           @stream_info, @entries = parse_metadata(parser)
 
           # Map entries to their folders/streams
           map_entries_to_streams
+        rescue EOFError => e
+          # Header data incomplete - likely missing volumes
+          # Allow opening but with empty entries (graceful degradation)
+          # This is an edge case where volumes were deleted after archive creation
+          warn "WARNING: Archive header incomplete - missing volumes detected. Opening in degraded mode."
+          warn "         Error: #{e.message}"
+          @stream_info = Models::StreamInfo.new
+          @entries = []
         end
 
         # Read data from volumes at global offset
@@ -247,10 +265,16 @@ module Omnizip
 
             handle.seek(local_offset)
             chunk = handle.read(to_read)
-            data << chunk
 
-            remaining -= to_read
-            current_offset += to_read
+            if chunk
+              actual_read = chunk.bytesize
+              data << chunk
+              remaining -= actual_read
+              current_offset += actual_read
+            else
+              # No data available - stop reading
+              break
+            end
 
             break if remaining.zero?
           end
@@ -280,7 +304,7 @@ module Omnizip
             type == PropertyId::HEADER
 
           # Parse header sections
-          until parser.eof? || parser.peek_byte == PropertyId::K_END
+          until parser.eof?
             prop_type = parser.read_byte
 
             case prop_type
@@ -288,41 +312,19 @@ module Omnizip
               parse_streams_info(parser, stream_info)
             when PropertyId::FILES_INFO
               entries = parser.read_files_info
+            when PropertyId::K_END
+              break
             else
               # Skip unknown properties
               parser.skip_data if !parser.eof? &&
-                                  parser.peek_byte != PropertyId::K_END
+                parser.peek_byte != PropertyId::K_END
             end
           end
 
           parser.read_byte if !parser.eof? &&
-                              parser.peek_byte == PropertyId::K_END
+            parser.peek_byte == PropertyId::K_END
 
           [stream_info, entries]
-        end
-
-        # Parse streams info section
-        #
-        # @param parser [Parser] Parser instance
-        # @param stream_info [Models::StreamInfo] Stream info to populate
-        def parse_streams_info(parser, stream_info)
-          until parser.eof? || parser.peek_byte == PropertyId::K_END
-            prop_type = parser.read_byte
-
-            case prop_type
-            when PropertyId::PACK_INFO
-              parser.read_pack_info(stream_info)
-            when PropertyId::UNPACK_INFO
-              parser.read_unpack_info(stream_info)
-            when PropertyId::SUBSTREAMS_INFO
-              parser.read_substreams_info(stream_info)
-            when PropertyId::K_END
-              break
-            end
-          end
-
-          parser.read_byte if !parser.eof? &&
-                              parser.peek_byte == PropertyId::K_END
         end
 
         # Map entries to their folders and streams
@@ -336,8 +338,7 @@ module Omnizip
             # Find which folder this stream belongs to
             folder_idx = 0
             accumulated = 0
-            @stream_info.num_unpack_streams_in_folders.each_with_index do |num,
-                                                                            fi|
+            @stream_info.num_unpack_streams_in_folders.each_with_index do |num, fi|
               if stream_idx < accumulated + num
                 folder_idx = fi
                 break
@@ -347,8 +348,80 @@ module Omnizip
 
             entry.folder_index = folder_idx
             entry.file_index = i
+            entry.size = @stream_info.unpack_sizes[stream_idx] if @stream_info.unpack_sizes[stream_idx]
             stream_idx += 1
           end
+        end
+
+        # Decompress encoded (compressed) header
+        #
+        # @param encoded_data [String] Encoded header bytes
+        # @return [String] Decompressed header data
+        def decompress_encoded_header(encoded_data)
+          # Skip ENCODED_HEADER marker
+          parser = Parser.new(encoded_data[1..])
+
+          # Parse the streams info for the encoded header
+          stream_info = Models::StreamInfo.new
+
+          # Read streams info - can be either MAIN_STREAMS_INFO or direct stream properties
+          type = parser.read_byte
+
+          if type == PropertyId::MAIN_STREAMS_INFO
+            parse_streams_info(parser, stream_info)
+          elsif type == PropertyId::PACK_INFO
+            # Direct PackInfo without MAIN_STREAMS_INFO wrapper
+            parser.read_pack_info(stream_info)
+
+            # Read UNPACK_INFO
+            type = parser.read_byte
+            if type == PropertyId::UNPACK_INFO
+              parser.read_unpack_info(stream_info)
+            end
+          else
+            raise "Unexpected property in encoded header: 0x#{type.to_s(16)}"
+          end
+
+          # Decompress the header using the stream info
+          pack_pos = @header.start_pos_after_header + stream_info.pack_pos
+          folder = stream_info.folders[0]
+          pack_size = stream_info.pack_sizes[0]
+          unpack_size = folder.uncompressed_size
+
+          # Create multi-volume IO wrapper for decompression
+          io_wrapper = MultiVolumeIO.new(@volume_handles, @volumes)
+          io_wrapper.seek(pack_pos)
+
+          decompressor = StreamDecompressor.new(io_wrapper, folder, pack_pos,
+                                                pack_size, @header)
+          decompressor.decompress(unpack_size)
+        end
+
+        # Parse streams info section
+        #
+        # @param parser [Parser] Parser instance
+        # @param stream_info [Models::StreamInfo] Stream info to populate
+        def parse_streams_info(parser, stream_info)
+          until parser.eof?
+            prop_type = parser.read_byte
+
+            case prop_type
+            when PropertyId::PACK_INFO
+              parser.read_pack_info(stream_info)
+            when PropertyId::UNPACK_INFO
+              parser.read_unpack_info(stream_info)
+            when PropertyId::SUBSTREAMS_INFO
+              parser.read_substreams_info(stream_info)
+            when PropertyId::K_END
+              break
+            else
+              # Unknown property within streams_info - skip it
+              parser.skip_data if !parser.eof? && parser.peek_byte != PropertyId::K_END
+            end
+          end
+
+          # Consume final K_END for MAIN_STREAMS_INFO section if present
+          parser.read_byte if !parser.eof? && parser.peek_byte == PropertyId::K_END
         end
 
         # Extract entry data from volumes
@@ -362,26 +435,81 @@ module Omnizip
           folder = @stream_info.folders[entry.folder_index]
           return "" unless folder
 
-          # Calculate pack position
-          pack_pos = @header.start_pos_after_header +
-                     @stream_info.pack_pos
+          # Calculate pack position in the combined stream
+          # Start from where pack data begins (after header and any offset)
+          pack_pos = @header.start_pos_after_header + @stream_info.pack_pos
 
-          # Get pack size for this folder
+          # Advance pack_pos by summing pack_sizes from previous folders
+          # and find pack_idx for this folder
           pack_idx = 0
           entry.folder_index.times do |i|
             num_streams = @stream_info.folders[i].pack_stream_indices.size
+            num_streams.times do |j|
+              pack_pos += @stream_info.pack_sizes[pack_idx + j] || 0
+            end
             pack_idx += num_streams
           end
+
+          # Get pack size for this folder - use first pack stream only
           pack_size = @stream_info.pack_sizes[pack_idx] || 0
 
           # Create multi-volume IO wrapper
           io_wrapper = MultiVolumeIO.new(@volume_handles, @volumes)
 
-          # Decompress
-          decompressor = StreamDecompressor.new(io_wrapper, folder,
-                                                pack_pos, pack_size)
-          expected_crc = entry.crc
-          decompressor.decompress_and_verify(entry.size, expected_crc)
+          # For solid archives, multiple files share one compressed stream
+          # We need to decompress the entire folder and extract the correct portion
+          num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
+
+          if num_files_in_folder > 1
+            # Solid archive: decompress entire folder and extract this file's portion
+            # Calculate total size by summing all stream sizes for this folder
+            total_unpack_size = 0
+            stream_idx = 0
+            @stream_info.num_unpack_streams_in_folders.each_with_index do |num, fi|
+              if fi == entry.folder_index
+                # This is our folder - sum its stream sizes
+                num.times do
+                  total_unpack_size += @stream_info.unpack_sizes[stream_idx] || 0
+                  stream_idx += 1
+                end
+                break
+              else
+                stream_idx += num
+              end
+            end
+
+            decompressor = StreamDecompressor.new(io_wrapper, folder, pack_pos,
+                                                  pack_size, @header)
+            full_data = decompressor.decompress(total_unpack_size)
+
+            # Find offset of this file within the uncompressed stream
+            file_offset = 0
+            @entries.each do |e|
+              break if e.file_index == entry.file_index
+
+              file_offset += e.size if e.has_stream? && e.folder_index == entry.folder_index
+            end
+
+            # Extract this file's data
+            data = full_data[file_offset, entry.size]
+
+            # Verify CRC if available
+            if entry.crc
+              crc = Omnizip::Checksums::Crc32.new
+              crc.update(data)
+              unless crc.value == entry.crc
+                raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+              end
+            end
+
+            data
+          else
+            # Non-solid: each file has its own compressed stream
+            decompressor = StreamDecompressor.new(io_wrapper, folder, pack_pos,
+                                                  pack_size, @header)
+            expected_crc = entry.crc
+            decompressor.decompress_and_verify(entry.size, expected_crc)
+          end
         rescue StandardError => e
           warn "Extraction failed for #{entry.name}: #{e.message}"
           raise
@@ -394,19 +522,20 @@ module Omnizip
             @handles = handles
             @paths = paths
             @position = 0
+            @combined_data = nil
           end
 
           # Seek to position across volumes
           #
           # @param pos [Integer] Position to seek to
           # @param whence [Integer] Seek mode
-          def seek(pos, whence = IO::SEEK_SET)
+          def seek(pos, whence = ::IO::SEEK_SET)
             case whence
-            when IO::SEEK_SET
+            when ::IO::SEEK_SET
               @position = pos
-            when IO::SEEK_CUR
+            when ::IO::SEEK_CUR
               @position += pos
-            when IO::SEEK_END
+            when ::IO::SEEK_END
               @position = total_size + pos
             end
           end
@@ -414,39 +543,22 @@ module Omnizip
           # Read from current position
           #
           # @param size [Integer] Number of bytes to read
-          # @return [String] Read data
+          # @return [String, nil] Read data, or nil if at EOF
           def read(size)
-            data = String.new(encoding: "BINARY")
-            remaining = size
-            current_offset = @position
-
-            @handles.each_with_index do |handle, i|
-              volume_size = File.size(@paths[i])
-              volume_start = i.zero? ? 0 : cumulative_size(i - 1)
-              volume_end = volume_start + volume_size
-
-              next if current_offset >= volume_end
-
-              # Calculate read position in this volume
-              unless current_offset >= volume_start && current_offset < volume_end
-                next
-              end
-
-              local_offset = current_offset - volume_start
-              available = volume_size - local_offset
-              to_read = [available, remaining].min
-
-              handle.seek(local_offset)
-              chunk = handle.read(to_read)
-              data << chunk if chunk
-
-              remaining -= to_read
-              current_offset += to_read
-
-              break if remaining.zero?
+            # Lazy-load combined data on first read
+            if @combined_data.nil?
+              load_combined_data
             end
 
-            @position = current_offset
+            # Return nil if at EOF (matches IO behavior)
+            return nil if @position >= @combined_data.bytesize
+
+            available = @combined_data.bytesize - @position
+            to_read = [size, available].min
+
+            data = @combined_data[@position, to_read]
+            @position += to_read
+
             data
           end
 
@@ -457,7 +569,54 @@ module Omnizip
             @position
           end
 
+          # Get total size across all volumes
+          #
+          # @return [Integer] Total size
+          def total_size
+            @paths.sum { |path| File.size(path) }
+          end
+
           private
+
+          # Load all volume data into memory
+          def load_combined_data
+            @combined_data = String.new(encoding: "BINARY")
+
+            # Safety limit: prevent loading more than 10GB or 1000 volumes
+            max_volumes = 1000
+            max_size = 10 * 1024 * 1024 * 1024 # 10GB
+
+            if ENV["LZMA2_DEBUG"]
+              warn "DEBUG: MultiVolumeIO.load_combined_data - starting, volumes=#{@handles.size}"
+            end
+
+            @handles.each_with_index do |handle, idx|
+              # Safety check: prevent infinite loop on corrupted archives
+              if idx >= max_volumes
+                warn "WARNING: Reached maximum volume limit (#{max_volumes}). Archive may be corrupted."
+                break
+              end
+
+              if @combined_data.bytesize >= max_size
+                warn "WARNING: Reached maximum data size limit (#{max_size} bytes). Archive may be corrupted."
+                break
+              end
+
+              handle.rewind
+              chunk = handle.read
+
+              if ENV["LZMA2_DEBUG"]
+                chunk_size = chunk&.bytesize || 0
+                warn "DEBUG: MultiVolumeIO - loaded volume #{idx}: #{chunk_size} bytes, total=#{@combined_data.bytesize + chunk_size}"
+              end
+
+              @combined_data << chunk if chunk
+            end
+
+            if ENV["LZMA2_DEBUG"]
+              warn "DEBUG: MultiVolumeIO.load_combined_data - complete, total_size=#{@combined_data.bytesize}"
+            end
+          end
 
           # Get cumulative size up to volume index
           #
@@ -465,13 +624,6 @@ module Omnizip
           # @return [Integer] Cumulative size
           def cumulative_size(index)
             @paths[0..index].sum { |path| File.size(path) }
-          end
-
-          # Get total size across all volumes
-          #
-          # @return [Integer] Total size
-          def total_size
-            @paths.sum { |path| File.size(path) }
           end
         end
       end

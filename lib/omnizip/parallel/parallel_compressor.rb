@@ -23,7 +23,8 @@ module Omnizip
     class ParallelCompressor
       # Fractor Work class for compression jobs
       class CompressionWork < Fractor::Work
-        def initialize(file_path:, archive_path:, compression: :deflate, level: 6)
+        def initialize(file_path:, archive_path:, compression: :deflate,
+level: 6)
           super({
             file_path: file_path,
             archive_path: archive_path,
@@ -65,7 +66,9 @@ module Omnizip
           compressed_data = compress_data(data, compression, level)
 
           # Calculate CRC32
-          crc32 = Omnizip::Checksums::Crc32.new.tap { |c| c.update(data) }.finalize
+          crc32 = Omnizip::Checksums::Crc32.new.tap do |c|
+            c.update(data)
+          end.finalize
 
           # Return result
           Fractor::WorkResult.new(
@@ -104,9 +107,11 @@ module Omnizip
           when :lzma2
             Omnizip::AlgorithmRegistry.get(:lzma2).compress(data, level: level)
           when :zstandard
-            Omnizip::AlgorithmRegistry.get(:zstandard).compress(data, level: level)
+            Omnizip::AlgorithmRegistry.get(:zstandard).compress(data,
+                                                                level: level)
           else
-            raise Omnizip::UnsupportedFormatError, "Unsupported compression: #{method}"
+            raise Omnizip::UnsupportedFormatError,
+                  "Unsupported compression: #{method}"
           end
         end
       end
@@ -127,7 +132,9 @@ module Omnizip
                      options.dup
                    when Hash
                      Omnizip::Models::ParallelOptions.new.tap do |opts|
-                       options.each { |k, v| opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=") }
+                       options.each do |k, v|
+                         opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=")
+                       end
                      end
                    else
                      Omnizip::Models::ParallelOptions.new
@@ -156,13 +163,19 @@ module Omnizip
       # @option options [Proc] :progress progress callback
       # @return [String] path to created archive
       def compress(dir, output, **options)
-        raise Errno::ENOENT, "Directory not found: #{dir}" unless ::File.exist?(dir)
-        raise ArgumentError, "Not a directory: #{dir}" unless ::File.directory?(dir)
+        unless ::File.exist?(dir)
+          raise Errno::ENOENT,
+                "Directory not found: #{dir}"
+        end
+        unless ::File.directory?(dir)
+          raise ArgumentError,
+                "Not a directory: #{dir}"
+        end
 
         compression = options[:compression] || :deflate
         level = options[:level] || 6
         recursive = options.fetch(:recursive, true)
-        progress_callback = options[:progress]
+        options[:progress]
 
         @stats[:start_time] = Time.now
 
@@ -173,7 +186,7 @@ module Omnizip
         job_queue = JobQueue.new(max_size: @options.queue_size)
 
         # Schedule jobs
-        scheduler = JobScheduler.new(strategy: @options.strategy)
+        JobScheduler.new(strategy: @options.strategy)
         files.each do |file_path|
           archive_path = file_path.sub("#{dir}/", "")
           file_size = ::File.size(file_path)
@@ -220,7 +233,9 @@ module Omnizip
 
         # Handle errors
         unless errors.empty?
-          error_msgs = errors.map { |e| "#{e.work&.file_path}: #{e.error}" }.join("\n")
+          error_msgs = errors.map do |e|
+            "#{e.work&.file_path}: #{e.error}"
+          end.join("\n")
           raise Omnizip::CompressionError, "Compression errors:\n#{error_msgs}"
         end
 
@@ -289,9 +304,9 @@ module Omnizip
 
           # Add compressed entry to writer
           entry = writer.send(:create_entry,
-                             filename: result[:archive_path],
-                             uncompressed_data: "",
-                             stat: result[:stat])
+                              filename: result[:archive_path],
+                              uncompressed_data: "",
+                              stat: result[:stat])
 
           # Override with pre-compressed data
           entry[:compressed_size] = result[:compressed_size]
@@ -315,7 +330,7 @@ module Omnizip
       def calculate_compression_ratio
         return 0.0 if @stats[:bytes_processed].zero?
 
-        (1.0 - @stats[:bytes_compressed].to_f / @stats[:bytes_processed]) * 100.0
+        (1.0 - (@stats[:bytes_compressed].to_f / @stats[:bytes_processed])) * 100.0
       end
 
       # Calculate throughput in MB/s

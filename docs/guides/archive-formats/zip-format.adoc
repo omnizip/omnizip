@@ -1,0 +1,35 @@
+---
+title: ZIP Format
+nav_order: 2
+parent: Archive Formats
+grand_parent: Guides
+---
+
+== ZIP Format
+
+=== General
+
+The ZIP format is a widely used archive format.
+
+=== Features
+
+* Cross-platform compatibility
+* ZIP64 support for large files
+* Deflate compression
+* WinZip AES encryption
+
+=== Usage
+
+[source,bash]
+----
+# Create ZIP archive
+omnizip archive create backup.zip documents/ --format zip
+
+# Extract ZIP archive
+omnizip archive extract backup.zip output/
+----
+
+=== See Also
+
+* link:../compression-algorithms/deflate.html[Deflate Algorithm]
+

@@ -53,7 +53,7 @@ module Omnizip
             filename: archive_path,
             uncompressed_data: target,
             symlink: true,
-            symlink_target: target
+            symlink_target: target,
           )
 
           @entries << entry
@@ -79,7 +79,7 @@ module Omnizip
             filename: archive_path,
             uncompressed_data: "",
             hardlink: true,
-            hardlink_target: target_path
+            hardlink_target: target_path,
           )
 
           @entries << entry
@@ -87,12 +87,12 @@ module Omnizip
 
         # Add a directory to the archive
         def add_directory(archive_path)
-          archive_path = archive_path.end_with?("/") ? archive_path : "#{archive_path}/"
+          archive_path = "#{archive_path}/" unless archive_path.end_with?("/")
 
           entry = create_entry(
             filename: archive_path,
             uncompressed_data: "",
-            directory: true
+            directory: true,
           )
 
           @entries << entry
@@ -103,7 +103,7 @@ module Omnizip
           entry = create_entry(
             filename: archive_path,
             uncompressed_data: data,
-            stat: stat
+            stat: stat,
           )
 
           @entries << entry
@@ -112,7 +112,8 @@ module Omnizip
         # Write the archive to disk
         def write(compression_method: COMPRESSION_DEFLATE, level: 6)
           File.open(file_path, "wb") do |io|
-            write_to_io(io, compression_method: compression_method, level: level)
+            write_to_io(io, compression_method: compression_method,
+                            level: level)
           end
         end
 
@@ -138,7 +139,7 @@ module Omnizip
               compressed_data = compress_data(
                 entry[:uncompressed_data],
                 compression_method,
-                level
+                level,
               )
               entry[:compressed_size] = compressed_data.bytesize
               entry[:uncompressed_size] = entry[:uncompressed_data].bytesize
@@ -165,7 +166,7 @@ module Omnizip
             central_header = create_central_header(
               entry,
               compression_method,
-              local_header_offsets[index]
+              local_header_offsets[index],
             )
             io.write(central_header.to_binary)
           end
@@ -177,7 +178,7 @@ module Omnizip
           eocd = create_eocd(
             total_entries: entries.size,
             central_directory_size: central_directory_size,
-            central_directory_offset: central_directory_offset
+            central_directory_offset: central_directory_offset,
           )
           io.write(eocd.to_binary)
         end
@@ -226,12 +227,13 @@ module Omnizip
             crc32: 0, # Will be updated after compression
             compressed_size: 0, # Will be updated after compression
             uncompressed_size: 0, # Will be updated after compression
-            filename: entry[:filename]
+            filename: entry[:filename],
           )
         end
 
         # Create central directory header from entry
-        def create_central_header(entry, compression_method, local_header_offset)
+        def create_central_header(entry, compression_method,
+local_header_offset)
           mtime = entry[:mtime]
 
           # Build extra field for links
@@ -245,14 +247,14 @@ module Omnizip
           end
 
           external_attrs = if entry[:directory]
-                            UNIX_DIR_PERMISSIONS | ATTR_DIRECTORY
-                          elsif entry[:symlink]
-                            UNIX_SYMLINK_PERMISSIONS
-                          elsif entry[:stat]
-                            (entry[:stat].mode & 0o777) << 16
-                          else
-                            UNIX_FILE_PERMISSIONS
-                          end
+                             UNIX_DIR_PERMISSIONS | ATTR_DIRECTORY
+                           elsif entry[:symlink]
+                             UNIX_SYMLINK_PERMISSIONS
+                           elsif entry[:stat]
+                             (entry[:stat].mode & 0o777) << 16
+                           else
+                             UNIX_FILE_PERMISSIONS
+                           end
 
           CentralDirectoryHeader.new(
             version_made_by: VERSION_MADE_BY_UNIX | version_for_method(compression_method),
@@ -269,19 +271,20 @@ module Omnizip
             external_attributes: external_attrs,
             local_header_offset: local_header_offset,
             filename: entry[:filename],
-            extra_field: extra_field
+            extra_field: extra_field,
           )
         end
 
         # Create end of central directory record
-        def create_eocd(total_entries:, central_directory_size:, central_directory_offset:)
+        def create_eocd(total_entries:, central_directory_size:,
+central_directory_offset:)
           EndOfCentralDirectory.new(
             disk_number: 0,
             disk_number_with_cd: 0,
             total_entries_this_disk: total_entries,
             total_entries: total_entries,
             central_directory_size: central_directory_size,
-            central_directory_offset: central_directory_offset
+            central_directory_offset: central_directory_offset,
           )
         end
 
@@ -299,7 +302,8 @@ module Omnizip
           when COMPRESSION_ZSTANDARD
             compress_zstandard(data, level)
           else
-            raise Omnizip::UnsupportedFormatError, "Unsupported compression method: #{method}"
+            raise Omnizip::UnsupportedFormatError,
+                  "Unsupported compression method: #{method}"
           end
         end
 
@@ -308,32 +312,36 @@ module Omnizip
           require "zlib"
           # ZIP uses raw deflate without zlib wrapper
           Zlib::Deflate.new(level, -Zlib::MAX_WBITS).deflate(data, Zlib::FINISH)
-        rescue => e
-          raise Omnizip::CompressionError, "Deflate compression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::CompressionError,
+                "Deflate compression failed: #{e.message}"
         end
 
         # Compress using BZip2
         def compress_bzip2(data, level)
           algorithm = AlgorithmRegistry.get(:bzip2)
           algorithm.compress(data, level: level)
-        rescue => e
-          raise Omnizip::CompressionError, "BZip2 compression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::CompressionError,
+                "BZip2 compression failed: #{e.message}"
         end
 
         # Compress using LZMA
         def compress_lzma(data, level)
           algorithm = AlgorithmRegistry.get(:lzma)
           algorithm.compress(data, level: level)
-        rescue => e
-          raise Omnizip::CompressionError, "LZMA compression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::CompressionError,
+                "LZMA compression failed: #{e.message}"
         end
 
         # Compress using Zstandard
         def compress_zstandard(data, level)
           algorithm = AlgorithmRegistry.get(:zstandard)
           algorithm.compress(data, level: level)
-        rescue => e
-          raise Omnizip::CompressionError, "Zstandard compression failed: #{e.message}"
+        rescue StandardError => e
+          raise Omnizip::CompressionError,
+                "Zstandard compression failed: #{e.message}"
         end
 
         # Calculate CRC32 checksum

@@ -15,7 +15,7 @@ RSpec.describe Omnizip::Parity do
   end
 
   after do
-    FileUtils.rm_rf(temp_dir) if Dir.exist?(temp_dir)
+    FileUtils.rm_rf(temp_dir)
   end
 
   describe ".create" do
@@ -41,9 +41,8 @@ RSpec.describe Omnizip::Parity do
 
     it "accepts custom block size" do
       files = described_class.create(test_file,
-        redundancy: 5,
-        block_size: 8192
-      )
+                                     redundancy: 5,
+                                     block_size: 8192)
 
       expect(files).not_to be_empty
     end
@@ -61,9 +60,8 @@ RSpec.describe Omnizip::Parity do
     it "supports custom output directory" do
       output_dir = File.join(temp_dir, "par2_output")
       files = described_class.create(test_file,
-        redundancy: 5,
-        output_dir: output_dir
-      )
+                                     redundancy: 5,
+                                     output_dir: output_dir)
 
       files.each do |file|
         expect(file).to start_with(output_dir)
@@ -71,17 +69,18 @@ RSpec.describe Omnizip::Parity do
     end
 
     it "raises error for nonexistent file" do
-      expect {
+      expect do
         described_class.create("nonexistent.dat")
-      }.to raise_error(ArgumentError, /No files match pattern/)
+      end.to raise_error(ArgumentError, /No files match pattern/)
     end
 
     it "accepts progress callback" do
       progress_calls = []
       described_class.create(test_file,
-        redundancy: 5,
-        progress: ->(pct, msg) { progress_calls << [pct, msg] }
-      )
+                             redundancy: 5,
+                             progress: ->(pct, msg) {
+                               progress_calls << [pct, msg]
+                             })
 
       expect(progress_calls).not_to be_empty
       expect(progress_calls.first[0]).to be_a(Integer)
@@ -90,7 +89,7 @@ RSpec.describe Omnizip::Parity do
   end
 
   describe ".verify" do
-    let(:par2_file) do
+    let!(:par2_file) do
       files = described_class.create(test_file, redundancy: 10)
       files.find { |f| f.end_with?(".par2") && !f.include?("vol") }
     end
@@ -140,7 +139,7 @@ RSpec.describe Omnizip::Parity do
   end
 
   describe ".repair" do
-    let(:par2_file) do
+    let!(:par2_file) do
       files = described_class.create(test_file, redundancy: 10)
       files.find { |f| f.end_with?(".par2") && !f.include?("vol") }
     end
@@ -199,12 +198,16 @@ RSpec.describe Omnizip::Parity do
     end
 
     it "accepts progress callback" do
-      File.open(test_file, "r+b") { |io| io.seek(100); io.write("X") }
+      File.open(test_file, "r+b") do |io|
+        io.seek(100)
+        io.write("X")
+      end
 
       progress_calls = []
       described_class.repair(par2_file,
-        progress: ->(pct, msg) { progress_calls << [pct, msg] }
-      )
+                             progress: ->(pct, msg) {
+                               progress_calls << [pct, msg]
+                             })
 
       expect(progress_calls).not_to be_empty
     end

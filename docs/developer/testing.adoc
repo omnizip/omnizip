@@ -1,0 +1,212 @@
+---
+title: Testing
+nav_order: 88
+parent: Developer Guide
+---
+
+== Testing
+
+Guidelines for running and writing tests for Omnizip.
+
+=== Running Tests
+
+==== Run All Tests
+
+[source,bash]
+----
+bundle exec rspec
+----
+
+==== Run Specific Test File
+
+[source,bash]
+----
+bundle exec rspec spec/omnizip/algorithms/lzma_spec.rb
+----
+
+==== Run with Documentation Format
+
+[source,bash]
+----
+bundle exec rspec --format documentation
+----
+
+==== Run with Coverage
+
+[source,bash]
+----
+bundle exec rspec --format documentation --format html --out coverage.html
+----
+
+=== Writing Tests
+
+==== Test Structure
+
+[source,ruby]
+----
+RSpec.describe Omnizip::Algorithms::LZMA do
+  let(:algorithm) { described_class.new(level: 5) }
+
+  describe '#compress' do
+    it 'compresses data' do
+      input = StringIO.new('Hello, World!')
+      output = StringIO.new
+
+      algorithm.compress(input, output)
+
+      expect(output.string).to start_with LZMA_MAGIC_BYTES
+    end
+  end
+
+  describe '#decompress' do
+    it 'decompresses data' do
+      # Test implementation
+    end
+  end
+end
+----
+
+==== Test Fixtures
+
+Place test fixtures in `spec/fixtures/`:
+
+```
+spec/fixtures/
+├── compression/
+│   ├── test.txt
+│   ├── test.txt.lzma
+│   └── test.txt.bz2
+└── archives/
+    ├── test.7z
+    ├── test.zip
+    └── test.rar
+----
+
+==== Use StringIO for File Tests
+
+[source,ruby]
+----
+# Instead of real files
+input = StringIO.new('test data')
+output = StringIO.new
+
+algorithm.compress(input, output)
+
+expect(output.string).to eq compressed_data
+----
+
+=== Test Coverage
+
+==== Unit Tests
+
+Test individual methods and classes:
+
+[source,ruby]
+----
+RSpec.describe Omnizip::AlgorithmRegistry do
+  describe '#get' do
+    it 'returns algorithm instance' do
+      algorithm = Omnizip::AlgorithmRegistry.get(:lzma2)
+      expect(algorithm).to be_a(Omnizip::Algorithms::LZMA2)
+    end
+  end
+end
+----
+
+==== Integration Tests
+
+Test complete workflows:
+
+[source,ruby]
+----
+RSpec.describe 'LZMA2 compression workflow' do
+  it 'compresses and decompresses file' do
+    # Compress
+    Omnizip.compress_file('input.txt', 'output.lzma')
+
+    # Decompress
+    Omnizip.decompress_file('output.lzma', 'restored.txt')
+
+    # Verify
+    expect(File.read('restored.txt')).to eq File.read('input.txt')
+  end
+end
+----
+
+=== Best Practices
+
+==== Isolation
+
+Each test should be independent:
+
+[source,ruby]
+----
+# Good
+RSpec.describe 'File compression' do
+  let(:temp_dir) { Dir.mktmpdir }
+  let(:input_file) { File.join(temp_dir, 'input.txt') }
+  let(:output_file) { File.join(temp_dir, 'output.lzma') }
+
+  before do
+    File.write(input_file, 'test data')
+  end
+
+  after do
+    FileUtils.rm_rf(temp_dir)
+  end
+
+  it 'compresses file' do
+    Omnizip.compress_file(input_file, output_file)
+    expect(File.exist?(output_file)).to be true
+  end
+end
+----
+
+==== Descriptive Names
+
+Use descriptive test names:
+
+[source,ruby]
+----
+# Good
+it 'compresses text file with 50% ratio'
+
+# Bad
+it 'works'
+----
+
+==== No Mocks
+
+Prefer real behavior over mocks:
+
+[source,ruby]
+----
+# Good
+it 'compresses data' do
+  algorithm = LZMA2.new(level: 5)
+  input = StringIO.new('test')
+  output = StringIO.new
+
+  algorithm.compress(input, output)
+
+  expect(output.string.length).to be < input.string.length
+end
+
+# Avoid
+it 'compresses data' do
+  allow(algorithm).to receive(:compress).and_return('result')
+end
+----
+
+=== CI/CD
+
+Tests run automatically on:
+
+* Pull requests
+* Push to main branch
+* Scheduled runs
+
+### See Also
+
+* link:../troubleshooting/[Troubleshooting]
+* link:architecture[Architecture]

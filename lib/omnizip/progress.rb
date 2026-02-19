@@ -61,7 +61,7 @@ module Omnizip
         total_bytes: total_bytes,
         reporters: reporters,
         update_interval: update_interval,
-        eta_strategy: eta_strategy
+        eta_strategy: eta_strategy,
       )
     end
 

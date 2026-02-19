@@ -113,7 +113,7 @@ module Omnizip
             architecture: "IA-64 / Itanium",
             alignment: 16,
             endian: "little",
-            complexity: "high"
+            complexity: "high",
           }
         end
       end
@@ -158,10 +158,10 @@ module Omnizip
         # Extract slot data (5 bytes forming a 41-bit instruction)
         bytes = data.byteslice(offset, 5).bytes
         instruction = bytes[0] |
-                      (bytes[1] << 8) |
-                      (bytes[2] << 16) |
-                      (bytes[3] << 24) |
-                      (bytes[4] << 32)
+          (bytes[1] << 8) |
+          (bytes[2] << 16) |
+          (bytes[3] << 24) |
+          (bytes[4] << 32)
 
         # Check if this is a branch instruction
         # Opcode check: bits 37-40 should be 0x5 (B-type instruction)
@@ -182,7 +182,7 @@ module Omnizip
 
         # Reconstruct instruction with new target
         instruction = (instruction & ~(0x1FFFFFF << 13)) |
-                      (new_target << 13)
+          (new_target << 13)
 
         # Write back the modified instruction
         data.setbyte(offset, instruction & 0xFF)

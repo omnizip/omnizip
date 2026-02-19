@@ -51,7 +51,7 @@ module Omnizip
             filter: filter,
             solid: solid,
             description: description,
-            base_profile: base_profile
+            base_profile: base_profile,
           )
         end
 

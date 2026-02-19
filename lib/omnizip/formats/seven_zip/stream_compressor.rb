@@ -52,7 +52,9 @@ module Omnizip
             output_io = StringIO.new
             output_io.set_encoding("BINARY")
 
-            encoder.compress(input_io, output_io, @level)
+            # For 7-Zip format, use raw_mode (no property byte in compressed data)
+            # The properties are encoded in the 7-Zip header instead
+            encoder.compress(input_io, output_io, { raw_mode: true, standalone: false })
             result = output_io.string
           end
 
@@ -90,7 +92,7 @@ module Omnizip
             packed_size: packed_data.bytesize,
             unpack_size: combined_data.bytesize,
             unpack_sizes: unpack_sizes,
-            crcs: crcs
+            crcs: crcs,
           }
         end
 
@@ -112,12 +114,12 @@ module Omnizip
         #
         # @return [Array<Integer>] Filter IDs
         def filter_ids
-          @filters.map do |filter_sym|
+          @filters.filter_map do |filter_sym|
             case filter_sym
             when :bcj_x86 then Constants::FilterId::BCJ_X86
             when :delta then Constants::FilterId::DELTA
             end
-          end.compact
+          end
         end
 
         # Get properties for compression algorithm

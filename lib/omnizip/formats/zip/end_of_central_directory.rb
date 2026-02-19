@@ -69,7 +69,10 @@ module Omnizip
           central_directory_size, central_directory_offset,
           comment_length = data.unpack("VvvvvVVv")
 
-          raise Omnizip::FormatError, "Invalid EOCD signature" unless signature == END_OF_CENTRAL_DIRECTORY_SIGNATURE
+          unless signature == END_OF_CENTRAL_DIRECTORY_SIGNATURE
+            raise Omnizip::FormatError,
+                  "Invalid EOCD signature"
+          end
 
           comment = data[22, comment_length].to_s.force_encoding("UTF-8")
 
@@ -82,7 +85,7 @@ module Omnizip
             central_directory_size: central_directory_size,
             central_directory_offset: central_directory_offset,
             comment_length: comment_length,
-            comment: comment
+            comment: comment,
           )
         end
 
@@ -111,7 +114,7 @@ module Omnizip
           (buffer.size - 22).downto(0) do |i|
             if buffer[i, 4] == signature_bytes
               # Found potential EOCD
-              eocd_data = buffer[i..-1]
+              eocd_data = buffer[i..]
               comment_length = eocd_data[20, 2].unpack1("v")
 
               # Verify this is the actual EOCD by checking if comment length matches
@@ -121,7 +124,8 @@ module Omnizip
             end
           end
 
-          raise Omnizip::FormatError, "Could not find End of Central Directory record"
+          raise Omnizip::FormatError,
+                "Could not find End of Central Directory record"
         end
       end
     end

@@ -19,16 +19,19 @@ module Omnizip
       class Reader
         include Constants
 
-        attr_reader :file_path, :header, :entries, :stream_info
+        attr_reader :file_path, :header, :entries, :stream_info, :split_reader
 
         # Initialize reader with file path
         #
         # @param file_path [String] Path to .7z file
-        def initialize(file_path)
+        # @param options [Hash] Reader options
+        # @option options [String] :password Password for encrypted headers
+        def initialize(file_path, options = {})
           @file_path = file_path
           @entries = []
           @stream_info = nil
           @split_reader = nil
+          @password = options[:password]
         end
 
         # Open and parse .7z archive
@@ -162,19 +165,48 @@ module Omnizip
 
         # Parse .7z archive structure
         #
-        # @param io [IO] Input stream
+        # @param io [io] Input stream
         def parse_archive(io)
           # Read and validate start header
           @header = Header.read(io)
 
           # Read next header metadata
-          io.seek(@header.start_pos_after_header +
-                  @header.next_header_offset)
+          # NOTE: next_header_offset is from the END of the Start Header (byte 32)
+          # NOT from the end of the file
+          next_header_pos = Constants::START_HEADER_SIZE + @header.next_header_offset
+          io.seek(next_header_pos)
           next_header_data = io.read(@header.next_header_size)
 
-          # Check if header is encrypted
-          if next_header_data.getbyte(0) == PropertyId::ENCODED_HEADER
-            next_header_data = decrypt_header(next_header_data)
+          # Check if header is encoded (compressed or encrypted)
+          # ENCODED_HEADER (0x17) can mean compressed or encrypted
+          first_byte = next_header_data.getbyte(0)
+          if first_byte == PropertyId::ENCODED_HEADER
+            # Try to parse as encrypted first (if enough data and has structure)
+            if next_header_data.bytesize >= 54
+              begin
+                # Check if it's actually an encrypted header
+                EncryptedHeader.from_binary(next_header_data)
+                # If we got here, it's encrypted - try to decrypt
+                next_header_data = decrypt_header(next_header_data)
+              rescue RuntimeError => e
+                # Re-raise password-related errors
+                if e.message.include?("Password required") || e.message.include?("incorrect password")
+                  raise
+                end
+
+                # Not encrypted - it's a compressed header
+                # Decompress it using the encoded stream info
+                next_header_data = decompress_encoded_header(io,
+                                                             next_header_data)
+              rescue StandardError
+                # Parsing error - not an encrypted header, try decompression
+                next_header_data = decompress_encoded_header(io,
+                                                             next_header_data)
+              end
+            else
+              # Too short for encrypted header, must be compressed
+              next_header_data = decompress_encoded_header(io, next_header_data)
+            end
           end
 
           # Parse metadata
@@ -203,10 +235,50 @@ module Omnizip
           encryptor.decrypt(
             @encrypted_header.encrypted_data,
             @encrypted_header.salt,
-            @encrypted_header.iv
+            @encrypted_header.iv,
           )
         rescue OpenSSL::Cipher::CipherError => e
           raise "Failed to decrypt headers: incorrect password (#{e.message})"
+        end
+
+        # Decompress encoded (compressed) header
+        #
+        # @param io [IO] Archive file handle
+        # @param encoded_data [String] Encoded header bytes
+        # @return [String] Decompressed header data
+        def decompress_encoded_header(io, encoded_data)
+          # Skip ENCODED_HEADER marker
+          parser = Parser.new(encoded_data[1..])
+
+          # Parse the streams info for the encoded header
+          stream_info = Models::StreamInfo.new
+
+          # Read streams info - can be either MAIN_STREAMS_INFO or direct stream properties
+          type = parser.read_byte
+
+          if type == PropertyId::MAIN_STREAMS_INFO
+            parse_streams_info(parser, stream_info)
+          elsif type == PropertyId::PACK_INFO
+            # Direct PackInfo without MAIN_STREAMS_INFO wrapper
+            parser.read_pack_info(stream_info)
+
+            # Read UNPACK_INFO
+            type = parser.read_byte
+            if type == PropertyId::UNPACK_INFO
+              parser.read_unpack_info(stream_info)
+            end
+          else
+            raise "Unexpected property in encoded header: 0x#{type.to_s(16)}"
+          end
+
+          # Decompress the header using the stream info
+          pack_pos = @header.start_pos_after_header + stream_info.pack_pos
+          folder = stream_info.folders[0]
+          pack_size = stream_info.pack_sizes[0]
+          unpack_size = folder.uncompressed_size
+
+          decompressor = StreamDecompressor.new(io, folder, pack_pos, pack_size)
+          decompressor.decompress(unpack_size)
         end
 
         # Parse archive metadata
@@ -223,7 +295,7 @@ module Omnizip
             type == PropertyId::HEADER
 
           # Parse header sections
-          until parser.eof? || parser.peek_byte == PropertyId::K_END
+          until parser.eof?
             prop_type = parser.read_byte
 
             case prop_type
@@ -231,15 +303,17 @@ module Omnizip
               parse_streams_info(parser, stream_info)
             when PropertyId::FILES_INFO
               entries = parser.read_files_info
+            when PropertyId::K_END
+              break
             else
               # Skip unknown properties
               parser.skip_data if !parser.eof? &&
-                                  parser.peek_byte != PropertyId::K_END
+                parser.peek_byte != PropertyId::K_END
             end
           end
 
           parser.read_byte if !parser.eof? &&
-                              parser.peek_byte == PropertyId::K_END
+            parser.peek_byte == PropertyId::K_END
 
           [stream_info, entries]
         end
@@ -249,7 +323,7 @@ module Omnizip
         # @param parser [Parser] Parser instance
         # @param stream_info [Models::StreamInfo] Stream info to populate
         def parse_streams_info(parser, stream_info)
-          until parser.eof? || parser.peek_byte == PropertyId::K_END
+          until parser.eof?
             prop_type = parser.read_byte
 
             case prop_type
@@ -261,11 +335,14 @@ module Omnizip
               parser.read_substreams_info(stream_info)
             when PropertyId::K_END
               break
+            else
+              # Unknown property within streams_info - skip it
+              parser.skip_data if !parser.eof? && parser.peek_byte != PropertyId::K_END
             end
           end
 
-          parser.read_byte if !parser.eof? &&
-                              parser.peek_byte == PropertyId::K_END
+          # Consume final K_END for MAIN_STREAMS_INFO section
+          parser.read_byte if !parser.eof? && parser.peek_byte == PropertyId::K_END
         end
 
         # Map entries to their folders and streams
@@ -289,6 +366,7 @@ module Omnizip
 
             entry.folder_index = folder_idx
             entry.file_index = i
+            entry.size = @stream_info.unpack_sizes[stream_idx] if @stream_info.unpack_sizes[stream_idx]
             stream_idx += 1
           end
         end
@@ -307,7 +385,7 @@ module Omnizip
 
           # Calculate pack position
           pack_pos = @header.start_pos_after_header +
-                     @stream_info.pack_pos
+            @stream_info.pack_pos
 
           # Get pack size for this folder
           pack_idx = 0
@@ -317,11 +395,45 @@ module Omnizip
           end
           pack_size = @stream_info.pack_sizes[pack_idx] || 0
 
-          # Decompress
-          decompressor = StreamDecompressor.new(io, folder,
-                                                pack_pos, pack_size)
-          expected_crc = entry.crc
-          decompressor.decompress_and_verify(entry.size, expected_crc)
+          # For solid archives, multiple files share one compressed stream
+          # We need to decompress the entire folder and extract the correct portion
+          num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
+
+          if num_files_in_folder > 1
+            # Solid archive: decompress entire folder and extract this file's portion
+            total_unpack_size = folder.uncompressed_size
+            decompressor = StreamDecompressor.new(io, folder, pack_pos,
+                                                  pack_size)
+            full_data = decompressor.decompress(total_unpack_size)
+
+            # Find offset of this file within the uncompressed stream
+            file_offset = 0
+            @entries.each do |e|
+              break if e.file_index == entry.file_index
+
+              file_offset += e.size if e.has_stream? && e.folder_index == entry.folder_index
+            end
+
+            # Extract this file's data
+            data = full_data[file_offset, entry.size]
+
+            # Verify CRC if available
+            if entry.crc
+              crc = Omnizip::Checksums::Crc32.new
+              crc.update(data)
+              unless crc.value == entry.crc
+                raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+              end
+            end
+
+            data
+          else
+            # Non-solid: each file has its own compressed stream
+            decompressor = StreamDecompressor.new(io, folder, pack_pos,
+                                                  pack_size)
+            expected_crc = entry.crc
+            decompressor.decompress_and_verify(entry.size, expected_crc)
+          end
         rescue StandardError => e
           warn "Extraction failed for #{entry.name}: #{e.message}"
           raise
@@ -331,7 +443,14 @@ module Omnizip
         #
         # @return [Boolean] true if appears to be split
         def split_archive?
-          @file_path =~ /\.\d{3}$/ || @file_path =~ /\.[a-z]{2,}$/
+          # Numeric pattern: .001, .002, etc.
+          return true if /\.\d{3}$/.match?(@file_path)
+
+          # Alpha pattern: .7z.aa, .tar.ab, etc. (but not .7z, .tar, .zip alone)
+          # Must have a known archive extension followed by alpha suffix
+          return true if /\.(7z|tar|zip|rar)\.[a-z]{2,}$/.match?(@file_path)
+
+          false
         end
       end
     end

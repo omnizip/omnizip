@@ -111,11 +111,12 @@ module Omnizip
               # Detect format from first entry
               @format ||= Entry.detect_format(entry.magic)
 
+              # Add entry (including trailer)
+              @entries << entry
+
               # Stop at trailer
               break if entry.trailer?
-
-              @entries << entry
-            rescue => e
+            rescue StandardError => e
               warn "Failed to parse CPIO entry: #{e.message}"
               break
             end
@@ -146,7 +147,7 @@ module Omnizip
         #
         # @param entry [Entry] Directory entry
         # @param output_path [String] Destination path
-        def extract_directory(entry, output_path)
+        def extract_directory(_entry, output_path)
           FileUtils.mkdir_p(output_path)
         end
 
@@ -179,7 +180,7 @@ module Omnizip
         # @param path [String] File path
         def set_entry_attributes(entry, path)
           # Set modification time
-          if entry.mtime && entry.mtime > 0
+          if entry.mtime&.positive?
             mtime = Time.at(entry.mtime)
             File.utime(mtime, mtime, path)
           end

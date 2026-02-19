@@ -109,14 +109,16 @@ module Omnizip
 
       # Extract this entry to a destination path
       # Note: This requires access to the archive file
-      def extract(dest_path, &on_exists_proc)
-        raise NotImplementedError, "Entry#extract requires File context. Use Omnizip::Zip::File#extract instead"
+      def extract(dest_path)
+        raise NotImplementedError,
+              "Entry#extract requires File context. Use Omnizip::Zip::File#extract instead"
       end
 
       # Get input stream for this entry
       # Note: This requires access to the archive file
       def get_input_stream
-        raise NotImplementedError, "Entry#get_input_stream requires File context"
+        raise NotImplementedError,
+              "Entry#get_input_stream requires File context"
       end
 
       # String representation
@@ -127,6 +129,7 @@ module Omnizip
       # Equality comparison
       def ==(other)
         return false unless other.is_a?(Entry)
+
         name == other.name
       end
 

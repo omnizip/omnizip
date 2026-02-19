@@ -89,7 +89,9 @@ RSpec.describe "ZIP Format Integration" do
 
         # Check nested file
         nested_file = File.join(subdir, "nested.txt")
-        expect(File.exist?(nested_file)).to be true if File.exist?(File.join(tmpdir, "subdir"))
+        expect(File.exist?(nested_file)).to be true if File.exist?(File.join(
+                                                                     tmpdir, "subdir"
+                                                                   ))
       end
     end
 
@@ -129,8 +131,10 @@ RSpec.describe "ZIP Format Integration" do
         output_dir = File.join(tmpdir, "extracted")
         reader.extract_all(output_dir)
 
-        expect(File.read(File.join(output_dir, "test.txt"))).to eq("Test content\n")
-        expect(File.read(File.join(output_dir, "data.txt"))).to eq("Some data" * 100)
+        expect(File.read(File.join(output_dir,
+                                   "test.txt"))).to eq("Test content\n")
+        expect(File.read(File.join(output_dir,
+                                   "data.txt"))).to eq("Some data" * 100)
       end
     end
 
@@ -148,7 +152,7 @@ RSpec.describe "ZIP Format Integration" do
         reader = Omnizip::Formats::Zip::Reader.new(zip_path).read
         expect(reader.entries.size).to eq(2)
 
-        dir_entry = reader.entries.find { |e| e.directory? }
+        dir_entry = reader.entries.find(&:directory?)
         expect(dir_entry).not_to be_nil
         expect(dir_entry.filename).to eq("folder/")
       end
@@ -191,9 +195,9 @@ RSpec.describe "ZIP Format Integration" do
         reader = Omnizip::Formats::Zip::Reader.new(zip_path).read
 
         # This should succeed with valid CRC
-        expect {
+        expect do
           reader.extract_all(tmpdir)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -210,7 +214,9 @@ RSpec.describe "ZIP Format Integration" do
         entry = reader.entries.first
 
         # Calculate expected CRC
-        expected_crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(test_data) }.finalize
+        expected_crc = Omnizip::Checksums::Crc32.new.tap do |c|
+          c.update(test_data)
+        end.finalize
         expect(entry.crc32).to eq(expected_crc)
       end
     end
@@ -259,9 +265,9 @@ RSpec.describe "ZIP Format Integration" do
 
   describe "error handling" do
     it "raises error for non-existent file" do
-      expect {
+      expect do
         Omnizip::Formats::Zip::Reader.new("nonexistent.zip").read
-      }.to raise_error(Errno::ENOENT)
+      end.to raise_error(Errno::ENOENT)
     end
 
     it "raises error for invalid ZIP file" do
@@ -269,9 +275,9 @@ RSpec.describe "ZIP Format Integration" do
         invalid_zip = File.join(tmpdir, "invalid.zip")
         File.write(invalid_zip, "Not a ZIP file")
 
-        expect {
+        expect do
           Omnizip::Formats::Zip::Reader.new(invalid_zip).read
-        }.to raise_error(Omnizip::FormatError)
+        end.to raise_error(Omnizip::FormatError)
       end
     end
   end

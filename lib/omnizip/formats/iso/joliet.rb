@@ -16,7 +16,7 @@ module Omnizip
         # Level 1: %/@
         # Level 2: %/C
         # Level 3: %/E (most common, supports UCS-2)
-        ESCAPE_SEQUENCE_LEVEL_3 = "%/E".freeze
+        ESCAPE_SEQUENCE_LEVEL_3 = "%/E"
 
         # Maximum Joliet filename length in characters
         MAX_FILENAME_LENGTH = 64
@@ -46,9 +46,8 @@ module Omnizip
         rescue Encoding::UndefinedConversionError
           # Fallback if decoding fails
           ucs2_data.force_encoding("UTF-16BE").encode("UTF-8",
-            undef: :replace,
-            replace: "?"
-          )
+                                                      undef: :replace,
+                                                      replace: "?")
         end
 
         # Build Joliet directory record
@@ -66,7 +65,7 @@ module Omnizip
           # No padding needed for UCS-2 names (always even length)
           record_len = 33 + name_len
 
-          record = String.new
+          record = +""
 
           # Byte 0: Length of directory record
           record << [record_len].pack("C")
@@ -121,8 +120,11 @@ module Omnizip
           # Maximum 64 characters
           # Disallow: / * ? < > | " : \
 
-          sanitized = name.gsub(/[\/\*\?<>\|":\\]/, "_")
-          sanitized = sanitized[0, MAX_FILENAME_LENGTH] if sanitized.length > MAX_FILENAME_LENGTH
+          sanitized = name.gsub(/[\/*?<>|":\\]/, "_")
+          if sanitized.length > MAX_FILENAME_LENGTH
+            sanitized = sanitized[0,
+                                  MAX_FILENAME_LENGTH]
+          end
           sanitized
         end
 
@@ -135,7 +137,7 @@ module Omnizip
           return true if name.length > 31
 
           # Check if name contains non-ASCII or lowercase
-          return true if name =~ /[^A-Z0-9_.-]/
+          return true if /[^A-Z0-9_.-]/.match?(name)
 
           # Check if name contains Unicode
           name.encoding != Encoding::ASCII && name.bytes.any? { |b| b > 127 }
@@ -146,7 +148,7 @@ module Omnizip
         # @param primary_vd [String] Primary volume descriptor data
         # @param root_dir [Hash] Root directory information
         # @return [String] Joliet SVD (2048 bytes)
-        def self.build_supplementary_vd(primary_vd, root_dir)
+        def self.build_supplementary_vd(primary_vd, _root_dir)
           # Start with primary VD as template
           svd = primary_vd.dup
 
@@ -193,7 +195,7 @@ module Omnizip
             time.hour,
             time.min,
             time.sec,
-            0 # GMT offset
+            0, # GMT offset
           ].pack("C7")
         end
       end

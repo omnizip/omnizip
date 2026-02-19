@@ -116,7 +116,7 @@ module Omnizip
       def included?(entry, filename)
         # If no include patterns/predicates, include by default
         has_includes = !@include_patterns.empty? ||
-                       !@include_predicates.empty?
+          !@include_predicates.empty?
         return true unless has_includes
 
         # Check if matches any include pattern

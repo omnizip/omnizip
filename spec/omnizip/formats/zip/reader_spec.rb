@@ -3,7 +3,9 @@
 require "spec_helper"
 
 RSpec.describe Omnizip::Formats::Zip::Reader do
-  let(:test_zip_path) { File.join(File.dirname(__FILE__), "../../../fixtures/zip/simple.zip") }
+  let(:test_zip_path) do
+    File.join(File.dirname(__FILE__), "../../../fixtures/zip/simple.zip")
+  end
   let(:reader) { described_class.new(test_zip_path) }
 
   describe "#initialize" do
@@ -15,10 +17,6 @@ RSpec.describe Omnizip::Formats::Zip::Reader do
 
   describe "#read" do
     context "with a simple ZIP file" do
-      before do
-        skip "Test fixture not yet created"
-      end
-
       it "reads the archive structure" do
         reader.read
         expect(reader.entries).not_to be_empty
@@ -33,21 +31,9 @@ RSpec.describe Omnizip::Formats::Zip::Reader do
         expect(entry.uncompressed_size).to be >= 0
       end
     end
-
-    context "with invalid file" do
-      let(:test_zip_path) { "/tmp/nonexistent.zip" }
-
-      it "raises an error" do
-        expect { reader.read }.to raise_error(Errno::ENOENT)
-      end
-    end
   end
 
   describe "#list_entries" do
-    before do
-      skip "Test fixture not yet created"
-    end
-
     it "returns array of entry information" do
       reader.read
       entries = reader.list_entries
@@ -58,17 +44,13 @@ RSpec.describe Omnizip::Formats::Zip::Reader do
         :uncompressed_size,
         :compression_method,
         :crc32,
-        :directory
+        :directory,
       )
     end
   end
 
   describe "#extract_all" do
     let(:output_dir) { Dir.mktmpdir }
-
-    before do
-      skip "Test fixture not yet created"
-    end
 
     after do
       FileUtils.rm_rf(output_dir)

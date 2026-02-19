@@ -1,0 +1,25 @@
+---
+title: Developer Guide
+nav_order: 85
+has_children: true
+---
+
+== Developer Guide
+
+Information for developers contributing to or extending Omnizip.
+
+=== Contributing
+
+* link:contributing[Contributing Guide] - How to contribute
+* link:code-style[Code Style] - Coding standards
+* link:testing[Testing] - Running and writing tests
+
+=== Development
+
+* link:architecture[Architecture] - System design and patterns
+* link:release-process[Release Process] - How releases work
+
+=== Resources
+
+* link:../concepts/[Core Concepts] - Fundamental concepts
+* link:../troubleshooting/[Troubleshooting] - Common issues

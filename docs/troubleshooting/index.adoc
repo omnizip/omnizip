@@ -1,0 +1,208 @@
+---
+title: Troubleshooting
+nav_order: 80
+---
+
+== Troubleshooting
+
+Common problems and solutions when using Omnizip.
+
+=== Common Issues
+
+==== "Algorithm not found" Error
+
+**Problem**: Compression fails with algorithm not found error.
+
+**Solution**: Check available algorithms:
+
+[source,bash]
+----
+omnizip list
+----
+
+[source,ruby]
+----
+Omnizip::AlgorithmRegistry.registered.each do |name|
+  puts name
+end
+----
+
+**Causes**:
+* Typo in algorithm name
+* Algorithm not registered
+
+==== "File not found" Error
+
+**Problem**: Cannot read input file.
+
+**Solution**: Verify file paths and permissions:
+
+[source,bash]
+----
+# Check file exists
+ls -la input.txt
+
+# Check permissions
+chmod +r input.txt
+----
+
+==== "Out of memory" Error
+
+**Problem**: Large file compression fails.
+
+**Solutions**:
+
+1. Use lower compression level:
+[source,bash]
+----
+omnizip compress large.txt output.lzma --level 1
+----
+
+2. Use faster algorithm:
+[source,bash]
+----
+omnizip compress large.txt output.zst --algorithm zstandard
+----
+
+3. Use chunked processing:
+[source,ruby]
+----
+Omnizip.compress_file_chunked('large.txt', 'output.lzma',
+  chunk_size: 10 * 1024 * 1024
+)
+----
+
+==== "Archive corrupted" Error
+
+**Problem**: Cannot extract archive.
+
+**Solutions**:
+
+1. Verify archive integrity:
+[source,bash]
+----
+omnizip archive list archive.7z
+----
+
+2. Try recovery mode:
+[source,ruby]
+----
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z',
+  salvage_mode: true
+)
+reader.extract_all('output/')
+----
+
+3. Check CRC:
+[source,ruby]
+----
+if Omnizip::Checksums.verify_file('archive.7z', :crc32)
+  puts "Archive is valid"
+else
+  puts "Archive is corrupted"
+end
+----
+
+=== Performance Issues
+
+==== Slow Compression
+
+**Solutions**:
+
+1. Use lower compression level:
+[source,bash]
+----
+omnizip compress input.txt output.lzma --level 3
+----
+
+2. Use faster algorithm:
+[source,bash]
+----
+omnizip compress input.txt output.zst --algorithm zstandard
+----
+
+3. Enable parallel processing:
+[source,ruby]
+----
+Omnizip.compress_file('input.txt', 'output.lzma',
+  parallel: true,
+  threads: 4
+)
+----
+
+==== Slow Decompression
+
+**Solutions**:
+
+1. Use buffered reading:
+[source,ruby]
+----
+reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z',
+  buffer_size: 1024 * 1024
+)
+reader.extract_all('output/')
+----
+
+2. Extract specific files only:
+[source,bash]
+----
+omnizip archive extract archive.7z output/ \
+  --pattern 'important.txt'
+----
+
+=== Format-Specific Issues
+
+==== 7z Issues
+
+**Problem**: 7z archive not compatible with 7-Zip.
+
+**Solution**: Ensure standard options:
+
+[source,ruby]
+----
+writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  algorithm: :lzma2,
+  level: 5  # Standard level
+)
+----
+
+==== ZIP Issues
+
+**Problem**: ZIP not readable by other tools.
+
+**Solution**: Use Deflate algorithm:
+
+[source,bash]
+----
+omnizip archive create archive.zip files/ \
+  --algorithm deflate --level 5
+----
+
+==== RAR Issues
+
+**Problem**: RAR extraction fails.
+
+**Solution**: Verify RAR version:
+
+[source,ruby]
+----
+# Try RAR4 reader
+reader = Omnizip::Formats::Rar::Reader.new('archive.rar')
+
+# Or RAR5 reader
+reader = Omnizip::Formats::Rar::Rar5::Reader.new('archive.rar')
+----
+
+### Getting Help
+
+If you continue to have issues:
+
+1. Check link:../resources/faq[FAQ]
+2. Review link:../guides/[usage guides]
+3. Search link:https://github.com/metanorma/omnizip/issues[GitHub issues]
+4. Create a new issue with:
+   * Omnizip version
+   * Ruby version
+   * Operating system
+   * Error message
+   * Minimal reproduction code

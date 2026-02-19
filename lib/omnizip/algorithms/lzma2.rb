@@ -25,119 +25,117 @@ require_relative "../models/algorithm_metadata"
 
 module Omnizip
   module Algorithms
-    # LZMA2 - Enhanced LZMA compression with chunking
-    #
-    # LZMA2 is an improved version of LZMA that adds:
-    # - Chunked compression for better random access
-    # - Support for uncompressed chunks (when compression doesn't help)
-    # - Multi-threading support framework (for future enhancement)
-    # - Better error recovery
-    # - More compact header (single property byte)
-    #
-    # This implementation:
-    # - Wraps LZMA encoder/decoder with chunking layer
-    # - Splits data into configurable chunk sizes (default 2MB)
-    # - Decides whether to compress or store each chunk uncompressed
-    # - Uses control bytes to indicate chunk type and size
-    #
-    # The algorithm achieves similar compression ratios to LZMA
-    # while providing better support for streaming and parallel processing.
+    # LZMA2 compression algorithm
+    # Improved version of LZMA with chunked format for better streaming
     class LZMA2 < Algorithm
-      # Get algorithm metadata
-      #
-      # @return [AlgorithmMetadata] Algorithm information
-      def self.metadata
-        Models::AlgorithmMetadata.new.tap do |meta|
-          meta.name = "lzma2"
-          meta.description = "LZMA2 compression with chunking " \
-                             "and adaptive compression"
-          meta.version = "1.0.0"
+    end
+  end
+end
+
+# Now require the nested classes that will reopen LZMA2
+require_relative "lzma2/constants"
+require_relative "lzma2/properties"
+require_relative "lzma2/lzma2_chunk"
+require_relative "lzma2/encoder"
+require_relative "../implementations/xz_utils/lzma2/decoder"
+require_relative "../implementations/xz_utils/lzma2/encoder"
+require_relative "../implementations/seven_zip/lzma2/encoder"
+require_relative "lzma2/xz_encoder_adapter"
+
+module Omnizip
+  module Algorithms
+    class LZMA2 < Algorithm
+      class << self
+        # Get algorithm metadata
+        #
+        # @return [Models::AlgorithmMetadata] Algorithm metadata
+        def metadata
+          Models::AlgorithmMetadata.new.tap do |meta|
+            meta.name = "lzma2"
+            meta.description = "LZMA2 compression with improved chunking format for better streaming"
+            meta.version = "1.0.0"
+            meta.supports_streaming = true
+          end
         end
       end
 
-      # Compress data using LZMA2 algorithm
-      #
-      # @param input_stream [IO] Input stream to compress
-      # @param output_stream [IO] Output stream for compressed data
-      # @param options [Models::CompressionOptions] Compression options
-      # @return [void]
-      def compress(input_stream, output_stream, options = nil)
-        input_data = input_stream.read
-        encoder = Encoder.new(output_stream, build_encoder_options(options))
-        encoder.encode_stream(input_data)
+      def initialize(options = {})
+        super()
+        @dict_size = options[:dict_size] || (8 * 1024 * 1024) # 8 MB default
+        @lc = options[:lc] || 3
+        @lp = options[:lp] || 0
+        @pb = options[:pb] || 2
+        @level = options[:level] || 6
+        @raw_mode = options[:raw_mode] # For 7-Zip format (no property byte)
       end
 
-      # Decompress LZMA2-compressed data
-      #
-      # @param input_stream [IO] Input stream of compressed data
-      # @param output_stream [IO] Output stream for decompressed data
-      # @param options [Models::CompressionOptions] Decompression options
-      # @return [void]
-      def decompress(input_stream, output_stream, _options = nil)
-        decoder = Decoder.new(input_stream)
-        decompressed = decoder.decode_stream
-        output_stream.write(decompressed)
-      end
+      # Compress data using LZMA2
+      def compress(input, output, options = {})
+        # For 7-Zip format, use raw_mode (no property byte in data stream)
+        # Default to true for backward compatibility with standalone LZMA2 files
+        standalone = options.fetch(:standalone, true)
+        options.fetch(:raw_mode, !standalone)
 
-      private
+        encoder = LZMA2Encoder.new(
+          dict_size: @dict_size,
+          lc: @lc,
+          lp: @lp,
+          pb: @pb,
+          standalone: standalone, # Write property byte only for standalone files
+        )
 
-      # Build encoder options from compression options
-      #
-      # @param options [Models::CompressionOptions, nil] Compression opts
-      # @return [Hash] Encoder options
-      def build_encoder_options(options)
-        return {} if options.nil?
+        # Read input
+        input_data = input.respond_to?(:read) ? input.read : input
 
-        opts = {}
+        # Encode with LZMA2
+        compressed = encoder.encode(input_data)
 
-        # Dictionary size based on compression level
-        if options.respond_to?(:level)
-          level = options.level || 5
-          opts[:dict_size] = dictionary_size_for_level(level)
-          opts[:chunk_size] = chunk_size_for_level(level)
+        # Write to output
+        if output.respond_to?(:write)
+          output.write(compressed)
         else
-          opts[:dict_size] = 1 << 23 # 8MB default
-          opts[:chunk_size] = 2 * 1024 * 1024 # 2MB default
+          output.replace(compressed)
         end
-
-        opts
       end
 
-      # Get dictionary size based on compression level
-      #
-      # @param level [Integer] Compression level (0-9)
-      # @return [Integer] Dictionary size in bytes
-      def dictionary_size_for_level(level)
-        1 << case level
-             when 0..1 then 16   # 64KB
-             when 2..3 then 20   # 1MB
-             when 4..5 then 22   # 4MB
-             when 6..7 then 23   # 8MB
-             else 24 # 16MB
-             end
+      # Decompress LZMA2 data
+      def decompress(input, output, options = {})
+        # Read input data
+        input_data = input.respond_to?(:read) ? input.read : input
+        input_stream = StringIO.new(input_data)
+        input_stream.set_encoding(Encoding::BINARY)
+
+        # Determine raw_mode:
+        # - For 7-Zip format: raw_mode=true, dict_size from coder properties
+        # - For standalone LZMA2 files: raw_mode=false, dict_size from property byte
+        raw_mode = options.fetch(:raw_mode, @raw_mode || false)
+        dict_size = options.fetch(:dict_size, @dict_size)
+
+        # Create decoder using XZ Utils implementation
+        decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(
+          input_stream,
+          raw_mode: raw_mode,
+          dict_size: dict_size,
+        )
+
+        # Decode LZMA2 data
+        decompressed = decoder.decode_stream
+
+        # Write to output
+        if output.respond_to?(:write)
+          output.write(decompressed)
+        else
+          output.replace(decompressed)
+        end
       end
 
-      # Get chunk size based on compression level
-      #
-      # @param level [Integer] Compression level (0-9)
-      # @return [Integer] Chunk size in bytes
-      def chunk_size_for_level(level)
-        case level
-        when 0..3 then 1 * 1024 * 1024   # 1MB for fast compression
-        when 4..6 then 2 * 1024 * 1024   # 2MB for balanced
-        else 4 * 1024 * 1024 # 4MB for maximum compression
-        end
+      # Encode dictionary size as single byte for LZMA2 properties
+      def self.encode_dict_size(dict_size)
+        LZMA2Encoder.encode_dict_size(dict_size)
       end
     end
   end
 end
 
-# Load nested classes after LZMA2 class is defined
-require_relative "lzma2/constants"
-require_relative "lzma2/properties"
-require_relative "lzma2/chunk_manager"
-require_relative "lzma2/encoder"
-require_relative "lzma2/decoder"
-
-# Register the LZMA2 algorithm
-Omnizip::AlgorithmRegistry.register(:lzma2, Omnizip::Algorithms::LZMA2)
+# Auto-register LZMA2 in algorithm registry
+Omnizip::Algorithms::LZMA2.register_algorithm

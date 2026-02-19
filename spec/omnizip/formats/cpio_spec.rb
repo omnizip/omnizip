@@ -19,7 +19,7 @@ RSpec.describe Omnizip::Formats::Cpio do
   end
 
   after do
-    FileUtils.rm_rf(temp_dir) if Dir.exist?(temp_dir)
+    FileUtils.rm_rf(temp_dir)
   end
 
   describe ".create" do
@@ -216,7 +216,7 @@ RSpec.describe Omnizip::Formats::Cpio do
   end
 
   describe "format compatibility" do
-    [:newc, :crc, :odc].each do |format|
+    %i[newc crc odc].each do |format|
       context "with #{format} format" do
         let(:format_cpio) { File.join(temp_dir, "#{format}.cpio") }
 
@@ -256,7 +256,8 @@ RSpec.describe Omnizip::Formats::Cpio do
       described_class.extract(output_cpio, extract_dir)
 
       # Verify
-      expect(File.read(File.join(extract_dir, "root.txt"))).to eq("Hello, CPIO!")
+      expect(File.read(File.join(extract_dir,
+                                 "root.txt"))).to eq("Hello, CPIO!")
       expect(Dir.exist?(File.join(extract_dir, "data"))).to be true
     end
   end

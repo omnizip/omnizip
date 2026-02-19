@@ -16,7 +16,8 @@ module Omnizip
     #   queue.push_with_size(file: 'file.txt', size: 1024)
     class JobQueue
       # Job structure for queue items
-      Job = Struct.new(:file, :data, :size, :priority, :metadata, keyword_init: true) do
+      Job = Struct.new(:file, :data, :size, :priority, :metadata,
+                       keyword_init: true) do
         def <=>(other)
           # Higher priority first, then larger files first
           priority_order = { high: 0, normal: 1, low: 2 }
@@ -101,7 +102,8 @@ module Omnizip
                      :low
                    end
 
-        push(file: file, data: data, size: size, priority: priority, metadata: metadata)
+        push(file: file, data: data, size: size, priority: priority,
+             metadata: metadata)
       end
 
       # Pop a job from the queue
