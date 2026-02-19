@@ -84,7 +84,7 @@ module Omnizip
           ARM64 = 0x03030601
 
           # BCJ2 filter
-          BCJ2 = 0x03030111
+          BCJ2 = 0x0303011B
 
           # Swap filters for byte order conversion
           SWAP2 = 0x03030204

@@ -22,17 +22,20 @@ module Omnizip
         def self.build_from_folder(folder)
           return nil if folder.coders.empty?
 
-          # For now, support single coder or coder+filter combinations
-          main_coder = folder.coders.last
+          # Find the compression method (not a filter) among coders
+          # Filters like BCJ, BCJ2 have specific method IDs
+          main_coder = find_compression_coder(folder.coders)
+          raise "No compression method found in folder" unless main_coder
+
           algorithm = algorithm_for_method(main_coder.method_id)
 
-          # Check for filters
+          # Check for filters (all coders except the compression method)
           filters = []
-          if folder.coders.size > 1
-            folder.coders[0..-2].each do |coder|
-              filter = filter_for_method(coder.method_id)
-              filters << filter if filter
-            end
+          folder.coders.each do |coder|
+            next if coder == main_coder
+
+            filter = filter_for_method(coder.method_id)
+            filters << filter if filter
           end
 
           {
@@ -41,6 +44,25 @@ module Omnizip
             properties: main_coder.properties,
             unpack_size: folder.unpack_sizes.last,
           }
+        end
+
+        # Find the compression coder among all coders
+        #
+        # @param coders [Array<Models::CoderInfo>] All coders in the folder
+        # @return [Models::CoderInfo, nil] The compression coder or nil
+        def self.find_compression_coder(coders)
+          # Try to find a known compression method
+          coders.each do |coder|
+            case coder.method_id
+            when MethodId::LZMA, MethodId::LZMA2, MethodId::BZIP2,
+                 MethodId::DEFLATE, MethodId::DEFLATE64, MethodId::PPMD,
+                 MethodId::COPY
+              return coder
+            end
+          end
+
+          # Fall back to last coder if no known compression method found
+          coders.last
         end
 
         # Map method ID to algorithm
@@ -92,6 +114,8 @@ module Omnizip
             :bcj_arm64
           when FilterId::DELTA
             :delta
+          when FilterId::BCJ2
+            :bcj2
           end
         end
 

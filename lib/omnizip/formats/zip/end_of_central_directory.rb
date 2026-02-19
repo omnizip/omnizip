@@ -117,9 +117,10 @@ module Omnizip
               eocd_data = buffer[i..]
               comment_length = eocd_data[20, 2].unpack1("v")
 
-              # Verify this is the actual EOCD by checking if comment length matches
-              if i + 22 + comment_length == buffer.size
-                return from_binary(eocd_data)
+              # Verify this is the actual EOCD by checking if comment length is reasonable
+              # Some ZIP tools add trailing data, so we check if comment fits within remaining buffer
+              if i + 22 + comment_length <= buffer.size
+                return from_binary(eocd_data[0, 22 + comment_length])
               end
             end
           end
