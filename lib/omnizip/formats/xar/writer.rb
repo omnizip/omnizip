@@ -291,7 +291,9 @@ module Omnizip
           entry.archived_checksum_style = @options[:file_checksum]
 
           # Add to heap
-          entry.data_offset = @heap_data.bytesize
+          # Data offset must account for TOC checksum at start of heap
+          checksum_size = CHECKSUM_SIZES[@options[:toc_checksum]] || 0
+          entry.data_offset = checksum_size + @heap_data.bytesize
           @heap_data << compressed
         end
 

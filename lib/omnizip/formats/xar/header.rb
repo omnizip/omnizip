@@ -35,8 +35,28 @@ module Omnizip
 
           magic = data[0, 4].unpack1("N")
           # XAR spec: header_size and version are little-endian, rest are big-endian
-          header_size = data[4, 2].unpack1("v")  # little-endian
-          version = data[6, 2].unpack1("v")      # little-endian
+          # However, some tools (like macOS xar) store these in big-endian format.
+          # We detect this by checking if the parsed values make sense.
+          header_size_le = data[4, 2].unpack1("v")  # little-endian
+          header_size_be = data[4, 2].unpack1("n")  # big-endian
+          version_le = data[6, 2].unpack1("v")      # little-endian
+          version_be = data[6, 2].unpack1("n")      # big-endian
+
+          # Detect endianness: standard header is 28 bytes, version is 1
+          # If little-endian gives valid values, use it; otherwise use big-endian
+          if header_size_le == HEADER_SIZE && version_le == XAR_VERSION
+            header_size = header_size_le
+            version = version_le
+          elsif header_size_be == HEADER_SIZE && version_be == XAR_VERSION
+            header_size = header_size_be
+            version = version_be
+          else
+            # Default to little-endian (spec-compliant)
+            header_size = header_size_le
+            version = version_le
+            # Normalize version 256 to 1 (big-endian encoding of version 1)
+            version = 1 if version == 256
+          end
           toc_compressed_size = data[8, 8].unpack1("Q>") # big-endian uint64
           toc_uncompressed_size = data[16, 8].unpack1("Q>") # big-endian uint64
           checksum_algorithm = data[24, 4].unpack1("N")

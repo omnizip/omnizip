@@ -286,10 +286,10 @@ module Omnizip
           if (data = elem.elements["data"])
             options[:data_offset] = int_content(data.elements["offset"]) || 0
             # In XAR format:
-            # - <length> is the uncompressed (extracted) size
-            # - <size> is the compressed (archived) size
-            options[:data_size] = int_content(data.elements["length"]) || 0
-            options[:data_length] = int_content(data.elements["size"]) || 0
+            # - <size> is the uncompressed (extracted) size
+            # - <length> is the compressed (archived) size in the heap
+            options[:data_size] = int_content(data.elements["size"]) || 0
+            options[:data_length] = int_content(data.elements["length"]) || 0
 
             if (encoding = data.elements["encoding"])
               style = encoding.attributes["style"]
@@ -466,16 +466,16 @@ parent_path = nil)
             offset_elem.add_text(entry.data_offset.to_s)
 
             # In XAR format:
-            # - <length> is the uncompressed (extracted) size
-            # - <size> is the compressed (archived) size
-            if entry.data_size&.positive?
+            # - <length> is the compressed (archived) size in the heap
+            # - <size> is the uncompressed (extracted) size
+            if entry.data_length&.positive?
               length_elem = data_elem.add_element("length")
-              length_elem.add_text(entry.data_size.to_s)
+              length_elem.add_text(entry.data_length.to_s)
             end
 
-            if entry.data_length&.positive?
+            if entry.data_size&.positive?
               size_elem = data_elem.add_element("size")
-              size_elem.add_text(entry.data_length.to_s)
+              size_elem.add_text(entry.data_size.to_s)
             end
 
             if entry.data_encoding && entry.data_encoding != COMPRESSION_NONE

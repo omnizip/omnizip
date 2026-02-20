@@ -110,6 +110,13 @@ module Omnizip
           def self.allocate_cells(distribution, table_size)
             cells = Array.new(table_size, nil)
 
+            # Validate distribution sum
+            total = distribution.compact.sum
+            if total > table_size
+              raise ArgumentError,
+                    "Distribution sum (#{total}) exceeds table size (#{table_size})"
+            end
+
             # Step = (table_size >> 1) + (table_size >> 3) + 3
             step = (table_size >> 1) + (table_size >> 3) + 3
             mask = table_size - 1
@@ -120,9 +127,14 @@ module Omnizip
               next if prob.nil? || prob <= 0
 
               prob.times do
-                # Find empty position
+                # Find empty position (with safety limit)
+                attempts = 0
                 while cells[position]
                   position = (position + step) & mask
+                  attempts += 1
+                  if attempts > table_size
+                    raise "FSE table allocation failed: no empty cell found"
+                  end
                 end
 
                 cells[position] = symbol

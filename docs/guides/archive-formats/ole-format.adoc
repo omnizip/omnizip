@@ -1,0 +1,316 @@
+---
+title: OLE Format
+nav_order: 10
+parent: Archive Formats
+grand_parent: Guides
+---
+
+[[ole-format]]
+== Purpose
+
+OLE (Object Linking and Embedding) Compound Document format is used by Microsoft for storing structured data in a single file. Common OLE files include:
+- MSI (Windows Installer packages)
+- DOC (legacy Word documents)
+- XLS (legacy Excel spreadsheets)
+- PPT (legacy PowerPoint presentations)
+- THM (Microsoft Theme files)
+- MSG (Outlook messages)
+
+OLE uses a FAT-like file system within a single file, supporting up to 4GB of structured data.
+
+== Key Characteristics
+
+[cols="1,3"]
+|===
+|Property |Value
+
+|Max Size
+|2GB (standard), 4GB (with 4KB sectors)
+
+|Sector Sizes
+|512 bytes (standard), 4KB (large)
+
+|Streams
+|Multiple streams and sub-storages
+
+|Encryption
+|Optional (document-specific)
+
+|Best For
+|Windows compound files, legacy Office documents, MSI installers
+|===
+
+== Basic Usage
+
+=== Open an OLE File
+
+[source,ruby]
+----
+# Open OLE compound document
+ole = Omnizip::Ole.open('document.doc')
+
+# Access root storage
+root = ole.root
+puts "Root storage: #{root.name}"
+
+# List streams and storages
+root.each do |entry|
+  puts "#{entry.name} (#{entry.size} bytes)" if entry.file?
+  puts "#{entry.name}/" if entry.directory?
+end
+
+ole.close
+----
+
+=== Read Stream Data
+
+[source,ruby]
+----
+# Read a specific stream
+ole = Omnizip::Ole.open('document.doc')
+
+# Access \x01SummaryInformation stream (document metadata)
+summary = ole.open_stream("\x01SummaryInformation")
+if summary
+  data = summary.read
+  puts "Summary size: #{data.size} bytes"
+end
+
+# Access WordDocument stream (main content)
+word_stream = ole.open_stream("WordDocument")
+if word_stream
+  content = word_stream.read
+  puts "Document content size: #{content.size} bytes"
+end
+
+ole.close
+----
+
+=== Extract All Files
+
+[source,ruby]
+----
+# Extract all streams from OLE to files
+Omnizip::Ole.open('document.doc') do |ole|
+  ole.extract_to('/output/directory/')
+end
+
+# Extract specific stream
+Omnizip::Ole.open('spreadsheet.xls') do |ole|
+  workbook = ole.open_stream('Workbook')
+  File.binwrite('workbook.bin', workbook.read)
+end
+----
+
+== MSI Package Inspection
+
+MSI files are OLE compound documents containing Windows Installer data:
+
+[source,ruby]
+----
+# Open MSI package
+msi = Omnizip::Ole.open('installer.msi')
+
+# List MSI tables (storages)
+tables = msi.root.select { |e| e.directory? }
+puts "MSI Tables:"
+tables.each { |t| puts "  #{t.name}" }
+
+# Access \x05SummaryInformation
+summary = msi.open_stream("\x05SummaryInformation")
+if summary
+  puts "Summary information found"
+end
+
+# Access _Tables stream (list of all tables)
+tables_stream = msi.open_stream("_Tables")
+if tables_stream
+  puts "Tables stream size: #{tables_stream.size}"
+end
+
+msi.close
+----
+
+== Storage Structure
+
+OLE files have a hierarchical structure like a file system:
+
+[source]
+----
+Root Storage/
+├── \x01SummaryInformation     (document metadata)
+├── \x01DocumentSummaryInformation
+├── WordDocument              (main content)
+├── 1Table                    (data tables)
+├── Data/
+│   ├── Mso1Table
+│   └── Mso0Table
+└── ObjectPool/
+    └── _1000000000/
+        └── Ole10Native
+----
+
+[source,ruby]
+----
+# Navigate storage hierarchy
+ole = Omnizip::Ole.open('document.doc')
+
+# Access nested storage
+pool = ole.root.find("ObjectPool")
+if pool
+  pool.each do |entry|
+    puts "ObjectPool/#{entry.name}"
+  end
+end
+
+ole.close
+----
+
+== Summary Information
+
+OLE documents contain standard metadata streams:
+
+[source,ruby]
+----
+# Read summary information
+ole = Omnizip::Ole.open('document.doc')
+
+# Access summary stream
+summary_stream = ole.open_stream("\x01SummaryInformation")
+if summary_stream
+  # Summary information is in a specific binary format
+  # Omnizip provides helpers to decode it
+  summary = ole.summary_information
+  if summary
+    puts "Title: #{summary.title}"
+    puts "Author: #{summary.author}"
+    puts "Subject: #{summary.subject}"
+    puts "Keywords: #{summary.keywords}"
+    puts "Created: #{summary.create_time}"
+    puts "Modified: #{summary.last_save_time}"
+  end
+end
+
+ole.close
+----
+
+== File Format Detection
+
+OLE files can be identified by their signature:
+
+[source,ruby]
+----
+# Check if file is OLE
+File.open('document.doc', 'rb') do |f|
+  header = f.read(8)
+  if Omnizip::Ole.ole_signature?(header)
+    puts "This is an OLE compound document"
+  end
+end
+
+# Get OLE file type
+ole = Omnizip::Ole.open('document.doc')
+case ole.file_type
+when :word_document
+  puts "Microsoft Word document"
+when :excel_spreadsheet
+  puts "Microsoft Excel spreadsheet"
+when :powerpoint
+  puts "Microsoft PowerPoint presentation"
+when :msi_package
+  puts "Windows Installer package"
+else
+  puts "Unknown OLE type: #{ole.file_type}"
+end
+ole.close
+----
+
+== Supported File Types
+
+Omnizip supports reading the following OLE-based formats:
+
+[cols="2,1,1"]
+|===
+|Format |Extension |Read Support
+
+|Microsoft Word
+|.doc
+|Yes
+
+|Microsoft Excel
+|.xls
+|Yes
+
+|Microsoft PowerPoint
+|.ppt
+|Yes
+
+|Windows Installer
+|.msi
+|Yes
+
+|Microsoft Theme
+|.thm
+|Yes
+
+|Outlook Message
+|.msg
+|Yes
+
+|Generic OLE
+|.ole
+|Yes
+|===
+
+== Low-Level Access
+
+For advanced use cases, you can access the OLE internals directly:
+
+[source,ruby]
+----
+# Access BAT (Block Allocation Table)
+ole = Omnizip::Ole.open('document.doc')
+
+# Get sector size
+puts "Sector size: #{ole.sector_size}"
+
+# Access BAT entries
+bat = ole.bat
+puts "BAT entries: #{bat.size}"
+
+# Access SBAT (Small Block Allocation Table)
+sbat = ole.sbat
+puts "SBAT entries: #{sbat.size}" if sbat
+
+# Access directory entries
+ole.root.each do |entry|
+  puts "#{entry.name}: starting_sector=#{entry.starting_sector}, size=#{entry.size}"
+end
+
+ole.close
+----
+
+== Performance Considerations
+
+OLE files can be large. For efficient reading:
+
+[source,ruby]
+----
+# Stream read large OLE files efficiently
+Omnizip::Ole.open('large.msi') do |ole|
+  # Only read streams you need
+  summary = ole.open_stream("\x05SummaryInformation")
+  if summary
+    # Read in chunks for large streams
+    chunk_size = 65536
+    while chunk = summary.read(chunk_size)
+      process(chunk)
+    end
+  end
+end
+----
+
+== See Also
+
+* link:seven-zip-format.html[7z Format] - Can contain OLE files
+* link:zip-format.html[ZIP Format] - Modern Office uses ZIP (docx, xlsx, pptx)

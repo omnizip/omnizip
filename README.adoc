@@ -367,6 +367,100 @@ All libarchive XAR test cases pass, including:
 * ✅ Extended attributes
 * ✅ Various checksum algorithms
 
+==== RPM Format Support (v0.4.0)
+
+Omnizip provides complete RPM package format support for reading package metadata and extracting file contents.
+
+**Status**: ✅ **Full Support** - Complete RPM reading and extraction
+
+**What Works**:
+
+* ✅ RPM lead parsing (magic, version, name, architecture)
+* ✅ Header parsing with tag extraction (NAME, VERSION, RELEASE, etc.)
+* ✅ File list extraction (basenames, directories, permissions)
+* ✅ Dependency information (requires, provides, conflicts)
+* ✅ Payload extraction with multiple compression formats
+* ✅ gzip, bzip2, xz, zstd decompression support
+
+**Usage**:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Read RPM package metadata
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  puts "Name: #{rpm.name}"
+  puts "Version: #{rpm.version}"
+  puts "Release: #{rpm.release}"
+  puts "Architecture: #{rpm.architecture}"
+  puts "Files: #{rpm.files.count}"
+end
+
+# Extract RPM contents
+Omnizip::Formats::Rpm.extract('package.rpm', 'output/')
+
+# List files in RPM
+files = Omnizip::Formats::Rpm.list('package.rpm')
+files.each { |f| puts f }
+
+# Get package information
+info = Omnizip::Formats::Rpm.info('package.rpm')
+puts "#{info[:name]}-#{info[:version]}-#{info[:release]}"
+----
+
+**Architecture**:
+
+* `Formats::Rpm::Reader` - Public API for reading RPM packages
+* `Formats::Rpm::Lead` - 96-byte lead parser
+* `Formats::Rpm::Header` - Header structure with tag extraction
+* `Formats::Rpm::Entry` - File entry model
+
+==== OLE Format Support (v0.4.0)
+
+Omnizip provides complete OLE (Object Linking and Embedding) compound document format support for reading Microsoft compound files.
+
+**Status**: ✅ **Full Support** - Complete OLE reading
+
+**What Works**:
+
+* ✅ OLE compound document header parsing
+* ✅ Block allocation tables (BAT, SBAT, XBAT)
+* ✅ Directory entry navigation
+* ✅ File stream extraction
+* ✅ Support for .doc, .xls, .ppt, .msi files
+* ✅ Property set storage
+
+**Usage**:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Open OLE compound document
+Omnizip::Formats::Ole.open('document.doc') do |ole|
+  # List all streams in the document
+  ole.each_entry do |entry|
+    puts "#{entry.name} (#{entry.size} bytes)"
+  end
+
+  # Read a specific stream
+  data = ole.read_stream('WordDocument')
+end
+
+# Extract all streams
+Omnizip::Formats::Ole.extract('document.doc', 'output/')
+----
+
+**Architecture**:
+
+* `Formats::Ole::Storage` - Core storage implementation
+* `Formats::Ole::Header` - 512-byte header parser
+* `Formats::Ole::AllocationTable` - BAT/SBAT management
+* `Formats::Ole::Dirent` - 128-byte directory entry
+* `Formats::Ole::RangesIO` - Range-based IO wrapper
+* `Formats::Ole::Types` - Type serialization (Variant, Lpstr, FileTime, etc.)
+
 === Preprocessing Filters
 
 * **BCJ Filters** - Branch-Call-Jump filters for executables (x86, ARM, ARM64, PPC, SPARC, IA-64)
@@ -383,8 +477,10 @@ See link:readme-docs/preprocessing-filters.adoc[Preprocessing Filters Guide] for
 * **RAR5** - Full read/write support with STORE and LZMA compression, multi-volume, solid archives (v0.3.0)
 * **TAR** - Full read/write with POSIX extensions
 * **ISO 9660** - Full read/write with Rock Ridge/Joliet
-* **CPIO** - Full read/write (newc, CRC formats)
+* **CPIO** - Full read/write (newc, CRC formats) with RPM payload support (v0.4.0)
+* **RPM** - Full read support with metadata extraction, gzip/bzip2/xz/zstd payload decompression (v0.4.0)
 * **XAR** - Full read/write with XML TOC, gzip/bzip2/lzma compression (v0.4.0)
+* **OLE** - Full read support for Microsoft compound documents (.doc, .xls, .ppt, .msi) (v0.4.0)
 * **GZIP/XZ/BZIP2** - Single file compression formats
 
 See link:readme-docs/archive-formats.adoc[Archive Formats Documentation] for complete details.
@@ -420,11 +516,12 @@ See link:readme-docs/advanced-features.adoc[Advanced Features Guide] for details
 
 Omnizip maintains comprehensive test coverage:
 
-* **Total Tests**: 3400+ examples
+* **Total Tests**: 3540+ examples
 * **Pass Rate**: 100% (0 failures, 0 pending)
 * **Coverage**: All compression algorithms, archive formats, and features
 * **Integration**: Full round-trip verification for all formats
 * **Reference Tests**: libarchive RAR4/RAR5 compatibility verified (103 test files)
+* **New Formats**: RPM (21 tests), CPIO (25 tests), OLE (36 tests), XAR (17 tests)
 
 == Quick Start
 

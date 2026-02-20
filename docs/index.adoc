@@ -66,6 +66,8 @@ Follow this learning path:
 * link:guides/archive-formats/tar-format.html[TAR archives]
 * link:guides/archive-formats/gzip-format.html[GZIP files]
 * link:guides/archive-formats/xz-format.html[XZ files]
+* link:guides/archive-formats/rpm-format.html[RPM packages]
+* link:guides/archive-formats/ole-format.html[OLE compound documents]
 
 **Advanced Features**
 
@@ -113,7 +115,7 @@ Omnizip supports 6 major compression algorithms:
 
 === Supported Archive Formats
 
-Omnizip supports 10 archive formats:
+Omnizip supports 12 archive formats:
 
 [cols="1,3,2"]
 |===
@@ -154,13 +156,21 @@ Omnizip supports 10 archive formats:
 |BZIP2
 |BZIP2 compressed files
 |Text file compression
+
+|RPM
+|RPM package archives with CPIO payload
+|Linux package management
+
+|OLE
+|OLE compound documents (MSI, DOC, XLS, PPT)
+|Windows compound files, installers
 |===
 
 === Key Features
 
 * **Pure Ruby** - No native dependencies, works on any Ruby platform
 * **Registry-Based** - Extensible plugin architecture for algorithms and formats
-* **Multiple Formats** - Support for 10+ archive formats
+* **Multiple Formats** - Support for 12+ archive formats
 * **Compression Profiles** - Smart algorithm selection based on file type
 * **Solid Archives** - Shared dictionary for better compression ratios
 * **Multi-Volume** - Split archives across multiple files

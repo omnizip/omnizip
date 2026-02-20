@@ -7,7 +7,7 @@ has_children: true
 
 == Archive Formats Overview
 
-Omnizip supports 10 archive formats for different use cases. Each format has unique features, compression options, and compatibility characteristics.
+Omnizip supports 12 archive formats for different use cases. Each format has unique features, compression options, and compatibility characteristics.
 
 == Format Comparison
 
@@ -44,6 +44,16 @@ Omnizip supports 10 archive formats for different use cases. Each format has uni
 |LZMA2
 |None
 |System package compression
+
+|link:rpm-format.html[RPM]
+|gzip, bzip2, xz, zstd
+|GPG signatures
+|Linux package management
+
+|link:ole-format.html[OLE]
+|None (internal structure)
+|Document-specific
+|Windows compound files, MSI
 |===
 
 == Choosing a Format
@@ -71,6 +81,12 @@ Omnizip supports 10 archive formats for different use cases. Each format has uni
 
 |Software packages
 |7z or TAR.XZ
+
+|Linux package management
+|RPM
+
+|Windows compound documents
+|OLE (MSI, DOC, XLS, PPT)
 |===
 
 === By Compatibility
@@ -122,6 +138,20 @@ Omnizip supports 10 archive formats for different use cases. Each format has uni
 * **Encryption**: None
 * **POSIX**: Full support
 * **Unix Standard**: Yes
+
+=== RPM Format
+
+* **Compression**: gzip, bzip2, xz, zstd (payload)
+* **Encryption**: GPG signatures
+* **Payload**: CPIO archive
+* **Metadata**: Rich package information
+
+=== OLE Format
+
+* **Structure**: FAT-like file system
+* **Streams**: Multiple streams and sub-storages
+* **Types**: MSI, DOC, XLS, PPT, MSG
+* **Metadata**: Summary information streams
 
 == See Also
 
