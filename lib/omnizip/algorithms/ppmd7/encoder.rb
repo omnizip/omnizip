@@ -139,23 +139,16 @@ module Omnizip
 
         # Encode a range for the symbol
         #
-        # Converts probability to range and encodes using the
-        # range encoder.
+        # Uses proper range coding to encode the symbol based on
+        # its frequency distribution in the current context.
         #
         # @param cum_freq [Integer] Cumulative frequency
         # @param freq [Integer] Symbol frequency
         # @param total_freq [Integer] Total frequency
         # @return [void]
         def encode_range(cum_freq, freq, total_freq)
-          # Scale to range coder scale
-          scale = 0x10000
-          low = (cum_freq * scale) / total_freq
-          high = ((cum_freq + freq) * scale) / total_freq
-
-          # Encode using direct bits for simplicity
-          # Full implementation would use proper range subdivision
-          (high - low).bit_length
-          @range_encoder.encode_direct_bits(low, 16)
+          # Use proper range encoding (not direct bits)
+          @range_encoder.encode_freq(cum_freq, freq, total_freq)
         end
       end
     end
