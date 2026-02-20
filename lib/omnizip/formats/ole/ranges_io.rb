@@ -51,8 +51,12 @@ module Omnizip
         #
         # @param ranges [Array<Range, Array>] Byte ranges
         def ranges=(ranges)
-          # Convert Range objects to arrays
-          @ranges = ranges.map do |r|
+          ranges ||= []
+
+          # Convert Range objects to arrays, filtering out nils
+          @ranges = ranges.filter_map do |r|
+            next nil if r.nil?
+
             r.is_a?(Range) ? [r.begin, r.end - r.begin] : r
           end
 
@@ -257,6 +261,67 @@ module Omnizip
           # Grow underlying IO if needed
           max_pos = @ranges.map { |pos, len| pos + len }.max || 0
           @io.truncate(max_pos) if max_pos > @io.size
+        end
+      end
+
+      # RangesIO that can migrate between BAT and SBAT based on size
+      class RangesIOMigrateable < RangesIOResizeable
+        # @return [Dirent] Associated dirent
+        attr_reader :dirent
+
+        # Initialize migrateable RangesIO
+        #
+        # @param dirent [Dirent] Associated dirent
+        # @param mode [String] Open mode
+        def initialize(dirent, mode = "r")
+          @dirent = dirent
+          bat = dirent.ole.bat_for_size(dirent.size)
+          super(bat, first_block: dirent.first_block, size: dirent.size)
+          @mode = mode
+        end
+
+        # Check if writable
+        def writeable?
+          @mode.include?("w") || @mode.include?("a") || @mode.include?("+")
+        end
+
+        # Truncate with BAT migration support
+        #
+        # @param new_size [Integer] New size in bytes
+        def truncate(new_size)
+          new_bat = @dirent.ole.bat_for_size(new_size)
+
+          if new_bat.instance_of?(@bat.class)
+            super
+          else
+            # BAT migration needed
+            pos = [@pos, new_size].min
+            self.pos = 0
+            keep = read([@size, new_size].min)
+            super(0)
+
+            @bat = new_bat
+            @io = new_bat.io
+            super
+
+            self.pos = 0
+            write(keep)
+            self.pos = pos
+          end
+
+          # Update dirent's first_block and size after any resize
+          @dirent.first_block = @first_block
+          @dirent.size = new_size
+        end
+
+        # Forward first_block to dirent (for reading)
+        def first_block
+          @first_block
+        end
+
+        def first_block=(val)
+          @first_block = val
+          @dirent.first_block = val
         end
       end
     end
