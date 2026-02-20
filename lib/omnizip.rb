@@ -96,6 +96,13 @@ require_relative "omnizip/formats/xar"
 # ISO 9660 CD-ROM format (Weeks 11-14)
 require_relative "omnizip/formats/iso"
 
+# CPIO and RPM formats
+require_relative "omnizip/formats/cpio"
+require_relative "omnizip/formats/rpm"
+
+# OLE compound documents (MSI, DOC, XLS, PPT)
+require_relative "omnizip/formats/ole"
+
 # Platform-specific features (Weeks 11-14)
 require_relative "omnizip/platform"
 require_relative "omnizip/platform/ntfs_streams"
