@@ -42,9 +42,12 @@ module Omnizip
           def self.load(str)
             return new("") if str.nil? || str.empty?
 
-            # Decode UTF-16LE to UTF-8, strip null terminator
-            decoded = str.encode(Encoding::UTF_8, Encoding::UTF_16LE)
-            new(decoded.chomp("\x00"))
+            # Force binary data to UTF-16LE encoding, then transcode to UTF-8
+            # Strip null terminator (UTF-16 null = 2 bytes)
+            decoded = str.dup.force_encoding(Encoding::UTF_16LE)
+            decoded = decoded.chomp("\x00".encode(Encoding::UTF_16LE))
+            decoded = decoded.encode(Encoding::UTF_8)
+            new(decoded)
           end
 
           # Dump to UTF-16LE binary data
