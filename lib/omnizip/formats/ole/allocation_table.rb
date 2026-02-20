@@ -188,6 +188,11 @@ module Omnizip
           temp.reverse
         end
 
+        # Truncate entries in place
+        def truncate_entries
+          @entries.replace(truncate)
+        end
+
         # Pack table to binary data
         #
         # @return [String] Binary data

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "set"
 require_relative "constants"
 require_relative "header"
 require_relative "allocation_table"
@@ -142,27 +143,177 @@ module Omnizip
         #
         # @param dirents [Array<Dirent>]
         # @param idx [Integer]
+        # @param visited [Set] Set of visited indices to detect cycles
         # @return [Array<Dirent>]
-        def build_tree(dirents, idx = 0)
+        def build_tree(dirents, idx = 0, visited = nil)
           return [] if idx == EOT
 
+          # Initialize visited set on first call
+          visited ||= Set.new
+
+          # Check for circular references
+          return [] if visited.include?(idx)
+
+          visited << idx
+
           dirent = dirents[idx]
+          return [] unless dirent
 
           # Build children recursively
-          build_tree(dirents, dirent.child).each { |child| dirent << child }
+          build_tree(dirents, dirent.child, visited).each { |child| dirent << child }
 
           # Set index
           dirent.idx = idx
 
           # Return list for tree building
-          build_tree(dirents, dirent.prev) + [dirent] + build_tree(dirents, dirent.next)
+          build_tree(dirents, dirent.prev, visited) + [dirent] + build_tree(dirents, dirent.next, visited)
         end
 
         # Close storage
         def close
           @sb_file&.close
+          flush if @writeable
           @io.close if @close_parent
         end
+
+        # Flush all changes to disk
+        #
+        # Writes all metadata (dirents, allocation tables, header) to the file.
+        # This is the main "save" method for OLE documents.
+        def flush
+          return unless @writeable
+
+          # Update root dirent
+          @root.name = "Root Entry"
+          @root.first_block = @sb_file.first_block
+          @root.size = @sb_file.size
+
+          # Flatten dirent tree
+          @dirents = @root.flatten
+
+          # Serialize dirents using bbat
+          dirent_io = RangesIOResizeable.new(@bbat, first_block: @header.dirent_start)
+          dirent_io.write(@dirents.map(&:pack).join)
+          # Pad to block boundary
+          padding = ((dirent_io.size / @bbat.block_size.to_f).ceil * @bbat.block_size) - dirent_io.size
+          dirent_io.write("\x00".b * padding) if padding.positive?
+          @header.dirent_start = dirent_io.first_block
+          dirent_io.close
+
+          # Serialize sbat
+          sbat_io = RangesIOResizeable.new(@bbat, first_block: @header.sbat_start)
+          sbat_io.write(@sbat.pack)
+          @header.sbat_start = sbat_io.first_block
+          @header.num_sbat = @bbat.chain(@header.sbat_start).length
+          sbat_io.close
+
+          # Clear BAT/META_BAT markers
+          @bbat.entries.each_with_index do |val, idx|
+            if [BAT, META_BAT].include?(val)
+              @bbat.entries[idx] = AVAIL
+            end
+          end
+
+          # Calculate and allocate BAT blocks
+          write_bat_blocks
+
+          # Write header
+          @io.seek(0)
+          @io.write(@header.pack)
+          @io.write(@bbat_chain.pack("V*"))
+          @io.flush
+        end
+
+        private
+
+        # Write BAT (Block Allocation Table) blocks
+        def write_bat_blocks
+          # Truncate bbat to remove trailing AVAILs
+          @bbat.entries.replace(@bbat.entries.reject { |e| e == AVAIL }.push(AVAIL))
+
+          # Calculate space needed for BAT
+          num_mbat_blocks = 0
+          io = RangesIOResizeable.new(@bbat, first_block: EOC)
+
+          @bbat.truncate_entries
+          @io.truncate(@bbat.block_size * (@bbat.length + 1))
+
+          # Iteratively calculate BAT/MBAT space
+          loop do
+            bbat_data_len = ((@bbat.length + num_mbat_blocks) * 4 / @bbat.block_size.to_f).ceil * @bbat.block_size
+            new_num_mbat_blocks = calculate_mbat_blocks(bbat_data_len)
+
+            if new_num_mbat_blocks != num_mbat_blocks
+              num_mbat_blocks = new_num_mbat_blocks
+            elsif io.size != bbat_data_len
+              io.truncate(bbat_data_len)
+            else
+              break
+            end
+          end
+
+          # Get BAT chain and mark blocks
+          @bbat_chain = @bbat.chain(io.first_block)
+          io.close
+
+          @bbat_chain.each { |b| @bbat.entries[b] = BAT }
+          @header.num_bat = @bbat_chain.length
+
+          # Allocate MBAT blocks if needed
+          mbat_blocks = allocate_mbat_blocks(num_mbat_blocks)
+          @header.mbat_start = mbat_blocks.first || EOC
+          @header.num_mbat = num_mbat_blocks
+
+          # Write BAT data
+          RangesIO.open(@io, @bbat.ranges(@bbat_chain)) do |f|
+            f.write(@bbat.pack)
+          end
+
+          # Write MBAT if present
+          write_mbat_blocks(mbat_blocks, num_mbat_blocks) if num_mbat_blocks.positive?
+
+          # Pad BAT chain to 109 entries in header
+          @bbat_chain += [AVAIL] * [109 - @bbat_chain.length, 0].max
+        end
+
+        # Calculate number of MBAT blocks needed
+        def calculate_mbat_blocks(bbat_data_len)
+          excess_bat_blocks = (bbat_data_len / @bbat.block_size) - 109
+          return 0 if excess_bat_blocks <= 0
+
+          (excess_bat_blocks * 4 / (@bbat.block_size - 4).to_f).ceil
+        end
+
+        # Allocate MBAT blocks
+        def allocate_mbat_blocks(count)
+          (0...count).map do
+            block = @bbat.free_block
+            @bbat.entries[block] = META_BAT
+            block
+          end
+        end
+
+        # Write MBAT blocks
+        def write_mbat_blocks(mbat_blocks, _num_mbat)
+          # Get BAT entries beyond the first 109
+          mbat_data = @bbat_chain[109..] || []
+
+          # Add linked list pointers
+          entries_per_block = (@bbat.block_size / 4) - 1
+          mbat_data = mbat_data.each_slice(entries_per_block).to_a
+
+          mbat_data.zip(mbat_blocks[1..] + [nil]).each_with_index do |(entries, next_block), idx|
+            block_data = entries + (next_block ? [next_block] : [])
+            # Pad to block size
+            block_data += [AVAIL] * ((@bbat.block_size / 4) - block_data.length)
+
+            RangesIO.open(@io, @bbat.ranges([mbat_blocks[idx]])) do |f|
+              f.write(block_data.pack("V*"))
+            end
+          end
+        end
+
+        public
 
         # Get appropriate BAT for size
         #

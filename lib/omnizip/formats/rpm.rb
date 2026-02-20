@@ -12,7 +12,7 @@ module Omnizip
   module Formats
     # RPM package format support
     #
-    # Provides read access to RPM packages, extracting metadata
+    # Provides read and write access to RPM packages, extracting metadata
     # and file contents from the payload.
     #
     # @example Open RPM and list files
@@ -22,7 +22,17 @@ module Omnizip
     #
     # @example Extract RPM contents
     #   Omnizip::Formats::Rpm.extract('package.rpm', 'output/')
+    #
+    # @example Create an RPM package
+    #   writer = Omnizip::Formats::Rpm::Writer.new(
+    #     name: "mypkg",
+    #     version: "1.0.0",
+    #     release: "1"
+    #   )
+    #   writer.add_file("/usr/bin/app", "#!/bin/sh\necho hello")
+    #   writer.write("mypkg.rpm")
     module Rpm
+      autoload :Writer, "omnizip/formats/rpm/writer"
       class << self
         # Open RPM package
         #

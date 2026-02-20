@@ -212,9 +212,15 @@ module Omnizip
           @reserved = values[13]
 
           # Decode name from UTF-16LE
-          name_data = @name_utf16[0...@name_len]
+          # name_len includes the null terminator
+          name_data = @name_utf16[0...@name_len] if @name_len.positive?
           @name = begin
-            Types::Variant.load(Types::Variant::VT_LPWSTR, name_data)
+            # Decode and strip null terminator
+            decoded = name_data.dup.force_encoding(Encoding::UTF_16LE)
+            # Remove trailing null character (UTF-16 null = 2 bytes)
+            null_char = "\x00".encode(Encoding::UTF_16LE)
+            decoded = decoded.chomp(null_char)
+            decoded.encode(Encoding::UTF_8)
           rescue StandardError
             ""
           end
@@ -248,11 +254,14 @@ module Omnizip
         #
         # @return [String] 128-byte binary data
         def pack
-          # Encode name to UTF-16LE
+          # Encode name to UTF-16LE with null terminator
           name_data = Types::Variant.dump(Types::Variant::VT_LPWSTR, @name)
-          name_data = name_data[0, 62] if name_data.length > 62
-          name_data += "\x00\x00".b
+          # Truncate to 62 bytes if needed (leaving room for null terminator)
+          name_data = name_data[0, 62] + "\x00\x00".b if name_data.length > 62
+          # Ensure null terminator exists
+          name_data += "\x00\x00".b unless name_data.end_with?("\x00\x00".b)
           @name_len = name_data.length
+          # Pad to 64 bytes total
           @name_utf16 = name_data + ("\x00".b * (64 - name_data.length))
 
           # Set type_id from type
@@ -289,6 +298,29 @@ module Omnizip
 
           bat = @ole.bat_for_size(@size)
           bat.read(@first_block, @size)
+        end
+
+        # Open stream for reading or writing
+        #
+        # @param mode [String] Open mode ('r' for read, 'w' for write)
+        # @yield [RangesIOMigrateable] IO object
+        # @return [RangesIOMigrateable]
+        # @raise [Errno::EISDIR] If entry is a directory
+        def open(mode = "r")
+          raise Errno::EISDIR unless file?
+
+          io = RangesIOMigrateable.new(self, mode)
+          @modify_time = Time.now if io.respond_to?(:writeable?) && io.writeable?
+
+          if block_given?
+            begin
+              yield io
+            ensure
+              io.close
+            end
+          else
+            io
+          end
         end
 
         # Lookup child by name

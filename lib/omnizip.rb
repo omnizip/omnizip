@@ -96,12 +96,15 @@ require_relative "omnizip/formats/xar"
 # ISO 9660 CD-ROM format (Weeks 11-14)
 require_relative "omnizip/formats/iso"
 
-# CPIO and RPM formats
-require_relative "omnizip/formats/cpio"
-require_relative "omnizip/formats/rpm"
-
-# OLE compound documents (MSI, DOC, XLS, PPT)
-require_relative "omnizip/formats/ole"
+# CPIO, RPM, and OLE formats (autoload for lazy loading)
+# These formats benefit most from autoload since they are less commonly used
+module Omnizip
+  module Formats
+    autoload :Cpio, "omnizip/formats/cpio"
+    autoload :Rpm, "omnizip/formats/rpm"
+    autoload :Ole, "omnizip/formats/ole"
+  end
+end
 
 # Platform-specific features (Weeks 11-14)
 require_relative "omnizip/platform"
