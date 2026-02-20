@@ -212,10 +212,10 @@ module Omnizip
           @entries = @toc.entries
 
           # Calculate heap offset:
-          # header + compressed TOC + TOC checksum
-          # The TOC checksum size comes from the header's checksum algorithm
-          toc_checksum_size = @header.checksum_size
-          @heap_offset = @header.header_size + @header.toc_compressed_size + toc_checksum_size
+          # The heap starts immediately after the compressed TOC.
+          # The TOC checksum is stored INSIDE the heap (at offset 0), not after it.
+          # File data offsets in the TOC are relative to the heap start.
+          @heap_offset = @header.header_size + @header.toc_compressed_size
         end
 
         # Decompress data based on encoding
