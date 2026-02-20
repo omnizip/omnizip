@@ -48,7 +48,7 @@ module Omnizip
         case @format
         when :zip
           extract_all_zip(result)
-        when :seven_zip, :'7z'
+        when :seven_zip, :"7z"
           raise NotImplementedError, "7z format support coming in Phase 2"
         else
           raise ArgumentError, "Unsupported format: #{@format}"
@@ -75,7 +75,7 @@ module Omnizip
         case @format
         when :zip
           content = extract_entry_zip(name)
-        when :seven_zip, :'7z'
+        when :seven_zip, :"7z"
           raise NotImplementedError, "7z format support coming in Phase 2"
         else
           raise ArgumentError, "Unsupported format: #{@format}"
@@ -99,7 +99,7 @@ module Omnizip
         case @format
         when :zip
           list_entries_zip(names)
-        when :seven_zip, :'7z'
+        when :seven_zip, :"7z"
           raise NotImplementedError, "7z format support coming in Phase 2"
         else
           raise ArgumentError, "Unsupported format: #{@format}"

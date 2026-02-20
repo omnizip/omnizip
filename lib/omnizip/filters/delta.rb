@@ -63,7 +63,8 @@ module Omnizip
       #   - 3: RGB image data (24-bit)
       #   - 4: RGBA image data (32-bit) or 32-bit integers
       # @raise [ArgumentError] If distance is invalid
-      def initialize(distance_arg = DEFAULT_DISTANCE, distance: DEFAULT_DISTANCE)
+      def initialize(distance_arg = DEFAULT_DISTANCE,
+distance: DEFAULT_DISTANCE)
         # Support both positional and keyword argument styles
         # If called with Delta.new(3), distance_arg=3, distance=DEFAULT (keyword not used)
         # If called with Delta.new(distance: 3), distance_arg=DEFAULT, distance=3

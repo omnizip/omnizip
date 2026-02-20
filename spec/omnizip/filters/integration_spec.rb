@@ -48,17 +48,17 @@ RSpec.describe "BCJ Filter Integration" do
 
   describe "FilterRegistry" do
     it "registers BCJ-x86 filter" do
-      expect(Omnizip::FilterRegistry.available).to include(:'bcj-x86')
+      expect(Omnizip::FilterRegistry.available).to include(:"bcj-x86")
     end
 
     it "retrieves BCJ-x86 filter by name" do
-      filter_class = Omnizip::FilterRegistry.get(:'bcj-x86')
+      filter_class = Omnizip::FilterRegistry.get(:"bcj-x86")
 
       expect(filter_class).to eq(Omnizip::Filters::BcjX86)
     end
 
     it "creates filter instances from registry" do
-      filter_class = Omnizip::FilterRegistry.get(:'bcj-x86')
+      filter_class = Omnizip::FilterRegistry.get(:"bcj-x86")
       filter = filter_class.new
 
       expect(filter).to be_a(Omnizip::Filters::BcjX86)

@@ -118,7 +118,7 @@ module Omnizip
         def decode_compressed(header1)
           # Read regenerated size (5-bit or 12-bit or 20-bit)
           size = header1 & 0x1F
-          header_bytes = 1
+          1
 
           if size == 31
             # Check next byte
@@ -127,12 +127,12 @@ module Omnizip
               # 12-bit size
               header3 = @input.read(1).ord
               size = (header2 | (header3 << 7)) + 31
-              header_bytes = 3
+              3
             else
               # 20-bit size
               header3 = @input.read(3)
               size = ((header2 & 0x7F) | (header3.unpack1("V") << 7)) + 31
-              header_bytes = 4
+              4
             end
           end
 

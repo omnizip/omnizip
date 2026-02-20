@@ -155,7 +155,8 @@ RSpec.describe Omnizip::Algorithms::LZMA::DistanceCoder do
 
     it "round-trips power-of-2 boundaries" do
       # These are where slot transitions happen
-      [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536].each do |dist|
+      [4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768,
+       65536].each do |dist|
         test_round_trip(dist, 0)
         test_round_trip(dist - 1, 0)
       end

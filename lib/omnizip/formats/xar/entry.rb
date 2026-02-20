@@ -191,13 +191,26 @@ module Omnizip
             data_hash[:length] = @data_size if @data_size&.positive?
 
             if @data_encoding && @data_encoding != COMPRESSION_NONE
-              data_hash[:encoding] = COMPRESSION_MIME_TYPES[@data_encoding] || @data_encoding
+              data_hash[:encoding] =
+                COMPRESSION_MIME_TYPES[@data_encoding] || @data_encoding
             end
 
-            data_hash[:archived_checksum] = @archived_checksum if @archived_checksum
-            data_hash[:archived_checksum_style] = @archived_checksum_style if @archived_checksum_style
-            data_hash[:extracted_checksum] = @extracted_checksum if @extracted_checksum
-            data_hash[:extracted_checksum_style] = @extracted_checksum_style if @extracted_checksum_style
+            if @archived_checksum
+              data_hash[:archived_checksum] =
+                @archived_checksum
+            end
+            if @archived_checksum_style
+              data_hash[:archived_checksum_style] =
+                @archived_checksum_style
+            end
+            if @extracted_checksum
+              data_hash[:extracted_checksum] =
+                @extracted_checksum
+            end
+            if @extracted_checksum_style
+              data_hash[:extracted_checksum_style] =
+                @extracted_checksum_style
+            end
 
             hash[:data] = data_hash
           end

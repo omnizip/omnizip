@@ -81,7 +81,8 @@ RSpec.describe Omnizip::Algorithms::LZMA2Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded).to eq(original)
@@ -95,7 +96,8 @@ RSpec.describe Omnizip::Algorithms::LZMA2Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded).to eq(original)
@@ -109,7 +111,8 @@ RSpec.describe Omnizip::Algorithms::LZMA2Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded).to eq(original)
@@ -123,7 +126,8 @@ RSpec.describe Omnizip::Algorithms::LZMA2Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded.bytes).to eq(original.bytes)

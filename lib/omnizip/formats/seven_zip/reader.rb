@@ -6,6 +6,7 @@ require_relative "parser"
 require_relative "models/stream_info"
 require_relative "models/file_entry"
 require_relative "stream_decompressor"
+require_relative "bcj2_stream_decompressor"
 require_relative "split_archive_reader"
 require_relative "header_encryptor"
 require_relative "encrypted_header"
@@ -395,12 +396,82 @@ module Omnizip
           pack_pos = @offset + @header.start_pos_after_header +
             @stream_info.pack_pos
 
-          # Get pack size for this folder
+          # Get pack sizes for this folder
           pack_idx = 0
           entry.folder_index.times do |i|
             num_streams = @stream_info.folders[i].pack_stream_indices.size
             pack_idx += num_streams
           end
+
+          # Check if this is a BCJ2 multi-stream folder
+          if Bcj2StreamDecompressor.bcj2_folder?(folder)
+            extract_bcj2_entry(io, entry, folder, pack_pos, pack_idx)
+          else
+            extract_regular_entry(io, entry, folder, pack_pos, pack_idx)
+          end
+        rescue StandardError => e
+          warn "Extraction failed for #{entry.name}: #{e.message}"
+          raise
+        end
+
+        # Extract entry from BCJ2 multi-stream folder
+        #
+        # @param io [IO] Archive file handle
+        # @param entry [Models::FileEntry] Entry to extract
+        # @param folder [Models::Folder] Folder specification
+        # @param pack_pos [Integer] Base pack position
+        # @param pack_idx [Integer] Starting pack index
+        # @return [String] Extracted data
+        def extract_bcj2_entry(io, entry, folder, pack_pos, pack_idx)
+          # BCJ2 folders have multiple pack streams
+          num_pack_streams = folder.pack_stream_indices.size
+          pack_sizes = Array.new(num_pack_streams) do |i|
+            @stream_info.pack_sizes[pack_idx + i] || 0
+          end
+
+          # Decompress the entire BCJ2 folder
+          decompressor = Bcj2StreamDecompressor.new(
+            io, folder, pack_pos, pack_sizes, @stream_info
+          )
+          full_data = decompressor.decompress(folder.uncompressed_size)
+
+          # For solid archives, extract this file's portion
+          num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
+
+          if num_files_in_folder > 1
+            # Find offset of this file within the uncompressed stream
+            file_offset = 0
+            @entries.each do |e|
+              break if e.file_index == entry.file_index
+
+              file_offset += e.size if e.has_stream? && e.folder_index == entry.folder_index
+            end
+            data = full_data[file_offset, entry.size]
+          else
+            data = full_data[0, entry.size]
+          end
+
+          # Verify CRC if available
+          if entry.crc
+            crc = Omnizip::Checksums::Crc32.new
+            crc.update(data)
+            unless crc.value == entry.crc
+              raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+            end
+          end
+
+          data
+        end
+
+        # Extract entry from regular (non-BCJ2) folder
+        #
+        # @param io [IO] Archive file handle
+        # @param entry [Models::FileEntry] Entry to extract
+        # @param folder [Models::Folder] Folder specification
+        # @param pack_pos [Integer] Base pack position
+        # @param pack_idx [Integer] Starting pack index
+        # @return [String] Extracted data
+        def extract_regular_entry(io, entry, folder, pack_pos, pack_idx)
           pack_size = @stream_info.pack_sizes[pack_idx] || 0
 
           # For solid archives, multiple files share one compressed stream
@@ -442,9 +513,6 @@ module Omnizip
             expected_crc = entry.crc
             decompressor.decompress_and_verify(entry.size, expected_crc)
           end
-        rescue StandardError => e
-          warn "Extraction failed for #{entry.name}: #{e.message}"
-          raise
         end
 
         # Check if file path indicates a split archive

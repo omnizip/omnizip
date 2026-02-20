@@ -5,7 +5,8 @@ require "omnizip/formats/xz"
 require "fileutils"
 
 RSpec.describe "XZ Utils Reference Files" do
-  REFERENCE_DIR = File.expand_path("../../../fixtures/xz_utils/reference", __dir__)
+  REFERENCE_DIR = File.expand_path("../../../fixtures/xz_utils/reference",
+                                   __dir__)
 
   describe "good LZMA2 files" do
     good_lzma2_files = Dir.glob(File.join(REFERENCE_DIR, "good-*lzma2*.xz"))

@@ -16,7 +16,8 @@ module Omnizip
 
         attr_reader :uncompressed_size, :compressed_size
 
-        def initialize(check_type: CHECK_CRC64, dict_size: 8 * 1024 * 1024, include_block_sizes: false)
+        def initialize(check_type: CHECK_CRC64, dict_size: 8 * 1024 * 1024,
+include_block_sizes: false)
           @check_type = check_type
           @dict_size = dict_size
           @uncompressed_size = 0

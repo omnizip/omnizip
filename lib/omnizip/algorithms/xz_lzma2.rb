@@ -100,7 +100,8 @@ module Omnizip
       def decompress(input, output)
         dict_size = @options.fetch(:dict_size, 8 * 1024 * 1024)
 
-        decoder = Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: true, dict_size: dict_size)
+        decoder = Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                               raw_mode: true, dict_size: dict_size)
         decompressed = decoder.decode_stream
 
         # Reverse filter if set

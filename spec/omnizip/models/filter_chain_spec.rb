@@ -21,12 +21,12 @@ RSpec.describe Omnizip::Models::FilterChain do
 
   describe "#add_filter" do
     it "adds filter to chain" do
-      chain.add_filter(name: :'bcj-x86', architecture: :x86)
+      chain.add_filter(name: :"bcj-x86", architecture: :x86)
       expect(chain.size).to eq(1)
     end
 
     it "returns self for chaining" do
-      result = chain.add_filter(name: :'bcj-x86', architecture: :x86)
+      result = chain.add_filter(name: :"bcj-x86", architecture: :x86)
       expect(result).to eq(chain)
     end
   end
@@ -44,12 +44,12 @@ RSpec.describe Omnizip::Models::FilterChain do
 
   describe "#validate!" do
     it "passes with valid filters" do
-      chain.add_filter(name: :'bcj-x86', architecture: :x86)
+      chain.add_filter(name: :"bcj-x86", architecture: :x86)
       expect { chain.validate! }.not_to raise_error
     end
 
     it "raises when too many filters" do
-      5.times { chain.add_filter(name: :'bcj-x86', architecture: :x86) }
+      5.times { chain.add_filter(name: :"bcj-x86", architecture: :x86) }
       expect do
         chain.validate!
       end.to raise_error(ArgumentError, /Too many filters/)
@@ -58,7 +58,7 @@ RSpec.describe Omnizip::Models::FilterChain do
 
   describe "#encode_all and #decode_all" do
     before do
-      chain.add_filter(name: :'bcj-x86', architecture: :x86)
+      chain.add_filter(name: :"bcj-x86", architecture: :x86)
     end
 
     it "roundtrips data correctly" do
@@ -91,7 +91,7 @@ RSpec.describe Omnizip::Models::FilterChain do
     end
 
     it "returns false when filters added" do
-      chain.add_filter(name: :'bcj-x86', architecture: :x86)
+      chain.add_filter(name: :"bcj-x86", architecture: :x86)
       expect(chain.empty?).to be false
     end
   end

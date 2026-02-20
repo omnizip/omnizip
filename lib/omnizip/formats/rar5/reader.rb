@@ -208,7 +208,10 @@ module Omnizip
           data_offset = io.pos
 
           # Skip file data (so we can read the next header)
-          io.seek(header.data_size, ::IO::SEEK_CUR) if header.data_size.to_i.positive?
+          if header.data_size.to_i.positive?
+            io.seek(header.data_size,
+                    ::IO::SEEK_CUR)
+          end
 
           Entry.new(
             name: filename,

@@ -46,7 +46,8 @@ module Omnizip
         # @param frequencies [Array<Integer>] Symbol frequencies
         # @param max_bits [Integer] Maximum code length (default 11)
         # @return [HuffmanEncoder] Huffman encoder
-        def self.build_from_frequencies(frequencies, max_bits = HUFFMAN_MAX_BITS)
+        def self.build_from_frequencies(frequencies,
+max_bits = HUFFMAN_MAX_BITS)
           return nil if frequencies.nil? || frequencies.empty?
 
           # Build Huffman tree and get code lengths

@@ -144,7 +144,8 @@ RSpec.describe "LZMA Official Tool Compatibility" do
       # Extract the file
       extract_dir = File.join(temp_dir, "extracted")
       FileUtils.mkdir_p(extract_dir)
-      reader.extract_entry(files.first.name, File.join(extract_dir, files.first.name))
+      reader.extract_entry(files.first.name,
+                           File.join(extract_dir, files.first.name))
 
       # Verify content
       extracted_file = File.join(extract_dir, files.first.name)

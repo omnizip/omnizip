@@ -54,7 +54,7 @@ module Omnizip
           # Build decode table: code -> [symbol, length]
           decode_table = {}
           code_lengths.each_with_index do |length, symbol|
-            next if length.nil? || length == 0
+            next if length.nil? || length.zero?
 
             code = codes[symbol]
             decode_table[code] = [symbol, length]
@@ -76,18 +76,16 @@ module Omnizip
 
           # Find max weight
           max_weight = weights.max || 0
-          return Array.new(weights.length, 0) if max_weight == 0
+          return Array.new(weights.length, 0) if max_weight.zero?
 
           # Convert weights to code lengths
           # Higher weight = shorter code length
-          code_lengths = weights.map do |weight|
-            next 0 if weight.nil? || weight == 0
+          weights.map do |weight|
+            next 0 if weight.nil? || weight.zero?
 
             # Code length = max_weight - weight + 1
             [max_weight - weight + 1, max_bits].min
           end
-
-          code_lengths
         end
 
         # Build canonical Huffman codes from lengths
@@ -103,7 +101,7 @@ module Omnizip
           # Count symbols at each length
           bl_count = Array.new(max_length + 1, 0)
           code_lengths.each do |length|
-            bl_count[length] += 1 if length && length > 0
+            bl_count[length] += 1 if length&.positive?
           end
 
           # Calculate starting code for each length
@@ -116,7 +114,7 @@ module Omnizip
 
           # Assign codes to symbols
           code_lengths.each_with_index do |length, symbol|
-            next if length.nil? || length == 0
+            next if length.nil? || length.zero?
 
             codes[symbol] = next_code[length]
             next_code[length] += 1
@@ -180,7 +178,7 @@ module Omnizip
           @decode_table.each do |code, (symbol, length)|
             # For codes shorter than max_bits, fill all variations
             padding_bits = (@max_bits || 1) - length
-            next if padding_bits < 0
+            next if padding_bits.negative?
 
             (1 << padding_bits).times do |padding|
               full_code = (code << padding_bits) | padding
@@ -222,7 +220,7 @@ module Omnizip
           header = @input.read(1).ord
 
           # FSE compressed or raw weights?
-          fse_compressed = (header & 0x80) != 0
+          fse_compressed = header.anybits?(0x80)
 
           if fse_compressed
             read_fse_compressed_weights(header)
@@ -236,7 +234,7 @@ module Omnizip
         # Read FSE-compressed weights
         def read_fse_compressed_weights(header)
           # Read accuracy log (4 bits)
-          accuracy_log = (header & 0x1F) + 5
+          (header & 0x1F) + 5
 
           # Read number of symbols (if header bit 6 is set)
           # For simplicity, assume 256 symbols
@@ -258,7 +256,7 @@ module Omnizip
 
           # Read number of weights
           num_weights = header & 0x3F
-          num_weights = 256 if num_weights == 0
+          num_weights = 256 if num_weights.zero?
 
           weights = []
           num_weights.times do

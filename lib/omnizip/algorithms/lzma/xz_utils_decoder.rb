@@ -167,12 +167,15 @@ module Omnizip
       # @param preserve_dict [Boolean] Whether to preserve dictionary from previous decode
       # @param check_rc_finished [Boolean] Whether to check if range decoder is finished
       # @return [String, Integer] Decompressed data or bytes written
-      def decode_stream(output = nil, preserve_dict: false, check_rc_finished: true)
+      def decode_stream(output = nil, preserve_dict: false,
+check_rc_finished: true)
         @decode_stream_call_count ||= 0
         @decode_stream_call_count += 1
         call_num = @decode_stream_call_count
 
-        puts "DEBUG decode_stream START (call ##{call_num}): @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @uncompressed_size=#{@uncompressed_size.inspect}" if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 200 && @dict_full <= 230
+        puts "DEBUG decode_stream START (call ##{call_num}): @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @uncompressed_size=#{@uncompressed_size.inspect}" if ENV.fetch(
+          "LZMA_DEBUG", nil
+        ) && @dict_full && @dict_full >= 200 && @dict_full <= 230
         if ENV["LZMA_DEBUG_DECODE_STREAM"]
           warn "DEBUG decode_stream[#{@decoder_id}] START: preserve_dict=#{preserve_dict}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @dict_buf.object_id=#{@dict_buf&.object_id || 'nil'}, @dict_buf.size=#{@dict_buf&.size || 'nil'}"
         end
@@ -183,10 +186,10 @@ module Omnizip
         # See: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma2_decoder.c:140-141
         if ENV["LZMA_DEBUG"]
           warn "DEBUG: decode_stream - reusing range decoder @input.pos=#{begin
-                 @input.pos
-               rescue StandardError
-                 'N/A'
-               end}, @range_decoder.class=#{@range_decoder.class}"
+            @input.pos
+          rescue StandardError
+            'N/A'
+          end}, @range_decoder.class=#{@range_decoder.class}"
         end
 
         # Create range decoder if it doesn't exist (first chunk)
@@ -200,7 +203,7 @@ module Omnizip
 
         # Special case: empty input (uncompressed_size == 0)
         # Return immediately without trying to decode anything
-        if @uncompressed_size != 0xFFFFFFFFFFFFFFFF && @uncompressed_size == 0
+        if @uncompressed_size != 0xFFFFFFFFFFFFFFFF && @uncompressed_size.zero?
           if ENV["LZMA_DEBUG"]
             warn "DEBUG: decode_stream - empty input (uncompressed_size=0), returning immediately"
           end
@@ -216,7 +219,9 @@ module Omnizip
         @chunk_bytes_decoded = 0
 
         # DEBUG: Show chunk_bytes_decoded initialization
-        if @dict_full && @dict_full >= 220 && @dict_full <= 240 && ENV.fetch("LZMA_DEBUG", nil)
+        if @dict_full && @dict_full >= 220 && @dict_full <= 240 && ENV.fetch(
+          "LZMA_DEBUG", nil
+        )
           puts "DEBUG: chunk_bytes_decoded reset to 0 for chunk (call_num=#{call_num}, dict_full=#{@dict_full})"
         end
 
@@ -274,9 +279,13 @@ module Omnizip
         # properly reflected in start_pos, so we only return NEW bytes.
         # For LZMA2, we need to return only the NEW bytes, not all bytes from LZ_DICT_INIT_POS
         start_pos = @pos || LZ_DICT_INIT_POS
-        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @decoder_id=#{@decoder_id}" if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 200 && @dict_full <= 230
+        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @decoder_id=#{@decoder_id}" if ENV.fetch(
+          "LZMA_DEBUG", nil
+        ) && @dict_full && @dict_full >= 200 && @dict_full <= 230
         # Also show for chunk #1 start (dict_full around 227)
-        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @uncompressed_size=#{@uncompressed_size}, @decoder_id=#{@decoder_id}" if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 225 && @dict_full <= 230
+        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @uncompressed_size=#{@uncompressed_size}, @decoder_id=#{@decoder_id}" if ENV.fetch(
+          "LZMA_DEBUG", nil
+        ) && @dict_full && @dict_full >= 225 && @dict_full <= 230
 
         # Initialize rep distances (XZ Utils initializes to 0)
         # See: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma_decoder.c:1054-1055
@@ -285,7 +294,9 @@ module Omnizip
         #
         # IMPORTANT: Initialize rep distances if they're nil OR not preserving dict
         if @rep0.nil? || @rep1.nil? || @rep2.nil? || @rep3.nil? || !preserve_dict
-          puts "DEBUG: Resetting rep distances to 0 (rep0.nil?=#{@rep0.nil?}, preserve_dict=#{preserve_dict})" if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 200 && @dict_full <= 230
+          puts "DEBUG: Resetting rep distances to 0 (rep0.nil?=#{@rep0.nil?}, preserve_dict=#{preserve_dict})" if ENV.fetch(
+            "LZMA_DEBUG", nil
+          ) && @dict_full && @dict_full >= 200 && @dict_full <= 230
           @rep0 = 0
           @rep1 = 0
           @rep2 = 0
@@ -301,17 +312,19 @@ module Omnizip
         # XZ Utils uses dict->pos (current position) + uncompressed_size
         # We use start_pos (current position) + @uncompressed_size
         limit = if @uncompressed_size == 0xFFFFFFFFFFFFFFFF
-            nil # No limit for unknown size
-          else
-            start_pos + @uncompressed_size
-          end
+                  nil # No limit for unknown size
+                else
+                  start_pos + @uncompressed_size
+                end
 
         # DEBUG: Show limit calculation for chunk #1
-        if ENV.fetch("LZMA_DEBUG_LIMIT", nil) && @dict_full && @dict_full >= 220 && @dict_full <= 240
+        if ENV.fetch("LZMA_DEBUG_LIMIT",
+                     nil) && @dict_full && @dict_full >= 220 && @dict_full <= 240
           puts "DEBUG LIMIT CALCULATION: start_pos=#{start_pos}, @uncompressed_size=#{@uncompressed_size}, limit=#{limit.inspect}"
         end
         # DEBUG: Also show for dict_full around 293 (where the error occurs)
-        if ENV.fetch("LZMA_DEBUG_LIMIT", nil) && @dict_full && @dict_full >= 290 && @dict_full <= 300
+        if ENV.fetch("LZMA_DEBUG_LIMIT",
+                     nil) && @dict_full && @dict_full >= 290 && @dict_full <= 300
           puts "DEBUG LIMIT CALCULATION at dict_full=#{@dict_full}: start_pos=#{start_pos}, @uncompressed_size=#{@uncompressed_size}, limit=#{limit.inspect}, @decoder_id=#{@decoder_id}"
         end
 
@@ -319,17 +332,18 @@ module Omnizip
         loop do
           iteration += 1
           # DEBUG: Show every iteration after position 200
-          if ENV.fetch("LZMA_DEBUG_ITER", nil) && @dict_full && @dict_full >= 200 && @dict_full <= 500
+          if ENV.fetch("LZMA_DEBUG_ITER",
+                       nil) && @dict_full && @dict_full >= 200 && @dict_full <= 500
             puts "DEBUG ITERATION ##{iteration}: pos=#{@pos}, dict_full=#{@dict_full}, limit=#{limit.inspect}"
           end
           # Check if we've reached the expected size (if known)
           # XZ Utils: checks dict.pos < dict.limit
           if ENV["LZMA_DEBUG_LIMIT"]
             compare_result = begin
-                limit && @pos >= limit
-              rescue StandardError
-                "ERROR"
-              end
+              limit && @pos >= limit
+            rescue StandardError
+              "ERROR"
+            end
             XzUtilsDecoderDebug.debug_puts "DEBUG LIMIT: iter=#{iteration}, pos=#{@pos.inspect}, dict_full=#{@dict_full}, limit=#{limit.inspect}, pos >= limit: #{compare_result}"
           end
 
@@ -504,16 +518,16 @@ module Omnizip
             # If explicitly set to false, it allows EOPM even when uncompressed size is known
             # Reference: alone_decoder.c:127 (LZMA_LZMA1EXT_ALLOW_EOPM)
             should_check = if @allow_eopm == true
-                # EOPM is explicitly allowed, skip the check
-                false
-              elsif @allow_eopm == false
-                # LZMA2 mode: always check (EOPM is not allowed)
-                true
-              else
-                # @allow_eopm is nil (not set, first chunk or legacy mode)
-                # Use check_rc_finished parameter as default
-                check_rc_finished
-              end
+                             # EOPM is explicitly allowed, skip the check
+                             false
+                           elsif @allow_eopm == false
+                             # LZMA2 mode: always check (EOPM is not allowed)
+                             true
+                           else
+                             # @allow_eopm is nil (not set, first chunk or legacy mode)
+                             # Use check_rc_finished parameter as default
+                             check_rc_finished
+                           end
 
             if should_check
               # If EOPM is not allowed, range decoder MUST be finished
@@ -522,12 +536,10 @@ module Omnizip
                       "LZMA stream finished with leftover compressed data (range_decoder.code=#{@range_decoder.code}, expected 0). This indicates corruption in the compressed stream or an invalid EOPM for LZMA2."
               end
               break
-            else
+            elsif @range_decoder.code.zero?
               # EOPM is allowed (e.g., LZMA_Alone format)
               # If range decoder is finished, we're done
-              if @range_decoder.code.zero?
-                break
-              end
+              break
               # Otherwise, continue decoding to find EOPM marker
               # XZ Utils sets eopm_is_valid = true and continues
               # Reference: lzma_decoder.c:704
@@ -535,12 +547,14 @@ module Omnizip
           end
 
           # DEBUG: Show when approaching limit for chunk #1
-          if ENV.fetch("LZMA_DEBUG_LIMIT", nil) && limit && @pos >= limit - 10 && @pos < limit + 10
+          if ENV.fetch("LZMA_DEBUG_LIMIT",
+                       nil) && limit && @pos >= limit - 10 && @pos < limit + 10
             puts "DEBUG NEAR LIMIT (call #{call_num}): pos=#{@pos}, limit=#{limit}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}, remaining=#{@uncompressed_size ? @uncompressed_size - @chunk_bytes_decoded : 'N/A'}"
           end
 
           # DEBUG: Show when we've passed the expected limit
-          if ENV.fetch("LZMA_DEBUG_LIMIT", nil) && limit && @pos >= limit && @pos < limit + 10
+          if ENV.fetch("LZMA_DEBUG_LIMIT",
+                       nil) && limit && @pos >= limit && @pos < limit + 10
             puts "DEBUG PASSED LIMIT: pos=#{@pos}, limit=#{limit}, dict_full=#{@dict_full}, delta=#{@pos - limit}"
           end
 
@@ -614,16 +628,18 @@ module Omnizip
         end
         valid_bytes = @dict_buf[start_pos...@pos]
         # DEBUG: Show return value calculation
-        puts "DEBUG RETURN CALCULATION: call_num=#{call_num}, start_pos=#{start_pos}, @pos=#{@pos}, valid_bytes.size=#{@dict_buf[start_pos...@pos].size}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}" if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 220 && @dict_full <= 240 && call_num == 2
+        puts "DEBUG RETURN CALCULATION: call_num=#{call_num}, start_pos=#{start_pos}, @pos=#{@pos}, valid_bytes.size=#{@dict_buf[start_pos...@pos].size}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}" if ENV.fetch(
+          "LZMA_DEBUG", nil
+        ) && @dict_full && @dict_full >= 220 && @dict_full <= 240 && call_num == 2
         puts "DEBUG RETURN CALCULATION: call_num=#{call_num}, start_pos=#{start_pos}, @pos=#{@pos}, valid_bytes.size=#{@dict_buf[start_pos...@pos].size}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}" if ENV["LZMA_DEBUG"] && call_num == 2
         # Filter out nil values (can happen during dictionary reset transitions)
         valid_bytes = valid_bytes.map { |b| b.nil? ? 0 : b }
         if ENV["DEBUG_DICT_BUF"]
           XzUtilsDecoderDebug.debug_puts "DEBUG: valid_bytes=#{begin
-                                           valid_bytes.size
-                                         rescue StandardError
-                                           valid_bytes.inspect
-                                         end}"
+            valid_bytes.size
+          rescue StandardError
+            valid_bytes.inspect
+          end}"
         end
         valid_data = valid_bytes.pack("C*")
         if output
@@ -863,24 +879,24 @@ module Omnizip
         if @range_decoder
           if ENV["LZMA_DEBUG"]
             input_pos = begin
-                @input.pos
-              rescue StandardError
-                "N/A"
-              end
+              @input.pos
+            rescue StandardError
+              "N/A"
+            end
             input_size = begin
-                @input.size
-              rescue StandardError
-                "N/A"
-              end
+              @input.size
+            rescue StandardError
+              "N/A"
+            end
             XzUtilsDecoderDebug.debug_puts "=== finish_state_reset: resetting range_decoder, input pos=#{input_pos}, size=#{input_size}"
           end
           @range_decoder.reset
           if ENV["LZMA_DEBUG"]
             input_pos_after = begin
-                @input.pos
-              rescue StandardError
-                "N/A"
-              end
+              @input.pos
+            rescue StandardError
+              "N/A"
+            end
             XzUtilsDecoderDebug.debug_puts "=== finish_state_reset: after reset, input pos=#{input_pos_after}, range_decoder.code=0x#{@range_decoder.code.to_s(16)}"
           end
         end
@@ -920,7 +936,8 @@ module Omnizip
         @input = new_input
 
         # DEBUG: Trace input stream contents
-        if ENV.fetch("LZMA_DEBUG", nil) && @dict_full && @dict_full >= 220 && @dict_full <= 230
+        if ENV.fetch("LZMA_DEBUG",
+                     nil) && @dict_full && @dict_full >= 220 && @dict_full <= 230
           puts "\n=== set_input at dict_full=#{@dict_full} ==="
           puts "  new_input.size=#{new_input.size}"
           puts "  new_input.pos=#{new_input.pos}"
@@ -934,7 +951,9 @@ module Omnizip
 
             first_bytes << byte
           end
-          puts "  First 10 bytes: #{first_bytes.map { |b| "0x#{b.to_s(16).upcase}" }.join(' ')}"
+          puts "  First 10 bytes: #{first_bytes.map do |b|
+            "0x#{b.to_s(16).upcase}"
+          end.join(' ')}"
 
           new_input.rewind
           test_byte = new_input.getbyte
@@ -1268,22 +1287,22 @@ module Omnizip
           if @dict_full == 233
             XzUtilsDecoderDebug.debug_puts "  DETAILED TRACE at dict_full=233 (pos=#{@pos}):"
             XzUtilsDecoderDebug.debug_puts "    byte=0x#{byte.to_s(16)} ('#{begin
-                   byte.chr
-                 rescue StandardError
-                   '?'
-                 end}')"
+              byte.chr
+            rescue StandardError
+              '?'
+            end}')"
             XzUtilsDecoderDebug.debug_puts "    state.value=#{@state.value}, lit_state=#{lit_state}"
             XzUtilsDecoderDebug.debug_puts "    use_matched_literal?=#{@state.use_matched_literal?}"
             prev_byte_val = @dict_full.positive? ? @dict_buf[@pos - 1] : "N/A"
             XzUtilsDecoderDebug.debug_puts "    prev_byte=#{prev_byte_val.inspect} (#{if prev_byte_val.is_a?(Integer)
-                   "0x#{prev_byte_val.to_s(16)} ('#{begin
-                     prev_byte_val.chr
-                   rescue StandardError
-                     '?'
-                   end}')"
-                 else
-                   'N/A'
-                 end})"
+                                                                                        "0x#{prev_byte_val.to_s(16)} ('#{begin
+                                                                                          prev_byte_val.chr
+                                                                                        rescue StandardError
+                                                                                          '?'
+                                                                                        end}')"
+                                                                                      else
+                                                                                        'N/A'
+                                                                                      end})"
             XzUtilsDecoderDebug.debug_puts "    range_decoder.range=0x#{@range_decoder.range.to_s(16)}, range_decoder.code=0x#{@range_decoder.code.to_s(16)}"
             XzUtilsDecoderDebug.debug_puts "    input.pos=#{@input.pos}, input.size=#{@input.size}"
           end
@@ -1335,14 +1354,17 @@ module Omnizip
         if ENV["TRACE_ARM64_BYTES"]
           @arm64_trace ||= []
           if @arm64_trace.size < 20
-            @arm64_trace << [@dict_full, @pos, byte.class, byte.is_a?(Integer) ? byte : byte.ord, @dict_buf[@pos]]
+            @arm64_trace << [@dict_full, @pos, byte.class,
+                             byte.is_a?(Integer) ? byte : byte.ord, @dict_buf[@pos]]
             if @arm64_trace.size == 20
               # Dump the trace
               puts "\n=== ARM64 BYTE TRACE (first 20 bytes) ==="
               puts "Decoder ID: #{@decoder_id}"
               @arm64_trace.each_with_index do |entry, i|
                 df, p, _, val, stored = entry
-                puts "  [#{i + 1}] dict_full=#{df.to_s.rjust(6)}, pos=#{p.to_s.rjust(6)}, byte=#{val.to_s.rjust(3)} (0x#{val.to_s(16).upcase.rjust(2, '0')}) stored=#{stored.inspect}"
+                puts "  [#{i + 1}] dict_full=#{df.to_s.rjust(6)}, pos=#{p.to_s.rjust(6)}, byte=#{val.to_s.rjust(3)} (0x#{val.to_s(16).upcase.rjust(
+                  2, '0'
+                )}) stored=#{stored.inspect}"
               end
               puts "=========================================\n"
               $stderr.flush
@@ -1482,24 +1504,36 @@ module Omnizip
         # ((len) < DIST_STATES + MATCH_LEN_MIN ? (len) - MATCH_LEN_MIN : DIST_STATES - 1)
         # This gives: len=2→0, len=3→1, len=4→2, len=5→3, len=6+→3
         len_state = if length < NUM_LEN_TO_POS_STATES + MATCH_LEN_MIN
-            length - MATCH_LEN_MIN
-          else
-            NUM_LEN_TO_POS_STATES - 1
-          end
+                      length - MATCH_LEN_MIN
+                    else
+                      NUM_LEN_TO_POS_STATES - 1
+                    end
 
         # DEBUG: Show bytes being copied
         if old_dict_full.between?(210, 230) || ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "\n=== decode_regular_match at dict_full=#{old_dict_full} ===" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "\n=== decode_regular_match at dict_full=#{old_dict_full} ===" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER] decode_regular_match at dict_full=#{old_dict_full}" if ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "  pos_state=#{pos_state}" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "  pos_state=#{pos_state}" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER]   pos_state=#{pos_state}" if ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "  state=#{old_state}" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "  state=#{old_state}" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER]   state=#{old_state}" if ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "  length_encoded=#{length_encoded} length=#{length}" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "  length_encoded=#{length_encoded} length=#{length}" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER]   length_encoded=#{length_encoded} length=#{length}" if ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "  len_state=#{len_state}" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "  len_state=#{len_state}" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER]   len_state=#{len_state}" if ENV["LZMA_DEBUG_DISTANCE"]
-          XzUtilsDecoderDebug.debug_puts "  rep0_before=#{old_rep0}" if old_dict_full.between?(210, 230)
+          XzUtilsDecoderDebug.debug_puts "  rep0_before=#{old_rep0}" if old_dict_full.between?(
+            210, 230
+          )
           puts "[DISTANCE_DECODER]   rep0_before=#{old_rep0}" if ENV["LZMA_DEBUG_DISTANCE"]
         end
 
@@ -1513,7 +1547,9 @@ module Omnizip
         rep0 = @distance_coder.decode(@range_decoder, len_state)
 
         # DEBUG
-        if (ENV.fetch("LZMA_DEBUG", nil) && old_dict_full.between?(210, 230)) || old_dict_full == 293
+        if (ENV.fetch("LZMA_DEBUG",
+                      nil) && old_dict_full.between?(210,
+                                                     230)) || old_dict_full == 293
           puts "  rep0_decoded=#{rep0} (distance = #{rep0})"
           puts "  buffer_back calculation: back=#{@dict_full - rep0 - 1}"
         end
@@ -1609,14 +1645,14 @@ module Omnizip
           XzUtilsDecoderDebug.debug_puts "  buffer_back=#{buffer_back}, back=#{back}"
           bytes_at_back = @dict_buf[buffer_back, 3]
           bytes_hex = if bytes_at_back.is_a?(String)
-              bytes_at_back.bytes.map do |b|
-                "%02x" % b
-              end.join(" ")
-            else
-              bytes_at_back.map do |b|
-                "%02x" % b
-              end.join(" ")
-            end
+                        bytes_at_back.bytes.map do |b|
+                          "%02x" % b
+                        end.join(" ")
+                      else
+                        bytes_at_back.map do |b|
+                          "%02x" % b
+                        end.join(" ")
+                      end
           XzUtilsDecoderDebug.debug_puts "  First 3 bytes at buffer_back: #{bytes_hex} (#{bytes_at_back.inspect})"
         end
 
@@ -1916,14 +1952,14 @@ module Omnizip
           XzUtilsDecoderDebug.debug_puts "  back=#{old_back}, wrapped_back=#{back}, buffer_back=#{buffer_back}"
           bytes_at_back = @dict_buf[buffer_back, 3]
           bytes_hex = if bytes_at_back.is_a?(String)
-              bytes_at_back.bytes.map do |b|
-                "%02x" % b
-              end.join(" ")
-            else
-              [bytes_at_back].flatten.map do |b|
-                "%02x" % b
-              end.join(" ")
-            end
+                        bytes_at_back.bytes.map do |b|
+                          "%02x" % b
+                        end.join(" ")
+                      else
+                        [bytes_at_back].flatten.map do |b|
+                          "%02x" % b
+                        end.join(" ")
+                      end
           XzUtilsDecoderDebug.debug_puts "  First 3 bytes at buffer_back: #{bytes_hex} (#{bytes_at_back.inspect})"
         end
 
@@ -1933,10 +1969,10 @@ module Omnizip
           source_val = @dict_buf[@pos - 1]
           puts "  Rep match copy at dict_full=#{@dict_full}: length=#{length}, distance=#{distance}, @pos=#{@pos} (will write to #{@pos}...#{@pos + length - 1})"
           puts "  Reading from @pos-1=#{@pos - 1}, source byte = #{source_val} (0x#{source_val.to_s(16)} '#{begin
-                 source_val.chr
-               rescue StandardError
-                 '?'
-               end}')"
+            source_val.chr
+          rescue StandardError
+            '?'
+          end}')"
           puts "  Before copy: @dict_buf[#{@pos}...#{@pos + length - 1}] = #{@dict_buf[@pos,
                                                                                        length].inspect}"
         end
@@ -1950,17 +1986,17 @@ module Omnizip
                                                                          10].inspect}"
             # DEBUG: Check if buffer_back+1 has the correct byte
             puts "  dict_buf[buffer_back+1=#{buffer_back + 1}] = #{@dict_buf[buffer_back + 1].inspect} ('#{begin
-                   @dict_buf[buffer_back + 1].chr
-                 rescue StandardError
-                   '?'
-                 end}')"
+              @dict_buf[buffer_back + 1].chr
+            rescue StandardError
+              '?'
+            end}')"
             prev_5 = if buffer_back > 4
-                @dict_buf[(buffer_back - 5)..(buffer_back - 1)].map do |b|
-                  "0x#{b.to_s(16).upcase} (#{b.chr})"
-                end.join(", ")
-              else
-                "N/A"
-              end
+                       @dict_buf[(buffer_back - 5)..(buffer_back - 1)].map do |b|
+                         "0x#{b.to_s(16).upcase} (#{b.chr})"
+                       end.join(", ")
+                     else
+                       "N/A"
+                     end
             puts "  Previous 5 bytes: [#{prev_5}]"
             puts "  Current dict_full=#{@dict_full}, @pos=#{@pos}"
           end

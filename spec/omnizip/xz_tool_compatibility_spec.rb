@@ -50,7 +50,8 @@ RSpec.describe "XZ Utils Tool Compatibility", :tool_integration do
           failures << "#{File.basename(xz_file)}: #{e.message}"
         end
 
-        expect(failures).to be_empty, "Failed to decode:\n#{failures.join("\n")}"
+        expect(failures).to be_empty,
+                            "Failed to decode:\n#{failures.join("\n")}"
       end
 
       # Test specific important files
@@ -156,7 +157,9 @@ RSpec.describe "XZ Utils Tool Compatibility", :tool_integration do
           file = File.join(reference_dir, filename)
           skip "File not found" unless File.exist?(file)
 
-          expect { Omnizip::Formats::LzmaAlone.decompress(file) }.not_to raise_error
+          expect do
+            Omnizip::Formats::LzmaAlone.decompress(file)
+          end.not_to raise_error
         rescue NameError
           pending "LZMA_Alone format not yet implemented"
         end

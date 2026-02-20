@@ -97,7 +97,8 @@ module Omnizip
             # Shared state across all chunks
             @dictionary = Omnizip::Algorithms::LZMA::Dictionary.new(dict_size)
             @state = Omnizip::Algorithms::LZMA::LZMAState.new(0)
-            @models = Omnizip::Algorithms::LZMA::XzProbabilityModels.new(lc, lp, pb)
+            @models = Omnizip::Algorithms::LZMA::XzProbabilityModels.new(lc,
+                                                                         lp, pb)
             @match_finder = Omnizip::Algorithms::LZMA::MatchFinder.new(@dictionary)
             @optimal = Omnizip::Algorithms::LZMA::OptimalEncoder.new(mode: :fast)
 
@@ -234,7 +235,9 @@ module Omnizip
             # We skip to position (start_pos + data.bytesize - MATCH_LEN_MAX),
             # but ensure we don't go negative for small inputs
             match_len_max = 2 # Minimum match length in LZMA2
-            end_pos = [@dictionary.buffer.bytesize + data.bytesize - match_len_max, 0].max
+            end_pos = [
+              @dictionary.buffer.bytesize + data.bytesize - match_len_max, 0
+            ].max
             @match_finder.skip(end_pos)
 
             # Position in match finder's buffer for encoding
@@ -331,7 +334,8 @@ module Omnizip
               # Use StringCompat.byteslice for Ruby 3.0-3.1 compatibility
               # Ruby's [] operator has a bug with null bytes that can return extra bytes
               # See: https://bugs.ruby-lang.org/issues/15985
-              output.write(StringCompat.byteslice(temp_buffer, 0, out_pos.value))
+              output.write(StringCompat.byteslice(temp_buffer, 0,
+                                                  out_pos.value))
             end
 
             # Return the number of bytes written
@@ -358,7 +362,8 @@ module Omnizip
               # Use StringCompat.byteslice for Ruby 3.0-3.1 compatibility
               # Ruby's [] operator has a bug with null bytes that can return extra bytes
               # See: https://bugs.ruby-lang.org/issues/15985
-              output.write(StringCompat.byteslice(temp_buffer, 0, out_pos.value))
+              output.write(StringCompat.byteslice(temp_buffer, 0,
+                                                  out_pos.value))
             end
 
             # Return the number of bytes written
@@ -410,7 +415,8 @@ module Omnizip
           end
 
           # Encode normal match
-          def encode_match(distance, length, encoder, pos, match_pos, _input_data)
+          def encode_match(distance, length, encoder, pos, match_pos,
+_input_data)
             pos_state = pos & ((1 << @pb) - 1)
 
             # Encode is_match bit (1 for match) - uses OLD state value
@@ -554,7 +560,8 @@ module Omnizip
           # @param match_byte [Integer] The match byte to compare against
           # @param symbol [Integer] The literal byte to encode (0-255)
           # @param encoder [XZBufferedRangeEncoder] The range encoder
-          def encode_matched_literal(literal_offset, match_byte, symbol, encoder)
+          def encode_matched_literal(literal_offset, match_byte, symbol,
+encoder)
             offset = 0x100
             symbol += 0x100 # Start symbol at 256 (XZ Utils algorithm)
 

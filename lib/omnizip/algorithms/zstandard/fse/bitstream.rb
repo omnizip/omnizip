@@ -53,7 +53,7 @@ module Omnizip
           # @param count [Integer] Number of bits to read
           # @return [Integer] The read bits
           def read_bits(count)
-            return 0 if count == 0
+            return 0 if count.zero?
 
             result = 0
             count.times do |i|
@@ -105,7 +105,7 @@ module Omnizip
             byte_index = @bit_position / 8
             bit_index = @bit_position % 8
 
-            return 0 if byte_index < 0 || byte_index >= @data.bytesize
+            return 0 if byte_index.negative? || byte_index >= @data.bytesize
 
             byte = @data.getbyte(byte_index)
             (byte >> bit_index) & 1
@@ -138,7 +138,7 @@ module Omnizip
           # @param count [Integer] Number of bits to read
           # @return [Integer] The read bits
           def read_bits(count)
-            return 0 if count == 0
+            return 0 if count.zero?
 
             result = 0
             count.times do

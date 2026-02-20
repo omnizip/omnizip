@@ -158,7 +158,8 @@ module Omnizip
                 # Escape: normalize and then decode new symbol
                 escape_cum = context.sum_freq
                 escape_freq = context.escape_freq
-                @range_decoder.normalize_freq(escape_cum, escape_freq, total_freq)
+                @range_decoder.normalize_freq(escape_cum, escape_freq,
+                                              total_freq)
 
                 # Decode new symbol (8 direct bits)
                 symbol = decode_new_symbol

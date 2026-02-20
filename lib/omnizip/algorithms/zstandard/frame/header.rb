@@ -93,7 +93,7 @@ module Omnizip
 
             # Extract flags from descriptor byte
             @content_size_flag = (descriptor >> 6) & 0x03
-            @single_segment = ((descriptor >> 5) & 0x01) == 1
+            @single_segment = (descriptor >> 5).allbits?(0x01)
             @checksum_flag = (descriptor >> 2) & 0x01
             @dictionary_id_flag = descriptor & 0x03
 
@@ -171,7 +171,7 @@ module Omnizip
           def window_size
             return nil unless @window_log
 
-            exponent = @window_log - 10
+            @window_log - 10
             mantissa = @window_log < 22 ? (@window_log - 10) : (@window_log - 11)
             (1 << @window_log) + (mantissa << (@window_log - 4))
           end
@@ -182,7 +182,7 @@ module Omnizip
           def parse_window_descriptor(input)
             byte = input.read(1).ord
             exponent = (byte >> 3) & 0x1F
-            mantissa = byte & 0x07
+            byte & 0x07
             @window_log = 10 + exponent
             @header_size += 1
           end

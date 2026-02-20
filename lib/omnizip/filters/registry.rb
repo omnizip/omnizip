@@ -44,13 +44,13 @@ module Omnizip
       # @return [void]
       def self.register_bcj_filters
         # Individual BCJ architecture filters (use hyphens to match existing convention)
-        register_bcj_filter(:'bcj-x86', BcjX86, architecture: :x86)
-        register_bcj_filter(:'bcj-arm', BcjArm, architecture: :arm)
-        register_bcj_filter(:'bcj-arm64', BcjArm64, architecture: :arm64,
+        register_bcj_filter(:"bcj-x86", BcjX86, architecture: :x86)
+        register_bcj_filter(:"bcj-arm", BcjArm, architecture: :arm)
+        register_bcj_filter(:"bcj-arm64", BcjArm64, architecture: :arm64,
                                                     xz_supported: false)
-        register_bcj_filter(:'bcj-ia64', BcjIa64, architecture: :ia64)
-        register_bcj_filter(:'bcj-ppc', BcjPpc, architecture: :powerpc)
-        register_bcj_filter(:'bcj-sparc', BcjSparc, architecture: :sparc)
+        register_bcj_filter(:"bcj-ia64", BcjIa64, architecture: :ia64)
+        register_bcj_filter(:"bcj-ppc", BcjPpc, architecture: :powerpc)
+        register_bcj_filter(:"bcj-sparc", BcjSparc, architecture: :sparc)
 
         # Unified BCJ filter (Task 2) - supports all architectures
         # Note: We register it as 'bcj' without architecture suffix

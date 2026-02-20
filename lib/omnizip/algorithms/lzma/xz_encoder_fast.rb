@@ -487,7 +487,8 @@ module Omnizip
             subcoder_index = offset + match_bit + (symbol >> 8)
             bit = (symbol >> 7) & 1
 
-            @encoder.queue_bit(@models.literal[literal_base + subcoder_index], bit)
+            @encoder.queue_bit(@models.literal[literal_base + subcoder_index],
+                               bit)
 
             symbol <<= 1
             offset &= ~(match_byte ^ symbol)

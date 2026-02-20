@@ -143,7 +143,8 @@ module Omnizip
         # @return [Hash] Metadata (lc, lp, pb, dict_size, uncompressed_size)
         def decompress_stream(input_io, output_io, options = {})
           require_relative "../algorithms/lzma/lzma_alone_decoder"
-          decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(input_io, options)
+          decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(input_io,
+                                                                    options)
           result = decoder.decode_stream
 
           output_io.write(result)

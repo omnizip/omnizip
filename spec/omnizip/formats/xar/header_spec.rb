@@ -28,7 +28,9 @@ RSpec.describe Omnizip::Formats::Xar::Header do
     it "raises error for data too short" do
       data = "xar!".b
 
-      expect { described_class.parse(data) }.to raise_error(ArgumentError, /too short/)
+      expect do
+        described_class.parse(data)
+      end.to raise_error(ArgumentError, /too short/)
     end
 
     it "parses header with MD5 checksum" do
@@ -83,7 +85,9 @@ RSpec.describe Omnizip::Formats::Xar::Header do
     it "raises error for unsupported version" do
       header = described_class.new(version: 99)
 
-      expect { header.validate! }.to raise_error(ArgumentError, /Unsupported version/)
+      expect do
+        header.validate!
+      end.to raise_error(ArgumentError, /Unsupported version/)
     end
   end
 

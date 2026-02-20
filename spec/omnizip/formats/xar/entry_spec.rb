@@ -21,7 +21,8 @@ RSpec.describe Omnizip::Formats::Xar::Entry do
     end
 
     it "creates a symlink entry" do
-      entry = described_class.new("link", type: "symlink", link_target: "target.txt")
+      entry = described_class.new("link", type: "symlink",
+                                          link_target: "target.txt")
 
       expect(entry.symlink?).to be true
       expect(entry.link_target).to eq("target.txt")
