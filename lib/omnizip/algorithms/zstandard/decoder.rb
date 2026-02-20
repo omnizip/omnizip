@@ -117,7 +117,7 @@ module Omnizip
           header = Frame::Header.parse(@input_stream)
 
           # Calculate window size
-          window_size = calculate_window_size(header)
+          calculate_window_size(header)
 
           # Decode blocks
           output = String.new(encoding: Encoding::BINARY)
@@ -149,7 +149,7 @@ module Omnizip
         end
 
         # Decode a single block
-        def decode_block(block, header)
+        def decode_block(block, _header)
           case block.block_type
           when BLOCK_TYPE_RAW
             decode_raw_block(block)
@@ -174,9 +174,9 @@ module Omnizip
         end
 
         # Decode compressed block
-        def decode_compressed_block(block)
+        def decode_compressed_block(_block)
           # Record start position for calculating remaining bytes
-          start_pos = @input_stream.pos
+          @input_stream.pos
 
           # Decode literals section
           literals_decoder = LiteralsDecoder.decode(@input_stream,

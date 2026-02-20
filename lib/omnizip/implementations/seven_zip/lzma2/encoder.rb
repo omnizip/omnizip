@@ -83,7 +83,8 @@ module Omnizip
 
             @dictionary = Omnizip::Algorithms::LZMA::Dictionary.new(dict_size)
             @state = Omnizip::Algorithms::LZMA::LZMAState.new(0)
-            @models = Omnizip::Algorithms::LZMA::XzProbabilityModels.new(lc, lp, pb)
+            @models = Omnizip::Algorithms::LZMA::XzProbabilityModels.new(lc,
+                                                                         lp, pb)
             @match_finder = Omnizip::Algorithms::LZMA::MatchFinder.new(@dictionary)
             @optimal = Omnizip::Algorithms::LZMA::OptimalEncoder.new(mode: :fast)
 
@@ -209,7 +210,9 @@ module Omnizip
 
             # Initialize hash table
             match_len_max = 2
-            end_pos = [@dictionary.buffer.bytesize + data.bytesize - match_len_max, 0].max
+            end_pos = [
+              @dictionary.buffer.bytesize + data.bytesize - match_len_max, 0
+            ].max
             @match_finder.skip(end_pos)
 
             # Position in match finder's buffer for encoding
@@ -245,7 +248,8 @@ module Omnizip
                 pos += length
               else
                 actual_distance = distance - REPS
-                encode_match(actual_distance, length, encoder, pos, match_pos, data)
+                encode_match(actual_distance, length, encoder, pos, match_pos,
+                             data)
                 pos += length
               end
             end
@@ -270,7 +274,8 @@ module Omnizip
             encoder.encode_symbols(temp_buffer, out_pos, 10000)
 
             if out_pos.value.positive?
-              output.write(StringCompat.byteslice(temp_buffer, 0, out_pos.value))
+              output.write(StringCompat.byteslice(temp_buffer, 0,
+                                                  out_pos.value))
             end
 
             output.size - size_before
@@ -309,7 +314,8 @@ module Omnizip
               if match_byte.nil?
                 encode_normal_literal(literal_offset, symbol, encoder)
               else
-                encode_matched_literal(literal_offset, match_byte, symbol, encoder)
+                encode_matched_literal(literal_offset, match_byte, symbol,
+                                       encoder)
               end
             else
               encode_normal_literal(literal_offset, symbol, encoder)
@@ -319,7 +325,8 @@ module Omnizip
           end
 
           # Encode normal match
-          def encode_match(distance, length, encoder, pos, match_pos, _input_data)
+          def encode_match(distance, length, encoder, pos, match_pos,
+_input_data)
             pos_state = pos & ((1 << @pb) - 1)
 
             prob_is_match = @models.is_match[@state.value][pos_state]
@@ -408,7 +415,8 @@ module Omnizip
             end
           end
 
-          def encode_matched_literal(literal_offset, match_byte, symbol, encoder)
+          def encode_matched_literal(literal_offset, match_byte, symbol,
+encoder)
             offset = 0x100
             symbol += 0x100
 
@@ -418,7 +426,9 @@ module Omnizip
               subcoder_index = offset + match_bit + (symbol >> 8)
               bit = (symbol >> 7) & 1
 
-              encoder.queue_bit(@models.literal[literal_offset + subcoder_index], bit)
+              encoder.queue_bit(
+                @models.literal[literal_offset + subcoder_index], bit
+              )
 
               symbol <<= 1
               offset &= ~(match_byte ^ symbol)
@@ -430,15 +440,18 @@ module Omnizip
 
             if len < 8
               encoder.queue_bit(@models.match_len_encoder.choice, 0)
-              encode_bittree(@models.match_len_encoder.low[pos_state], 3, len, encoder)
+              encode_bittree(@models.match_len_encoder.low[pos_state], 3, len,
+                             encoder)
             elsif len < 16
               encoder.queue_bit(@models.match_len_encoder.choice, 1)
               encoder.queue_bit(@models.match_len_encoder.choice2, 0)
-              encode_bittree(@models.match_len_encoder.mid[pos_state], 3, len - 8, encoder)
+              encode_bittree(@models.match_len_encoder.mid[pos_state], 3,
+                             len - 8, encoder)
             else
               encoder.queue_bit(@models.match_len_encoder.choice, 1)
               encoder.queue_bit(@models.match_len_encoder.choice2, 1)
-              encode_bittree(@models.match_len_encoder.high, 8, len - 16, encoder)
+              encode_bittree(@models.match_len_encoder.high, 8, len - 16,
+                             encoder)
             end
           end
 
@@ -454,12 +467,14 @@ module Omnizip
               dist_reduced = distance - base
 
               if dist_slot < 14
-                encode_bittree_reverse(@models.dist_special, dist_reduced, footer_bits, base - dist_slot - 1, encoder)
+                encode_bittree_reverse(@models.dist_special, dist_reduced,
+                                       footer_bits, base - dist_slot - 1, encoder)
               else
                 direct_bits = footer_bits - 4
                 encoder.queue_direct_bits(dist_reduced >> 4, direct_bits)
                 align_mask = (1 << 4) - 1
-                encode_bittree_reverse(@models.dist_align, dist_reduced & align_mask, 4, 0, encoder)
+                encode_bittree_reverse(@models.dist_align,
+                                       dist_reduced & align_mask, 4, 0, encoder)
               end
             end
           end

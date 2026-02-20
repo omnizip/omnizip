@@ -87,8 +87,7 @@ module Omnizip
       def self.search_embedded(path)
         data = File.binread(path)
         signature = Constants::SIGNATURE
-        offset = data.index(signature)
-        offset
+        data.index(signature)
       end
 
       # Auto-register .7z format when loaded

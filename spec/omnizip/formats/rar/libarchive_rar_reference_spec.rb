@@ -6,8 +6,12 @@ require "omnizip/formats/rar3/reader"
 require "omnizip/format_detector"
 
 RSpec.describe "Libarchive RAR Reference Files" do
-  RAR4_DIR = File.expand_path("../../../fixtures/rar/libarchive_reference/rar4", __dir__)
-  RAR5_DIR = File.expand_path("../../../fixtures/rar/libarchive_reference/rar5", __dir__)
+  RAR4_DIR = File.expand_path(
+    "../../../fixtures/rar/libarchive_reference/rar4", __dir__
+  )
+  RAR5_DIR = File.expand_path(
+    "../../../fixtures/rar/libarchive_reference/rar5", __dir__
+  )
 
   # Skip tests if fixture directory doesn't exist
   before(:all) do
@@ -59,7 +63,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "handles multiple stored files in RAR5" do
       skip "RAR5 reference files not found" unless Dir.exist?(RAR5_DIR)
 
-      many_files = File.join(RAR5_DIR, "test_read_format_rar5_stored_manyfiles.rar")
+      many_files = File.join(RAR5_DIR,
+                             "test_read_format_rar5_stored_manyfiles.rar")
       skip "Multiple files RAR5 test file not found" unless File.exist?(many_files)
 
       reader = Omnizip::Formats::Rar5::Reader.new
@@ -74,7 +79,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "decompresses LZSS compressed RAR5 files" do
       skip "RAR5 reference files not found" unless Dir.exist?(RAR5_DIR)
 
-      compressed_file = File.join(RAR5_DIR, "test_read_format_rar5_compressed.rar")
+      compressed_file = File.join(RAR5_DIR,
+                                  "test_read_format_rar5_compressed.rar")
       skip "Compressed RAR5 test file not found" unless File.exist?(compressed_file)
 
       reader = Omnizip::Formats::Rar5::Reader.new
@@ -143,7 +149,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "detects multi-volume RAR5 archives" do
       skip "RAR5 reference files not found" unless Dir.exist?(RAR5_DIR)
 
-      part1 = File.join(RAR5_DIR, "test_read_format_rar5_multiarchive.part01.rar")
+      part1 = File.join(RAR5_DIR,
+                        "test_read_format_rar5_multiarchive.part01.rar")
       skip "Multi-volume RAR5 test file not found" unless File.exist?(part1)
 
       # First part should be detectable
@@ -155,7 +162,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "handles truncated files gracefully" do
       skip "RAR5 reference files not found" unless Dir.exist?(RAR5_DIR)
 
-      truncated_file = File.join(RAR5_DIR, "test_read_format_rar5_truncated_huff.rar")
+      truncated_file = File.join(RAR5_DIR,
+                                 "test_read_format_rar5_truncated_huff.rar")
       skip "Truncated RAR5 test file not found" unless File.exist?(truncated_file)
 
       reader = Omnizip::Formats::Rar5::Reader.new
@@ -169,7 +177,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "handles invalid dictionary references" do
       skip "RAR5 reference files not found" unless Dir.exist?(RAR5_DIR)
 
-      invalid_file = File.join(RAR5_DIR, "test_read_format_rar5_invalid_dict_reference.rar")
+      invalid_file = File.join(RAR5_DIR,
+                               "test_read_format_rar5_invalid_dict_reference.rar")
       skip "Invalid dict RAR5 test file not found" unless File.exist?(invalid_file)
 
       reader = Omnizip::Formats::Rar5::Reader.new
@@ -198,7 +207,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "reads RAR4 normal compression archives" do
       skip "RAR4 reference files not found" unless Dir.exist?(RAR4_DIR)
 
-      normal_file = File.join(RAR4_DIR, "test_read_format_rar_compress_normal.rar")
+      normal_file = File.join(RAR4_DIR,
+                              "test_read_format_rar_compress_normal.rar")
       skip "Normal compression RAR4 test file not found" unless File.exist?(normal_file)
 
       reader = Omnizip::Formats::Rar3::Reader.new
@@ -239,7 +249,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "handles RAR4 symlinks" do
       skip "RAR4 reference files not found" unless Dir.exist?(RAR4_DIR)
 
-      symlink_file = File.join(RAR4_DIR, "test_read_format_rar_symlink_huge.rar")
+      symlink_file = File.join(RAR4_DIR,
+                               "test_read_format_rar_symlink_huge.rar")
       skip "Symlink RAR4 test file not found" unless File.exist?(symlink_file)
 
       reader = Omnizip::Formats::Rar3::Reader.new
@@ -254,7 +265,8 @@ RSpec.describe "Libarchive RAR Reference Files" do
     it "detects RAR4 multi-volume archives" do
       skip "RAR4 reference files not found" unless Dir.exist?(RAR4_DIR)
 
-      part1 = File.join(RAR4_DIR, "test_read_format_rar_multivolume.part0001.rar")
+      part1 = File.join(RAR4_DIR,
+                        "test_read_format_rar_multivolume.part0001.rar")
       skip "Multi-volume RAR4 test file not found" unless File.exist?(part1)
 
       expect(Omnizip::FormatDetector.detect(part1)).to eq(:rar4)

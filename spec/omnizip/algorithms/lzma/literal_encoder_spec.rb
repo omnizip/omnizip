@@ -69,8 +69,10 @@ RSpec.describe Omnizip::Algorithms::LZMA::LiteralEncoder do
       encoder_0 = Omnizip::Algorithms::LZMA::RangeEncoder.new(output_0)
       encoder_1 = Omnizip::Algorithms::LZMA::RangeEncoder.new(output_1)
 
-      encoder.encode_unmatched(byte, 0, 0, lc, literal_mask, encoder_0, models_0)
-      encoder.encode_unmatched(byte, 1, 0, lc, literal_mask, encoder_1, models_1)
+      encoder.encode_unmatched(byte, 0, 0, lc, literal_mask, encoder_0,
+                               models_0)
+      encoder.encode_unmatched(byte, 1, 0, lc, literal_mask, encoder_1,
+                               models_1)
 
       # Different positions should use different model offsets
       # So they shouldn't affect the same models
@@ -94,7 +96,8 @@ RSpec.describe Omnizip::Algorithms::LZMA::LiteralEncoder do
       dec_models = Array.new(0x300 << 3) { Omnizip::Algorithms::LZMA::BitModel.new }
       output.rewind
       range_decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(output)
-      decoded_byte = decoder.decode_unmatched(lit_state, lc, range_decoder, dec_models)
+      decoded_byte = decoder.decode_unmatched(lit_state, lc, range_decoder,
+                                              dec_models)
 
       expect(decoded_byte).to eq(byte)
     end
@@ -314,7 +317,8 @@ RSpec.describe Omnizip::Algorithms::LZMA::LiteralEncoder do
       range_decoder = Omnizip::Algorithms::LZMA::RangeDecoder.new(output)
 
       bytes.each do |expected_byte|
-        decoded = decoder.decode_unmatched(lit_state, lc, range_decoder, dec_models)
+        decoded = decoder.decode_unmatched(lit_state, lc, range_decoder,
+                                           dec_models)
         expect(decoded).to eq(expected_byte)
       end
     end

@@ -85,7 +85,8 @@ module Omnizip
 
           # Validate check type (only 0, 1, 4, 10 are valid)
           unless [0, 1, 4, 10].include?(check_type)
-            raise FormatError, "Unsupported check type: #{check_type} (not supported)"
+            raise FormatError,
+                  "Unsupported check type: #{check_type} (not supported)"
           end
 
           # Verify CRC32 (bytes 8-11)

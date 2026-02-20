@@ -38,7 +38,8 @@ RSpec.describe "LZMA Cross-Implementation Compatibility", :integration do
         encoder.encode_stream(test_data)
       end
 
-      decoded, status = Open3.capture2("xz", "-dc", tempfile.path, err: "/dev/null")
+      decoded, status = Open3.capture2("xz", "-dc", tempfile.path,
+                                       err: "/dev/null")
 
       expect(status.success?).to be(true), "xz failed to decode: #{status}"
       expect(decoded).to eq(test_data)
@@ -47,7 +48,8 @@ RSpec.describe "LZMA Cross-Implementation Compatibility", :integration do
     it "creates valid LZMA header" do
       require "omnizip/implementations/seven_zip/lzma/encoder"
       File.open(tempfile.path, "wb") do |f|
-        encoder = Omnizip::Implementations::SevenZip::LZMA::Encoder.new(f, lc: 3, lp: 0, pb: 2)
+        encoder = Omnizip::Implementations::SevenZip::LZMA::Encoder.new(f,
+                                                                        lc: 3, lp: 0, pb: 2)
         encoder.encode_stream(test_data)
       end
 
@@ -146,12 +148,20 @@ RSpec.describe "LZMA Cross-Implementation Compatibility", :integration do
       end
     end
 
-    include_examples "sdk to xz cross-compatibility", "simple text", -> { "Hello, World!" }
-    include_examples "sdk to xz cross-compatibility", "repetitive data", -> { "a" * 1000 }
-    include_examples "sdk to xz cross-compatibility", "binary data", -> { (0..255).to_a.pack("C*") * 4 }
+    include_examples "sdk to xz cross-compatibility", "simple text", -> {
+      "Hello, World!"
+    }
+    include_examples "sdk to xz cross-compatibility", "repetitive data", -> {
+      "a" * 1000
+    }
+    include_examples "sdk to xz cross-compatibility", "binary data", -> {
+      (0..255).to_a.pack("C*") * 4
+    }
     include_examples "sdk to xz cross-compatibility", "empty string", -> { "" }
     include_examples "sdk to xz cross-compatibility", "single byte", -> { "x" }
-    include_examples "sdk to xz cross-compatibility", "mixed content", -> { "Hello\x00World\xFF\x01\x02" }
+    include_examples "sdk to xz cross-compatibility", "mixed content", -> {
+      "Hello\x00World\xFF\x01\x02"
+    }
   end
 
   # -------------------------------------------------------------------------
@@ -186,7 +196,9 @@ RSpec.describe "LZMA Cross-Implementation Compatibility", :integration do
 
     include_examples "sdk round-trip", "simple text", -> { "Hello, World!" }
     include_examples "sdk round-trip", "repetitive data", -> { "a" * 1000 }
-    include_examples "sdk round-trip", "binary data", -> { (0..255).to_a.pack("C*") * 4 }
+    include_examples "sdk round-trip", "binary data", -> {
+      (0..255).to_a.pack("C*") * 4
+    }
     include_examples "sdk round-trip", "empty string", -> { "" }
     include_examples "sdk round-trip", "single byte", -> { "x" }
   end
@@ -222,7 +234,9 @@ RSpec.describe "LZMA Cross-Implementation Compatibility", :integration do
       expect(pb).to eq(2)
 
       # Dictionary size
-      dict_size = compressed[1..4].bytes.each_with_index.sum { |b, i| b << (i * 8) }
+      dict_size = compressed[1..4].bytes.each_with_index.sum do |b, i|
+        b << (i * 8)
+      end
       expect(dict_size).to eq(65536)
 
       # Uncompressed size (unknown size marker)

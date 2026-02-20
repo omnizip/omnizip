@@ -139,7 +139,9 @@ module Omnizip
           # "Index Padding MUST contain only null bytes" (XZ spec Section 4.1)
           unless padding.bytes.all?(&:zero?)
             raise FormatError,
-                  "Index padding contains non-null bytes: #{padding.bytes.map { |b| '0x%02x' % b }.join(', ')}"
+                  "Index padding contains non-null bytes: #{padding.bytes.map do |b|
+                    '0x%02x' % b
+                  end.join(', ')}"
           end
 
           # Add padding to index data for CRC calculation

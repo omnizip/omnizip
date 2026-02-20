@@ -134,7 +134,8 @@ module Omnizip
 
           # Step 3: Build Next Header properties
           # This includes kHeader, MAIN_STREAMS_INFO, FILES_INFO, etc.
-          next_header_data = build_next_header_properties(file_data, packed_sizes)
+          next_header_data = build_next_header_properties(file_data,
+                                                          packed_sizes)
 
           # Step 4: Write the complete data section
           # Note: CRC is stored in StartHeader, NOT appended to Next Header
@@ -150,7 +151,8 @@ module Omnizip
           # (CRC32 is appended after the header data, not included in size)
           next_header_size = next_header_data.bytesize
 
-          write_start_header(io, next_header_offset, next_header_size, next_header_data)
+          write_start_header(io, next_header_offset, next_header_size,
+                             next_header_data)
         end
 
         # Build packed data for solid mode (LZMA2 compression)
@@ -192,7 +194,8 @@ module Omnizip
               entry.size = data.bytesize
             end
 
-            { data: combined, total_size: total_size, streams: [{ data: combined, size: total_size }] }
+            { data: combined, total_size: total_size,
+              streams: [{ data: combined, size: total_size }] }
           else
             # Non-solid mode: each file gets its own stream
             streams = []
@@ -240,7 +243,8 @@ module Omnizip
             # Solid mode: one pack stream, one folder
             # packed_sizes is a single-element array with compressed size
             compressed_size = packed_sizes.first
-            build_solid_streams_info(metadata, unpack_size, compressed_size, num_files)
+            build_solid_streams_info(metadata, unpack_size, compressed_size,
+                                     num_files)
           else
             # Non-solid mode: one pack stream per file, one folder per file
             build_non_solid_streams_info(metadata, file_data[:streams])
@@ -286,7 +290,8 @@ module Omnizip
           encrypted_header.to_binary
         end
 
-        def build_solid_streams_info(metadata, unpack_size, compressed_size, num_files)
+        def build_solid_streams_info(metadata, unpack_size, compressed_size,
+num_files)
           # kPackInfo property (0x06)
           metadata << [PropertyId::PACK_INFO].pack("C")
           metadata << write_number(0)  # Pack position
@@ -624,7 +629,8 @@ module Omnizip
           footer
         end
 
-        def write_start_header(io, next_header_offset, next_header_size, next_header_data)
+        def write_start_header(io, next_header_offset, next_header_size,
+next_header_data)
           header = String.new(encoding: "BINARY")
 
           # Signature (6 bytes)
@@ -711,17 +717,23 @@ module Omnizip
             # 11110xxx pattern
             first_byte = 0xF0 | (value >> 32)
             result << [first_byte].pack("C")
-            4.downto(1) { |i| result << [(value >> (8 * (i - 1))) & 0xFF].pack("C") }
+            4.downto(1) do |i|
+              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
+            end
           when 6
             # 111110xx pattern
             first_byte = 0xF8 | (value >> 40)
             result << [first_byte].pack("C")
-            5.downto(1) { |i| result << [(value >> (8 * (i - 1))) & 0xFF].pack("C") }
+            5.downto(1) do |i|
+              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
+            end
           when 7
             # 1111110x pattern
             first_byte = 0xFC | (value >> 48)
             result << [first_byte].pack("C")
-            6.downto(1) { |i| result << [(value >> (8 * (i - 1))) & 0xFF].pack("C") }
+            6.downto(1) do |i|
+              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
+            end
           else
             # 8 bytes: 11111110 or 11111111 prefix
             result << if value < (1 << 56)

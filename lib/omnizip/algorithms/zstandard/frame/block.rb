@@ -55,7 +55,7 @@ module Omnizip
             bytes = input.read(3)
             # Read 3 bytes as little-endian 24-bit value
             raw = bytes.nil? ? 0 : (bytes.getbyte(0) | (bytes.getbyte(1) << 8) | (bytes.getbyte(2) << 16))
-            last_block = (raw & 0x01) == 1
+            last_block = raw.allbits?(0x01)
             block_type = (raw >> 1) & 0x03
             block_size = (raw >> 3) & 0x1FFFFF
 

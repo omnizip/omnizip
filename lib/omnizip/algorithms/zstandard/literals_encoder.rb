@@ -167,7 +167,8 @@ module Omnizip
 
           # Build header for LITERALS_BLOCK_COMPRESSED
           # Type (2 bits) = 10, followed by regenerated size
-          header = encode_literals_header(LITERALS_BLOCK_COMPRESSED, size, total_compressed_size)
+          header = encode_literals_header(LITERALS_BLOCK_COMPRESSED, size,
+                                          total_compressed_size)
 
           # Build complete section: header + table_desc + compressed
           header + table_desc + compressed
@@ -179,7 +180,8 @@ module Omnizip
         # - Type (2 bits) in first byte
         # - Regenerated size (variable length)
         # - Compressed size (variable length, only for compressed type)
-        def encode_literals_header(type, regenerated_size, compressed_size = nil)
+        def encode_literals_header(type, regenerated_size,
+compressed_size = nil)
           # Encode regenerated size
           if regenerated_size < 32
             # 5-bit size: type(2) + size(5) + padding(1) = 8 bits
@@ -189,7 +191,8 @@ module Omnizip
             # 12-bit size
             header_byte = (type << 6) | 31
             size_field = regenerated_size - 31
-            header = [header_byte, size_field & 0xFF, (size_field >> 8) & 0xFF].pack("Cv")
+            header = [header_byte, size_field & 0xFF,
+                      (size_field >> 8) & 0xFF].pack("Cv")
           else
             # 20-bit size
             header_byte = (type << 6) | 31

@@ -151,7 +151,8 @@ module Omnizip
             raise ArgumentError, "lc must be 0-8" unless @lc.between?(0, 8)
             raise ArgumentError, "lp must be 0-4" unless @lp.between?(0, 4)
             raise ArgumentError, "pb must be 0-4" unless @pb.between?(0, 4)
-            raise ArgumentError, "level must be 0-9" unless @level.between?(0, 9)
+            raise ArgumentError, "level must be 0-9" unless @level.between?(0,
+                                                                            9)
             return if @dict_size.between?(DICT_SIZE_MIN, DICT_SIZE_MAX)
 
             raise ArgumentError, "Invalid dictionary size"

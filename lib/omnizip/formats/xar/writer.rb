@@ -193,7 +193,12 @@ module Omnizip
               next if [".", ".."].include?(entry)
 
               child_path = File.join(path, entry)
-              child_archive_path = archive_path ? File.join(archive_path, entry) : entry
+              child_archive_path = if archive_path
+                                     File.join(archive_path,
+                                               entry)
+                                   else
+                                     entry
+                                   end
               add_tree(child_path, child_archive_path)
             end
           else
@@ -223,7 +228,8 @@ module Omnizip
 
             # Calculate and write TOC checksum
             file.pos
-            toc_checksum_data = compute_checksum(compressed_toc, @options[:toc_checksum])
+            toc_checksum_data = compute_checksum(compressed_toc,
+                                                 @options[:toc_checksum])
             file.write(toc_checksum_data)
             toc_checksum_size = toc_checksum_data.bytesize
 
@@ -269,7 +275,8 @@ module Omnizip
           return if data.nil? || data.empty?
 
           # Calculate extracted checksum
-          entry.extracted_checksum = compute_checksum_hex(data, @options[:file_checksum])
+          entry.extracted_checksum = compute_checksum_hex(data,
+                                                          @options[:file_checksum])
           entry.extracted_checksum_style = @options[:file_checksum]
 
           # Compress data
@@ -279,7 +286,8 @@ module Omnizip
           entry.data_size = data.bytesize
 
           # Calculate archived checksum
-          entry.archived_checksum = compute_checksum_hex(compressed, @options[:file_checksum])
+          entry.archived_checksum = compute_checksum_hex(compressed,
+                                                         @options[:file_checksum])
           entry.archived_checksum_style = @options[:file_checksum]
 
           # Add to heap

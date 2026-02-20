@@ -48,11 +48,13 @@ module Omnizip
           # @param frequencies [Array<Integer>] Raw symbol frequencies
           # @param max_accuracy_log [Integer] Maximum accuracy log (default 9)
           # @return [Encoder] FSE encoder
-          def self.build_from_frequencies(frequencies, max_accuracy_log = FSE_MAX_ACCURACY_LOG)
+          def self.build_from_frequencies(frequencies,
+max_accuracy_log = FSE_MAX_ACCURACY_LOG)
             return nil if frequencies.nil? || frequencies.empty?
 
             # Normalize frequencies to table size
-            distribution, accuracy_log = normalize_distribution(frequencies, max_accuracy_log)
+            distribution, accuracy_log = normalize_distribution(frequencies,
+                                                                max_accuracy_log)
 
             new(distribution, accuracy_log)
           end
@@ -71,7 +73,8 @@ module Omnizip
 
             # Find minimum accuracy log that fits the distribution
             num_symbols = frequencies.count { |f| f&.positive? }
-            accuracy_log = [calculate_min_accuracy_log(num_symbols), FSE_MIN_ACCURACY_LOG].max
+            accuracy_log = [calculate_min_accuracy_log(num_symbols),
+                            FSE_MIN_ACCURACY_LOG].max
             accuracy_log = [accuracy_log, max_accuracy_log].min
 
             table_size = 1 << accuracy_log
@@ -129,7 +132,9 @@ module Omnizip
             else
               # Need to subtract: decrement smallest non-zero probabilities
               (-delta).times do
-                min_idx = distribution.each_with_index.select { |v, _| v > 1 }.min_by { |v, _| v }&.last
+                min_idx = distribution.each_with_index.select do |v, _|
+                  v > 1
+                end.min_by { |v, _| v }&.last
                 distribution[min_idx] -= 1 if min_idx
               end
             end

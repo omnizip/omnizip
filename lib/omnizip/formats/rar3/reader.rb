@@ -61,7 +61,8 @@ module Omnizip
             entry = read_file_entry(io, first_block)
             entries << entry if entry
           else
-            raise FormatError, "Expected archive header or file header, got type #{first_block.type}"
+            raise FormatError,
+                  "Expected archive header or file header, got type #{first_block.type}"
           end
 
           # Read file blocks until end
@@ -145,7 +146,10 @@ module Omnizip
 
           # Read all header data at once
           header_data = io.read(header_data_size)
-          raise FormatError, "Unexpected EOF reading file header" unless header_data
+          unless header_data
+            raise FormatError,
+                  "Unexpected EOF reading file header"
+          end
 
           # Now parse the file_header from the start of header_data
           pos = 0

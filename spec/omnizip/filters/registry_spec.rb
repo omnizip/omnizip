@@ -38,12 +38,12 @@ RSpec.describe Omnizip::Filters::Registry do
     it "registers all BCJ filters" do
       described_class.register_all
 
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-x86')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-arm')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-arm64')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-ia64')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-ppc')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-sparc')).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-x86")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-arm")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-arm64")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-ia64")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-ppc")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-sparc")).to be true
       expect(Omnizip::FilterRegistry.registered?(:bcj)).to be true # Unified BCJ
     end
 
@@ -64,12 +64,12 @@ RSpec.describe Omnizip::Filters::Registry do
     it "registers architecture-specific BCJ filters" do
       described_class.register_bcj_filters
 
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-x86')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-arm')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-arm64')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-ia64')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-ppc')).to be true
-      expect(Omnizip::FilterRegistry.registered?(:'bcj-sparc')).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-x86")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-arm")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-arm64")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-ia64")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-ppc")).to be true
+      expect(Omnizip::FilterRegistry.registered?(:"bcj-sparc")).to be true
     end
 
     it "registers unified BCJ filter" do
@@ -102,54 +102,54 @@ RSpec.describe Omnizip::Filters::Registry do
 
     context "BCJ-x86" do
       it "supports both XZ and 7z formats" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-x86',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-x86",
                                                         :xz)).to be true
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-x86',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-x86",
                                                         :seven_zip)).to be true
       end
     end
 
     context "BCJ-ARM" do
       it "supports both XZ and 7z formats" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-arm',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-arm",
                                                         :xz)).to be true
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-arm',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-arm",
                                                         :seven_zip)).to be true
       end
     end
 
     context "BCJ-ARM64" do
       it "supports only 7z format (not XZ)" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-arm64',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-arm64",
                                                         :xz)).to be false
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-arm64',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-arm64",
                                                         :seven_zip)).to be true
       end
     end
 
     context "BCJ-IA64" do
       it "supports both XZ and 7z formats" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-ia64',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-ia64",
                                                         :xz)).to be true
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-ia64',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-ia64",
                                                         :seven_zip)).to be true
       end
     end
 
     context "BCJ-PPC" do
       it "supports both XZ and 7z formats" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-ppc',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-ppc",
                                                         :xz)).to be true
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-ppc',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-ppc",
                                                         :seven_zip)).to be true
       end
     end
 
     context "BCJ-SPARC" do
       it "supports both XZ and 7z formats" do
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-sparc',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-sparc",
                                                         :xz)).to be true
-        expect(Omnizip::FilterRegistry.supports_format?(:'bcj-sparc',
+        expect(Omnizip::FilterRegistry.supports_format?(:"bcj-sparc",
                                                         :seven_zip)).to be true
       end
     end
@@ -187,9 +187,9 @@ RSpec.describe Omnizip::Filters::Registry do
       xz_filters = Omnizip::FilterRegistry.filters_for_format(:xz)
 
       # XZ supports: x86, ARM, PPC, IA64, SPARC, Delta (NOT ARM64 or BCJ2)
-      expect(xz_filters).to include(:'bcj-x86', :'bcj-arm', :'bcj-ia64',
-                                    :'bcj-ppc', :'bcj-sparc', :delta)
-      expect(xz_filters).not_to include(:'bcj-arm64', :bcj2)
+      expect(xz_filters).to include(:"bcj-x86", :"bcj-arm", :"bcj-ia64",
+                                    :"bcj-ppc", :"bcj-sparc", :delta)
+      expect(xz_filters).not_to include(:"bcj-arm64", :bcj2)
     end
 
     it "returns all 7z-supported filters" do
@@ -197,12 +197,12 @@ RSpec.describe Omnizip::Filters::Registry do
 
       # 7z supports all BCJ filters + Delta + BCJ2
       expect(seven_zip_filters).to include(
-        :'bcj-x86',
-        :'bcj-arm',
-        :'bcj-arm64',
-        :'bcj-ia64',
-        :'bcj-ppc',
-        :'bcj-sparc',
+        :"bcj-x86",
+        :"bcj-arm",
+        :"bcj-arm64",
+        :"bcj-ia64",
+        :"bcj-ppc",
+        :"bcj-sparc",
         :bcj,
         :delta,
         :bcj2,
@@ -216,13 +216,13 @@ RSpec.describe Omnizip::Filters::Registry do
     end
 
     it "returns filter instance for supported format" do
-      filter = Omnizip::FilterRegistry.get_for_format(:'bcj-x86', :xz)
+      filter = Omnizip::FilterRegistry.get_for_format(:"bcj-x86", :xz)
       expect(filter).to be_a(Omnizip::Filters::BcjX86)
     end
 
     it "raises error for unsupported format" do
       expect do
-        Omnizip::FilterRegistry.get_for_format(:'bcj-arm64', :xz)
+        Omnizip::FilterRegistry.get_for_format(:"bcj-arm64", :xz)
       end.to raise_error(ArgumentError, /not supported for format/)
     end
   end

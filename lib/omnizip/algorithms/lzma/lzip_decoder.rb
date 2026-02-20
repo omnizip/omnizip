@@ -151,7 +151,7 @@ module Omnizip
               @input.read(footer_size)
               @member_size += footer_size
             else
-              data_to_crc = decoded_data || +''
+              data_to_crc = decoded_data || +""
               calculated_crc = Omnizip::Checksums::Crc32.calculate(data_to_crc)
               @uncompressed_size = data_to_crc.bytesize
 
@@ -211,31 +211,45 @@ module Omnizip
           # Step 1: Verify magic bytes (SEQ_ID_STRING)
           # Reference: lzip_decoder.c:104-153
           magic_bytes = @input.read(4)
-          raise Omnizip::DecompressionError, "Incomplete .lz header: missing magic bytes" if magic_bytes.nil? || magic_bytes.bytesize < 4
+          if magic_bytes.nil? || magic_bytes.bytesize < 4
+            raise Omnizip::DecompressionError,
+                  "Incomplete .lz header: missing magic bytes"
+          end
 
           4.times do |i|
             if magic_bytes.getbyte(i) != MAGIC[i]
-              raise Omnizip::DecompressionError, "Invalid .lz header: magic bytes don't match LZIP (expected #{MAGIC.map { |b| "0x#{b.to_s(16).upcase}" }.join(' ')}, got #{magic_bytes.bytes.map { |b| "0x#{b.to_s(16).upcase}" }.join(' ')})"
+              raise Omnizip::DecompressionError, "Invalid .lz header: magic bytes don't match LZIP (expected #{MAGIC.map do |b|
+                "0x#{b.to_s(16).upcase}"
+              end.join(' ')}, got #{magic_bytes.bytes.map do |b|
+                                    "0x#{b.to_s(16).upcase}"
+                                  end.join(' ')})"
             end
           end
 
           # Step 2: Read version byte (SEQ_VERSION)
           # Reference: lzip_decoder.c:156-174
           version_byte = @input.getbyte
-          raise Omnizip::DecompressionError, "Incomplete .lz header: missing version byte" if version_byte.nil?
+          if version_byte.nil?
+            raise Omnizip::DecompressionError,
+                  "Incomplete .lz header: missing version byte"
+          end
 
           @version = version_byte
 
           # We support version 0 and unextended version 1
           # Reference: lzip_decoder.c:163-164
           if @version > 1
-            raise Omnizip::UnsupportedFormatError, "Unsupported .lz version: #{@version} (only 0 and 1 are supported)"
+            raise Omnizip::UnsupportedFormatError,
+                  "Unsupported .lz version: #{@version} (only 0 and 1 are supported)"
           end
 
           # Step 3: Parse dictionary size (SEQ_DICT_SIZE)
           # Reference: lzip_decoder.c:177-222
           dict_size_byte = @input.getbyte
-          raise Omnizip::DecompressionError, "Incomplete .lz header: missing dictionary size byte" if dict_size_byte.nil?
+          if dict_size_byte.nil?
+            raise Omnizip::DecompressionError,
+                  "Incomplete .lz header: missing dictionary size byte"
+          end
 
           # Decode dictionary size from the encoded byte
           # The five lowest bits are for the base-2 logarithm of the dictionary size
@@ -247,7 +261,8 @@ module Omnizip
           # Validate range: [4 KiB, 512 MiB]
           # Reference: lzip_decoder.c:198-199
           if b2log < 12 || b2log > 29 || (b2log == 12 && fracnum.positive?)
-            raise Omnizip::DecompressionError, "Invalid .lz header: dictionary size byte 0x#{dict_size_byte.to_s(16).upcase} is out of valid range"
+            raise Omnizip::DecompressionError,
+                  "Invalid .lz header: dictionary size byte 0x#{dict_size_byte.to_s(16).upcase} is out of valid range"
           end
 
           # Calculate: 2^[b2log] - [fracnum] * 2^([b2log] - 4)
@@ -255,8 +270,14 @@ module Omnizip
           @dict_size = (1 << b2log) - (fracnum << (b2log - 4))
 
           # Sanity checks
-          raise Omnizip::DecompressionError, "Dictionary size calculation error: too small" if @dict_size < MIN_DICT_SIZE
-          raise Omnizip::DecompressionError, "Dictionary size calculation error: too large" if @dict_size > MAX_DICT_SIZE
+          if @dict_size < MIN_DICT_SIZE
+            raise Omnizip::DecompressionError,
+                  "Dictionary size calculation error: too small"
+          end
+          if @dict_size > MAX_DICT_SIZE
+            raise Omnizip::DecompressionError,
+                  "Dictionary size calculation error: too large"
+          end
         end
 
         # Verify .lz format footer
@@ -273,7 +294,10 @@ module Omnizip
         def verify_footer(calculated_crc)
           footer_size = @version.zero? ? LZIP_V0_FOOTER_SIZE : LZIP_V1_FOOTER_SIZE
           footer = @input.read(footer_size)
-          raise Omnizip::DecompressionError, "Incomplete .lz footer: expected #{footer_size} bytes, got #{footer&.bytesize || 0}" if footer.nil? || footer.bytesize < footer_size
+          if footer.nil? || footer.bytesize < footer_size
+            raise Omnizip::DecompressionError,
+                  "Incomplete .lz footer: expected #{footer_size} bytes, got #{footer&.bytesize || 0}"
+          end
 
           # Update member_size to include the footer
           @member_size += footer_size
@@ -284,7 +308,8 @@ module Omnizip
 
           # Verify CRC32
           if calculated_crc != stored_crc
-            raise Omnizip::ChecksumError, "CRC32 mismatch: calculated 0x#{calculated_crc.to_s(16).upcase}, stored 0x#{stored_crc.to_s(16).upcase}"
+            raise Omnizip::ChecksumError,
+                  "CRC32 mismatch: calculated 0x#{calculated_crc.to_s(16).upcase}, stored 0x#{stored_crc.to_s(16).upcase}"
           end
 
           # Parse and verify uncompressed size (little-endian)
@@ -294,7 +319,8 @@ module Omnizip
             (footer.getbyte(10) << 48) | (footer.getbyte(11) << 56)
 
           if @uncompressed_size != stored_uncompressed_size
-            raise Omnizip::ChecksumError, "Uncompressed size mismatch: decoded #{@uncompressed_size}, stored #{stored_uncompressed_size}"
+            raise Omnizip::ChecksumError,
+                  "Uncompressed size mismatch: decoded #{@uncompressed_size}, stored #{stored_uncompressed_size}"
           end
 
           # For version 1, verify member size
@@ -305,7 +331,8 @@ module Omnizip
               (footer.getbyte(18) << 48) | (footer.getbyte(19) << 56)
 
             if @member_size != stored_member_size
-              raise Omnizip::ChecksumError, "Member size mismatch: decoded #{@member_size}, stored #{stored_member_size}"
+              raise Omnizip::ChecksumError,
+                    "Member size mismatch: decoded #{@member_size}, stored #{stored_member_size}"
             end
           end
         end

@@ -54,7 +54,8 @@ module Omnizip
 
             # For 7-Zip format, use raw_mode (no property byte in compressed data)
             # The properties are encoded in the 7-Zip header instead
-            encoder.compress(input_io, output_io, { raw_mode: true, standalone: false })
+            encoder.compress(input_io, output_io,
+                             { raw_mode: true, standalone: false })
             result = output_io.string
           end
 

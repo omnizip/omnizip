@@ -84,7 +84,8 @@ module Omnizip
           prob_before = model.probability if trace_model_updates
 
           # DEBUG: Trace is_rep bit decoding
-          trace_is_rep = ENV.fetch("TRACE_IS_REP_BITS", nil) && (bound > 1_000_000)
+          trace_is_rep = ENV.fetch("TRACE_IS_REP_BITS",
+                                   nil) && (bound > 1_000_000)
 
           if trace_is_rep
             puts "  [RangeDecoder.decode_bit] BEFORE: range=#{@range}, code=#{@code}, bound=#{bound}, prob=#{model.probability}"
@@ -118,7 +119,8 @@ module Omnizip
           end
 
           # DEBUG: Trace decode_bit for specific problematic state
-          if ENV.fetch("TRACE_SPECIFIC_DECODE", nil) && @range == 0x40000000 && @code == 0x21407d82
+          if ENV.fetch("TRACE_SPECIFIC_DECODE",
+                       nil) && @range == 0x40000000 && @code == 0x21407d82
             puts "    === CRITICAL DECODE_BIT (MATCHED LITERAL) ==="
             puts "    BEFORE: range=0x#{@range.to_s(16)} (#{@range})"
             puts "    BEFORE: code=0x#{@code.to_s(16)} (#{@code})"

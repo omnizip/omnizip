@@ -60,7 +60,7 @@ module Omnizip
         case @format
         when :zip
           compress_zip
-        when :seven_zip, :'7z'
+        when :seven_zip, :"7z"
           compress_7z
         else
           raise ArgumentError, "Unsupported format: #{@format}"

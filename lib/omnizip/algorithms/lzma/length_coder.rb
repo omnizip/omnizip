@@ -70,7 +70,8 @@ module Omnizip
         # @param pos_state [Integer] Position state for tree selection
         # @return [void]
         def encode(range_encoder, length, pos_state)
-          trace_encode = ENV.fetch("LZMA_DEBUG_ENCODE", nil) && ENV.fetch("TRACE_LENGTH_CODER", nil)
+          trace_encode = ENV.fetch("LZMA_DEBUG_ENCODE",
+                                   nil) && ENV.fetch("TRACE_LENGTH_CODER", nil)
 
           if trace_encode
             puts "    [LengthCoder.encode] START: length=#{length}, pos_state=#{pos_state}"
@@ -138,7 +139,8 @@ module Omnizip
         # @param pos_state [Integer] Position state for tree selection
         # @return [Integer] Decoded length value (before adding MATCH_LEN_MIN)
         def decode(range_decoder, pos_state)
-          trace_decode = ENV.fetch("LZMA_DEBUG_DISTANCE", nil) && ENV.fetch("TRACE_LENGTH_CODER", nil)
+          trace_decode = ENV.fetch("LZMA_DEBUG_DISTANCE",
+                                   nil) && ENV.fetch("TRACE_LENGTH_CODER", nil)
 
           if trace_decode
             caller_loc = caller_locations(2, 1).first
@@ -160,7 +162,8 @@ module Omnizip
             if trace_decode
               puts "      Using LOW tree"
             end
-            result = decode_tree(range_decoder, @low[pos_state], NUM_LEN_LOW_BITS)
+            result = decode_tree(range_decoder, @low[pos_state],
+                                 NUM_LEN_LOW_BITS)
           elsif range_decoder.decode_bit(@choice2).zero?
             # Mid tree
             if trace_decode

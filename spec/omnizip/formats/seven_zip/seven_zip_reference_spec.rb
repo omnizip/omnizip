@@ -7,7 +7,9 @@ require "fileutils"
 require "tempfile"
 
 RSpec.describe "7-Zip Reference Files" do
-  let(:reference_dir) { File.expand_path("../../../fixtures/seven_zip/reference", __dir__) }
+  let(:reference_dir) do
+    File.expand_path("../../../fixtures/seven_zip/reference", __dir__)
+  end
 
   describe "LZMA compressed archives" do
     %w[lzma_mx1 lzma_mx5 lzma_mx9].each do |name|

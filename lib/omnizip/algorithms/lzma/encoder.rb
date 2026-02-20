@@ -76,7 +76,8 @@ module Omnizip
                     XzEncoderAdapter.new(output, options)
                   else
                     # Use SdkEncoder (7-Zip LZMA SDK compatible) - DEFAULT
-                    Implementations::SevenZip::LZMA::Encoder.new(output, options)
+                    Implementations::SevenZip::LZMA::Encoder.new(output,
+                                                                 options)
                   end
         end
 

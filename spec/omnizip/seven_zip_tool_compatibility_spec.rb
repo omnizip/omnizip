@@ -465,7 +465,8 @@ RSpec.describe "7-Zip Tool Compatibility", :tool_integration do
 
   describe "comprehensive fixtures created by 7zz" do
     context "with single file archives" do
-      %w[single_lzma2_mx5 single_lzma2_mx1 single_lzma2_mx9 single_lzma_mx5 single_copy].each do |name|
+      %w[single_lzma2_mx5 single_lzma2_mx1 single_lzma2_mx9 single_lzma_mx5
+         single_copy].each do |name|
         it "decodes #{name}.7z" do
           file = File.join(comprehensive_dir, "#{name}.7z")
           skip "Fixture not found: #{file}" unless File.exist?(file)
@@ -481,7 +482,8 @@ RSpec.describe "7-Zip Tool Compatibility", :tool_integration do
     end
 
     context "with multi-file archives" do
-      %w[multi_solid_lzma2 multi_nonsolid_lzma2 multi_copy with_empty_file with_directory].each do |name|
+      %w[multi_solid_lzma2 multi_nonsolid_lzma2 multi_copy with_empty_file
+         with_directory].each do |name|
         it "decodes #{name}.7z" do
           file = File.join(comprehensive_dir, "#{name}.7z")
           skip "Fixture not found: #{file}" unless File.exist?(file)

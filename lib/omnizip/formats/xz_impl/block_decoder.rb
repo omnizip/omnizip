@@ -355,10 +355,10 @@ module Omnizip
           # XZ Utils: lzma_delta_props_decode sets opt->dist = props[0] + 1
           # So if props[0] = 0, distance = 1; if props[0] = 255, distance = 256
           distance = if properties&.bytesize&.positive?
-              (properties.getbyte(0) || 0) + 1
-            else
-              1
-            end
+                       (properties.getbyte(0) || 0) + 1
+                     else
+                       1
+                     end
 
           Omnizip::Filters::Delta.new(distance).decode(data, 0)
         end
@@ -383,19 +383,26 @@ module Omnizip
           # Use the appropriate BCJ filter based on architecture
           case architecture
           when :x86
-            Omnizip::Filters::BCJ.new(architecture: :x86).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :x86).decode(data,
+                                                                 start_offset)
           when :powerpc
-            Omnizip::Filters::BCJ.new(architecture: :powerpc).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :powerpc).decode(data,
+                                                                     start_offset)
           when :ia64
-            Omnizip::Filters::BCJ.new(architecture: :ia64).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :ia64).decode(data,
+                                                                  start_offset)
           when :arm
-            Omnizip::Filters::BCJ.new(architecture: :arm).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :arm).decode(data,
+                                                                 start_offset)
           when :armthumb
-            Omnizip::Filters::BCJ.new(architecture: :armthumb).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :armthumb).decode(data,
+                                                                      start_offset)
           when :sparc
-            Omnizip::Filters::BCJ.new(architecture: :sparc).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :sparc).decode(data,
+                                                                   start_offset)
           when :arm64
-            Omnizip::Filters::BCJ.new(architecture: :arm64).decode(data, start_offset)
+            Omnizip::Filters::BCJ.new(architecture: :arm64).decode(data,
+                                                                   start_offset)
           else
             raise Omnizip::FormatError,
                   "Unsupported BCJ architecture: #{architecture}"
@@ -429,7 +436,9 @@ module Omnizip
           if ENV["DEBUG_ARM64_BCJ"]
             puts "DEBUG ARM64 BCJ: start_offset=0x#{start_offset.to_s(16).upcase}"
             puts "DEBUG ARM64 BCJ: input (first 32 bytes):"
-            puts data[0, 32].unpack1("H*").scan(/../).each_slice(16).map { |row| row.join(" ") }.join("\n")
+            puts data[0, 32].unpack1("H*").scan(/../).each_slice(16).map { |row|
+              row.join(" ")
+            }.join("\n")
           end
 
           # XZ Utils ARM64 BCJ filter implementation
@@ -480,7 +489,10 @@ module Omnizip
           # DEBUG: Show output data
           if ENV["DEBUG_ARM64_BCJ"]
             puts "DEBUG ARM64 BCJ: output (first 32 bytes):"
-            puts result[0, 32].unpack1("H*").scan(/../).each_slice(16).map { |row| row.join(" ") }.join("\n")
+            puts result[0,
+                        32].unpack1("H*").scan(/../).each_slice(16).map { |row|
+              row.join(" ")
+            }.join("\n")
           end
 
           result
@@ -546,19 +558,19 @@ module Omnizip
 
           properties = lzma2_filter[:properties]
           dict_size = if properties&.bytesize&.positive?
-              prop = properties.getbyte(0)
-              if prop.even?
-                1 << ((prop / 2) + 12)
-              else
-                3 * (1 << (((prop - 1) / 2) + 11))
-              end
-            else
-              8 * 1024 * 1024 # 8MB default
-            end
+                        prop = properties.getbyte(0)
+                        if prop.even?
+                          1 << ((prop / 2) + 12)
+                        else
+                          3 * (1 << (((prop - 1) / 2) + 11))
+                        end
+                      else
+                        8 * 1024 * 1024 # 8MB default
+                      end
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
-                                                            raw_mode: true)
+                                                                          raw_mode: true)
 
           # Set dict_size directly since we skipped property byte reading
           decoder.instance_variable_set(:@dict_size, dict_size)
@@ -601,19 +613,19 @@ module Omnizip
           # If prop is even: dict_size = 2^((prop/2) + 12)
           # If prop is odd: dict_size = 3 * 2^((prop-1)/2 + 11)
           dict_size = if properties&.bytesize&.positive?
-              prop = properties.getbyte(0)
-              if prop.even?
-                1 << ((prop / 2) + 12)
-              else
-                3 * (1 << (((prop - 1) / 2) + 11))
-              end
-            else
-              8 * 1024 * 1024 # 8MB default
-            end
+                        prop = properties.getbyte(0)
+                        if prop.even?
+                          1 << ((prop / 2) + 12)
+                        else
+                          3 * (1 << (((prop - 1) / 2) + 11))
+                        end
+                      else
+                        8 * 1024 * 1024 # 8MB default
+                      end
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
-                                                            raw_mode: true)
+                                                                          raw_mode: true)
 
           # Set dict_size directly since we skipped property byte reading
           decoder.instance_variable_set(:@dict_size, dict_size)

@@ -69,7 +69,7 @@ module Omnizip
           # Read number of sequences
           num_sequences = read_sequence_count
 
-          return if num_sequences == 0
+          return if num_sequences.zero?
 
           # Read symbol compression modes
           modes = read_symbol_modes
@@ -87,7 +87,7 @@ module Omnizip
         def read_sequence_count
           byte1 = @input.read(1).ord
 
-          if byte1 == 0
+          if byte1.zero?
             0
           elsif byte1 < 128
             byte1
@@ -104,7 +104,7 @@ module Omnizip
           {
             ll: (modes_byte >> 6) & 0x03,  # Literals length mode
             of: (modes_byte >> 4) & 0x03,  # Offset mode
-            ml: (modes_byte >> 2) & 0x03   # Match length mode
+            ml: (modes_byte >> 2) & 0x03, # Match length mode
           }
         end
 
@@ -151,7 +151,7 @@ module Omnizip
 
           # Create a simple distribution with just this symbol
           distribution = Array.new(symbol_count_for_type(type), 0)
-          distribution[symbol] = 1 << (accuracy_log_for_type(type))
+          distribution[symbol] = 1 << accuracy_log_for_type(type)
 
           FSE::Table.build(distribution, accuracy_log_for_type(type))
         end
@@ -159,7 +159,7 @@ module Omnizip
         # Build FSE table from compressed stream
         def build_fse_table_from_stream(type)
           # Read accuracy log
-          accuracy_log = @input.read(1).ord
+          @input.read(1).ord
 
           # For simplicity, return predefined table
           # Full implementation would read compressed distribution
@@ -168,7 +168,7 @@ module Omnizip
 
         # Decode sequences using FSE tables
         def decode_sequences_internal(count)
-          return if count == 0
+          return if count.zero?
 
           # Read the bitstream (remaining data in block)
           bitstream_data = @input.read # Read remaining data
@@ -198,17 +198,17 @@ module Omnizip
             @sequences << {
               literals_length: ll_value,
               match_length: ml_value,
-              offset: of_value
+              offset: of_value,
             }
           end
         end
 
         # Decode literal length value from symbol
         def decode_literal_length(symbol, bitstream)
-          return 0 if symbol.nil? || symbol < 0 || symbol >= LITERAL_LENGTH_TABLE.length
+          return 0 if symbol.nil? || symbol.negative? || symbol >= LITERAL_LENGTH_TABLE.length
 
           baseline, extra_bits = LITERAL_LENGTH_TABLE[symbol]
-          return baseline if extra_bits == 0
+          return baseline if extra_bits.zero?
 
           extra = bitstream.read_bits(extra_bits)
           baseline + extra
@@ -216,17 +216,17 @@ module Omnizip
 
         # Decode match length value from symbol
         def decode_match_length(symbol, bitstream)
-          return 3 if symbol.nil? || symbol < 0 || symbol >= MATCH_LENGTH_TABLE.length
+          return 3 if symbol.nil? || symbol.negative? || symbol >= MATCH_LENGTH_TABLE.length
 
           baseline, extra_bits = MATCH_LENGTH_TABLE[symbol]
-          return baseline if extra_bits == 0
+          return baseline if extra_bits.zero?
 
           extra = bitstream.read_bits(extra_bits)
           baseline + extra
         end
 
         # Decode offset value from symbol
-        def decode_offset(symbol, bitstream)
+        def decode_offset(symbol, _bitstream)
           # Offsets 1-3 are repeat offsets
           return symbol if symbol <= 3
 
@@ -290,21 +290,21 @@ module Omnizip
             offset_code = seq[:offset] || 0
 
             # Copy literals
-            if ll > 0 && lit_pos < literals.length
+            if ll.positive? && lit_pos < literals.length
               copy_len = [ll, literals.length - lit_pos].min
               output << literals.slice(lit_pos, copy_len)
               lit_pos += copy_len
             end
 
             # Handle match
-            if ml > 0
+            if ml.positive?
               offset = resolve_offset(offset_code)
 
-              if offset > 0 && offset <= output.length
+              if offset.positive? && offset <= output.length
                 # Copy match from output history
                 match_str = output.slice(-offset, [ml, offset].min) || ""
                 # If match is longer than offset, we need to copy byte by byte
-                while match_str.length < ml && output.length > 0
+                while match_str.length < ml && output.length.positive?
                   match_str << match_str[-offset] if offset <= match_str.length
                 end
                 output << match_str.slice(0, ml)

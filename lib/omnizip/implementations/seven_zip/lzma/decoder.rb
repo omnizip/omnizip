@@ -74,7 +74,10 @@ module Omnizip
           # @return [String, Integer] Decompressed data or bytes written
           def decode_stream(output = nil, preserve_dict: false)
             @output_buffer = []
-            @dictionary = Array.new(@dict_size, 0) unless preserve_dict && @dictionary
+            unless preserve_dict && @dictionary
+              @dictionary = Array.new(@dict_size,
+                                      0)
+            end
             @dict_pos = 0
             @dict_full = false
 
@@ -309,7 +312,8 @@ module Omnizip
 
             if is_rep.zero?
               # Simple match
-              len = @length_coder.decode(@range_decoder, pos_state) + MATCH_LEN_MIN
+              len = @length_coder.decode(@range_decoder,
+                                         pos_state) + MATCH_LEN_MIN
               @state.update_match
 
               # Decode distance
@@ -358,14 +362,16 @@ module Omnizip
                 return [1, @reps[0]]
               end
 
-              len = @rep_length_coder.decode(@range_decoder, pos_state) + MATCH_LEN_MIN
+              len = @rep_length_coder.decode(@range_decoder,
+                                             pos_state) + MATCH_LEN_MIN
               @state.update_rep
               return [len, @reps[0]]
             end
 
             if @range_decoder.decode_bit(@is_rep1_models[@state.value]).zero?
               # Rep1
-              len = @rep_length_coder.decode(@range_decoder, pos_state) + MATCH_LEN_MIN
+              len = @rep_length_coder.decode(@range_decoder,
+                                             pos_state) + MATCH_LEN_MIN
               distance = @reps[1]
               @reps[1] = @reps[0]
               @reps[0] = distance
@@ -375,7 +381,8 @@ module Omnizip
 
             if @range_decoder.decode_bit(@is_rep2_models[@state.value]).zero?
               # Rep2
-              len = @rep_length_coder.decode(@range_decoder, pos_state) + MATCH_LEN_MIN
+              len = @rep_length_coder.decode(@range_decoder,
+                                             pos_state) + MATCH_LEN_MIN
               distance = @reps[2]
               @reps[2] = @reps[1]
               @reps[1] = @reps[0]
@@ -385,7 +392,8 @@ module Omnizip
             end
 
             # Rep3
-            len = @rep_length_coder.decode(@range_decoder, pos_state) + MATCH_LEN_MIN
+            len = @rep_length_coder.decode(@range_decoder,
+                                           pos_state) + MATCH_LEN_MIN
             distance = @reps[3]
             @reps[3] = @reps[2]
             @reps[2] = @reps[1]

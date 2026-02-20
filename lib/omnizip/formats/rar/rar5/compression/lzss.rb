@@ -415,7 +415,8 @@ module Omnizip
                 @table_ldd.build(table_data[HUFF_NC + HUFF_DC, HUFF_LDC])
 
                 @table_rd = HuffmanTable.new(HUFF_RC)
-                @table_rd.build(table_data[HUFF_NC + HUFF_DC + HUFF_LDC, HUFF_RC])
+                @table_rd.build(table_data[HUFF_NC + HUFF_DC + HUFF_LDC,
+                                           HUFF_RC])
 
                 true
               end
@@ -542,7 +543,10 @@ module Omnizip
                 if idx.positive?
                   # Move to front
                   (idx...DIST_CACHE_SIZE).each do |i|
-                    @dist_cache[i] = @dist_cache[i + 1] if i + 1 < DIST_CACHE_SIZE
+                    if i + 1 < DIST_CACHE_SIZE
+                      @dist_cache[i] =
+                        @dist_cache[i + 1]
+                    end
                   end
                   @dist_cache[0] = dist
                 end

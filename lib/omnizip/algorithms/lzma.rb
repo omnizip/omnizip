@@ -97,12 +97,21 @@ module Omnizip
 
         # Build decoder options, merging with instance variables as fallbacks
         decoder_opts = build_decoder_options(options)
-        decoder_opts[:lzma2_mode] = @lzma2_mode if @lzma2_mode && !decoder_opts.key?(:lzma2_mode)
+        if @lzma2_mode && !decoder_opts.key?(:lzma2_mode)
+          decoder_opts[:lzma2_mode] =
+            @lzma2_mode
+        end
         decoder_opts[:lc] = @lc if @lc && !decoder_opts.key?(:lc)
         decoder_opts[:lp] = @lp if @lp && !decoder_opts.key?(:lp)
         decoder_opts[:pb] = @pb if @pb && !decoder_opts.key?(:pb)
-        decoder_opts[:dict_size] = @dict_size if @dict_size && !decoder_opts.key?(:dict_size)
-        decoder_opts[:uncompressed_size] = @uncompressed_size if @uncompressed_size && !decoder_opts.key?(:uncompressed_size)
+        if @dict_size && !decoder_opts.key?(:dict_size)
+          decoder_opts[:dict_size] =
+            @dict_size
+        end
+        if @uncompressed_size && !decoder_opts.key?(:uncompressed_size)
+          decoder_opts[:uncompressed_size] =
+            @uncompressed_size
+        end
         decoder_opts[:uncompressed_size] ||= options[:size] if options.respond_to?(:key?) && options.key?(:size)
 
         decoder = Decoder.new(input_stream, decoder_opts)
@@ -167,13 +176,19 @@ module Omnizip
 
         # Handle Hash-like options - pass through all decoder-relevant options
         if options.respond_to?(:key?)
-          opts[:sdk_compatible] = options[:sdk_compatible] if options.key?(:sdk_compatible)
+          if options.key?(:sdk_compatible)
+            opts[:sdk_compatible] =
+              options[:sdk_compatible]
+          end
           opts[:lzma2_mode] = options[:lzma2_mode] if options.key?(:lzma2_mode)
           opts[:lc] = options[:lc] if options.key?(:lc)
           opts[:lp] = options[:lp] if options.key?(:lp)
           opts[:pb] = options[:pb] if options.key?(:pb)
           opts[:dict_size] = options[:dict_size] if options.key?(:dict_size)
-          opts[:uncompressed_size] = options[:uncompressed_size] if options.key?(:uncompressed_size)
+          if options.key?(:uncompressed_size)
+            opts[:uncompressed_size] =
+              options[:uncompressed_size]
+          end
           opts[:size] = options[:size] if options.key?(:size)
         end
 

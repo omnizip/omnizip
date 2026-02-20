@@ -28,12 +28,15 @@ module Omnizip
         # @return [Header] Parsed header object
         # @raise [ArgumentError] If data is invalid
         def self.parse(data)
-          raise ArgumentError, "Header data too short (#{data.bytesize} bytes)" if data.bytesize < HEADER_SIZE
+          if data.bytesize < HEADER_SIZE
+            raise ArgumentError,
+                  "Header data too short (#{data.bytesize} bytes)"
+          end
 
           magic = data[0, 4].unpack1("N")
-          # XAR spec: All binary values are big-endian (network byte order)
-          header_size = data[4, 2].unpack1("n")  # big-endian
-          version = data[6, 2].unpack1("n")      # big-endian
+          # XAR spec: header_size and version are little-endian, rest are big-endian
+          header_size = data[4, 2].unpack1("v")  # little-endian
+          version = data[6, 2].unpack1("v")      # little-endian
           toc_compressed_size = data[8, 8].unpack1("Q>") # big-endian uint64
           toc_uncompressed_size = data[16, 8].unpack1("Q>") # big-endian uint64
           checksum_algorithm = data[24, 4].unpack1("N")
@@ -105,7 +108,9 @@ module Omnizip
         # @raise [ArgumentError] If header is invalid
         def validate!
           unless @magic == MAGIC
-            raise ArgumentError, format("Invalid magic: 0x%08x (expected 0x%08x)", @magic, MAGIC)
+            raise ArgumentError,
+                  format("Invalid magic: 0x%08x (expected 0x%08x)", @magic,
+                         MAGIC)
           end
 
           unless @header_size >= HEADER_SIZE
@@ -116,8 +121,10 @@ module Omnizip
             raise ArgumentError, "Unsupported version: #{@version}"
           end
 
-          unless [CKSUM_NONE, CKSUM_SHA1, CKSUM_MD5, CKSUM_OTHER].include?(@checksum_algorithm)
-            raise ArgumentError, "Unknown checksum algorithm: #{@checksum_algorithm}"
+          unless [CKSUM_NONE, CKSUM_SHA1, CKSUM_MD5,
+                  CKSUM_OTHER].include?(@checksum_algorithm)
+            raise ArgumentError,
+                  "Unknown checksum algorithm: #{@checksum_algorithm}"
           end
 
           if @checksum_algorithm == CKSUM_OTHER && @checksum_name.to_s.strip.empty?

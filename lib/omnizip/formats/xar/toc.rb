@@ -20,7 +20,8 @@ module Omnizip
       class Toc
         include Constants
 
-        attr_accessor :creation_time, :checksum_offset, :checksum_size, :checksum_style
+        attr_accessor :creation_time, :checksum_offset, :checksum_size,
+                      :checksum_style
         attr_reader :entries
 
         # Parse TOC from compressed data
@@ -51,7 +52,8 @@ module Omnizip
           end
 
           if expected_size && result.bytesize != expected_size
-            raise ArgumentError, "TOC size mismatch: #{result.bytesize} != #{expected_size}"
+            raise ArgumentError,
+                  "TOC size mismatch: #{result.bytesize} != #{expected_size}"
           end
 
           result
@@ -296,12 +298,14 @@ module Omnizip
 
             if (archived_sum = data.elements["archived-checksum"])
               options[:archived_checksum] = text_content(archived_sum)
-              options[:archived_checksum_style] = archived_sum.attributes["style"]
+              options[:archived_checksum_style] =
+                archived_sum.attributes["style"]
             end
 
             if (extracted_sum = data.elements["extracted-checksum"])
               options[:extracted_checksum] = text_content(extracted_sum)
-              options[:extracted_checksum_style] = extracted_sum.attributes["style"]
+              options[:extracted_checksum_style] =
+                extracted_sum.attributes["style"]
             end
           end
 
@@ -352,7 +356,10 @@ module Omnizip
           elem.elements.each("file") do |file_elem|
             entry = parse_file_element(file_elem)
             # Prepend parent path to name
-            entry.name = File.join(parent_entry.name, entry.name) unless parent_entry.name.empty?
+            unless parent_entry.name.empty?
+              entry.name = File.join(parent_entry.name,
+                                     entry.name)
+            end
             toc.add_entry(entry)
 
             # Recurse for deeper nesting
@@ -397,7 +404,8 @@ module Omnizip
         # @param entry [Entry] Entry to add
         # @param children_map [Hash] Children by parent path
         # @param parent_path [String] Path of parent directory (for nested entries)
-        def add_file_element(parent_elem, entry, children_map, parent_path = nil)
+        def add_file_element(parent_elem, entry, children_map,
+parent_path = nil)
           file_elem = parent_elem.add_element("file")
           file_elem.add_attribute("id", entry.id.to_s)
 

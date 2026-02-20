@@ -114,15 +114,16 @@ module Omnizip
         # @param entry [Entry] Entry to read
         # @return [String, nil] Entry data or nil if no data
         def read_data(entry)
-          return nil unless entry.data_size&.positive?
+          return nil unless entry.data_length&.positive?
           return nil unless @file
 
           @file.seek(@heap_offset + entry.data_offset)
-          # data_size is the archived size in heap (what to read)
-          # data_length is the extracted size (decompressed size)
-          compressed_data = @file.read(entry.data_size)
+          # In XAR format:
+          # - data_length is the compressed (archived) size (what to read from heap)
+          # - data_size is the uncompressed (extracted) size (decompressed size)
+          compressed_data = @file.read(entry.data_length)
 
-          decompress_data(compressed_data, entry.data_encoding, entry.data_length)
+          decompress_data(compressed_data, entry.data_encoding, entry.data_size)
         end
 
         # Extract all entries to directory
@@ -132,7 +133,9 @@ module Omnizip
           FileUtils.mkdir_p(output_dir)
 
           # Sort entries to ensure directories are created first
-          sorted_entries = @entries.sort_by { |e| [e.directory? ? 0 : 1, e.name] }
+          sorted_entries = @entries.sort_by do |e|
+            [e.directory? ? 0 : 1, e.name]
+          end
 
           sorted_entries.each do |entry|
             extract_entry(entry, output_dir)
@@ -208,9 +211,11 @@ module Omnizip
           @toc = Toc.parse(compressed_toc, @header.toc_uncompressed_size)
           @entries = @toc.entries
 
-          # Calculate heap offset (after header + compressed TOC)
-          # The TOC checksum is stored at the beginning of the heap, not after it
-          @heap_offset = @header.header_size + @header.toc_compressed_size
+          # Calculate heap offset:
+          # header + compressed TOC + TOC checksum
+          # The TOC checksum size comes from the header's checksum algorithm
+          toc_checksum_size = @header.checksum_size
+          @heap_offset = @header.header_size + @header.toc_compressed_size + toc_checksum_size
         end
 
         # Decompress data based on encoding
@@ -267,7 +272,7 @@ module Omnizip
             inf = Zlib::Inflate.new(-Zlib::MAX_WBITS)
             result = inf.inflate(data)
             inf.close
-            return result
+            result
           rescue Zlib::Error => e
             raise "Failed to decompress data: #{e.message}"
           end

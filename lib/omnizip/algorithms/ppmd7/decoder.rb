@@ -88,7 +88,8 @@ module Omnizip
           cum_freq_value = @range_decoder.decode_freq(total_freq)
 
           # Find symbol from cumulative frequency value
-          symbol, cum_freq, freq = find_symbol_from_cum_freq(context, cum_freq_value)
+          symbol, cum_freq, freq = find_symbol_from_cum_freq(context,
+                                                             cum_freq_value)
           return nil if symbol.nil?
 
           # Normalize the range decoder state

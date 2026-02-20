@@ -94,7 +94,8 @@ RSpec.describe Omnizip::Implementations::XZUtils::LZMA2::Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded).to eq(test_data)
@@ -109,7 +110,8 @@ RSpec.describe Omnizip::Implementations::XZUtils::LZMA2::Encoder do
       # Decode using LZMA2 decoder
       input = StringIO.new(encoded)
       input.set_encoding(Encoding::BINARY)
-      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input, raw_mode: false)
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input,
+                                                                      raw_mode: false)
       decoded = decoder.decode_stream
 
       expect(decoded).to eq(test_data)

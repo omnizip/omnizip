@@ -281,7 +281,8 @@ module Omnizip
           end
 
           result = symbol - 0x100
-          if trace_233 || (ENV.fetch("TRACE_MATCHED_DECODE", nil) && lit_state == 96)
+          if trace_233 || (ENV.fetch("TRACE_MATCHED_DECODE",
+                                     nil) && lit_state == 96)
             puts "\n  FINAL RESULT: 0x#{result.to_s(16).upcase} ('#{result.chr}')"
             if trace_233
               puts "  Result bits: #{result_bits.join}"

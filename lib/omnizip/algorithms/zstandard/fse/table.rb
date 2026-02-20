@@ -103,8 +103,6 @@ module Omnizip
             @states.length
           end
 
-          private
-
           # Allocate cells using FSE spread pattern
           #
           # The spread pattern distributes symbols across the table
@@ -227,7 +225,7 @@ module Omnizip
             symbol = entry.symbol
 
             # Read extra bits for next state
-            if entry.num_bits > 0
+            if entry.num_bits.positive?
               extra = bitstream.read_bits(entry.num_bits)
               @state = entry.baseline + extra
             else
