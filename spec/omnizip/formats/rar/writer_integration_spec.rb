@@ -138,8 +138,6 @@ RSpec.describe Omnizip::Formats::Rar::Writer, :integration do
     end
 
     it "correctly compresses and decompresses with METHOD_BEST (PPMd)" do
-      skip "PPMd encoder/decoder synchronization requires v0.4.0 (complex state management fix needed)"
-
       writer = described_class.new(output_path, compression: :best)
       writer.add_file(test_file)
       writer.write

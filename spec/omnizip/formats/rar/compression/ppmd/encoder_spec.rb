@@ -257,10 +257,6 @@ RSpec.describe Omnizip::Formats::Rar::Compression::PPMd::Encoder do
 
   describe "round-trip with decoder" do
     it "decoder can decode encoder output" do
-      # PPMd encoder/decoder requires symmetric implementation
-      # Deferred to v0.4.0 (complex state management fix needed)
-      skip "PPMd encoder/decoder synchronization requires v0.4.0"
-
       original = "Hello, World!"
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
 
@@ -279,14 +275,10 @@ RSpec.describe Omnizip::Formats::Rar::Compression::PPMd::Encoder do
     end
 
     it "handles various data types" do
-      # PPMd encoder/decoder requires symmetric implementation
-      # Deferred to v0.4.0 (complex state management fix needed)
-      skip "PPMd encoder/decoder synchronization requires v0.4.0"
-
       test_cases = [
-        "Text data",
+        "Text data".b,
         [0x00, 0xFF, 0x42].pack("C*"),
-        "Mixed: text\x00\xFFbinary",
+        "Mixed: text\x00\xFFbinary".b,
       ]
 
       test_cases.each do |data|

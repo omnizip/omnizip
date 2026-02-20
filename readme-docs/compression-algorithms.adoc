@@ -290,7 +290,11 @@ deflate64.compress(input, output)
 
 Zstandard (zstd) offers fast compression with good ratios, using a modern LZ77-based algorithm. It's designed to provide a good balance between compression ratio and speed.
 
-**Note:** Current implementation uses the zstd-ruby gem. A pure Ruby implementation is planned for full portability.
+**Implementation:** Pure Ruby implementation (RFC 8878 compliant). Supports:
+- Raw blocks (uncompressed)
+- RLE blocks (run-length encoding for repetitive data)
+- Frame/block decoding
+- Huffman/FSE compression infrastructure (encoder implemented, decoder in progress)
 
 === Characteristics
 
@@ -310,7 +314,7 @@ Zstandard (zstd) offers fast compression with good ratios, using a modern LZ77-b
 **Not Ideal For:**
 
 * Maximum compression needs (use LZMA instead)
-* Environments requiring pure Ruby (until pure Ruby implementation is complete)
+* General-purpose compression (Huffman/FSE decoder not complete)
 
 === Compression Levels
 

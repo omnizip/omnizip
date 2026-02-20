@@ -74,16 +74,25 @@ module Omnizip
         # Decode a single symbol using the model
         #
         # Uses the model and range decoder to extract the
-        # original symbol value.
+        # original symbol value using proper range decoding.
         #
         # @return [Integer, nil] Decoded byte or nil if end
         def decode_symbol
-          # Decode range value
-          value = @range_decoder.decode_direct_bits(16)
+          # Get context for decoding
+          context = @model.root_context
+          total_freq = context.total_freq
 
-          # Find symbol from range
-          symbol = find_symbol_from_range(value)
+          return nil if total_freq.zero?
+
+          # Decode cumulative frequency using proper range decoding
+          cum_freq_value = @range_decoder.decode_freq(total_freq)
+
+          # Find symbol from cumulative frequency value
+          symbol, cum_freq, freq = find_symbol_from_cum_freq(context, cum_freq_value)
           return nil if symbol.nil?
+
+          # Normalize the range decoder state
+          @range_decoder.normalize_freq(cum_freq, freq, total_freq)
 
           # Update model to stay in sync with encoder
           @model.update(symbol)
@@ -91,29 +100,23 @@ module Omnizip
           symbol
         end
 
-        # Find symbol from decoded range value
+        # Find symbol from cumulative frequency value
         #
-        # Converts the range value back to a symbol using
-        # the current context's probability distribution.
+        # Maps the decoded cumulative frequency back to a symbol
+        # using the context's probability distribution.
         #
-        # @param value [Integer] Decoded range value
-        # @return [Integer, nil] The symbol
-        def find_symbol_from_range(value)
-          # This is simplified - real implementation would
-          # properly decode using context probabilities
-          context = @model.root_context
-
-          # Find symbol whose cumulative range contains value
-          scale = 0x10000
+        # @param context [Context] The current context
+        # @param cum_freq_value [Integer] Decoded cumulative frequency
+        # @return [Array<Integer, Integer, Integer>] symbol, cum_freq, freq
+        def find_symbol_from_cum_freq(context, cum_freq_value)
           cum_freq = 0
 
           context.states.keys.sort.each do |symbol|
             state = context.states[symbol]
-            next_cum = cum_freq + state.freq
-            sym_low = (cum_freq * scale) / context.total_freq
-            sym_high = (next_cum * scale) / context.total_freq
+            freq = state.freq
+            next_cum = cum_freq + freq
 
-            return symbol if value >= sym_low && value < sym_high
+            return [symbol, cum_freq, freq] if cum_freq_value < next_cum
 
             cum_freq = next_cum
           end

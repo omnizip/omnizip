@@ -204,16 +204,20 @@ module Omnizip
             # RAR variant H uses different escape code values
             # and handling compared to standard PPMd7.
             #
-            # Escape codes in RAR:
-            # - 0: New symbol follows
-            # - 1: Same as last symbol (run-length)
-            # - 2-255: Reserved for future use
+            # The escape is encoded as part of the context's frequency range,
+            # positioned at the end (after all regular symbols).
             #
             # @return [void]
             def encode_escape_code
-              # For now, we encode escape as a binary decision with 50% probability
-              # This is simplified - real PPMd uses SEE (Secondary Escape Estimation)
-              @range_encoder.encode_freq(0, 1, 2)
+              # Encode escape at cumulative frequency = sum_freq
+              # with frequency = escape_freq
+              # total = sum_freq + escape_freq
+              context = @model.current_context
+              cum_freq = context.sum_freq # Escape is at the end
+              freq = context.escape_freq
+              total_freq = context.total_freq
+
+              @range_encoder.encode_freq(cum_freq, freq, total_freq)
             end
 
             # Encode new symbol not in current context

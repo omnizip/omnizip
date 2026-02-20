@@ -91,18 +91,23 @@ module Omnizip
             def decode_stream(max_bytes = nil)
               result = String.new(encoding: Encoding::BINARY)
 
-              # For now, decode a reasonable amount
-              # Real implementation would use proper termination
-              limit = max_bytes || 1000
+              loop do
+                # Stop if we've decoded enough bytes
+                break if max_bytes && result.length >= max_bytes
 
-              limit.times do
                 symbol = decode_symbol
                 break if symbol.nil?
 
                 result << symbol.chr
-              rescue EOFError, Omnizip::DecompressionError
-                # Handle EOF gracefully - end of compressed data
+              rescue EOFError
+                # End of compressed data - stop decoding
                 break
+              rescue Omnizip::DecompressionError
+                # If we have some data and hit an error, it might be end of stream
+                # Otherwise, re-raise the error
+                break if result.length.positive?
+
+                raise
               end
 
               result
@@ -148,12 +153,28 @@ module Omnizip
               # Decode cumulative frequency from range coder
               cum_freq = @range_decoder.decode_freq(total_freq)
 
+              # Check if cum_freq falls in the escape region (after all symbols)
+              if cum_freq >= context.sum_freq
+                # Escape: normalize and then decode new symbol
+                escape_cum = context.sum_freq
+                escape_freq = context.escape_freq
+                @range_decoder.normalize_freq(escape_cum, escape_freq, total_freq)
+
+                # Decode new symbol (8 direct bits)
+                symbol = decode_new_symbol
+
+                # Update model to stay in sync with encoder
+                @model.update(symbol)
+
+                return symbol
+              end
+
               # Find symbol matching this cumulative frequency
               symbol, freq = find_symbol_by_cum_freq(context, cum_freq)
 
               if symbol.nil?
-                # No symbol found - decode as new symbol
-                return decode_new_symbol
+                # This shouldn't happen if cum_freq < sum_freq
+                return nil
               end
 
               # Normalize range decoder state
