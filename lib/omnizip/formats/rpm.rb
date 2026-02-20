@@ -302,6 +302,19 @@ module Omnizip
           extract_cpio(decompressor, output_dir)
         end
 
+        # Get raw payload data
+        #
+        # Returns the compressed payload as-is (without decompression).
+        # Useful for saving the payload as a file (e.g., fonts.src.cpio.gz).
+        #
+        # @return [String] Raw compressed payload data
+        def raw_payload
+          raise "RPM not opened" unless @file
+
+          payload_io = payload
+          payload_io.read
+        end
+
         private
 
         def parse!
