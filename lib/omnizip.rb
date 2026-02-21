@@ -51,12 +51,6 @@ module Omnizip
   end
 end
 
-# Module files with autoload declarations for their sub-components
-require_relative "omnizip/io"
-require_relative "omnizip/crypto"
-require_relative "omnizip/formats"
-require_relative "omnizip/zip"
-
 # Feature modules - autoloaded from top level
 module Omnizip
   autoload :Buffer, "omnizip/buffer"
@@ -74,6 +68,12 @@ module Omnizip
   autoload :Parity, "omnizip/parity"
   autoload :Platform, "omnizip/platform"
   autoload :Profiler, "omnizip/profiler"
+
+  # Sub-module files - autoloaded when accessed
+  autoload :IO, "omnizip/io"
+  autoload :Crypto, "omnizip/crypto"
+  autoload :Formats, "omnizip/formats"
+  autoload :Zip, "omnizip/zip"
 end
 
 # Convenience methods must be explicitly required (not autoloaded)
