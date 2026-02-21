@@ -3,6 +3,10 @@
 module Omnizip
   # Chunked processing for memory-efficient large file handling
   module Chunked
+    autoload :Reader, "omnizip/chunked/reader"
+    autoload :Writer, "omnizip/chunked/writer"
+    autoload :MemoryManager, "omnizip/chunked/memory_manager"
+
     # Configuration for chunked operations
     class Configuration
       attr_accessor :chunk_size, :max_memory, :temp_directory, :spill_strategy
@@ -123,7 +127,3 @@ module Omnizip
     end
   end
 end
-
-require_relative "chunked/reader"
-require_relative "chunked/writer"
-require_relative "chunked/memory_manager"

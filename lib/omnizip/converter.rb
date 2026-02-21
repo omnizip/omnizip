@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require_relative "models/conversion_options"
-require_relative "models/conversion_result"
-require_relative "converter/conversion_strategy"
-require_relative "converter/zip_to_seven_zip_strategy"
-require_relative "converter/seven_zip_to_zip_strategy"
-require_relative "converter/conversion_registry"
-
 module Omnizip
   # Archive format conversion module
   # Provides conversion between different archive formats
   module Converter
+    autoload :ConversionOptions, "omnizip/models/conversion_options"
+    autoload :ConversionResult, "omnizip/models/conversion_result"
+    autoload :ConversionStrategy, "omnizip/converter/conversion_strategy"
+    autoload :ZipToSevenZipStrategy, "omnizip/converter/zip_to_seven_zip_strategy"
+    autoload :SevenZipToZipStrategy, "omnizip/converter/seven_zip_to_zip_strategy"
+    autoload :ConversionRegistry, "omnizip/converter/conversion_registry"
+
     class << self
       # Convert archive from one format to another
       # @param source_path [String] Source archive path

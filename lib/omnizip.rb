@@ -110,6 +110,9 @@ require_relative "omnizip/checksums/crc64"
 Omnizip::ChecksumRegistry.register(:crc32, Omnizip::Checksums::Crc32)
 Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)
 
+# Archive formats registry (with autoload declarations for lazy loading)
+require_relative "omnizip/formats"
+
 # Archive formats (with registration - must be required explicitly)
 require_relative "omnizip/formats/seven_zip"
 require_relative "omnizip/formats/zip"
