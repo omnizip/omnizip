@@ -222,7 +222,8 @@ module Omnizip
             vals = unpack(PACK)
             # vals = [uint32, uint16, uint16, uint8, uint8, uint8, uint8, uint8, uint8, uint8, uint8]
             last_six = vals[5, 6].map { |b| sprintf("%02x", b) }.join
-            sprintf("%08x-%04x-%04x-%02x%02x-%s", vals[0], vals[1], vals[2], vals[3], vals[4], last_six)
+            sprintf("%08x-%04x-%04x-%02x%02x-%s", vals[0], vals[1], vals[2],
+                    vals[3], vals[4], last_six)
           end
 
           # Inspect
@@ -306,7 +307,10 @@ module Omnizip
           # @return [Object] Deserialized value
           def self.load(type, str)
             type_name = NAMES[type]
-            raise ArgumentError, "Unknown OLE type: 0x#{format('%04x', type)}" unless type_name
+            unless type_name
+              raise ArgumentError,
+                    "Unknown OLE type: 0x#{format('%04x', type)}"
+            end
 
             klass = CLASS_MAP[type_name] || Data
             klass.load(str)
@@ -319,7 +323,10 @@ module Omnizip
           # @return [String] Binary data
           def self.dump(type, value)
             type_name = NAMES[type]
-            raise ArgumentError, "Unknown OLE type: 0x#{format('%04x', type)}" unless type_name
+            unless type_name
+              raise ArgumentError,
+                    "Unknown OLE type: 0x#{format('%04x', type)}"
+            end
 
             klass = CLASS_MAP[type_name] || Data
             klass.dump(value)

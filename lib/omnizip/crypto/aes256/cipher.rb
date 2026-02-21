@@ -3,7 +3,6 @@
 # Copyright (C) 2025 Ribose Inc.
 
 require "openssl"
-require_relative "constants"
 
 module Omnizip
   module Crypto

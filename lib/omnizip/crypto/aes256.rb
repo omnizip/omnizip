@@ -22,9 +22,6 @@
 
 require "openssl"
 require "digest/sha2"
-require_relative "aes256/constants"
-require_relative "aes256/key_derivation"
-require_relative "aes256/cipher"
 
 module Omnizip
   module Crypto
@@ -37,6 +34,9 @@ module Omnizip
     #
     # This follows 7-Zip's encryption specification.
     class Aes256
+      autoload :Constants, "omnizip/crypto/aes256/constants"
+      autoload :KeyDerivation, "omnizip/crypto/aes256/key_derivation"
+      autoload :Cipher, "omnizip/crypto/aes256/cipher"
       include Constants
 
       # Encrypt data with AES-256

@@ -16,9 +16,9 @@ module Omnizip
       # RPM package writer
       #
       # Creates RPM packages with binary payload (CPIO archive).
-      # Supports gzip compression for the payload.
+      # Supports multiple compression algorithms: gzip, bzip2, xz, zstd.
       #
-      # @example Create an RPM package
+      # @example Create an RPM package with gzip compression (default)
       #   writer = Rpm::Writer.new(
       #     name: "myapp",
       #     version: "1.0.0",
@@ -26,12 +26,27 @@ module Omnizip
       #     arch: "x86_64"
       #   )
       #   writer.add_file("/usr/bin/myapp", content, mode: 0755)
-      #   writer.add_directory("/etc/myapp")
-      #   writer.add_file("/etc/myapp/config.yml", config_content)
       #   writer.write("myapp-1.0.0-1.x86_64.rpm")
+      #
+      # @example Create an RPM with xz compression
+      #   writer = Rpm::Writer.new(
+      #     name: "myapp",
+      #     version: "1.0.0",
+      #     release: "1",
+      #     compression: :xz
+      #   )
       #
       class Writer
         include Constants
+
+        # Supported compression types and their properties
+        COMPRESSION_INFO = {
+          gzip: { name: "gzip", flags: "9" },
+          bzip2: { name: "bzip2", flags: "9" },
+          xz: { name: "xz", flags: "9" },
+          zstd: { name: "zstd", flags: "19" },
+          none: { name: nil, flags: nil },
+        }.freeze
 
         # Architecture mapping
         ARCHITECTURES = {
@@ -117,6 +132,9 @@ module Omnizip
         # @return [String] Architecture
         attr_reader :arch
 
+        # @return [Symbol] Compression type
+        attr_reader :compression
+
         # @return [Hash<String, String>] File contents
         attr_reader :files
 
@@ -130,17 +148,41 @@ module Omnizip
         # @param release [String] Package release
         # @param arch [String] Architecture (default: "noarch")
         # @param epoch [String, nil] Optional epoch
+        # @param compression [Symbol] Compression type (:gzip, :bzip2, :xz, :zstd, :none)
         # @param metadata [Hash] Additional metadata
-        def initialize(name:, version:, release:, arch: "noarch", epoch: nil, **metadata)
+        def initialize(name:, version:, release:, arch: "noarch", epoch: nil,
+                       compression: :gzip, **metadata)
           @name = name
           @version = version
           @release = release
           @arch = arch
           @epoch = epoch
+          @compression = validate_compression(compression)
           @metadata = metadata
           @files = []
           @directories = []
-          @compression = :gzip
+        end
+
+        # Validate compression type
+        #
+        # @param comp [Symbol] Compression type
+        # @return [Symbol] Validated compression type
+        # @raise [ArgumentError] If compression type is invalid
+        def validate_compression(comp)
+          return :gzip unless comp
+
+          unless COMPRESSION_INFO.key?(comp)
+            raise ArgumentError, "Unsupported compression: #{comp}. " \
+                                 "Supported: #{COMPRESSION_INFO.keys.join(', ')}"
+          end
+          comp
+        end
+
+        # Get compression info
+        #
+        # @return [Hash] Compression info with :name and :flags
+        def compression_info
+          COMPRESSION_INFO[@compression]
         end
 
         # Add file to package
@@ -151,7 +193,8 @@ module Omnizip
         # @param owner [String] File owner (default: "root")
         # @param group [String] File group (default: "root")
         # @param mtime [Integer] Modification time (default: now)
-        def add_file(path, content, mode: 0o644, owner: "root", group: "root", mtime: nil)
+        def add_file(path, content, mode: 0o644, owner: "root", group: "root",
+mtime: nil)
           @files << {
             path: path,
             content: content,
@@ -201,7 +244,8 @@ module Omnizip
 
           # Build headers
           main_header = build_main_header(payload_data.bytesize)
-          sig_header = build_signature_header(main_header.bytesize, payload_data.bytesize)
+          sig_header = build_signature_header(main_header.bytesize,
+                                              payload_data.bytesize)
 
           # Build lead
           lead = build_lead
@@ -245,7 +289,8 @@ module Omnizip
         # @return [String] Packed signature header
         def build_signature_header(header_size, payload_size)
           tags = [
-            { id: TAG_NAMES[:sigsize], type: TYPE_INT32, value: [header_size + payload_size] },
+            { id: TAG_NAMES[:sigsize], type: TYPE_INT32,
+              value: [header_size + payload_size] },
             { id: TAG_NAMES[:sha1header], type: TYPE_STRING, value: "" },
           ]
           build_header_data(tags)
@@ -327,21 +372,43 @@ module Omnizip
             { id: TAG_NAMES[:os], type: TYPE_STRING, value: "linux" },
             { id: TAG_NAMES[:rpmversion], type: TYPE_STRING, value: "4.16.0" },
             { id: TAG_NAMES[:payloadformat], type: TYPE_STRING, value: "cpio" },
-            { id: TAG_NAMES[:payloadcompressor], type: TYPE_STRING, value: "gzip" },
-            { id: TAG_NAMES[:payloadflags], type: TYPE_STRING, value: "9" },
-            { id: TAG_NAMES[:archivesize], type: TYPE_INT32, value: [payload_size] },
-            { id: TAG_NAMES[:dirnames], type: TYPE_STRING_ARRAY, value: dirnames },
-            { id: TAG_NAMES[:basenames], type: TYPE_STRING_ARRAY, value: basenames },
-            { id: TAG_NAMES[:dirindexes], type: TYPE_INT32, value: dirindexes },
-            { id: TAG_NAMES[:filemodes], type: TYPE_INT16, value: filemodes },
-            { id: TAG_NAMES[:filesizes], type: TYPE_INT32, value: filesizes },
-            { id: TAG_NAMES[:fileusername], type: TYPE_STRING_ARRAY, value: fileowners },
-            { id: TAG_NAMES[:filegroupname], type: TYPE_STRING_ARRAY, value: filegroups },
-            { id: TAG_NAMES[:filemtimes], type: TYPE_INT32, value: filemtimes },
-            { id: TAG_NAMES[:filedigests], type: TYPE_STRING_ARRAY, value: filedigests },
-            { id: TAG_NAMES[:filelinktos], type: TYPE_STRING_ARRAY, value: filelinktos },
-            { id: TAG_NAMES[:fileflags], type: TYPE_INT32, value: fileflags },
           ]
+
+          # Add compression-specific tags
+          comp_info = compression_info
+          if comp_info[:name]
+            tags << { id: TAG_NAMES[:payloadcompressor], type: TYPE_STRING,
+                      value: comp_info[:name] }
+            tags << { id: TAG_NAMES[:payloadflags], type: TYPE_STRING,
+                      value: comp_info[:flags] }
+          end
+
+          tags << { id: TAG_NAMES[:archivesize], type: TYPE_INT32,
+                    value: [payload_size] }
+          tags.push(
+            { id: TAG_NAMES[:dirnames], type: TYPE_STRING_ARRAY,
+              value: dirnames },
+            { id: TAG_NAMES[:basenames], type: TYPE_STRING_ARRAY,
+              value: basenames },
+            { id: TAG_NAMES[:dirindexes], type: TYPE_INT32,
+              value: dirindexes },
+            { id: TAG_NAMES[:filemodes], type: TYPE_INT16,
+              value: filemodes },
+            { id: TAG_NAMES[:filesizes], type: TYPE_INT32,
+              value: filesizes },
+            { id: TAG_NAMES[:fileusername], type: TYPE_STRING_ARRAY,
+              value: fileowners },
+            { id: TAG_NAMES[:filegroupname], type: TYPE_STRING_ARRAY,
+              value: filegroups },
+            { id: TAG_NAMES[:filemtimes], type: TYPE_INT32,
+              value: filemtimes },
+            { id: TAG_NAMES[:filedigests], type: TYPE_STRING_ARRAY,
+              value: filedigests },
+            { id: TAG_NAMES[:filelinktos], type: TYPE_STRING_ARRAY,
+              value: filelinktos },
+            { id: TAG_NAMES[:fileflags], type: TYPE_INT32,
+              value: fileflags },
+          )
 
           # Add optional metadata
           {
@@ -357,7 +424,10 @@ module Omnizip
             tags << { id: TAG_NAMES[key], type: type, value: value } if value
           end
 
-          tags << { id: TAG_NAMES[:epoch], type: TYPE_INT32, value: [@epoch.to_i] } if @epoch
+          if @epoch
+            tags << { id: TAG_NAMES[:epoch], type: TYPE_INT32,
+                      value: [@epoch.to_i] }
+          end
 
           build_header_data(tags)
         end
@@ -400,7 +470,8 @@ module Omnizip
           data_blob << ("\0" * padding)
 
           # Header header: magic (8) + entry_count (4) + data_length (4)
-          header_header = [HEADER_MAGIC, entry_count, data_blob.bytesize].pack("A8 NN")
+          header_header = [HEADER_MAGIC, entry_count,
+                           data_blob.bytesize].pack("A8 NN")
 
           header_header + tag_entries.join + data_blob
         end
@@ -531,14 +602,57 @@ module Omnizip
         def compress_payload(data, output)
           case @compression
           when :gzip
-            gz = Zlib::GzipWriter.new(output, 9)
-            gz.write(data)
-            gz.finish
+            compress_gzip(data, output)
+          when :bzip2
+            compress_bzip2(data, output)
+          when :xz
+            compress_xz(data, output)
+          when :zstd
+            compress_zstd(data, output)
           when :none
             output.write(data)
           else
             raise ArgumentError, "Unsupported compression: #{@compression}"
           end
+        end
+
+        # Compress with gzip
+        #
+        # @param data [String] Uncompressed data
+        # @param output [IO] Output IO
+        def compress_gzip(data, output)
+          gz = Zlib::GzipWriter.new(output, 9)
+          gz.write(data)
+          gz.finish
+        end
+
+        # Compress with bzip2
+        #
+        # @param data [String] Uncompressed data
+        # @param output [IO] Output IO
+        def compress_bzip2(data, output)
+          require_relative "../bzip2_file"
+          input_io = StringIO.new(data)
+          Bzip2File.compress_stream(input_io, output, level: 9)
+        end
+
+        # Compress with xz
+        #
+        # @param data [String] Uncompressed data
+        # @param output [IO] Output IO
+        def compress_xz(data, output)
+          require_relative "../xz"
+          Xz.create(data, output, dict_size: 8 * 1024 * 1024)
+        end
+
+        # Compress with zstd
+        #
+        # @param data [String] Uncompressed data
+        # @param output [IO] Output IO
+        def compress_zstd(data, output)
+          require_relative "../../algorithms/zstandard"
+          encoder = Algorithms::Zstandard::Encoder.new(output, level: 19)
+          encoder.encode_stream(data)
         end
       end
     end

@@ -8,7 +8,9 @@ require_relative "../../../lib/omnizip/formats/rpm"
 RSpec.describe Omnizip::Formats::Rpm do
   let(:fixture_dir) { File.join(File.dirname(__FILE__), "../../fixtures/rpm") }
   let(:example_rpm) { File.join(fixture_dir, "example-1.0-1.x86_64.rpm") }
-  let(:pagure_rpm) { File.join(fixture_dir, "pagure-mirror-5.13.2-5.fc35.noarch.rpm") }
+  let(:pagure_rpm) do
+    File.join(fixture_dir, "pagure-mirror-5.13.2-5.fc35.noarch.rpm")
+  end
   let(:example_json) { File.join(fixture_dir, "example.json") }
 
   describe ".open" do
@@ -63,13 +65,17 @@ RSpec.describe Omnizip::Formats::Rpm do
       it "raises error for invalid magic" do
         io = StringIO.new("\x00\x00\x00\x00#{'\x00' * 92}")
 
-        expect { described_class.parse(io) }.to raise_error(ArgumentError, /Invalid RPM magic/)
+        expect do
+          described_class.parse(io)
+        end.to raise_error(ArgumentError, /Invalid RPM magic/)
       end
 
       it "raises error for truncated data" do
         io = StringIO.new("\xed\xab\xee\xdb")
 
-        expect { described_class.parse(io) }.to raise_error(ArgumentError, /Truncated/)
+        expect do
+          described_class.parse(io)
+        end.to raise_error(ArgumentError, /Truncated/)
       end
     end
   end
