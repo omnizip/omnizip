@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require_relative "password/password_validator"
-require_relative "password/encryption_strategy"
-require_relative "password/zip_crypto_strategy"
-require_relative "password/winzip_aes_strategy"
-require_relative "password/encryption_registry"
-
 module Omnizip
   # Password protection module
   # Provides encryption and password validation for archives
   module Password
+    autoload :PasswordValidator, "omnizip/password/password_validator"
+    autoload :EncryptionStrategy, "omnizip/password/encryption_strategy"
+    autoload :ZipCryptoStrategy, "omnizip/password/zip_crypto_strategy"
+    autoload :WinzipAesStrategy, "omnizip/password/winzip_aes_strategy"
+    autoload :EncryptionRegistry, "omnizip/password/encryption_registry"
+
     class << self
       # Validate a password
       # @param password [String] Password to validate
