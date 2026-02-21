@@ -51,12 +51,6 @@ module Omnizip
   end
 end
 
-# Module files with autoload declarations for their sub-components
-require_relative "omnizip/io"
-require_relative "omnizip/crypto"
-require_relative "omnizip/formats"
-require_relative "omnizip/zip"
-
 # Feature modules - autoloaded from top level
 module Omnizip
   autoload :Buffer, "omnizip/buffer"
@@ -74,6 +68,12 @@ module Omnizip
   autoload :Parity, "omnizip/parity"
   autoload :Platform, "omnizip/platform"
   autoload :Profiler, "omnizip/profiler"
+
+  # Sub-module files - autoloaded when accessed
+  autoload :IO, "omnizip/io"
+  autoload :Crypto, "omnizip/crypto"
+  autoload :Formats, "omnizip/formats"
+  autoload :Zip, "omnizip/zip"
 end
 
 # Convenience methods must be explicitly required (not autoloaded)
@@ -109,6 +109,9 @@ require_relative "omnizip/checksums/crc64"
 # Register checksum algorithms
 Omnizip::ChecksumRegistry.register(:crc32, Omnizip::Checksums::Crc32)
 Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)
+
+# Archive formats registry (with autoload declarations for lazy loading)
+require_relative "omnizip/formats"
 
 # Archive formats (with registration - must be required explicitly)
 require_relative "omnizip/formats/seven_zip"

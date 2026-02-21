@@ -4,12 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "eta/sample_history"
-require_relative "eta/rate_calculator"
-require_relative "eta/time_estimator"
-require_relative "eta/exponential_smoothing_estimator"
-require_relative "eta/moving_average_estimator"
-
 module Omnizip
   # ETA (Estimated Time to Arrival) calculation module.
   #
@@ -24,6 +18,11 @@ module Omnizip
   #   eta = estimator.estimate(remaining_bytes: 5000)
   #   puts "ETA: #{eta.formatted}"
   module ETA
+    autoload :SampleHistory, "omnizip/eta/sample_history"
+    autoload :RateCalculator, "omnizip/eta/rate_calculator"
+    autoload :TimeEstimator, "omnizip/eta/time_estimator"
+    autoload :ExponentialSmoothingEstimator, "omnizip/eta/exponential_smoothing_estimator"
+    autoload :MovingAverageEstimator, "omnizip/eta/moving_average_estimator"
     # Create a new time estimator
     #
     # @param strategy [Symbol] Estimation strategy (:exponential_smoothing, :moving_average)
