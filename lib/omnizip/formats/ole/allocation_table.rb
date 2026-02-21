@@ -160,8 +160,13 @@ module Omnizip
 
           if new_num_blocks < old_num_blocks
             # De-allocate excess blocks
-            (new_num_blocks...old_num_blocks).each { |i| @entries[blocks[i]] = AVAIL }
-            @entries[blocks[new_num_blocks - 1]] = EOC if new_num_blocks.positive?
+            (new_num_blocks...old_num_blocks).each do |i|
+              @entries[blocks[i]] = AVAIL
+            end
+            if new_num_blocks.positive?
+              @entries[blocks[new_num_blocks - 1]] =
+                EOC
+            end
             blocks.slice!(new_num_blocks..-1)
           elsif new_num_blocks > old_num_blocks
             # Allocate more blocks

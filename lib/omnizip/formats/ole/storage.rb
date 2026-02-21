@@ -75,7 +75,10 @@ module Omnizip
                                  mode ||= "rb"
                                  [true, File.open(path_or_io, mode)]
                                else
-                                 raise ArgumentError, "Cannot specify mode with IO object" if mode
+                                 if mode
+                                   raise ArgumentError,
+                                         "Cannot specify mode with IO object"
+                                 end
 
                                  [false, path_or_io]
                                end
@@ -134,7 +137,8 @@ module Omnizip
           @dirents.reject!(&:empty?)
 
           # Setup SBAT
-          @sb_file = RangesIOResizeable.new(@bbat, first_block: @root.first_block, size: @root.size)
+          @sb_file = RangesIOResizeable.new(@bbat,
+                                            first_block: @root.first_block, size: @root.size)
           @sbat = AllocationTable::Small.new(self)
           @sbat.load(@bbat.read(@header.sbat_start))
         end
@@ -160,13 +164,17 @@ module Omnizip
           return [] unless dirent
 
           # Build children recursively
-          build_tree(dirents, dirent.child, visited).each { |child| dirent << child }
+          build_tree(dirents, dirent.child, visited).each do |child|
+            dirent << child
+          end
 
           # Set index
           dirent.idx = idx
 
           # Return list for tree building
-          build_tree(dirents, dirent.prev, visited) + [dirent] + build_tree(dirents, dirent.next, visited)
+          build_tree(dirents, dirent.prev,
+                     visited) + [dirent] + build_tree(dirents, dirent.next,
+                                                      visited)
         end
 
         # Close storage
@@ -192,7 +200,8 @@ module Omnizip
           @dirents = @root.flatten
 
           # Serialize dirents using bbat
-          dirent_io = RangesIOResizeable.new(@bbat, first_block: @header.dirent_start)
+          dirent_io = RangesIOResizeable.new(@bbat,
+                                             first_block: @header.dirent_start)
           dirent_io.write(@dirents.map(&:pack).join)
           # Pad to block boundary
           padding = ((dirent_io.size / @bbat.block_size.to_f).ceil * @bbat.block_size) - dirent_io.size
@@ -201,7 +210,8 @@ module Omnizip
           dirent_io.close
 
           # Serialize sbat
-          sbat_io = RangesIOResizeable.new(@bbat, first_block: @header.sbat_start)
+          sbat_io = RangesIOResizeable.new(@bbat,
+                                           first_block: @header.sbat_start)
           sbat_io.write(@sbat.pack)
           @header.sbat_start = sbat_io.first_block
           @header.num_sbat = @bbat.chain(@header.sbat_start).length
@@ -229,7 +239,9 @@ module Omnizip
         # Write BAT (Block Allocation Table) blocks
         def write_bat_blocks
           # Truncate bbat to remove trailing AVAILs
-          @bbat.entries.replace(@bbat.entries.reject { |e| e == AVAIL }.push(AVAIL))
+          @bbat.entries.replace(@bbat.entries.reject do |e|
+            e == AVAIL
+          end.push(AVAIL))
 
           # Calculate space needed for BAT
           num_mbat_blocks = 0
@@ -270,7 +282,10 @@ module Omnizip
           end
 
           # Write MBAT if present
-          write_mbat_blocks(mbat_blocks, num_mbat_blocks) if num_mbat_blocks.positive?
+          if num_mbat_blocks.positive?
+            write_mbat_blocks(mbat_blocks,
+                              num_mbat_blocks)
+          end
 
           # Pad BAT chain to 109 entries in header
           @bbat_chain += [AVAIL] * [109 - @bbat_chain.length, 0].max

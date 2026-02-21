@@ -369,9 +369,9 @@ All libarchive XAR test cases pass, including:
 
 ==== RPM Format Support (v0.4.0)
 
-Omnizip provides complete RPM package format support for reading package metadata and extracting file contents.
+Omnizip provides complete RPM package format support for reading and writing RPM packages.
 
-**Status**: ✅ **Full Support** - Complete RPM reading and extraction
+**Status**: ✅ **Full Support** - Complete RPM reading and writing
 
 **What Works**:
 
@@ -381,8 +381,10 @@ Omnizip provides complete RPM package format support for reading package metadat
 * ✅ Dependency information (requires, provides, conflicts)
 * ✅ Payload extraction with multiple compression formats
 * ✅ gzip, bzip2, xz, zstd decompression support
+* ✅ RPM package creation with CPIO payload
+* ✅ Multiple compression options for package creation
 
-**Usage**:
+**Reading RPM Packages**:
 
 [source,ruby]
 ----
@@ -409,18 +411,60 @@ info = Omnizip::Formats::Rpm.info('package.rpm')
 puts "#{info[:name]}-#{info[:version]}-#{info[:release]}"
 ----
 
+**Writing RPM Packages**:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create RPM package with gzip compression (default)
+Omnizip::Formats::Rpm.write('mypackage-1.0-1.noarch.rpm') do |rpm|
+  rpm.name = 'mypackage'
+  rpm.version = '1.0'
+  rpm.release = '1'
+  rpm.arch = 'noarch'
+  rpm.summary = 'My awesome package'
+  rpm.description = 'A longer description of the package'
+  rpm.license = 'MIT'
+  rpm.vendor = 'My Company'
+  rpm.url = 'https://example.com/mypackage'
+
+  # Add files from filesystem
+  rpm.add_file('/usr/bin/myapp', 'path/to/myapp')
+  rpm.add_file('/etc/myapp.conf', 'path/to/config')
+  rpm.add_directory('/var/lib/myapp')
+
+  # Add dependencies
+  rpm.add_dependency('glibc', '>= 2.17')
+  rpm.add_provides('myapp')
+end
+
+# Create RPM with different compression
+Omnizip::Formats::Rpm.write('mypackage-1.0-1.x86_64.rpm',
+                            compression: :xz) do |rpm|
+  rpm.name = 'mypackage'
+  rpm.version = '1.0'
+  rpm.release = '1'
+  rpm.arch = 'x86_64'
+  # ... add files
+end
+
+# Supported compression types: :gzip (default), :bzip2, :xz, :zstd, :none
+----
+
 **Architecture**:
 
 * `Formats::Rpm::Reader` - Public API for reading RPM packages
+* `Formats::Rpm::Writer` - Public API for writing RPM packages
 * `Formats::Rpm::Lead` - 96-byte lead parser
 * `Formats::Rpm::Header` - Header structure with tag extraction
 * `Formats::Rpm::Entry` - File entry model
 
 ==== OLE Format Support (v0.4.0)
 
-Omnizip provides complete OLE (Object Linking and Embedding) compound document format support for reading Microsoft compound files.
+Omnizip provides complete OLE (Object Linking and Embedding) compound document format support for reading and writing Microsoft compound files.
 
-**Status**: ✅ **Full Support** - Complete OLE reading
+**Status**: ✅ **Full Support** - Complete OLE reading and writing
 
 **What Works**:
 
@@ -430,8 +474,10 @@ Omnizip provides complete OLE (Object Linking and Embedding) compound document f
 * ✅ File stream extraction
 * ✅ Support for .doc, .xls, .ppt, .msi files
 * ✅ Property set storage
+* ✅ OLE compound document creation
+* ✅ Stream writing with BAT/SBAT management
 
-**Usage**:
+**Reading OLE Documents**:
 
 [source,ruby]
 ----
@@ -452,9 +498,34 @@ end
 Omnizip::Formats::Ole.extract('document.doc', 'output/')
 ----
 
+**Writing OLE Documents**:
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create new OLE compound document
+Omnizip::Formats::Ole.write('output.doc') do |ole|
+  # Add streams (files) to the document
+  ole.add_stream('WordDocument', word_data)
+  ole.add_stream('\x01CompObj', compobj_data)
+  ole.add_stream('\x05SummaryInformation', summary_data)
+
+  # Add nested storage (directory)
+  ole.add_storage('MyStorage')
+end
+
+# Create from existing files
+Omnizip::Formats::Ole.write('output.msi') do |ole|
+  ole.add_stream_from_file('BinaryFile', 'path/to/file.bin')
+  ole.add_stream('\x05DigitalSignature', signature_data)
+end
+----
+
 **Architecture**:
 
 * `Formats::Ole::Storage` - Core storage implementation
+* `Formats::Ole::Writer` - Public API for writing OLE documents
 * `Formats::Ole::Header` - 512-byte header parser
 * `Formats::Ole::AllocationTable` - BAT/SBAT management
 * `Formats::Ole::Dirent` - 128-byte directory entry
@@ -478,9 +549,9 @@ See link:readme-docs/preprocessing-filters.adoc[Preprocessing Filters Guide] for
 * **TAR** - Full read/write with POSIX extensions
 * **ISO 9660** - Full read/write with Rock Ridge/Joliet
 * **CPIO** - Full read/write (newc, CRC formats) with RPM payload support (v0.4.0)
-* **RPM** - Full read support with metadata extraction, gzip/bzip2/xz/zstd payload decompression (v0.4.0)
+* **RPM** - Full read/write support with metadata extraction, gzip/bzip2/xz/zstd payload compression (v0.4.0)
 * **XAR** - Full read/write with XML TOC, gzip/bzip2/lzma compression (v0.4.0)
-* **OLE** - Full read support for Microsoft compound documents (.doc, .xls, .ppt, .msi) (v0.4.0)
+* **OLE** - Full read/write support for Microsoft compound documents (.doc, .xls, .ppt, .msi) (v0.4.0)
 * **GZIP/XZ/BZIP2** - Single file compression formats
 
 See link:readme-docs/archive-formats.adoc[Archive Formats Documentation] for complete details.

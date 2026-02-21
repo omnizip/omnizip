@@ -82,12 +82,16 @@ RSpec.describe Omnizip::Formats::Ole::Header do
     end
 
     it "raises error for short data" do
-      expect { described_class.parse("\x00" * 10) }.to raise_error(ArgumentError)
+      expect do
+        described_class.parse("\x00" * 10)
+      end.to raise_error(ArgumentError)
     end
 
     it "raises error for invalid magic" do
       invalid_data = "\x00" * 76
-      expect { described_class.parse(invalid_data) }.to raise_error(ArgumentError, /magic/i)
+      expect do
+        described_class.parse(invalid_data)
+      end.to raise_error(ArgumentError, /magic/i)
     end
   end
 

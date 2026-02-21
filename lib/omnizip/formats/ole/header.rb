@@ -73,7 +73,10 @@ module Omnizip
         # @return [Header] Parsed header object
         # @raise [ArgumentError] If data is invalid
         def self.parse(data)
-          raise ArgumentError, "Header data too short" if data.nil? || data.bytesize < HEADER_SIZE
+          if data.nil? || data.bytesize < HEADER_SIZE
+            raise ArgumentError,
+                  "Header data too short"
+          end
 
           header = new
           header.unpack(data)

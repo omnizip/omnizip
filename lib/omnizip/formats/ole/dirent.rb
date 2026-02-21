@@ -274,8 +274,14 @@ module Omnizip
 
           # Encode timestamps for files
           if file?
-            @create_time_str = Types::Variant.dump(Types::Variant::VT_FILETIME, @create_time) if @create_time
-            @modify_time_str = Types::Variant.dump(Types::Variant::VT_FILETIME, @modify_time) if @modify_time
+            if @create_time
+              @create_time_str = Types::Variant.dump(Types::Variant::VT_FILETIME,
+                                                     @create_time)
+            end
+            if @modify_time
+              @modify_time_str = Types::Variant.dump(Types::Variant::VT_FILETIME,
+                                                     @modify_time)
+            end
           else
             @create_time_str = "\x00".b * 8
             @modify_time_str = "\x00".b * 8

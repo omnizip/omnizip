@@ -3,7 +3,6 @@
 # Copyright (C) 2025 Ribose Inc.
 
 require "digest/sha2"
-require_relative "constants"
 
 module Omnizip
   module Crypto

@@ -16,24 +16,71 @@
 # See the COPYING file for the complete text of the license.
 #
 
+# Core version and errors
 require_relative "omnizip/version"
 require_relative "omnizip/error"
-require_relative "omnizip/models/algorithm_metadata"
-require_relative "omnizip/models/compression_options"
-require_relative "omnizip/models/performance_result"
-require_relative "omnizip/models/profile_report"
-require_relative "omnizip/models/optimization_suggestion"
-require_relative "omnizip/models/progress_options"
-require_relative "omnizip/models/eta_result"
-require_relative "omnizip/models/filter_config"
-require_relative "omnizip/models/filter_chain"
+
+# Core registries (required before algorithms/formats)
 require_relative "omnizip/algorithm"
 require_relative "omnizip/algorithm_registry"
 require_relative "omnizip/format_registry"
 require_relative "omnizip/optimization_registry"
+require_relative "omnizip/checksum_registry"
+require_relative "omnizip/filter_registry"
 
-# Algorithms
+# Base classes for algorithms and filters
 require_relative "omnizip/algorithms/ppmd_base"
+require_relative "omnizip/filter"
+require_relative "omnizip/filter_pipeline"
+require_relative "omnizip/filters/filter_base"
+require_relative "omnizip/checksums/crc_base"
+
+module Omnizip
+  # Models - autoloaded for lazy loading
+  module Models
+    autoload :AlgorithmMetadata, "omnizip/models/algorithm_metadata"
+    autoload :CompressionOptions, "omnizip/models/compression_options"
+    autoload :PerformanceResult, "omnizip/models/performance_result"
+    autoload :ProfileReport, "omnizip/models/profile_report"
+    autoload :OptimizationSuggestion, "omnizip/models/optimization_suggestion"
+    autoload :ProgressOptions, "omnizip/models/progress_options"
+    autoload :EtaResult, "omnizip/models/eta_result"
+    autoload :FilterConfig, "omnizip/models/filter_config"
+    autoload :FilterChain, "omnizip/models/filter_chain"
+    autoload :ParallelOptions, "omnizip/models/parallel_options"
+  end
+end
+
+# Module files with autoload declarations for their sub-components
+require_relative "omnizip/io"
+require_relative "omnizip/crypto"
+require_relative "omnizip/formats"
+require_relative "omnizip/zip"
+
+# Feature modules - autoloaded from top level
+module Omnizip
+  autoload :Buffer, "omnizip/buffer"
+  autoload :Pipe, "omnizip/pipe"
+  autoload :Chunked, "omnizip/chunked"
+  autoload :Temp, "omnizip/temp"
+  autoload :FileType, "omnizip/file_type"
+  autoload :Profile, "omnizip/profile"
+  autoload :ETA, "omnizip/eta"
+  autoload :Progress, "omnizip/progress"
+  autoload :Metadata, "omnizip/metadata"
+  autoload :Password, "omnizip/password"
+  autoload :Converter, "omnizip/converter"
+  autoload :LinkHandler, "omnizip/link_handler"
+  autoload :Parity, "omnizip/parity"
+  autoload :Platform, "omnizip/platform"
+  autoload :Profiler, "omnizip/profiler"
+end
+
+# Convenience methods must be explicitly required (not autoloaded)
+# because they extend Omnizip with class methods via `extend Convenience`
+require_relative "omnizip/convenience"
+
+# Algorithms (with registration - must be required explicitly)
 require_relative "omnizip/algorithms/lzma"
 require_relative "omnizip/algorithms/lzma2"
 require_relative "omnizip/algorithms/ppmd7"
@@ -43,11 +90,7 @@ require_relative "omnizip/algorithms/deflate"
 require_relative "omnizip/algorithms/deflate64"
 require_relative "omnizip/algorithms/zstandard"
 
-# Filter components
-require_relative "omnizip/filter"
-require_relative "omnizip/filter_registry"
-require_relative "omnizip/filter_pipeline"
-require_relative "omnizip/filters/filter_base"
+# Filter implementations (with registration)
 require_relative "omnizip/filters/bcj"
 require_relative "omnizip/filters/bcj_x86"
 require_relative "omnizip/filters/bcj2"
@@ -57,111 +100,33 @@ require_relative "omnizip/filters/bcj_ppc"
 require_relative "omnizip/filters/bcj_sparc"
 require_relative "omnizip/filters/bcj_ia64"
 require_relative "omnizip/filters/delta"
-
-# Register filters with format-aware registration
 require_relative "omnizip/filters/registry"
 
-# Checksum implementations
-require_relative "omnizip/checksum_registry"
-require_relative "omnizip/checksums/crc_base"
+# Checksum implementations (with registration)
 require_relative "omnizip/checksums/crc32"
 require_relative "omnizip/checksums/crc64"
-
-# I/O utilities
-require_relative "omnizip/io/buffered_input"
-require_relative "omnizip/io/buffered_output"
-require_relative "omnizip/io/stream_manager"
 
 # Register checksum algorithms
 Omnizip::ChecksumRegistry.register(:crc32, Omnizip::Checksums::Crc32)
 Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)
 
-# Crypto implementations
-require_relative "omnizip/crypto/aes256"
-
-# Archive format support
+# Archive formats (with registration - must be required explicitly)
 require_relative "omnizip/formats/seven_zip"
 require_relative "omnizip/formats/zip"
 require_relative "omnizip/formats/rar"
-
-# Container formats (Weeks 7-10)
 require_relative "omnizip/formats/tar"
 require_relative "omnizip/formats/gzip"
 require_relative "omnizip/formats/bzip2_file"
 require_relative "omnizip/formats/xz"
-require_relative "omnizip/formats/lzma_alone"
-require_relative "omnizip/formats/lzip"
-require_relative "omnizip/formats/xar"
 
-# ISO 9660 CD-ROM format (Weeks 11-14)
-require_relative "omnizip/formats/iso"
-
-# CPIO, RPM, and OLE formats (autoload for lazy loading)
-# These formats benefit most from autoload since they are less commonly used
-module Omnizip
-  module Formats
-    autoload :Cpio, "omnizip/formats/cpio"
-    autoload :Rpm, "omnizip/formats/rpm"
-    autoload :Ole, "omnizip/formats/ole"
-  end
-end
-
-# Platform-specific features (Weeks 11-14)
-require_relative "omnizip/platform"
+# Platform-specific features
 require_relative "omnizip/platform/ntfs_streams"
-
-# Rubyzip-compatible API
-require_relative "omnizip/zip/entry"
-require_relative "omnizip/zip/file"
-require_relative "omnizip/zip/output_stream"
-require_relative "omnizip/zip/input_stream"
-
-# Streaming and in-memory operations (v1.2)
-require_relative "omnizip/buffer"
-require_relative "omnizip/pipe"
-require_relative "omnizip/chunked"
-require_relative "omnizip/temp"
-
-# File type detection (v1.3)
-require_relative "omnizip/file_type"
-
-# Compression profiles (v1.3)
-require_relative "omnizip/profile"
-
-# Progress tracking and ETA calculation (v1.3)
-require_relative "omnizip/eta"
-require_relative "omnizip/progress"
-
-# Metadata editing (v1.3 Phase 2 Week 6)
-require_relative "omnizip/metadata"
-
-# Password support (v1.3 Phase 2 Week 7)
-require_relative "omnizip/password"
-
-# Format conversion (v1.3 Phase 2 Week 8)
-require_relative "omnizip/converter"
-
-# Link handler for symbolic and hard links (v2.0 Phase 1 Weeks 2-3)
-require_relative "omnizip/link_handler"
 
 # Parallel processing (v2.0 Phase 4 Weeks 11-12)
 # NOTE: Not auto-loaded to avoid loading fractor unnecessarily.
 # Users who need parallel processing should explicitly require it:
 #   require "omnizip/parallel"
-require_relative "omnizip/models/parallel_options"
 # require_relative "omnizip/parallel"  # Lazy-load only when needed
-
-# Performance profiling components
-require_relative "omnizip/profiler"
-require_relative "omnizip/profiler/method_profiler"
-require_relative "omnizip/profiler/memory_profiler"
-require_relative "omnizip/profiler/report_generator"
-
-# PAR2 parity archive support
-require_relative "omnizip/parity"
 
 # CLI components (cli.rb will require output_formatter itself)
 require_relative "omnizip/cli"
-
-# Convenience methods for native API
-require_relative "omnizip/convenience"
