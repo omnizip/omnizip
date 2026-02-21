@@ -121,12 +121,3 @@ require_relative "omnizip/formats/xz"
 
 # Platform-specific features
 require_relative "omnizip/platform/ntfs_streams"
-
-# Parallel processing (v2.0 Phase 4 Weeks 11-12)
-# NOTE: Not auto-loaded to avoid loading fractor unnecessarily.
-# Users who need parallel processing should explicitly require it:
-#   require "omnizip/parallel"
-# require_relative "omnizip/parallel"  # Lazy-load only when needed
-
-# CLI components (cli.rb will require output_formatter itself)
-require_relative "omnizip/cli"
