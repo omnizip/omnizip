@@ -39,6 +39,10 @@ module Omnizip
         class Decoder
           include Omnizip::Algorithms::LZMA::Constants
 
+          # Maximum dictionary size to prevent memory exhaustion
+          # 64MB is a reasonable practical limit
+          MAX_DICT_SIZE = 64 * 1024 * 1024
+
           attr_reader :lc, :lp, :pb, :dict_size, :uncompressed_size
 
           # Initialize 7-Zip LZMA decoder
@@ -58,7 +62,7 @@ module Omnizip
               @lc = options[:lc] || 3
               @lp = options[:lp] || 0
               @pb = options[:pb] || 2
-              @dict_size = options[:dict_size] || (1 << 16)
+              @dict_size = [[options[:dict_size] || (1 << 16), 1].max, MAX_DICT_SIZE].min
               @uncompressed_size = options[:uncompressed_size]
             else
               parse_header
@@ -155,7 +159,8 @@ module Omnizip
               @dict_size |= (byte << (i * 8))
             end
 
-            @dict_size = [@dict_size, 1].max
+            # Clamp dict_size to prevent memory exhaustion
+            @dict_size = [[@dict_size, 1].max, MAX_DICT_SIZE].min
 
             @uncompressed_size = 0
             8.times do |i|
