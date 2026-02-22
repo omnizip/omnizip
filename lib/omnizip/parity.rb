@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "parity/par2cmdline_coefficients"
+require_relative "parity/par2_creator"
+require_relative "parity/par2_verifier"
+require_relative "parity/par2_repairer"
+
 module Omnizip
   # PAR2 parity archive support
   #
@@ -16,11 +21,6 @@ module Omnizip
   #   result = Omnizip::Parity.verify('archive.par2')
   #   Omnizip::Parity.repair('archive.par2') if result.repairable?
   module Parity
-    autoload :Par2cmdlineCoefficients, "omnizip/parity/par2cmdline_coefficients"
-    autoload :Par2Creator, "omnizip/parity/par2_creator"
-    autoload :Par2Verifier, "omnizip/parity/par2_verifier"
-    autoload :Par2Repairer, "omnizip/parity/par2_repairer"
-
     class << self
       # Create PAR2 recovery files for archive or files
       #

@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
+require_relative "metadata/entry_metadata"
+require_relative "metadata/archive_metadata"
+require_relative "metadata/metadata_validator"
+require_relative "metadata/metadata_registry"
+require_relative "metadata/metadata_editor"
+
 module Omnizip
   # Metadata editing module
   # Provides in-place metadata modification without recompression
   module Metadata
-    autoload :EntryMetadata, "omnizip/metadata/entry_metadata"
-    autoload :ArchiveMetadata, "omnizip/metadata/archive_metadata"
-    autoload :MetadataValidator, "omnizip/metadata/metadata_validator"
-    autoload :MetadataRegistry, "omnizip/metadata/metadata_registry"
-    autoload :MetadataEditor, "omnizip/metadata/metadata_editor"
-
     class << self
       # Edit entry metadata
       # @param entry [Omnizip::Zip::Entry] Entry to edit
