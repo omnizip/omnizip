@@ -137,9 +137,11 @@ module Omnizip
 
         # Get the actual dictionary size (may differ from requested)
         #
-        # @return [Integer] Actual dictionary size
+        # @return [Integer] Actual dictionary size (capped at 64MB to prevent memory exhaustion)
         def actual_dict_size
-          self.class.decode_dict_size(@prop_byte)
+          # Cap at 64MB to prevent memory exhaustion from malformed files
+          max_dict = 64 * 1024 * 1024
+          [self.class.decode_dict_size(@prop_byte), max_dict].min
         end
 
         private

@@ -87,6 +87,10 @@ module Omnizip
     class XzUtilsDecoder
       include LZMA::Constants
 
+      # Maximum dictionary size to prevent memory exhaustion
+      # 64MB is a reasonable practical limit
+      MAX_DICT_SIZE = 64 * 1024 * 1024
+
       # Alias for nested classes for easier access
       BitModel = LZMA::BitModel
       LengthCoder = LZMA::LengthCoder
@@ -138,7 +142,7 @@ module Omnizip
           @lc = options.fetch(:lc)
           @lp = options.fetch(:lp)
           @pb = options.fetch(:pb)
-          @dict_size = options.fetch(:dict_size)
+          @dict_size = [[options.fetch(:dict_size), 1].max, MAX_DICT_SIZE].min
           @uncompressed_size = options.fetch(:uncompressed_size)
         else
           # Standalone LZMA file - read header from input
@@ -1059,6 +1063,9 @@ check_rc_finished: true)
 
           @dict_size |= (byte << (i * 8))
         end
+
+        # Clamp dict_size to prevent memory exhaustion
+        @dict_size = [[@dict_size, 1].max, MAX_DICT_SIZE].min
 
         # Uncompressed size (8 bytes, little-endian)
         @uncompressed_size = 0
