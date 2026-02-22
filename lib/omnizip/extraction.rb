@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
+require_relative "extraction/pattern_matcher"
+require_relative "extraction/filter_chain"
+require_relative "extraction/selective_extractor"
+require_relative "extraction/glob_pattern"
+require_relative "extraction/regex_pattern"
+require_relative "extraction/predicate_pattern"
+
 module Omnizip
   # Provides selective extraction capabilities for archives
   #
   # Supports extracting files matching glob patterns, regex patterns,
   # or custom predicates without extracting the entire archive.
   module Extraction
-    autoload :PatternMatcher, "omnizip/extraction/pattern_matcher"
-    autoload :FilterChain, "omnizip/extraction/filter_chain"
-    autoload :SelectiveExtractor, "omnizip/extraction/selective_extractor"
-    autoload :GlobPattern, "omnizip/extraction/glob_pattern"
-    autoload :RegexPattern, "omnizip/extraction/regex_pattern"
-    autoload :PredicatePattern, "omnizip/extraction/predicate_pattern"
     class << self
       # Extract files matching a pattern from an archive
       #

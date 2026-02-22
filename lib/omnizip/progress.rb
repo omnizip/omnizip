@@ -4,20 +4,20 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
+require_relative "progress/operation_progress"
+require_relative "progress/progress_tracker"
+require_relative "progress/progress_reporter"
+require_relative "progress/silent_reporter"
+require_relative "progress/callback_reporter"
+require_relative "progress/log_reporter"
+require_relative "progress/progress_bar"
+require_relative "progress/console_reporter"
+
 module Omnizip
   # Progress tracking module.
   #
   # This module provides real-time progress tracking for long-running
   # operations with multiple reporting strategies (console, callback,
-  module Progress
-    autoload :OperationProgress, "omnizip/progress/operation_progress"
-    autoload :ProgressTracker, "omnizip/progress/progress_tracker"
-    autoload :ProgressReporter, "omnizip/progress/progress_reporter"
-    autoload :SilentReporter, "omnizip/progress/silent_reporter"
-    autoload :CallbackReporter, "omnizip/progress/callback_reporter"
-    autoload :LogReporter, "omnizip/progress/log_reporter"
-    autoload :ProgressBar, "omnizip/progress/progress_bar"
-    autoload :ConsoleReporter, "omnizip/progress/console_reporter"
   # log file, etc.) and integrated ETA calculation.
   #
   # @example Basic progress tracking

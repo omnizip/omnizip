@@ -21,17 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "constants"
-require_relative "block_header_parser"
-require_relative "../../checksums/verifier"
-# Load BCJ filters for filter chain decoding
-require_relative "../../filters/bcj_x86"
-require_relative "../../filters/bcj_arm"
-require_relative "../../filters/bcj_ppc"
-require_relative "../../filters/bcj_ia64"
-require_relative "../../filters/bcj_sparc"
-require_relative "../../filters/delta"
-# LZMA2::Decoder is loaded by the main omnizip library via lzma2.rb
 
 module Omnizip
   module Formats
@@ -48,6 +37,11 @@ module Omnizip
       class BlockDecoder
         # Filter IDs
         FILTER_LZMA2 = 0x21
+
+        # XZ spec: max valid prop is 40 (gives ~2GB dict)
+        # Cap at 40 to prevent memory exhaustion from malformed files
+        MAX_DICT_PROP = 40
+        MAX_DICT_SIZE = 64 * 1024 * 1024 # 64MB practical limit
 
         # Accessor for new input after block (used by stream decoder for multi-block files)
         attr_reader :new_input_after_block
@@ -557,8 +551,10 @@ module Omnizip
           end
 
           properties = lzma2_filter[:properties]
+          # XZ spec: max valid prop is 40 (gives ~2GB dict)
+          # Cap at 40 to prevent memory exhaustion from malformed files
           dict_size = if properties&.bytesize&.positive?
-                        prop = properties.getbyte(0)
+                        prop = [properties.getbyte(0), MAX_DICT_PROP].min
                         if prop.even?
                           1 << ((prop / 2) + 12)
                         else
@@ -567,6 +563,7 @@ module Omnizip
                       else
                         8 * 1024 * 1024 # 8MB default
                       end
+          dict_size = [dict_size, MAX_DICT_SIZE].min
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
@@ -613,7 +610,7 @@ module Omnizip
           # If prop is even: dict_size = 2^((prop/2) + 12)
           # If prop is odd: dict_size = 3 * 2^((prop-1)/2 + 11)
           dict_size = if properties&.bytesize&.positive?
-                        prop = properties.getbyte(0)
+                        prop = [properties.getbyte(0), MAX_DICT_PROP].min
                         if prop.even?
                           1 << ((prop / 2) + 12)
                         else
@@ -622,6 +619,7 @@ module Omnizip
                       else
                         8 * 1024 * 1024 # 8MB default
                       end
+          dict_size = [dict_size, MAX_DICT_SIZE].min
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
