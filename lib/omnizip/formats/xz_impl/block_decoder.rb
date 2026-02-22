@@ -21,6 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
+require_relative "block_header_parser"
 
 module Omnizip
   module Formats
