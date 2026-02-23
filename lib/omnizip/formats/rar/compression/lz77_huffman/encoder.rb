@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../bit_stream"
-require_relative "match_finder"
-require_relative "huffman_builder"
-
 module Omnizip
   module Formats
     module Rar

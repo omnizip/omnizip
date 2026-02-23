@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "coder_chain"
-require_relative "../../filters/bcj2/stream_data"
-require_relative "../../filters/bcj2/decoder"
 require "stringio"
 
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
@@ -15,7 +13,7 @@ module Omnizip
       # 2. Decompressed individually (main is LZMA, others are usually COPY)
       # 3. Combined via BCJ2 decoder
       class Bcj2StreamDecompressor
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         # Initialize BCJ2 decompressor
         #

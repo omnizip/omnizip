@@ -1,11 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "parallel/job_queue"
-require_relative "parallel/job_scheduler"
-require_relative "parallel/worker_pool"
-require_relative "parallel/parallel_compressor"
-require_relative "parallel/parallel_extractor"
-
 module Omnizip
   # Parallel processing module for multi-threaded compression/extraction
   #
@@ -13,6 +7,13 @@ module Omnizip
   # Provides high-level APIs for parallel compression and extraction operations.
   #
   # @example Auto-detect CPU count and compress in parallel
+  module Parallel
+    # Nested classes - autoloaded
+    autoload :JobQueue, "omnizip/parallel/job_queue"
+    autoload :JobScheduler, "omnizip/parallel/job_scheduler"
+    autoload :WorkerPool, "omnizip/parallel/worker_pool"
+    autoload :ParallelCompressor, "omnizip/parallel/parallel_compressor"
+    autoload :ParallelExtractor, "omnizip/parallel/parallel_extractor"
   #   Omnizip::Parallel.compress_directory('files/', 'backup.zip')
   #
   # @example Custom thread count

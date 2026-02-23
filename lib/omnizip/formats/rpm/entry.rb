@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -10,7 +9,7 @@ module Omnizip
       # Represents a single file within an RPM package.
       # File information is assembled from multiple header tags.
       class Entry
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # @return [String] File path
         attr_accessor :path

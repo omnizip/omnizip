@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/tar"
 
 module Omnizip
   module Formats
@@ -9,7 +9,7 @@ module Omnizip
       #
       # Represents a single entry (file, directory, link) in a TAR archive
       class Entry
-        include Constants
+        include Omnizip::Formats::Tar::Constants
 
         attr_accessor :name, :mode, :uid, :gid, :size, :mtime, :typeflag,
                       :linkname, :uname, :gname, :devmajor, :devminor, :prefix

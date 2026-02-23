@@ -21,12 +21,11 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "zlib"
-require_relative "constants"
-require_relative "../../error"
+require "omnizip/error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Stream Footer parser
       #
       # Stream Footer format (12 bytes):

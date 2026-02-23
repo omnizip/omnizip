@@ -4,9 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "progress_reporter"
-require_relative "progress_bar"
-
 module Omnizip
   module Progress
     # Progress reporter that displays a progress bar in the console.

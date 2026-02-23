@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../../../../algorithms/lzma"
 
 module Omnizip
   module Formats
@@ -124,7 +123,7 @@ module Omnizip
                           end
                 full_data = header + data
               else
-                # Assume data already has header (backward compatibility)
+                # Data already includes LZMA header
                 full_data = data
               end
 
@@ -133,7 +132,6 @@ module Omnizip
               output.set_encoding(Encoding::BINARY)
 
               # Use SDK decoder since RAR5 LZMA was compressed with SDK encoder
-              require_relative "../../../../implementations/seven_zip/lzma/decoder"
               decoder = Implementations::SevenZip::LZMA::Decoder.new(input)
               decoder.decode_stream(output)
 

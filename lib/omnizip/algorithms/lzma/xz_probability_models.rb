@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "xz_buffered_range_encoder"
-require_relative "constants"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

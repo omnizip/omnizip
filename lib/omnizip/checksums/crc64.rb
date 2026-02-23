@@ -16,8 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "crc_base"
-
 module Omnizip
   module Checksums
     # CRC64 checksum implementation using ECMA-182 polynomial.
@@ -99,3 +97,6 @@ module Omnizip
     end
   end
 end
+
+# Self-register with checksum registry
+Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)

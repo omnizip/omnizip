@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "parser"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # .7z archive header parser
       # Handles signature validation and start header
       class Header
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :major_version, :minor_version, :start_header_crc,
                     :next_header_offset, :next_header_size, :next_header_crc
@@ -95,7 +93,6 @@ module Omnizip
         # @param data [String] Binary data
         # @return [Integer] CRC32 value
         def calculate_crc32(data)
-          require_relative "../../checksums/crc32"
           crc = Omnizip::Checksums::Crc32.new
           crc.update(data)
           crc.value

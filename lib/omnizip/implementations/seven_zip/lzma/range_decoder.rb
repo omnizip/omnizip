@@ -24,9 +24,6 @@
 # Direct port of the LZMA SDK range decoder for byte-for-byte compatibility
 # with 7-Zip archives.
 
-require_relative "../../../algorithms/lzma/constants"
-require_relative "../../../algorithms/lzma/bit_model"
-
 module Omnizip
   module Implementations
     module SevenZip

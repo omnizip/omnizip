@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "compression_profile"
-
 module Omnizip
   module Profile
     # Fast compression profile

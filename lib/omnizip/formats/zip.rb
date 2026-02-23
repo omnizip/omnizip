@@ -1,16 +1,21 @@
 # frozen_string_literal: true
 
-require_relative "zip/constants"
-require_relative "zip/local_file_header"
-require_relative "zip/central_directory_header"
-require_relative "zip/end_of_central_directory"
-require_relative "zip/reader"
-require_relative "zip/writer"
-
 module Omnizip
   module Formats
     # ZIP archive format implementation
     module Zip
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/zip/constants"
+      autoload :LocalFileHeader, "omnizip/formats/zip/local_file_header"
+      autoload :CentralDirectoryHeader, "omnizip/formats/zip/central_directory_header"
+      autoload :EndOfCentralDirectory, "omnizip/formats/zip/end_of_central_directory"
+      autoload :Zip64EndOfCentralDirectory, "omnizip/formats/zip/zip64_end_of_central_directory"
+      autoload :Zip64EndOfCentralDirectoryLocator, "omnizip/formats/zip/zip64_end_of_central_directory_locator"
+      autoload :Zip64ExtraField, "omnizip/formats/zip/zip64_extra_field"
+      autoload :Reader, "omnizip/formats/zip/reader"
+      autoload :Writer, "omnizip/formats/zip/writer"
+      autoload :UnixExtraField, "omnizip/formats/zip/unix_extra_field"
+
       class << self
         # Read a ZIP archive
         def read(file_path)
@@ -38,7 +43,7 @@ module Omnizip
 
         # Auto-register .zip format when loaded
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".zip", Omnizip::Formats::Zip)
         end
       end

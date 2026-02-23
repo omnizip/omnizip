@@ -1,21 +1,15 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "header"
-require_relative "parser"
-require_relative "models/stream_info"
-require_relative "models/file_entry"
-require_relative "stream_decompressor"
-require_relative "../../models/split_options"
 require "fileutils"
 
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # Split archive reader for .7z format
       # Reads multi-volume archives
       class SplitArchiveReader
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :base_path, :header, :entries, :stream_info, :volumes
 

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "securerandom"
-require_relative "../../../../crypto/aes256/cipher"
 
 module Omnizip
   module Formats

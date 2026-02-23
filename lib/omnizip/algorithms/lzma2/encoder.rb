@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "properties"
-require_relative "simple_lzma2_encoder"
+require "omnizip/algorithms"
 
 module Omnizip
   module Algorithms
@@ -117,7 +115,7 @@ module Omnizip
         #   If d == 40: size = 0xFFFFFFFF (4GB - 1)
 
         # Clamp to valid range
-        d = [dict_size, LZMA2Constants::DICT_SIZE_MIN].max
+        d = [dict_size, LZMA2Const::DICT_SIZE_MIN].max
 
         # For 8MB (8 * 1024 * 1024 = 8388608 = 2^23):
         # We want: 2^((d/2) + 12) = 2^23

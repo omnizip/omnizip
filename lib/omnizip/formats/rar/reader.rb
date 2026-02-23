@@ -1,23 +1,15 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "header"
-require_relative "block_parser"
-require_relative "decompressor"
-require_relative "volume_manager"
-require_relative "recovery_record"
-require_relative "models/rar_entry"
-require_relative "models/rar_archive"
-require_relative "compression/dispatcher"
 require "fileutils"
 
+require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar
       # RAR archive reader
       # Provides read-only access to RAR archives (single and multi-volume)
       class Reader
-        include Constants
+        include Omnizip::Formats::Rar::Constants
 
         attr_reader :file_path, :header, :entries, :archive_info,
                     :volume_manager

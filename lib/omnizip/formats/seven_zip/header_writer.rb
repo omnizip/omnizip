@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "../../checksums/crc32"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # Writes .7z archive header with metadata
       # Handles variable-length encoding and property sequences
       class HeaderWriter
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :buffer
 

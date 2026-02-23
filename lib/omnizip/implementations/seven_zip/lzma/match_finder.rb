@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../algorithms/lzma/constants"
-require_relative "../../../algorithms/lzma/match_finder_config"
-
 module Omnizip
   module Implementations
     module SevenZip

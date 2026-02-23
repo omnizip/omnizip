@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "pattern_matcher"
-require_relative "filter_chain"
-require_relative "../models/match_result"
-
 module Omnizip
   module Extraction
     # Coordinates selective extraction from archives

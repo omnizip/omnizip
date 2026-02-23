@@ -1,16 +1,15 @@
 # frozen_string_literal: true
 
 require "openssl"
-require_relative "constants"
-require_relative "../../checksums/crc32"
 
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # 7z header encryption using AES-256
       # Encrypts archive headers to hide filenames and structure
       class HeaderEncryptor
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         # AES-256 parameters
         AES_KEY_SIZE = 32  # 256 bits

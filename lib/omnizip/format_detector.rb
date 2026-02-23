@@ -111,19 +111,14 @@ module Omnizip
     def self.reader_for(file_path)
       case detect(file_path)
       when :xz
-        require_relative "formats/xz"
         Omnizip::Formats::Xz
       when :seven_zip
-        require_relative "formats/seven_zip/reader"
         Omnizip::Formats::SevenZip::Reader
       when :rar5
-        require_relative "formats/rar5/reader"
         Omnizip::Formats::Rar5::Reader
       when :rar4
-        require_relative "formats/rar3/reader"
         Omnizip::Formats::Rar3::Reader
       when :zip
-        require_relative "formats/zip/reader"
         Omnizip::Formats::Zip::Reader
       end
     end

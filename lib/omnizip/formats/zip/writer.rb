@@ -1,19 +1,14 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "constants"
-require_relative "local_file_header"
-require_relative "central_directory_header"
-require_relative "end_of_central_directory"
-require_relative "unix_extra_field"
-require_relative "../../link_handler"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
     module Zip
       # ZIP archive writer
       class Writer
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_reader :file_path, :entries
 

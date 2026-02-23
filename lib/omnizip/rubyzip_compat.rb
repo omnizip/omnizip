@@ -15,7 +15,7 @@
 #   end
 #
 
-require_relative "../omnizip"
+require "omnizip"
 
 # Create Zip namespace as alias for Omnizip::Zip
 module Zip

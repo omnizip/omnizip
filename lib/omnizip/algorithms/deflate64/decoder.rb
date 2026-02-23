@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "json"
-require_relative "constants"
-require_relative "huffman_coder"
 
 module Omnizip
   module Algorithms

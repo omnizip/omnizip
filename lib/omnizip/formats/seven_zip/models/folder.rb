@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "coder_info"
-
 module Omnizip
   module Formats
     module SevenZip

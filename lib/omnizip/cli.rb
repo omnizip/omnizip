@@ -17,18 +17,18 @@
 #
 
 require "thor"
-require_relative "commands/compress_command"
-require_relative "commands/decompress_command"
-require_relative "commands/list_command"
-require_relative "commands/archive_create_command"
-require_relative "commands/archive_extract_command"
-require_relative "commands/archive_list_command"
-require_relative "commands/profile_list_command"
-require_relative "commands/profile_show_command"
-require_relative "commands/metadata_command"
-require_relative "commands/archive_verify_command"
-require_relative "commands/archive_repair_command"
-require_relative "cli/output_formatter"
+require "omnizip/commands/compress_command"
+require "omnizip/commands/decompress_command"
+require "omnizip/commands/list_command"
+require "omnizip/commands/archive_create_command"
+require "omnizip/commands/archive_extract_command"
+require "omnizip/commands/archive_list_command"
+require "omnizip/commands/profile_list_command"
+require "omnizip/commands/profile_show_command"
+require "omnizip/commands/metadata_command"
+require "omnizip/commands/archive_verify_command"
+require "omnizip/commands/archive_repair_command"
+require "omnizip/cli/output_formatter"
 
 module Omnizip
   # Profile commands subcommand group
@@ -472,7 +472,7 @@ module Omnizip
                      aliases: "-v",
                      desc: "Enable verbose output"
     def convert(source, target)
-      require_relative "converter"
+      require "omnizip/converter"
 
       puts "Converting #{source} to #{target}..." if options[:verbose]
 

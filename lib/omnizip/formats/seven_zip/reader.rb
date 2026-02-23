@@ -1,15 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "header"
-require_relative "parser"
-require_relative "models/stream_info"
-require_relative "models/file_entry"
-require_relative "stream_decompressor"
-require_relative "bcj2_stream_decompressor"
-require_relative "split_archive_reader"
-require_relative "header_encryptor"
-require_relative "encrypted_header"
 require "fileutils"
 
 module Omnizip
@@ -18,7 +8,7 @@ module Omnizip
       # .7z archive reader
       # Provides read-only access to .7z archives
       class Reader
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :file_path, :header, :entries, :stream_info, :split_reader
 

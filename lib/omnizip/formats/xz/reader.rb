@@ -21,7 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "../xz_impl/stream_decoder"
 
 module Omnizip
   module Formats
@@ -50,7 +49,7 @@ module Omnizip
         #
         # @return [String] Decompressed data
         def read
-          XzFormat::StreamDecoder.decode(@input)
+          Omnizip::Formats::XzImpl::StreamDecoder.decode(@input)
         ensure
           close if @close_on_finish
         end

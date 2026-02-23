@@ -6,8 +6,6 @@ rescue LoadError, ArgumentError
   # lutaml-model not available, using simple classes
 end
 
-require_relative "../format_spec_loader"
-
 module Omnizip
   module Formats
     module Rar

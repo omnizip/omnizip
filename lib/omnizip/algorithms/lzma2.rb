@@ -20,27 +20,23 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "../models/algorithm_metadata"
-
 module Omnizip
   module Algorithms
     # LZMA2 compression algorithm
     # Improved version of LZMA with chunked format for better streaming
     class LZMA2 < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/lzma2/constants"
+      autoload :Properties, "omnizip/algorithms/lzma2/properties"
+      autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
+      autoload :Encoder, "omnizip/algorithms/lzma2/encoder"
+      autoload :XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+      autoload :LZMA2XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+      autoload :ChunkManager, "omnizip/algorithms/lzma2/chunk_manager"
+      autoload :SimpleLZMA2Encoder, "omnizip/algorithms/lzma2/simple_lzma2_encoder"
     end
   end
 end
-
-# Now require the nested classes that will reopen LZMA2
-require_relative "lzma2/constants"
-require_relative "lzma2/properties"
-require_relative "lzma2/lzma2_chunk"
-require_relative "lzma2/encoder"
-require_relative "../implementations/xz_utils/lzma2/decoder"
-require_relative "../implementations/xz_utils/lzma2/encoder"
-require_relative "../implementations/seven_zip/lzma2/encoder"
-require_relative "lzma2/xz_encoder_adapter"
 
 module Omnizip
   module Algorithms
@@ -72,7 +68,7 @@ module Omnizip
       # Compress data using LZMA2
       def compress(input, output, options = {})
         # For 7-Zip format, use raw_mode (no property byte in data stream)
-        # Default to true for backward compatibility with standalone LZMA2 files
+        # Standalone LZMA2 files include a property byte
         standalone = options.fetch(:standalone, true)
         options.fetch(:raw_mode, !standalone)
 

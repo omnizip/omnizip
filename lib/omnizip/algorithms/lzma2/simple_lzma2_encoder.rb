@@ -21,11 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "../lzma"
-require_relative "constants"
-require_relative "lzma2_chunk"
-require_relative "properties"
-require_relative "../../implementations/xz_utils/lzma2/encoder"
 
 module Omnizip
   module Algorithms
@@ -101,7 +96,7 @@ module Omnizip
         # @return [Integer] Property byte (0-40)
         def encode_dict_size(dict_size)
           # Clamp to valid range
-          d = [dict_size, LZMA2Constants::DICT_SIZE_MIN].max
+          d = [dict_size, LZMA2Const::DICT_SIZE_MIN].max
 
           # Calculate log2 of dict_size
           log2_size = 0

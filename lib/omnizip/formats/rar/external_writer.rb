@@ -2,7 +2,6 @@
 
 require "open3"
 require "fileutils"
-require_relative "license_validator"
 
 module Omnizip
   module Formats

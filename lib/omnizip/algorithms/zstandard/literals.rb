@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-require_relative "huffman"
-require_relative "fse/bitstream"
-
 module Omnizip
   module Algorithms
     class Zstandard

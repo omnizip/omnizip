@@ -16,8 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "../filter_registry"
-
 module Omnizip
   module Models
     # Configuration model for a filter in a compression pipeline.
@@ -73,33 +71,16 @@ module Omnizip
 
       # Get filter instance from registry.
       #
-      # Returns a new instance of the filter. Handles both old-style
-      # registration (direct class) and new-style registration (hash with :class).
-      #
       # @return [Object] Filter instance from FilterRegistry
       # @raise [KeyError] If filter not found in registry
       def filter_instance
         filter = Omnizip::FilterRegistry.get(@name_sym)
 
-        # Handle both hash-style and direct class registration
-        if filter.is_a?(Hash)
-          # New-style registration - check if architecture is needed
-          klass = filter[:class]
-          if architecture_required?(klass)
-            klass.new(architecture: @architecture) if @architecture
-          else
-            klass.new
-          end
-        elsif filter.is_a?(Class)
-          # Old-style registration - try with architecture if available
-          if @architecture && requires_initialize_kwargs?(filter)
-            filter.new(architecture: @architecture)
-          else
-            filter.new
-          end
+        # Handle architecture parameter if needed
+        if @architecture && requires_initialize_kwargs?(filter)
+          filter.new(architecture: @architecture)
         else
-          # Already an instance
-          filter
+          filter.new
         end
       end
 
@@ -150,7 +131,7 @@ module Omnizip
         true
       end
 
-      # Convert to hash for backward compatibility.
+      # Convert to hash representation.
       #
       # @return [Hash] Hash representation with :name, :properties, :architecture
       def to_h
@@ -162,14 +143,6 @@ module Omnizip
       end
 
       private
-
-      # Check if filter class requires architecture argument.
-      #
-      # @param klass [Class] Filter class to check
-      # @return [Boolean] True if architecture is required
-      def architecture_required?(klass)
-        klass.name.include?("BCJ") && !klass.name.include?("BcjX86")
-      end
 
       # Check if filter class requires keyword arguments for initialize.
       #

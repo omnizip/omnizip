@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
@@ -8,7 +8,7 @@ module Omnizip
       # ZIP64 End of Central Directory Locator
       # Points to the ZIP64 End of Central Directory Record
       class Zip64EndOfCentralDirectoryLocator
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :signature, :disk_number_with_zip64_eocd,
                       :zip64_eocd_offset, :total_disks

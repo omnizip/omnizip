@@ -20,14 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-require_relative "../../implementations/seven_zip/lzma/state_machine"
-require_relative "literal_decoder"
-require_relative "length_coder"
-require_relative "distance_coder"
-require_relative "range_decoder"
-require_relative "bit_model"
-
 module Omnizip
   module Algorithms
     # LZMA XZ Utils implementation
@@ -907,7 +899,7 @@ check_rc_finished: true)
       end
 
       def reset_state_only
-        # For backward compatibility, call both prepare and finish
+        # Complete state reset requires both prepare and finish phases
         prepare_state_reset
         finish_state_reset
       end

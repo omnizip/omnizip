@@ -21,11 +21,10 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "block_header_parser"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Block decoder
       #
       # Decodes a single XZ block which consists of:

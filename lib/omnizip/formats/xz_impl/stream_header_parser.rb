@@ -21,13 +21,12 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "zlib"
-require_relative "constants"
-require_relative "../../error"
-require_relative "../../checksums/verifier"
+require "omnizip/error"
+require "omnizip/checksums/verifier"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Stream Header parser
       #
       # Stream Header format (12 bytes):

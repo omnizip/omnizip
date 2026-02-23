@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "tag"
-
+require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -11,7 +9,7 @@ module Omnizip
       # Parses RPM header structure including the 16-byte header header,
       # tag entries, and data blob. Used for both signature and main headers.
       class Header
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # @return [String] 8-byte header magic
         attr_reader :magic

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../parity"
+require "omnizip/parity"
 
 module Omnizip
   module Commands

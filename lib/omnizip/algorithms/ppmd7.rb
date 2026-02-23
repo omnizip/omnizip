@@ -20,14 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "ppmd7/constants"
-require_relative "ppmd7/symbol_state"
-require_relative "ppmd7/context"
-require_relative "ppmd7/model"
-require_relative "ppmd7/encoder"
-require_relative "ppmd7/decoder"
-
 module Omnizip
   module Algorithms
     # PPMd7 compression algorithm
@@ -38,6 +30,18 @@ module Omnizip
     #
     # This implementation follows the PPMd7 specification as used in 7-Zip.
     class PPMd7 < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/ppmd7/constants"
+      autoload :SymbolState, "omnizip/algorithms/ppmd7/symbol_state"
+      autoload :Context, "omnizip/algorithms/ppmd7/context"
+      autoload :Model, "omnizip/algorithms/ppmd7/model"
+      autoload :Encoder, "omnizip/algorithms/ppmd7/encoder"
+      autoload :Decoder, "omnizip/algorithms/ppmd7/decoder"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :RangeDecoder, "omnizip/algorithms/lzma/range_decoder"
+      autoload :RangeEncoder, "omnizip/algorithms/lzma/range_encoder"
+
       include Constants
 
       # Algorithm metadata

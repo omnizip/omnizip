@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
@@ -8,7 +8,7 @@ module Omnizip
       # ZIP64 Extended Information Extra Field
       # Used in local/central headers when sizes exceed 32-bit limits
       class Zip64ExtraField
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :tag, :size, :uncompressed_size, :compressed_size,
                       :relative_header_offset, :disk_start_number

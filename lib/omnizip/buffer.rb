@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "buffer/memory_archive"
-require_relative "buffer/memory_extractor"
 
 module Omnizip
   # In-memory archive operations without filesystem I/O
@@ -29,6 +27,10 @@ module Omnizip
   #   }
   #   zip_buffer = Omnizip::Buffer.create_from_hash(archive_data, :zip)
   module Buffer
+    # Nested classes - autoloaded
+    autoload :MemoryArchive, "omnizip/buffer/memory_archive"
+    autoload :MemoryExtractor, "omnizip/buffer/memory_extractor"
+
     class << self
       # Create archive in memory
       #

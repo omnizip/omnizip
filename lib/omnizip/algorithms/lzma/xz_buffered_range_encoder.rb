@@ -2,8 +2,6 @@
 
 # Copyright (C) 2025 Ribose Inc.
 
-require_relative "range_coder"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

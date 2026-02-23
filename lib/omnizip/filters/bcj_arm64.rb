@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "filter_base"
 
 module Omnizip
   module Filters

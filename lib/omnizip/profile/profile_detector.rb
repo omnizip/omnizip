@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../file_type/mime_classifier"
+require "omnizip/file_type/mime_classifier"
 
 module Omnizip
   module Profile

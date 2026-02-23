@@ -92,8 +92,6 @@ module Omnizip
       end
 
       def extract_zip(dest)
-        require_relative "../zip/file"
-
         Omnizip::Zip::File.open(@archive_path) do |zip|
           zip.each do |entry|
             entry_path = File.join(dest, entry.name)
@@ -126,8 +124,6 @@ module Omnizip
       end
 
       def verify_checksums(dir, expected)
-        require_relative "../checksums/crc32"
-
         expected.all? do |file, expected_sum|
           file_path = File.join(dir, file)
           next false unless File.exist?(file_path)

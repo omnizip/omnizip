@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "metadata_validator"
-
 module Omnizip
   module Metadata
     # Coordinates metadata editing operations

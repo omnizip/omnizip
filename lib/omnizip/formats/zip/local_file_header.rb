@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
     module Zip
       # ZIP Local File Header
       class LocalFileHeader
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :signature, :version_needed, :flags, :compression_method,
                       :last_mod_time, :last_mod_date, :crc32,

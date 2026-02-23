@@ -1,14 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar
       # RAR header parser
       # Parses RAR4 and RAR5 archive headers
       class Header
-        include Constants
+        include Omnizip::Formats::Rar::Constants
 
         attr_reader :version, :flags, :is_multi_volume, :is_solid,
                     :is_locked, :comment_present

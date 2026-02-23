@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "zlib"
-require_relative "../rar/rar_format_base"
-require_relative "../../error"
 
 module Omnizip
   module Formats

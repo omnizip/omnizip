@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/cpio"
 
 module Omnizip
   module Formats
@@ -10,7 +10,7 @@ module Omnizip
       # Represents a file, directory, or special file in a CPIO archive.
       # Supports newc, CRC, and ODC formats.
       class Entry
-        include Constants
+        include Omnizip::Formats::Cpio::Constants
 
         # @return [String] Magic number identifying format
         attr_accessor :magic

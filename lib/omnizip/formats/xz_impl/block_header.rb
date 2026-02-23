@@ -2,7 +2,7 @@
 
 module Omnizip
   module Formats
-    module Xz
+    module XzImpl
       # XZ block header
       #
       # Block header contains:

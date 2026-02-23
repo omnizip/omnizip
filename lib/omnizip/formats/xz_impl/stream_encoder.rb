@@ -1,16 +1,10 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../xz_impl/constants"
-require_relative "../xz_impl/stream_header"
-require_relative "../xz_impl/stream_footer"
-require_relative "../xz_impl/block_encoder"
-require_relative "../xz_impl/index_encoder"
-require_relative "../../error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Stream encoder
       # Orchestrates the complete XZ stream creation
       # Based on XZ Utils stream_encoder.c

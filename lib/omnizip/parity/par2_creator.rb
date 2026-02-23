@@ -2,7 +2,6 @@
 
 require "digest"
 require "fileutils"
-require_relative "reed_solomon_encoder"
 
 module Omnizip
   module Parity

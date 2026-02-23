@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
-require_relative "xz_impl/constants"
-require_relative "xz_impl/stream_encoder"
-require_relative "xz_impl/writer"
-require_relative "xz/reader"
-require_relative "../algorithms/lzma"
-
 module Omnizip
   module Formats
     # XZ compression format
     # Creates .xz files compatible with XZ Utils
     class Xz
+      # Nested classes - autoloaded
+      autoload :Reader, "omnizip/formats/xz/reader"
+      autoload :Writer, "omnizip/formats/xz/writer"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :XzConst, "omnizip/formats/xz_impl/constants"
+      autoload :XzImpl, "omnizip/formats/xz_impl"
+
       class << self
         # Create a .xz file from input data
         # @param input [String, IO] Input data to compress
@@ -19,7 +21,7 @@ module Omnizip
         # @option options [Integer] :dict_size Dictionary size (default: 8MB to match XZ Utils preset 6)
         # @option options [Integer] :check Check type (default: CRC64)
         def create(input, output = nil, options = {})
-          encoder = XzFormat::StreamEncoder.new(
+          encoder = XzImpl::StreamEncoder.new(
             check_type: options[:check] || XzConst::CHECK_CRC64,
             dict_size: options[:dict_size] || (64 * 1024 * 1024),
           )

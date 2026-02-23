@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "header"
-require_relative "entry"
+require "omnizip/formats/tar"
 
 module Omnizip
   module Formats
@@ -11,7 +9,7 @@ module Omnizip
       #
       # Reads and extracts TAR archives
       class Reader
-        include Constants
+        include Omnizip::Formats::Tar::Constants
 
         attr_reader :file_path, :entries
 

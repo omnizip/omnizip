@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "conversion_strategy"
-
 module Omnizip
   module Converter
     # Convert 7-Zip archives to ZIP format
@@ -11,9 +9,6 @@ module Omnizip
       def convert
         start_time = Time.now
         0
-
-        require_relative "../formats/seven_zip"
-        require_relative "../zip/file"
 
         # Open source 7z archive
         reader = Omnizip::Formats::SevenZip::Reader.new(source_path)

@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "solid_stream"
-require_relative "solid_encoder"
-
 module Omnizip
   module Formats
     module Rar

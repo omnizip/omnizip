@@ -26,23 +26,25 @@ module Omnizip
     @filters = {}
 
     class << self
-      # Register a filter class with the registry.
+      # Register a filter class with format support.
       #
       # @param name [Symbol, String] The name identifier for the filter
-      # @param klass [Class] The filter class to register
-      # @raise [ArgumentError] If name or klass is nil
+      # @param filter_class [Class] The filter class to register
+      # @param formats [Array<Symbol>] Supported formats (default: [:xz,
+      #   :seven_zip])
       # @return [void]
-      def register(name, klass)
+      def register(name, filter_class, formats: %i[xz seven_zip])
         raise ArgumentError, "Filter name cannot be nil" if name.nil?
-        raise ArgumentError, "Filter class cannot be nil" if klass.nil?
+        raise ArgumentError, "Filter class cannot be nil" if filter_class.nil?
 
-        @filters[name.to_sym] = klass
+        @filters[name.to_sym] = {
+          class: filter_class,
+          formats: formats,
+        }
       end
+      alias register_with_formats register
 
       # Retrieve a filter class by name.
-      #
-      # Handles both old-style (Class) and new-style (Hash with :class key)
-      # registrations for backward compatibility.
       #
       # @param name [Symbol, String] The name identifier for the filter
       # @raise [UnknownFilterError] If filter is not registered
@@ -55,11 +57,7 @@ module Omnizip
                 "Available: #{available.join(', ')}"
         end
 
-        # Handle new-style registration (Hash with :class key)
-        return filter[:class] if filter.is_a?(Hash)
-
-        # Handle old-style registration (Class directly)
-        filter
+        filter[:class]
       end
 
       # Check if a filter is registered.
@@ -82,26 +80,6 @@ module Omnizip
       # @return [void]
       def reset!
         @filters.clear
-      end
-
-      # Register a filter class with format support.
-      #
-      # This format-aware registration stores which formats the filter
-      # supports, enabling format-specific filter retrieval.
-      #
-      # @param name [Symbol, String] The name identifier for the filter
-      # @param filter_class [Class] The filter class to register
-      # @param formats [Array<Symbol>] Supported formats (default: [:xz,
-      #   :seven_zip])
-      # @return [void]
-      def register_with_formats(name, filter_class, formats: %i[xz seven_zip])
-        raise ArgumentError, "Filter name cannot be nil" if name.nil?
-        raise ArgumentError, "Filter class cannot be nil" if filter_class.nil?
-
-        @filters[name.to_sym] = {
-          class: filter_class,
-          formats: formats,
-        }
       end
 
       # Get filter instance for specific format.
@@ -135,13 +113,7 @@ module Omnizip
         return false unless @filters[name.to_sym]
 
         filter_info = @filters[name.to_sym]
-        # Handle both old-style (Class) and new-style (Hash) registrations
-        if filter_info.is_a?(Hash)
-          filter_info[:formats]&.include?(format)
-        else
-          # Old-style registration - assume supports all formats
-          true
-        end
+        filter_info[:formats]&.include?(format)
       end
 
       # Get all filters supporting a specific format.
@@ -150,12 +122,7 @@ module Omnizip
       # @return [Array<Symbol>] Filter names supporting the format
       def filters_for_format(format)
         @filters.select do |_, info|
-          if info.is_a?(Hash)
-            info[:formats]&.include?(format)
-          else
-            # Old-style registration - assume supports all formats
-            true
-          end
+          info[:formats]&.include?(format)
         end.keys
       end
     end

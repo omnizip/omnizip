@@ -1,19 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "file_collector"
-require_relative "stream_compressor"
-require_relative "header_writer"
-require_relative "models/file_entry"
-require_relative "../../models/split_options"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # Split archive writer for .7z format
       # Creates multi-volume archives with size limits
       class SplitArchiveWriter
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :base_path, :options, :split_options, :entries, :volumes
 

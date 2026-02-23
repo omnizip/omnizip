@@ -34,8 +34,5 @@ module Omnizip
       DICT_SIZE_MIN = 4096 # 4 KB minimum
       DICT_SIZE_MAX = 0xFFFFFFFF # 4 GB maximum
     end
-
-    # Alias for backward compatibility
-    LZMA2Constants = LZMA2Const
   end
 end

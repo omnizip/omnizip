@@ -5,8 +5,6 @@
 # Direct port of XZ Utils range encoder to Ruby
 # Based on: xz/src/liblzma/rangecoder/range_encoder.h
 
-require_relative "constants"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

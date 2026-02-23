@@ -3,11 +3,8 @@
 require "zlib"
 require "digest"
 require "fileutils"
-require_relative "constants"
-require_relative "header"
-require_relative "toc"
-require_relative "entry"
 
+require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar
@@ -19,7 +16,7 @@ module Omnizip
       # - Extended attributes
       # - Hardlinks and symlinks
       class Writer
-        include Constants
+        include Omnizip::Formats::Xar::Constants
 
         attr_reader :output_path, :entries, :options
 
@@ -333,7 +330,6 @@ module Omnizip
         # @param data [String] Uncompressed data
         # @return [String] Bzip2 compressed data
         def compress_bzip2(data)
-          require_relative "../../algorithms/bzip2/compressor"
           compressor = Omnizip::Algorithms::Bzip2::Compressor.new(
             level: @options[:compression_level] || DEFAULT_COMPRESSION_LEVEL,
           )
@@ -345,7 +341,6 @@ module Omnizip
         # @param data [String] Uncompressed data
         # @return [String] LZMA compressed data
         def compress_lzma(data)
-          require_relative "../../algorithms/lzma/encoder"
           encoder = Omnizip::Algorithms::Lzma::Encoder.new(
             level: @options[:compression_level] || DEFAULT_COMPRESSION_LEVEL,
           )
@@ -357,7 +352,6 @@ module Omnizip
         # @param data [String] Uncompressed data
         # @return [String] XZ compressed data
         def compress_xz(data)
-          require_relative "../xz"
           output = StringIO.new
           writer = Omnizip::Formats::Xz::StreamWriter.new(output,
                                                           level: @options[:compression_level] || DEFAULT_COMPRESSION_LEVEL)

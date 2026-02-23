@@ -23,8 +23,6 @@
 # Ported from XZ Utils src/liblzma/rangecoder/range_encoder.h
 # Direct port of the reference implementation for byte-for-byte compatibility.
 
-require_relative "range_coder"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

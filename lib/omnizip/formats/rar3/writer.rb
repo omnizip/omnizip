@@ -7,8 +7,6 @@ rescue LoadError, ArgumentError
 end
 
 require "stringio"
-require_relative "../rar/rar_format_base"
-require_relative "compressor"
 
 module Omnizip
   module Formats

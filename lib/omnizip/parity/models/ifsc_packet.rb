@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "packet"
-
 module Omnizip
   module Parity
     module Models
@@ -106,16 +104,6 @@ module Omnizip
           end
 
           self.body_data = data
-        end
-
-        # Deprecated: for backward compatibility
-        def block_hash
-          block_hashes.first
-        end
-
-        # Deprecated: for backward compatibility
-        def block_crc32
-          block_crc32s.first
         end
       end
     end

@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "parity/par2cmdline_coefficients"
-require_relative "parity/par2_creator"
-require_relative "parity/par2_verifier"
-require_relative "parity/par2_repairer"
-
 module Omnizip
   # PAR2 parity archive support
   #
@@ -21,6 +16,30 @@ module Omnizip
   #   result = Omnizip::Parity.verify('archive.par2')
   #   Omnizip::Parity.repair('archive.par2') if result.repairable?
   module Parity
+    # Nested classes - autoloaded
+    autoload :Galois16, "omnizip/parity/galois16"
+    autoload :Par2cmdlineAlgorithm, "omnizip/parity/par2cmdline_algorithm"
+    autoload :Par2cmdlineCoefficients, "omnizip/parity/par2cmdline_coefficients"
+    autoload :ReedSolomonMatrix, "omnizip/parity/reed_solomon_matrix"
+    autoload :ReedSolomonEncoder, "omnizip/parity/reed_solomon_encoder"
+    autoload :ReedSolomonDecoder, "omnizip/parity/reed_solomon_decoder"
+    autoload :ChunkedBlockProcessor, "omnizip/parity/chunked_block_processor"
+    autoload :Par2Creator, "omnizip/parity/par2_creator"
+    autoload :Par2Verifier, "omnizip/parity/par2_verifier"
+    autoload :Par2Repairer, "omnizip/parity/par2_repairer"
+
+    # Models namespace
+    module Models
+      autoload :Packet, "omnizip/parity/models/packet"
+      autoload :PacketRegistry, "omnizip/parity/models/packet_registry"
+      autoload :MainPacket, "omnizip/parity/models/main_packet"
+      autoload :FileDescriptionPacket, "omnizip/parity/models/file_description_packet"
+      autoload :IfscPacket, "omnizip/parity/models/ifsc_packet"
+      autoload :RecoverySlicePacket, "omnizip/parity/models/recovery_slice_packet"
+      autoload :CreatorPacket, "omnizip/parity/models/creator_packet"
+    end
+    autoload :Models, "omnizip/parity/models"
+
     class << self
       # Create PAR2 recovery files for archive or files
       #

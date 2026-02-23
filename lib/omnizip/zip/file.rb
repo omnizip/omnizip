@@ -1,11 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "entry"
-require_relative "../formats/zip/reader"
-require_relative "../formats/zip/writer"
-require_relative "../extraction"
-require_relative "../metadata/archive_metadata"
 
 module Omnizip
   module Zip
@@ -342,8 +337,6 @@ module Omnizip
 
       # Create a central directory header
       def create_header(filename, data, stat: nil, directory: false)
-        require_relative "../formats/zip/central_directory_header"
-
         now = Time.now
         crc32 = if directory
                   0

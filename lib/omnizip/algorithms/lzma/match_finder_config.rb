@@ -121,7 +121,7 @@ module Omnizip
           )
         end
 
-        # Create simplified configuration (backward compatible)
+        # Create simplified configuration with sensible defaults.
         #
         # @param dict_size [Integer] Dictionary size
         # @return [MatchFinderConfig] Simplified configuration

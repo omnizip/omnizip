@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "glob_pattern"
-require_relative "regex_pattern"
-require_relative "predicate_pattern"
-
 module Omnizip
   module Extraction
     # Coordinates pattern matching across different pattern types

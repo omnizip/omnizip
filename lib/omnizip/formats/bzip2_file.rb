@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../algorithm_registry"
+require "omnizip/algorithm_registry"
 
 module Omnizip
   module Formats
@@ -115,7 +115,7 @@ module Omnizip
 
         # Register BZIP2 format when loaded
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".bz2", Omnizip::Formats::Bzip2File)
           FormatRegistry.register(".bzip2", Omnizip::Formats::Bzip2File)
         end
@@ -157,8 +157,6 @@ module Omnizip
         # @param level [Integer] Compression level
         # @return [Object] Compression options
         def build_compression_options(level)
-          require_relative "../models/compression_options"
-
           Models::CompressionOptions.new.tap do |opts|
             opts.level = level
           end

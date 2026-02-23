@@ -1,13 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "ole/constants"
-require_relative "ole/header"
-require_relative "ole/allocation_table"
-require_relative "ole/dirent"
-require_relative "ole/ranges_io"
-require_relative "ole/storage"
-require_relative "ole/types/variant"
-
 module Omnizip
   module Formats
     # OLE compound document format support
@@ -25,6 +17,23 @@ module Omnizip
     #     data = ole.read('/WordDocument')
     #   end
     module Ole
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/ole/constants"
+      autoload :Header, "omnizip/formats/ole/header"
+      autoload :AllocationTable, "omnizip/formats/ole/allocation_table"
+      autoload :Dirent, "omnizip/formats/ole/dirent"
+      autoload :RangesIO, "omnizip/formats/ole/ranges_io"
+      autoload :RangesIOResizeable, "omnizip/formats/ole/ranges_io"
+      autoload :Storage, "omnizip/formats/ole/storage"
+      module Types
+        autoload :Data, "omnizip/formats/ole/types/variant"
+        autoload :Lpstr, "omnizip/formats/ole/types/variant"
+        autoload :Lpwstr, "omnizip/formats/ole/types/variant"
+        autoload :FileTime, "omnizip/formats/ole/types/variant"
+        autoload :Clsid, "omnizip/formats/ole/types/variant"
+        autoload :Variant, "omnizip/formats/ole/types/variant"
+      end
+
       class << self
         # Open OLE file
         #
@@ -110,7 +119,7 @@ module Omnizip
 
         # Register OLE format in registry
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".ole", Storage)
           FormatRegistry.register(".doc", Storage)
           FormatRegistry.register(".xls", Storage)

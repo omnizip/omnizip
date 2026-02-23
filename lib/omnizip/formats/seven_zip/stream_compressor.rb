@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../../checksums/crc32"
 
 module Omnizip
   module Formats
@@ -44,7 +43,7 @@ module Omnizip
 
           # Apply compression algorithm
           if @algorithm && @algorithm != :copy
-            algo_class = AlgorithmRegistry.get(@algorithm)
+            algo_class = Omnizip::AlgorithmRegistry.get(@algorithm)
             raise "Algorithm not found: #{@algorithm}" unless algo_class
 
             encoder = algo_class.new

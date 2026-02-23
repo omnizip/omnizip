@@ -1,18 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "models/folder"
-require_relative "models/coder_info"
-require_relative "models/stream_info"
-require_relative "models/file_entry"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # Binary data parser for .7z format
       # Implements variable-length encoding and bit vector handling
       class Parser
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_reader :data, :position
 
@@ -226,7 +221,7 @@ module Omnizip
           # Verify required SIZE property was present
           raise "Missing SIZE property in pack info" unless sizes_read
 
-          # Optional K_END (for backward compatibility)
+          # K_END is optional in some 7-Zip versions
           read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 
@@ -380,7 +375,7 @@ module Omnizip
           raise "Missing FOLDER property in unpack info" unless folders_read
           raise "Missing CODERS_UNPACK_SIZE property in unpack info" unless unpack_sizes_read
 
-          # Optional K_END (for backward compatibility)
+          # K_END is optional in some 7-Zip versions
           read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 
@@ -444,7 +439,7 @@ module Omnizip
             end
           end
 
-          # Optional K_END (for backward compatibility)
+          # K_END is optional in some 7-Zip versions
           read_byte if !eof? && peek_byte == PropertyId::K_END
         end
 

@@ -1,15 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "iso/reader"
-require_relative "iso/writer"
-require_relative "iso/volume_descriptor"
-require_relative "iso/volume_builder"
-require_relative "iso/directory_record"
-require_relative "iso/directory_builder"
-require_relative "iso/path_table"
-require_relative "iso/rock_ridge"
-require_relative "iso/joliet"
-
 module Omnizip
   module Formats
     # ISO 9660 CD-ROM filesystem format support
@@ -22,6 +12,17 @@ module Omnizip
     # - File extraction
     # - Rock Ridge extensions (basic)
     module Iso
+      # Nested classes - autoloaded
+      autoload :Reader, "omnizip/formats/iso/reader"
+      autoload :Writer, "omnizip/formats/iso/writer"
+      autoload :VolumeDescriptor, "omnizip/formats/iso/volume_descriptor"
+      autoload :VolumeBuilder, "omnizip/formats/iso/volume_builder"
+      autoload :DirectoryRecord, "omnizip/formats/iso/directory_record"
+      autoload :DirectoryBuilder, "omnizip/formats/iso/directory_builder"
+      autoload :PathTable, "omnizip/formats/iso/path_table"
+      autoload :RockRidge, "omnizip/formats/iso/rock_ridge"
+      autoload :Joliet, "omnizip/formats/iso/joliet"
+
       # ISO 9660 constants
       SECTOR_SIZE = 2048
       SYSTEM_AREA_SECTORS = 16
@@ -129,12 +130,9 @@ module Omnizip
 
       # Auto-register ISO format when loaded
       def self.register!
-        require_relative "../format_registry"
+        require "omnizip/format_registry"
         FormatRegistry.register(".iso", Reader)
       end
     end
   end
 end
-
-# Auto-register on load
-Omnizip::Formats::Iso.register!

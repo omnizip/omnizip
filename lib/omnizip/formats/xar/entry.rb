@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar
@@ -10,7 +9,7 @@ module Omnizip
       # Represents a single file/directory/link in a XAR archive.
       # Each entry has metadata and optional data.
       class Entry
-        include Constants
+        include Omnizip::Formats::Xar::Constants
 
         attr_accessor :id, :name, :type, :mode, :uid, :gid, :user, :group,
                       :size, :ctime, :mtime, :atime,
@@ -25,7 +24,7 @@ module Omnizip
 
         # Extended attributes structure
         class ExtendedAttribute
-          include Constants
+          include Omnizip::Formats::Xar::Constants
 
           attr_accessor :id, :name, :fstype, :data_offset, :data_length,
                         :data_size, :data_encoding, :archived_checksum,

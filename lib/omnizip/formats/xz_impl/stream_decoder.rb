@@ -21,16 +21,10 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "constants"
-require_relative "stream_header_parser"
-require_relative "stream_footer_parser"
-require_relative "block_decoder"
-require_relative "index_decoder"
-require_relative "../../error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Stream decoder
       #
       # Decodes a complete XZ stream which consists of:

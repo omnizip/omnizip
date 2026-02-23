@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "key_derivation"
-require_relative "aes256_cbc"
-require_relative "encryption_header"
-
 module Omnizip
   module Formats
     module Rar

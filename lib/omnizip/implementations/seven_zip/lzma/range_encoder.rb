@@ -24,9 +24,6 @@
 # Direct port of the LZMA SDK range encoder for byte-for-byte compatibility
 # with 7-Zip archives.
 
-require_relative "../../../algorithms/lzma/range_coder"
-require_relative "../../../algorithms/lzma/constants"
-
 module Omnizip
   module Implementations
     module SevenZip

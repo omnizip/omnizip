@@ -16,8 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "constants"
-require_relative "stream_data"
 
 module Omnizip
   module Filters

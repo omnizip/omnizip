@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "../models/algorithm_metadata"
-
 module Omnizip
   module Algorithms
     # Zstandard compression algorithm
@@ -46,6 +43,28 @@ module Omnizip
     # - Log file compression
     # - General-purpose compression with speed priority
     class Zstandard < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/zstandard/constants"
+      autoload :Encoder, "omnizip/algorithms/zstandard/encoder"
+      autoload :Decoder, "omnizip/algorithms/zstandard/decoder"
+      autoload :Huffman, "omnizip/algorithms/zstandard/huffman"
+      autoload :HuffmanEncoder, "omnizip/algorithms/zstandard/huffman_encoder"
+      autoload :Literals, "omnizip/algorithms/zstandard/literals"
+      autoload :LiteralsEncoder, "omnizip/algorithms/zstandard/literals_encoder"
+      autoload :Sequences, "omnizip/algorithms/zstandard/sequences"
+
+      # Frame module
+      autoload :Frame, "omnizip/algorithms/zstandard/frame"
+
+      # Nested Frame module classes
+      autoload :FrameHeader, "omnizip/algorithms/zstandard/frame/header"
+      autoload :FrameBlock, "omnizip/algorithms/zstandard/frame/block"
+
+      # Nested FSE module classes
+      autoload :FseEncoder, "omnizip/algorithms/zstandard/fse/encoder"
+      autoload :FseTable, "omnizip/algorithms/zstandard/fse/table"
+      autoload :FseBitstream, "omnizip/algorithms/zstandard/fse/bitstream"
+
       # Get algorithm metadata
       #
       # @return [AlgorithmMetadata] Algorithm information
@@ -127,11 +146,6 @@ module Omnizip
     end
   end
 end
-
-# Load nested classes after Zstandard class is defined
-require_relative "zstandard/constants"
-require_relative "zstandard/encoder"
-require_relative "zstandard/decoder"
 
 # Register the Zstandard algorithm
 Omnizip::AlgorithmRegistry.register(:zstandard,

@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
     module Zip
       # ZIP End of Central Directory Record
       class EndOfCentralDirectory
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :signature, :disk_number, :disk_number_with_cd,
                       :total_entries_this_disk, :total_entries,

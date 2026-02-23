@@ -21,9 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "../../base/lzma2_encoder_base"
-require_relative "../../../algorithms/lzma2/constants"
-require_relative "../../../algorithms/lzma2/lzma2_chunk"
 
 module Omnizip
   module Implementations
@@ -74,12 +71,12 @@ module Omnizip
 
             # Initialize shared state across all chunks
             # Using XZ Utils components (tested and working)
-            require_relative "../../../algorithms/lzma/dictionary"
-            require_relative "../../../algorithms/lzma/lzma_state"
-            require_relative "../../../algorithms/lzma/xz_probability_models"
-            require_relative "../../../algorithms/lzma/match_finder"
-            require_relative "../../../algorithms/lzma/optimal_encoder"
-            require_relative "../../../algorithms/lzma/xz_range_encoder_exact"
+            require "omnizip/algorithms/lzma/dictionary"
+            require "omnizip/algorithms/lzma/lzma_state"
+            require "omnizip/algorithms/lzma/xz_probability_models"
+            require "omnizip/algorithms/lzma/match_finder"
+            require "omnizip/algorithms/lzma/optimal_encoder"
+            require "omnizip/algorithms/lzma/xz_range_encoder_exact"
 
             @dictionary = Omnizip::Algorithms::LZMA::Dictionary.new(dict_size)
             @state = Omnizip::Algorithms::LZMA::LZMAState.new(0)

@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-require_relative "xz_encoder"
-require_relative "../../implementations/seven_zip/lzma/encoder"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

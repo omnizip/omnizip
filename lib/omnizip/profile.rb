@@ -1,16 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "profile/compression_profile"
-require_relative "profile/profile_registry"
-require_relative "profile/profile_detector"
-require_relative "profile/custom_profile"
-require_relative "profile/fast_profile"
-require_relative "profile/balanced_profile"
-require_relative "profile/maximum_profile"
-require_relative "profile/text_profile"
-require_relative "profile/binary_profile"
-require_relative "profile/archive_profile"
-
 module Omnizip
   # Compression profile management
   #
@@ -18,6 +7,18 @@ module Omnizip
   # profiles. Profiles encapsulate compression settings and allow users
   # to easily select optimal compression strategies for different file types.
   module Profile
+    # Nested classes - autoloaded
+    autoload :CompressionProfile, "omnizip/profile/compression_profile"
+    autoload :ProfileRegistry, "omnizip/profile/profile_registry"
+    autoload :ProfileDetector, "omnizip/profile/profile_detector"
+    autoload :CustomProfile, "omnizip/profile/custom_profile"
+    autoload :FastProfile, "omnizip/profile/fast_profile"
+    autoload :BalancedProfile, "omnizip/profile/balanced_profile"
+    autoload :MaximumProfile, "omnizip/profile/maximum_profile"
+    autoload :TextProfile, "omnizip/profile/text_profile"
+    autoload :BinaryProfile, "omnizip/profile/binary_profile"
+    autoload :ArchiveProfile, "omnizip/profile/archive_profile"
+
     class << self
       # Get the global profile registry
       #
@@ -160,7 +161,7 @@ module Omnizip
       # @param mime_type [String] MIME type string
       # @return [CompressionProfile] Best profile
       def select_best_profile_for_mime(profiles, mime_type)
-        require_relative "file_type/mime_classifier"
+        require "omnizip/file_type/mime_classifier"
 
         # Determine category from MIME type
         category = FileType::MimeClassifier.profile_category(mime_type)

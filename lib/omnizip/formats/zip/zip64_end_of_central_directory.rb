@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
@@ -8,7 +8,7 @@ module Omnizip
       # ZIP64 End of Central Directory Record
       # Used when the archive exceeds ZIP format limits (>4GB or >65535 entries)
       class Zip64EndOfCentralDirectory
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :signature, :record_size, :version_made_by, :version_needed,
                       :disk_number, :disk_number_with_cd,

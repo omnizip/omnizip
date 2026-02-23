@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../cli/output_formatter"
+require "omnizip/cli/output_formatter"
 
 module Omnizip
   module Commands
@@ -16,8 +16,8 @@ module Omnizip
       # @param archive_path [String] Path to archive
       # @param pattern [String, nil] Optional pattern to match entries
       def run(archive_path, pattern = nil)
-        require_relative "../zip/file"
-        require_relative "../metadata"
+        require "omnizip/zip/file"
+        require "omnizip/metadata"
 
         unless File.exist?(archive_path)
           raise Errno::ENOENT, "Archive not found: #{archive_path}"

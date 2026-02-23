@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -11,7 +10,7 @@ module Omnizip
       # It contains basic package identification but most information
       # is now stored in the main header.
       class Lead
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # @return [String] 4-byte magic
         attr_reader :magic

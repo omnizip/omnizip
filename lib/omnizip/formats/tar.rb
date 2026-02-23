@@ -1,11 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "tar/constants"
-require_relative "tar/entry"
-require_relative "tar/header"
-require_relative "tar/reader"
-require_relative "tar/writer"
-
 module Omnizip
   module Formats
     # TAR archive format implementation
@@ -21,6 +15,13 @@ module Omnizip
     # - Hard links
     # - Metadata preservation (permissions, timestamps, ownership)
     module Tar
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/tar/constants"
+      autoload :Entry, "omnizip/formats/tar/entry"
+      autoload :Header, "omnizip/formats/tar/header"
+      autoload :Reader, "omnizip/formats/tar/reader"
+      autoload :Writer, "omnizip/formats/tar/writer"
+
       class << self
         # Read a TAR archive
         #
@@ -72,7 +73,7 @@ module Omnizip
 
         # Register TAR format when loaded
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".tar", Omnizip::Formats::Tar)
         end
       end
