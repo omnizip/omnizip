@@ -14,8 +14,10 @@ module Omnizip
     # Cross-namespace dependencies - autoloaded
     autoload :ZipConstants, "omnizip/formats/zip/constants"
     autoload :LocalFileHeader, "omnizip/formats/zip/local_file_header"
-    autoload :CentralDirectoryHeader, "omnizip/formats/zip/central_directory_header"
-    autoload :EndOfCentralDirectory, "omnizip/formats/zip/end_of_central_directory"
+    autoload :CentralDirectoryHeader,
+             "omnizip/formats/zip/central_directory_header"
+    autoload :EndOfCentralDirectory,
+             "omnizip/formats/zip/end_of_central_directory"
     autoload :EntryMetadata, "omnizip/metadata/entry_metadata"
   end
 end

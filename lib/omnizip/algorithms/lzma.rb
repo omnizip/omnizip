@@ -55,19 +55,24 @@ module Omnizip
       autoload :OptimalEncoder, "omnizip/algorithms/lzma/optimal_encoder"
       autoload :State, "omnizip/algorithms/lzma/state"
       autoload :XzState, "omnizip/algorithms/lzma/xz_state"
-      autoload :XzProbabilityModels, "omnizip/algorithms/lzma/xz_probability_models"
+      autoload :XzProbabilityModels,
+               "omnizip/algorithms/lzma/xz_probability_models"
       autoload :XzPriceCalculator, "omnizip/algorithms/lzma/xz_price_calculator"
-      autoload :XzMatchFinderAdapter, "omnizip/algorithms/lzma/xz_match_finder_adapter"
+      autoload :XzMatchFinderAdapter,
+               "omnizip/algorithms/lzma/xz_match_finder_adapter"
       autoload :LengthCoder, "omnizip/algorithms/lzma/length_coder"
       autoload :DistanceCoder, "omnizip/algorithms/lzma/distance_coder"
       autoload :LiteralEncoder, "omnizip/algorithms/lzma/literal_encoder"
       autoload :LiteralDecoder, "omnizip/algorithms/lzma/literal_decoder"
       autoload :MatchFinderConfig, "omnizip/algorithms/lzma/match_finder_config"
-      autoload :MatchFinderFactory, "omnizip/algorithms/lzma/match_finder_factory"
+      autoload :MatchFinderFactory,
+               "omnizip/algorithms/lzma/match_finder_factory"
       autoload :XzEncoder, "omnizip/algorithms/lzma/xz_encoder"
       autoload :XzEncoderFast, "omnizip/algorithms/lzma/xz_encoder_fast"
-      autoload :XzBufferedRangeEncoder, "omnizip/algorithms/lzma/xz_buffered_range_encoder"
-      autoload :XzRangeEncoderExact, "omnizip/algorithms/lzma/xz_range_encoder_exact"
+      autoload :XzBufferedRangeEncoder,
+               "omnizip/algorithms/lzma/xz_buffered_range_encoder"
+      autoload :XzRangeEncoderExact,
+               "omnizip/algorithms/lzma/xz_range_encoder_exact"
       autoload :XzRangeEncoder, "omnizip/algorithms/lzma/xz_range_encoder_exact"
       autoload :Encoder, "omnizip/algorithms/lzma/encoder"
       autoload :Decoder, "omnizip/algorithms/lzma/decoder"
@@ -76,8 +81,10 @@ module Omnizip
 
       # Cross-namespace dependencies - autoloaded
       autoload :Crc32, "omnizip/checksums/crc32"
-      autoload :SevenZipLzmaEncoder, "omnizip/implementations/seven_zip/lzma/encoder"
-      autoload :SevenZipMatchFinder, "omnizip/implementations/seven_zip/lzma/match_finder"
+      autoload :SevenZipLzmaEncoder,
+               "omnizip/implementations/seven_zip/lzma/encoder"
+      autoload :SevenZipMatchFinder,
+               "omnizip/implementations/seven_zip/lzma/match_finder"
 
       # Initialize the LZMA algorithm with options
       #

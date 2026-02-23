@@ -47,32 +47,47 @@ module Omnizip
           autoload :Lzma, "omnizip/formats/rar/rar5/compression/lzma"
           autoload :Lzss, "omnizip/formats/rar/rar5/compression/lzss"
         end
+
         # RAR5 multi-volume
         module MultiVolume
-          autoload :VolumeManager, "omnizip/formats/rar/rar5/multi_volume/volume_manager"
-          autoload :VolumeWriter, "omnizip/formats/rar/rar5/multi_volume/volume_writer"
-          autoload :VolumeSplitter, "omnizip/formats/rar/rar5/multi_volume/volume_splitter"
+          autoload :VolumeManager,
+                   "omnizip/formats/rar/rar5/multi_volume/volume_manager"
+          autoload :VolumeWriter,
+                   "omnizip/formats/rar/rar5/multi_volume/volume_writer"
+          autoload :VolumeSplitter,
+                   "omnizip/formats/rar/rar5/multi_volume/volume_splitter"
         end
+
         # RAR5 models
         module Models
-          autoload :VolumeOptions, "omnizip/formats/rar/rar5/models/volume_options"
-          autoload :SolidOptions, "omnizip/formats/rar/rar5/models/solid_options"
-          autoload :EncryptionOptions, "omnizip/formats/rar/rar5/models/encryption_options"
-          autoload :RecoveryOptions, "omnizip/formats/rar/rar5/models/recovery_options"
+          autoload :VolumeOptions,
+                   "omnizip/formats/rar/rar5/models/volume_options"
+          autoload :SolidOptions,
+                   "omnizip/formats/rar/rar5/models/solid_options"
+          autoload :EncryptionOptions,
+                   "omnizip/formats/rar/rar5/models/encryption_options"
+          autoload :RecoveryOptions,
+                   "omnizip/formats/rar/rar5/models/recovery_options"
         end
+
         # RAR5 solid compression
         module Solid
           autoload :SolidManager, "omnizip/formats/rar/rar5/solid/solid_manager"
           autoload :SolidEncoder, "omnizip/formats/rar/rar5/solid/solid_encoder"
           autoload :SolidStream, "omnizip/formats/rar/rar5/solid/solid_stream"
         end
+
         # RAR5 encryption
         module Encryption
           autoload :Aes256Cbc, "omnizip/formats/rar/rar5/encryption/aes256_cbc"
-          autoload :EncryptionHeader, "omnizip/formats/rar/rar5/encryption/encryption_header"
-          autoload :KeyDerivation, "omnizip/formats/rar/rar5/encryption/key_derivation"
-          autoload :EncryptionManager, "omnizip/formats/rar/rar5/encryption/encryption_manager"
+          autoload :EncryptionHeader,
+                   "omnizip/formats/rar/rar5/encryption/encryption_header"
+          autoload :KeyDerivation,
+                   "omnizip/formats/rar/rar5/encryption/key_derivation"
+          autoload :EncryptionManager,
+                   "omnizip/formats/rar/rar5/encryption/encryption_manager"
         end
+
         # RAR5 compression
         module Compression
           autoload :Store, "omnizip/formats/rar/rar5/compression/store"
@@ -80,6 +95,7 @@ module Omnizip
           autoload :Lzss, "omnizip/formats/rar/rar5/compression/lzss"
         end
       end
+
       # RAR3 support
       module Rar3
         autoload :Compressor, "omnizip/formats/rar3/compressor"
@@ -87,6 +103,7 @@ module Omnizip
         autoload :Reader, "omnizip/formats/rar3/reader"
         autoload :Writer, "omnizip/formats/rar3/writer"
       end
+
       # Compression layer
       module Compression
         autoload :BitStream, "omnizip/formats/rar/compression/bit_stream"
@@ -96,13 +113,20 @@ module Omnizip
           autoload :Decoder, "omnizip/formats/rar/compression/ppmd/decoder"
           autoload :Encoder, "omnizip/formats/rar/compression/ppmd/encoder"
         end
+
         module LZ77Huffman
-          autoload :SlidingWindow, "omnizip/formats/rar/compression/lz77_huffman/sliding_window"
-          autoload :HuffmanCoder, "omnizip/formats/rar/compression/lz77_huffman/huffman_coder"
-          autoload :HuffmanBuilder, "omnizip/formats/rar/compression/lz77_huffman/huffman_builder"
-          autoload :MatchFinder, "omnizip/formats/rar/compression/lz77_huffman/match_finder"
-          autoload :Decoder, "omnizip/formats/rar/compression/lz77_huffman/decoder"
-          autoload :Encoder, "omnizip/formats/rar/compression/lz77_huffman/encoder"
+          autoload :SlidingWindow,
+                   "omnizip/formats/rar/compression/lz77_huffman/sliding_window"
+          autoload :HuffmanCoder,
+                   "omnizip/formats/rar/compression/lz77_huffman/huffman_coder"
+          autoload :HuffmanBuilder,
+                   "omnizip/formats/rar/compression/lz77_huffman/huffman_builder"
+          autoload :MatchFinder,
+                   "omnizip/formats/rar/compression/lz77_huffman/match_finder"
+          autoload :Decoder,
+                   "omnizip/formats/rar/compression/lz77_huffman/decoder"
+          autoload :Encoder,
+                   "omnizip/formats/rar/compression/lz77_huffman/encoder"
         end
       end
 

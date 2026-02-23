@@ -2,9 +2,6 @@
 
 module Omnizip
   module Formats
-    # XZ constants at Formats namespace level
-    autoload :XzConst, "omnizip/formats/xz_impl/constants"
-
     # XZ format implementation namespace
     #
     # This module contains XZ format implementation components.
@@ -35,13 +32,15 @@ module Omnizip
       autoload :StreamHeader, "omnizip/formats/xz_impl/stream_header"
 
       # XZ stream header parser
-      autoload :StreamHeaderParser, "omnizip/formats/xz_impl/stream_header_parser"
+      autoload :StreamHeaderParser,
+               "omnizip/formats/xz_impl/stream_header_parser"
 
       # XZ stream footer encoder
       autoload :StreamFooter, "omnizip/formats/xz_impl/stream_footer"
 
       # XZ stream footer parser
-      autoload :StreamFooterParser, "omnizip/formats/xz_impl/stream_footer_parser"
+      autoload :StreamFooterParser,
+               "omnizip/formats/xz_impl/stream_footer_parser"
 
       # XZ stream encoder
       autoload :StreamEncoder, "omnizip/formats/xz_impl/stream_encoder"

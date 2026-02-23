@@ -7,10 +7,14 @@ module Omnizip
       # Nested classes - autoloaded
       autoload :Constants, "omnizip/formats/zip/constants"
       autoload :LocalFileHeader, "omnizip/formats/zip/local_file_header"
-      autoload :CentralDirectoryHeader, "omnizip/formats/zip/central_directory_header"
-      autoload :EndOfCentralDirectory, "omnizip/formats/zip/end_of_central_directory"
-      autoload :Zip64EndOfCentralDirectory, "omnizip/formats/zip/zip64_end_of_central_directory"
-      autoload :Zip64EndOfCentralDirectoryLocator, "omnizip/formats/zip/zip64_end_of_central_directory_locator"
+      autoload :CentralDirectoryHeader,
+               "omnizip/formats/zip/central_directory_header"
+      autoload :EndOfCentralDirectory,
+               "omnizip/formats/zip/end_of_central_directory"
+      autoload :Zip64EndOfCentralDirectory,
+               "omnizip/formats/zip/zip64_end_of_central_directory"
+      autoload :Zip64EndOfCentralDirectoryLocator,
+               "omnizip/formats/zip/zip64_end_of_central_directory_locator"
       autoload :Zip64ExtraField, "omnizip/formats/zip/zip64_extra_field"
       autoload :Reader, "omnizip/formats/zip/reader"
       autoload :Writer, "omnizip/formats/zip/writer"

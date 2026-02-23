@@ -32,7 +32,7 @@ module Omnizip
     autoload :Lzip, "omnizip/formats/lzip"
 
     # XZ format constants (at Formats level for cross-module access)
-    autoload :XzConst, "omnizip/formats/xz_impl/constants"
+    autoload :XzConst, "omnizip/formats/xz_const"
 
     # XZ implementation details
     autoload :XzImpl, "omnizip/formats/xz_impl"

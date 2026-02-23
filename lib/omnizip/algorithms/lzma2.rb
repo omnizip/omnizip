@@ -31,9 +31,11 @@ module Omnizip
       autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
       autoload :Encoder, "omnizip/algorithms/lzma2/encoder"
       autoload :XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
-      autoload :LZMA2XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+      autoload :LZMA2XzEncoderAdapter,
+               "omnizip/algorithms/lzma2/xz_encoder_adapter"
       autoload :ChunkManager, "omnizip/algorithms/lzma2/chunk_manager"
-      autoload :SimpleLZMA2Encoder, "omnizip/algorithms/lzma2/simple_lzma2_encoder"
+      autoload :SimpleLZMA2Encoder,
+               "omnizip/algorithms/lzma2/simple_lzma2_encoder"
     end
   end
 end

@@ -175,7 +175,7 @@ RSpec.describe Omnizip::FilterRegistry do
     it "clears all registrations" do
       described_class.register(:test, TestFilter)
       described_class.register(:test2, AnotherTestFilter,
-                                            formats: [:xz])
+                               formats: [:xz])
 
       described_class.reset!
       expect(described_class.available).to eq([])

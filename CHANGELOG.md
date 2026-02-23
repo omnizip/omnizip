@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-02-23
+
+### Changed
+- Converted all `require_relative` statements to Ruby `autoload` for better memory management
+- Updated dependency version bounds: `base64 ~> 0.2`, `rexml ~> 3.3`
+- Removed deprecated backward compatibility code from internal APIs
+- Cleaned up backward compatibility comments (kept format compatibility notes)
+
+### Fixed
+- Fixed syntax error in `lib/omnizip/parallel.rb` (duplicate module declaration)
+- Fixed RAR format `verify` and `repair` convenience methods
+- Fixed library loading to ensure convenience methods are available at startup
+
 ## [Unreleased]
 
 ### Added

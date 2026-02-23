@@ -22,7 +22,8 @@ module Omnizip
     autoload :SampleHistory, "omnizip/eta/sample_history"
     autoload :RateCalculator, "omnizip/eta/rate_calculator"
     autoload :TimeEstimator, "omnizip/eta/time_estimator"
-    autoload :ExponentialSmoothingEstimator, "omnizip/eta/exponential_smoothing_estimator"
+    autoload :ExponentialSmoothingEstimator,
+             "omnizip/eta/exponential_smoothing_estimator"
     autoload :MovingAverageEstimator, "omnizip/eta/moving_average_estimator"
 
     # Cross-namespace dependencies - autoloaded

@@ -21,7 +21,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-
 module Omnizip
   module Filters
     # Unified BCJ (Branch/Call/Jump) filter for multiple architectures

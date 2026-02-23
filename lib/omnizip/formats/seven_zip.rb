@@ -20,16 +20,20 @@ module Omnizip
       autoload :Reader, "omnizip/formats/seven_zip/reader"
       autoload :Writer, "omnizip/formats/seven_zip/writer"
       autoload :CoderChain, "omnizip/formats/seven_zip/coder_chain"
-      autoload :StreamDecompressor, "omnizip/formats/seven_zip/stream_decompressor"
+      autoload :StreamDecompressor,
+               "omnizip/formats/seven_zip/stream_decompressor"
       autoload :StreamCompressor, "omnizip/formats/seven_zip/stream_compressor"
       autoload :FileCollector, "omnizip/formats/seven_zip/file_collector"
       autoload :HeaderWriter, "omnizip/formats/seven_zip/header_writer"
-      autoload :SplitArchiveReader, "omnizip/formats/seven_zip/split_archive_reader"
-      autoload :SplitArchiveWriter, "omnizip/formats/seven_zip/split_archive_writer"
+      autoload :SplitArchiveReader,
+               "omnizip/formats/seven_zip/split_archive_reader"
+      autoload :SplitArchiveWriter,
+               "omnizip/formats/seven_zip/split_archive_writer"
       autoload :HeaderEncryptor, "omnizip/formats/seven_zip/header_encryptor"
       autoload :EncryptedHeader, "omnizip/formats/seven_zip/encrypted_header"
       autoload :EncodedHeader, "omnizip/formats/seven_zip/encoded_header"
-      autoload :Bcj2StreamDecompressor, "omnizip/formats/seven_zip/bcj2_stream_decompressor"
+      autoload :Bcj2StreamDecompressor,
+               "omnizip/formats/seven_zip/bcj2_stream_decompressor"
       module Models
         autoload :StreamInfo, "omnizip/formats/seven_zip/models/stream_info"
         autoload :FileEntry, "omnizip/formats/seven_zip/models/file_entry"
