@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Filters
     # Model class representing the 4 BCJ2 streams.

@@ -6,8 +6,10 @@ module Omnizip
   module Converter
     # Nested classes - autoloaded
     autoload :ConversionStrategy, "omnizip/converter/conversion_strategy"
-    autoload :ZipToSevenZipStrategy, "omnizip/converter/zip_to_seven_zip_strategy"
-    autoload :SevenZipToZipStrategy, "omnizip/converter/seven_zip_to_zip_strategy"
+    autoload :ZipToSevenZipStrategy,
+             "omnizip/converter/zip_to_seven_zip_strategy"
+    autoload :SevenZipToZipStrategy,
+             "omnizip/converter/seven_zip_to_zip_strategy"
     autoload :ConversionRegistry, "omnizip/converter/conversion_registry"
 
     class << self

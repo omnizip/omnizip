@@ -6,7 +6,8 @@ module Omnizip
     autoload :LZMA2Const, "omnizip/algorithms/lzma2/constants"
     autoload :LZMA, "omnizip/algorithms/lzma"
     autoload :LZMA2, "omnizip/algorithms/lzma2"
-    autoload :LZMA2XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+    autoload :LZMA2XzEncoderAdapter,
+             "omnizip/algorithms/lzma2/xz_encoder_adapter"
     autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
     autoload :LZMA2Encoder, "omnizip/algorithms/lzma2/encoder"
     autoload :XzUtilsDecoder, "omnizip/algorithms/lzma/xz_utils_decoder"

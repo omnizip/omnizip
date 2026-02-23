@@ -7,13 +7,6 @@ module Omnizip
   # Provides high-level APIs for parallel compression and extraction operations.
   #
   # @example Auto-detect CPU count and compress in parallel
-  module Parallel
-    # Nested classes - autoloaded
-    autoload :JobQueue, "omnizip/parallel/job_queue"
-    autoload :JobScheduler, "omnizip/parallel/job_scheduler"
-    autoload :WorkerPool, "omnizip/parallel/worker_pool"
-    autoload :ParallelCompressor, "omnizip/parallel/parallel_compressor"
-    autoload :ParallelExtractor, "omnizip/parallel/parallel_extractor"
   #   Omnizip::Parallel.compress_directory('files/', 'backup.zip')
   #
   # @example Custom thread count
@@ -29,6 +22,13 @@ module Omnizip
   #     config.load_balancing = :dynamic
   #   end
   module Parallel
+    # Nested classes - autoloaded
+    autoload :JobQueue, "omnizip/parallel/job_queue"
+    autoload :JobScheduler, "omnizip/parallel/job_scheduler"
+    autoload :WorkerPool, "omnizip/parallel/worker_pool"
+    autoload :ParallelCompressor, "omnizip/parallel/parallel_compressor"
+    autoload :ParallelExtractor, "omnizip/parallel/parallel_extractor"
+
     class << self
       # Global configuration
       attr_accessor :config
@@ -145,6 +145,10 @@ module Omnizip
     end
 
     # Initialize default configuration
-    configure {}
+    def self.setup_default_config
+      @config = Omnizip::Models::ParallelOptions.new
+    end
+
+    setup_default_config
   end
 end

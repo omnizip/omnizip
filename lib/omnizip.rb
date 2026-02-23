@@ -102,7 +102,8 @@ module Omnizip
     autoload :LZMA, "omnizip/algorithms/lzma"
     autoload :LZMA2, "omnizip/algorithms/lzma2"
     autoload :LZMA2Encoder, "omnizip/algorithms/lzma2/encoder"
-    autoload :LZMA2XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+    autoload :LZMA2XzEncoderAdapter,
+             "omnizip/algorithms/lzma2/xz_encoder_adapter"
     autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
     autoload :PPMd7, "omnizip/algorithms/ppmd7"
     autoload :PPMd8, "omnizip/algorithms/ppmd8"
@@ -164,17 +165,23 @@ module Omnizip
     autoload :XZUtils, "omnizip/implementations/xz_utils"
     module SevenZip
       module LZMA
-        autoload :StateMachine, "omnizip/implementations/seven_zip/lzma/state_machine"
-        autoload :MatchFinder, "omnizip/implementations/seven_zip/lzma/match_finder"
+        autoload :StateMachine,
+                 "omnizip/implementations/seven_zip/lzma/state_machine"
+        autoload :MatchFinder,
+                 "omnizip/implementations/seven_zip/lzma/match_finder"
         autoload :Encoder, "omnizip/implementations/seven_zip/lzma/encoder"
         autoload :Decoder, "omnizip/implementations/seven_zip/lzma/decoder"
-        autoload :RangeEncoder, "omnizip/implementations/seven_zip/lzma/range_encoder"
-        autoload :RangeDecoder, "omnizip/implementations/seven_zip/lzma/range_decoder"
+        autoload :RangeEncoder,
+                 "omnizip/implementations/seven_zip/lzma/range_encoder"
+        autoload :RangeDecoder,
+                 "omnizip/implementations/seven_zip/lzma/range_decoder"
       end
+
       module LZMA2
         autoload :Encoder, "omnizip/implementations/seven_zip/lzma2/encoder"
       end
     end
+
     module XZUtils
       module LZMA2
         autoload :Encoder, "omnizip/implementations/xz_utils/lzma2/encoder"

@@ -1295,6 +1295,6 @@ IMPORTANT: Compression algorithms themselves are mathematical concepts and canno
 
 == Copyright and License
 
-Copyright 2025 https://www.ribose.com[Ribose Inc.]
+Copyright 2026 https://www.ribose.com[Ribose Inc.]
 
 See the link:COPYING[COPYING] file and link:LICENSE[LICENSE] file for the complete text of the licenses.

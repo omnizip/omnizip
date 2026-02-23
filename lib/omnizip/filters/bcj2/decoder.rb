@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Filters
     # BCJ2 decoder - reconstructs original data from 4 streams.

@@ -19,7 +19,6 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.0.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
-  spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = spec.homepage
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["rubygems_mfa_required"] = "true"
@@ -39,9 +38,9 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "base64"
+  spec.add_dependency "base64", "~> 0.2"
   spec.add_dependency "bindata", "~> 2.4"
   spec.add_dependency "lutaml-model", "~> 0.7"
   spec.add_dependency "marcel", "~> 1.0"
-  spec.add_dependency "rexml"
+  spec.add_dependency "rexml", "~> 3.3"
 end
