@@ -95,63 +95,45 @@ module Omnizip
   end
 end
 
-# Algorithms module with autoloaded classes
-module Omnizip
-  module Algorithms
-    autoload :PPMdBase, "omnizip/algorithms/ppmd_base"
-    autoload :LZMA, "omnizip/algorithms/lzma"
-    autoload :LZMA2, "omnizip/algorithms/lzma2"
-    autoload :LZMA2Encoder, "omnizip/algorithms/lzma2/encoder"
-    autoload :LZMA2XzEncoderAdapter,
-             "omnizip/algorithms/lzma2/xz_encoder_adapter"
-    autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
-    autoload :PPMd7, "omnizip/algorithms/ppmd7"
-    autoload :PPMd8, "omnizip/algorithms/ppmd8"
-    autoload :BZip2, "omnizip/algorithms/bzip2"
-    autoload :Deflate, "omnizip/algorithms/deflate"
-    autoload :Deflate64, "omnizip/algorithms/deflate64"
-    autoload :Zstandard, "omnizip/algorithms/zstandard"
-  end
-end
+# Algorithms (with registration - must be required explicitly)
+require_relative "omnizip/algorithms/ppmd_base"
+require_relative "omnizip/algorithms/lzma"
+require_relative "omnizip/algorithms/lzma2"
+require_relative "omnizip/algorithms/ppmd7"
+require_relative "omnizip/algorithms/ppmd8"
+require_relative "omnizip/algorithms/bzip2"
+require_relative "omnizip/algorithms/deflate"
+require_relative "omnizip/algorithms/deflate64"
+require_relative "omnizip/algorithms/zstandard"
 
-# Filters module with autoloaded classes
-module Omnizip
-  module Filters
-    autoload :FilterBase, "omnizip/filters/filter_base"
-    autoload :BCJ, "omnizip/filters/bcj"
-    autoload :BCJx86, "omnizip/filters/bcj_x86"
-    autoload :BCJ2, "omnizip/filters/bcj2"
-    autoload :BCJArm, "omnizip/filters/bcj_arm"
-    autoload :BCJArm64, "omnizip/filters/bcj_arm64"
-    autoload :BCJPpc, "omnizip/filters/bcj_ppc"
-    autoload :BCJSparc, "omnizip/filters/bcj_sparc"
-    autoload :BCJIa64, "omnizip/filters/bcj_ia64"
-    autoload :Delta, "omnizip/filters/delta"
-    autoload :Registry, "omnizip/filters/registry"
-  end
-end
+# Filters implementations (with registration)
+require_relative "omnizip/filters/bcj"
+require_relative "omnizip/filters/bcj_x86"
+require_relative "omnizip/filters/bcj2"
+require_relative "omnizip/filters/bcj_arm"
+require_relative "omnizip/filters/bcj_arm64"
+require_relative "omnizip/filters/bcj_ppc"
+require_relative "omnizip/filters/bcj_sparc"
+require_relative "omnizip/filters/bcj_ia64"
+require_relative "omnizip/filters/delta"
+require_relative "omnizip/filters/registry"
 
-# Checksums module with autoloaded classes
-module Omnizip
-  module Checksums
-    autoload :CrcBase, "omnizip/checksums/crc_base"
-    autoload :Crc32, "omnizip/checksums/crc32"
-    autoload :Crc64, "omnizip/checksums/crc64"
-  end
-end
+# Checksum implementations (with registration)
+require_relative "omnizip/checksums/crc_base"
+require_relative "omnizip/checksums/crc32"
+require_relative "omnizip/checksums/crc64"
 
-# Formats module with autoloaded classes
-module Omnizip
-  module Formats
-    autoload :SevenZip, "omnizip/formats/seven_zip"
-    autoload :Zip, "omnizip/formats/zip"
-    autoload :Rar, "omnizip/formats/rar"
-    autoload :Tar, "omnizip/formats/tar"
-    autoload :Gzip, "omnizip/formats/gzip"
-    autoload :Bzip2File, "omnizip/formats/bzip2_file"
-    autoload :Xz, "omnizip/formats/xz"
-  end
-end
+# Archive formats registry (with autoload declarations for lazy loading)
+require_relative "omnizip/formats"
+
+# Archive formats (with registration - must be required explicitly)
+require_relative "omnizip/formats/seven_zip"
+require_relative "omnizip/formats/zip"
+require_relative "omnizip/formats/rar"
+require_relative "omnizip/formats/tar"
+require_relative "omnizip/formats/gzip"
+require_relative "omnizip/formats/bzip2_file"
+require_relative "omnizip/formats/xz"
 
 # Platform-specific features
 module Omnizip
@@ -193,7 +175,4 @@ end
 # Load convenience module to extend Omnizip with utility methods
 require "omnizip/convenience"
 
-# Auto-register formats after all autoloads are set up
-Omnizip::Formats::SevenZip.register!
-Omnizip::Formats::Rar.register!
-Omnizip::Formats::Iso.register!
+# Formats auto-register when their files are loaded (see individual format files)
