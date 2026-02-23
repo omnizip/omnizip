@@ -1,14 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
       # Encrypted header model for .7z archives
       # Stores metadata for header encryption
       class EncryptedHeader
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         attr_accessor :encrypted_data, :salt, :iv, :original_size, :crc
 
@@ -131,7 +130,6 @@ module Omnizip
         def verify_crc
           return true if @crc.nil?
 
-          require_relative "../../checksums/crc32"
           calc_crc = Omnizip::Checksums::Crc32.new
           calc_crc.update(@encrypted_data)
           calc_crc.value == @crc

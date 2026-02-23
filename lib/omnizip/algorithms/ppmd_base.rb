@@ -20,7 +20,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
+require "omnizip/algorithm"
 
 module Omnizip
   module Algorithms

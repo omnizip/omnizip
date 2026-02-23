@@ -20,8 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../algorithms/lzma/state"
-
 module Omnizip
   module Implementations
     module SevenZip

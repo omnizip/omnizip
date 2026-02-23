@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "volume_descriptor"
-require_relative "directory_record"
-require_relative "path_table"
 require "fileutils"
 
 module Omnizip

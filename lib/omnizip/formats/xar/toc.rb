@@ -4,9 +4,8 @@ require "set"
 require "zlib"
 require "time"
 require "rexml/document"
-require_relative "constants"
-require_relative "entry"
 
+require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar
@@ -18,7 +17,7 @@ module Omnizip
       # - Data offsets and sizes in the heap
       # - Extended attributes
       class Toc
-        include Constants
+        include Omnizip::Formats::Xar::Constants
 
         attr_accessor :creation_time, :checksum_offset, :checksum_size,
                       :checksum_style

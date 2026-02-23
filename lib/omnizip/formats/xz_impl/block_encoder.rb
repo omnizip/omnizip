@@ -1,14 +1,13 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "constants"
-require_relative "../../algorithms/xz_lzma2"
-require_relative "../../checksums/crc64"
+require "omnizip/algorithms/xz_lzma2"
+require "omnizip/checksums/crc64"
 require "zlib"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Block encoder
       # Based on XZ Utils block_header_encoder.c
       class BlockEncoder

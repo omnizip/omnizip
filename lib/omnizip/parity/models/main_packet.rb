@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "packet"
-
 module Omnizip
   module Parity
     module Models

@@ -1,13 +1,12 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "constants"
 require "zlib"
-require_relative "../../error"
+require "omnizip/error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Index encoder
       # Stores positions and sizes of all blocks in the stream
       class IndexEncoder

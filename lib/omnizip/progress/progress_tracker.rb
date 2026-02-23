@@ -4,9 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "operation_progress"
-require_relative "../eta"
-
 module Omnizip
   module Progress
     # Central progress tracking coordinator.

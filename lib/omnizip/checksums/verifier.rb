@@ -22,7 +22,6 @@
 
 require "zlib"
 require "digest"
-require_relative "crc64"
 
 module Omnizip
   module Checksums

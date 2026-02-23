@@ -22,14 +22,12 @@
 
 require "stringio"
 require "zlib"
-require_relative "constants"
-require_relative "vli"
-require_relative "../../error"
-require_relative "../../checksums/verifier"
+require "omnizip/error"
+require "omnizip/checksums/verifier"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Block Header parser
       #
       # Block Header format:

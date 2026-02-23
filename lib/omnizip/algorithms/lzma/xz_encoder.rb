@@ -20,12 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "xz_match_finder_adapter"
-require_relative "xz_encoder_fast"
-require_relative "xz_buffered_range_encoder"
-require_relative "xz_state"
-require_relative "xz_probability_models"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm

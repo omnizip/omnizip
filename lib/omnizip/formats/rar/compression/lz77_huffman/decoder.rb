@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../bit_stream"
-require_relative "sliding_window"
-require_relative "huffman_coder"
-
 module Omnizip
   module Formats
     module Rar

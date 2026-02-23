@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
 module Omnizip
   module Algorithms
     class Deflate64

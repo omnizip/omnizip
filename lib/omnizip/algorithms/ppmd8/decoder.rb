@@ -20,8 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "model"
-require_relative "../lzma/range_decoder"
 
 module Omnizip
   module Algorithms

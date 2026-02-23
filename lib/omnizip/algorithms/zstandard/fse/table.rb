@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "bitstream"
-require_relative "../constants"
-
 module Omnizip
   module Algorithms
     class Zstandard

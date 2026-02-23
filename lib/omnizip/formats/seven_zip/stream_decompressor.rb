@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "coder_chain"
-require_relative "../../checksums/crc32"
 require "stringio"
 
 module Omnizip
@@ -58,7 +56,7 @@ module Omnizip
           return packed_data unless algo_sym # Copy method
 
           # Get algorithm class
-          algo_class = AlgorithmRegistry.get(algo_sym)
+          algo_class = Omnizip::AlgorithmRegistry.get(algo_sym)
           raise "Algorithm not found: #{algo_sym}" unless algo_class
 
           # Decompress
@@ -77,7 +75,7 @@ module Omnizip
           # Apply filters if present
           if @chain_config[:filters] && !@chain_config[:filters].empty?
             @chain_config[:filters].reverse_each do |filter_sym|
-              filter_class = FilterRegistry.get(filter_sym)
+              filter_class = Omnizip::FilterRegistry.get(filter_sym)
               next unless filter_class
 
               # BCJ2 requires special handling with multiple streams

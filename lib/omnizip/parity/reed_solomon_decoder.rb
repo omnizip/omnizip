@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "galois16"
-require_relative "par2cmdline_algorithm"
-
 module Omnizip
   module Parity
     # Pure Reed-Solomon decoder for recovering missing blocks

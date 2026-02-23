@@ -1,12 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "xar/constants"
-require_relative "xar/header"
-require_relative "xar/entry"
-require_relative "xar/toc"
-require_relative "xar/reader"
-require_relative "xar/writer"
-
 module Omnizip
   module Formats
     # XAR archive format support
@@ -37,6 +30,14 @@ module Omnizip
     #   entries = Omnizip::Formats::Xar.list('archive.xar')
     #   entries.each { |e| puts "#{e.name} (#{e.size} bytes)" }
     module Xar
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/xar/constants"
+      autoload :Header, "omnizip/formats/xar/header"
+      autoload :Entry, "omnizip/formats/xar/entry"
+      autoload :Toc, "omnizip/formats/xar/toc"
+      autoload :Reader, "omnizip/formats/xar/reader"
+      autoload :Writer, "omnizip/formats/xar/writer"
+
       # Re-export constants for external access
       CKSUM_NONE = Constants::CKSUM_NONE
       CKSUM_SHA1 = Constants::CKSUM_SHA1
@@ -141,7 +142,7 @@ module Omnizip
 
         # Auto-register XAR format when loaded
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".xar", Reader)
         end
       end

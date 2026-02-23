@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "../models/algorithm_metadata"
-
 module Omnizip
   module Algorithms
     # LZMA (Lempel-Ziv-Markov chain Algorithm) compression
@@ -43,6 +40,45 @@ module Omnizip
     # 2. Encoding decisions using range coder with probability models
     # 3. Maintaining state for optimal compression
     class LZMA < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/lzma/constants"
+      autoload :BitModel, "omnizip/algorithms/lzma/bit_model"
+      autoload :ProbabilityModels, "omnizip/algorithms/lzma/probability_models"
+      autoload :XZRangeEncoder, "omnizip/algorithms/lzma/xz_range_encoder"
+      autoload :Dictionary, "omnizip/algorithms/lzma/dictionary"
+      autoload :LZMAState, "omnizip/algorithms/lzma/lzma_state"
+      autoload :RangeCoder, "omnizip/algorithms/lzma/range_coder"
+      autoload :RangeEncoder, "omnizip/algorithms/lzma/range_encoder"
+      autoload :RangeDecoder, "omnizip/algorithms/lzma/range_decoder"
+      autoload :Match, "omnizip/algorithms/lzma/match"
+      autoload :MatchFinder, "omnizip/algorithms/lzma/match_finder"
+      autoload :OptimalEncoder, "omnizip/algorithms/lzma/optimal_encoder"
+      autoload :State, "omnizip/algorithms/lzma/state"
+      autoload :XzState, "omnizip/algorithms/lzma/xz_state"
+      autoload :XzProbabilityModels, "omnizip/algorithms/lzma/xz_probability_models"
+      autoload :XzPriceCalculator, "omnizip/algorithms/lzma/xz_price_calculator"
+      autoload :XzMatchFinderAdapter, "omnizip/algorithms/lzma/xz_match_finder_adapter"
+      autoload :LengthCoder, "omnizip/algorithms/lzma/length_coder"
+      autoload :DistanceCoder, "omnizip/algorithms/lzma/distance_coder"
+      autoload :LiteralEncoder, "omnizip/algorithms/lzma/literal_encoder"
+      autoload :LiteralDecoder, "omnizip/algorithms/lzma/literal_decoder"
+      autoload :MatchFinderConfig, "omnizip/algorithms/lzma/match_finder_config"
+      autoload :MatchFinderFactory, "omnizip/algorithms/lzma/match_finder_factory"
+      autoload :XzEncoder, "omnizip/algorithms/lzma/xz_encoder"
+      autoload :XzEncoderFast, "omnizip/algorithms/lzma/xz_encoder_fast"
+      autoload :XzBufferedRangeEncoder, "omnizip/algorithms/lzma/xz_buffered_range_encoder"
+      autoload :XzRangeEncoderExact, "omnizip/algorithms/lzma/xz_range_encoder_exact"
+      autoload :XzRangeEncoder, "omnizip/algorithms/lzma/xz_range_encoder_exact"
+      autoload :Encoder, "omnizip/algorithms/lzma/encoder"
+      autoload :Decoder, "omnizip/algorithms/lzma/decoder"
+      autoload :LzmaAloneDecoder, "omnizip/algorithms/lzma/lzma_alone_decoder"
+      autoload :LzipDecoder, "omnizip/algorithms/lzma/lzip_decoder"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :Crc32, "omnizip/checksums/crc32"
+      autoload :SevenZipLzmaEncoder, "omnizip/implementations/seven_zip/lzma/encoder"
+      autoload :SevenZipMatchFinder, "omnizip/implementations/seven_zip/lzma/match_finder"
+
       # Initialize the LZMA algorithm with options
       #
       # @param options [Hash] Algorithm options
@@ -211,43 +247,6 @@ module Omnizip
     end
   end
 end
-
-# Load nested classes after LZMA class is defined
-require_relative "lzma/constants"
-require_relative "lzma/bit_model"
-require_relative "lzma/probability_models"
-require_relative "lzma/xz_range_encoder"
-require_relative "lzma/dictionary"
-require_relative "lzma/lzma_state"
-require_relative "lzma/range_coder"
-require_relative "lzma/range_encoder"
-require_relative "lzma/range_decoder"
-require_relative "lzma/match"
-require_relative "lzma/match_finder"
-require_relative "lzma/optimal_encoder"
-require_relative "lzma/state"
-require_relative "lzma/xz_state"
-require_relative "lzma/xz_probability_models"
-require_relative "lzma/xz_price_calculator"
-require_relative "lzma/xz_match_finder_adapter"
-require_relative "../implementations/seven_zip/lzma/state_machine"
-require_relative "lzma/length_coder"
-require_relative "lzma/distance_coder"
-require_relative "lzma/literal_encoder"
-require_relative "lzma/literal_decoder"
-require_relative "lzma/match_finder_config"
-require_relative "../implementations/seven_zip/lzma/match_finder"
-require_relative "lzma/match_finder_factory"
-require_relative "../implementations/seven_zip/lzma/encoder"
-require_relative "lzma/xz_encoder"
-require_relative "lzma/encoder"
-require_relative "lzma/decoder"
-require_relative "lzma/xz_utils_decoder"
-
-# LZMA container format decoders (DIFFERENT from XZ format!)
-# These are standalone formats that use LZMA1 compression
-require_relative "lzma/lzma_alone_decoder"  # .lzma (LZMA_Alone) format
-require_relative "lzma/lzip_decoder"        # .lz (lzip) format
 
 # Register the LZMA algorithm
 Omnizip::AlgorithmRegistry.register(:lzma, Omnizip::Algorithms::LZMA)

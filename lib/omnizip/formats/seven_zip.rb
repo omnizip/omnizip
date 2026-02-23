@@ -1,19 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "seven_zip/constants"
-require_relative "seven_zip/header"
-require_relative "seven_zip/parser"
-require_relative "seven_zip/reader"
-require_relative "seven_zip/writer"
-require_relative "seven_zip/coder_chain"
-require_relative "seven_zip/stream_decompressor"
-require_relative "seven_zip/stream_compressor"
-require_relative "seven_zip/file_collector"
-require_relative "seven_zip/header_writer"
-require_relative "seven_zip/split_archive_reader"
-require_relative "seven_zip/split_archive_writer"
-require_relative "../models/split_options"
-
 module Omnizip
   module Formats
     # .7z archive format support
@@ -27,6 +13,41 @@ module Omnizip
     # - Archive creation
     # - Split archives (multi-volume)
     module SevenZip
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/seven_zip/constants"
+      autoload :Header, "omnizip/formats/seven_zip/header"
+      autoload :Parser, "omnizip/formats/seven_zip/parser"
+      autoload :Reader, "omnizip/formats/seven_zip/reader"
+      autoload :Writer, "omnizip/formats/seven_zip/writer"
+      autoload :CoderChain, "omnizip/formats/seven_zip/coder_chain"
+      autoload :StreamDecompressor, "omnizip/formats/seven_zip/stream_decompressor"
+      autoload :StreamCompressor, "omnizip/formats/seven_zip/stream_compressor"
+      autoload :FileCollector, "omnizip/formats/seven_zip/file_collector"
+      autoload :HeaderWriter, "omnizip/formats/seven_zip/header_writer"
+      autoload :SplitArchiveReader, "omnizip/formats/seven_zip/split_archive_reader"
+      autoload :SplitArchiveWriter, "omnizip/formats/seven_zip/split_archive_writer"
+      autoload :HeaderEncryptor, "omnizip/formats/seven_zip/header_encryptor"
+      autoload :EncryptedHeader, "omnizip/formats/seven_zip/encrypted_header"
+      autoload :EncodedHeader, "omnizip/formats/seven_zip/encoded_header"
+      autoload :Bcj2StreamDecompressor, "omnizip/formats/seven_zip/bcj2_stream_decompressor"
+      module Models
+        autoload :StreamInfo, "omnizip/formats/seven_zip/models/stream_info"
+        autoload :FileEntry, "omnizip/formats/seven_zip/models/file_entry"
+        autoload :Folder, "omnizip/formats/seven_zip/models/folder"
+        autoload :CoderInfo, "omnizip/formats/seven_zip/models/coder_info"
+      end
+      # Add autoload for Models namespace itself
+      autoload :Models, "omnizip/formats/seven_zip/models"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :Crc32, "omnizip/checksums/crc32"
+      autoload :LZMA2, "omnizip/algorithms/lzma2"
+      autoload :AlgorithmRegistry, "omnizip/algorithm_registry"
+      autoload :FilterRegistry, "omnizip/filter_registry"
+      autoload :FilterPipeline, "omnizip/filter_pipeline"
+      autoload :Bcj2Decoder, "omnizip/filters/bcj2/decoder"
+      autoload :Bcj2StreamData, "omnizip/filters/bcj2/stream_data"
+
       # Create a new .7z archive
       #
       # @param path [String] Output path
@@ -92,12 +113,9 @@ module Omnizip
 
       # Auto-register .7z format when loaded
       def self.register!
-        require_relative "../format_registry"
+        require "omnizip/format_registry"
         FormatRegistry.register(".7z", Reader)
       end
     end
   end
 end
-
-# Auto-register on load
-Omnizip::Formats::SevenZip.register!

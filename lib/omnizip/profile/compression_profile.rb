@@ -148,7 +148,7 @@ module Omnizip
 
         # Auto-select BCJ filter based on MIME type
         # For executables, default to x86 architecture
-        require_relative "../file_type/mime_classifier"
+        require "omnizip/file_type/mime_classifier"
         if FileType::MimeClassifier.executable?(mime_type)
           :bcj_x86
         end

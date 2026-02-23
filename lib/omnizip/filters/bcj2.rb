@@ -16,11 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "filter_base"
-require_relative "bcj2/constants"
-require_relative "bcj2/stream_data"
-require_relative "bcj2/decoder"
-require_relative "bcj2/encoder"
+require "omnizip/filters"
 
 module Omnizip
   module Filters

@@ -16,17 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "filter_base"
-require_relative "bcj_x86"
-require_relative "bcj_arm"
-require_relative "bcj_arm64"
-require_relative "bcj_ia64"
-require_relative "bcj_ppc"
-require_relative "bcj_sparc"
-require_relative "bcj2"
-require_relative "delta"
-require_relative "bcj" # Unified BCJ filter (Task 2)
-require_relative "../filter_registry"
+require "omnizip/filters"
 
 module Omnizip
   module Filters
@@ -69,7 +59,7 @@ module Omnizip
       # @param xz_supported [Boolean] Whether XZ format supports this architecture
       # @return [void]
       def self.register_bcj_filter(name, filter_class, architecture:,
-xz_supported: true)
+      xz_supported: true)
         formats = [:seven_zip]
         formats << :xz if xz_supported
         Omnizip::FilterRegistry.register_with_formats(name, filter_class,

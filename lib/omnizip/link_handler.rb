@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "link_handler/symbolic_link"
-require_relative "link_handler/hard_link"
-
 module Omnizip
   # Handles symbolic and hard link operations with platform detection
   module LinkHandler
+    autoload :SymbolicLink, "omnizip/link_handler/symbolic_link"
+    autoload :HardLink, "omnizip/link_handler/hard_link"
     class << self
       # Check if the platform supports symbolic links
       def supported?

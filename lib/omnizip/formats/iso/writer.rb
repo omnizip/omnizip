@@ -2,9 +2,6 @@
 
 require "fileutils"
 require "time"
-require_relative "volume_builder"
-require_relative "directory_builder"
-require_relative "../iso"
 
 module Omnizip
   module Formats

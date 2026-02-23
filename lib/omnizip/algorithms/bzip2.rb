@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "../models/algorithm_metadata"
-
 module Omnizip
   module Algorithms
     # BZip2 block-sorting compression algorithm
@@ -42,6 +39,17 @@ module Omnizip
     # Larger blocks (up to 900KB) generally provide better compression
     # but require more memory.
     class BZip2 < Algorithm
+      # Nested classes - autoloaded
+      autoload :Bwt, "omnizip/algorithms/bzip2/bwt"
+      autoload :Mtf, "omnizip/algorithms/bzip2/mtf"
+      autoload :Rle, "omnizip/algorithms/bzip2/rle"
+      autoload :Huffman, "omnizip/algorithms/bzip2/huffman"
+      autoload :Encoder, "omnizip/algorithms/bzip2/encoder"
+      autoload :Decoder, "omnizip/algorithms/bzip2/decoder"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :Crc32, "omnizip/checksums/crc32"
+
       # Get algorithm metadata
       #
       # @return [AlgorithmMetadata] Algorithm information
@@ -117,14 +125,6 @@ module Omnizip
     end
   end
 end
-
-# Load nested classes after BZip2 class is defined
-require_relative "bzip2/bwt"
-require_relative "bzip2/mtf"
-require_relative "bzip2/rle"
-require_relative "bzip2/huffman"
-require_relative "bzip2/encoder"
-require_relative "bzip2/decoder"
 
 # Register the BZip2 algorithm
 Omnizip::AlgorithmRegistry.register(:bzip2, Omnizip::Algorithms::BZip2)

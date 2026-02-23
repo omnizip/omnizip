@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "entry"
+require "omnizip/formats/tar"
 
 module Omnizip
   module Formats
@@ -10,7 +9,7 @@ module Omnizip
       #
       # Handles reading and writing 512-byte TAR headers
       class Header
-        include Constants
+        include Omnizip::Formats::Tar::Constants
 
         # Parse a TAR header from binary data
         #

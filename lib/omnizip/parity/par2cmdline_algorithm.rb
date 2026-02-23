@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "galois16"
-
 module Omnizip
   module Parity
     # Par2cmdline-compatible Reed-Solomon algorithm

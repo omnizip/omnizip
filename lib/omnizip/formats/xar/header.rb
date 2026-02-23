@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar
@@ -16,7 +15,7 @@ module Omnizip
       # - Bytes 24-27: Checksum algorithm (big-endian uint32)
       # - Bytes 28-63: (Optional) Checksum name for CKSUM_OTHER
       class Header
-        include Constants
+        include Omnizip::Formats::Xar::Constants
 
         attr_reader :magic, :header_size, :version, :toc_compressed_size,
                     :toc_uncompressed_size, :checksum_algorithm,

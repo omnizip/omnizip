@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../../../../../../lib/omnizip/algorithms/lzma"
 
 module Omnizip
   module Formats

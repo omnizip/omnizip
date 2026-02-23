@@ -1,19 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "header"
-require_relative "vint"
-require_relative "crc32"
-require_relative "compression/store"
-require_relative "compression/lzma"
-require_relative "compression/lzss"
-require_relative "multi_volume/volume_manager"
-require_relative "models/volume_options"
-require_relative "models/solid_options"
-require_relative "models/encryption_options"
-require_relative "models/recovery_options"
-require_relative "solid/solid_manager"
-require_relative "encryption/encryption_manager"
-require_relative "../../../parity/par2_creator"
+require "omnizip/parity/par2_creator"
 
 module Omnizip
   module Formats

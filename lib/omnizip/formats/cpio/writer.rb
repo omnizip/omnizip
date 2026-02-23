@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "constants"
-require_relative "entry"
+require "omnizip/formats/cpio"
 
 module Omnizip
   module Formats
@@ -23,7 +22,7 @@ module Omnizip
       #   writer.add_directory('initramfs/')
       #   writer.write
       class Writer
-        include Constants
+        include Omnizip::Formats::Cpio::Constants
 
         # @return [String] Output archive path
         attr_reader :output_path

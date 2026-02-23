@@ -4,15 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "progress/operation_progress"
-require_relative "progress/progress_tracker"
-require_relative "progress/progress_reporter"
-require_relative "progress/silent_reporter"
-require_relative "progress/callback_reporter"
-require_relative "progress/log_reporter"
-require_relative "progress/progress_bar"
-require_relative "progress/console_reporter"
-
 module Omnizip
   # Progress tracking module.
   #
@@ -42,6 +33,19 @@ module Omnizip
   #     puts "#{progress.percentage}% complete"
   #   end
   module Progress
+    # Nested classes - autoloaded
+    autoload :OperationProgress, "omnizip/progress/operation_progress"
+    autoload :ProgressTracker, "omnizip/progress/progress_tracker"
+    autoload :ProgressReporter, "omnizip/progress/progress_reporter"
+    autoload :SilentReporter, "omnizip/progress/silent_reporter"
+    autoload :CallbackReporter, "omnizip/progress/callback_reporter"
+    autoload :LogReporter, "omnizip/progress/log_reporter"
+    autoload :ProgressBar, "omnizip/progress/progress_bar"
+    autoload :ConsoleReporter, "omnizip/progress/console_reporter"
+
+    # Cross-namespace dependencies - autoloaded
+    autoload :Eta, "omnizip/eta"
+
     # Track an operation's progress
     #
     # @param total_files [Integer] Total number of files to process

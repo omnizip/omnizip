@@ -1,12 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "packet"
-require_relative "main_packet"
-require_relative "file_description_packet"
-require_relative "ifsc_packet"
-require_relative "recovery_slice_packet"
-require_relative "creator_packet"
-
 module Omnizip
   module Parity
     module Models

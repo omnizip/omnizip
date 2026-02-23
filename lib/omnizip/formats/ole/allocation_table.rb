@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "set"
-require_relative "constants"
 
+require "omnizip/formats/ole"
 module Omnizip
   module Formats
     module Ole
@@ -11,7 +11,7 @@ module Omnizip
       # Manages block chains for files stored in OLE containers.
       # There are two types: Big (BBAT) and Small (SBAT).
       class AllocationTable
-        include Constants
+        include Omnizip::Formats::Ole::Constants
 
         # @return [Array<Integer>] Table entries
         attr_reader :entries

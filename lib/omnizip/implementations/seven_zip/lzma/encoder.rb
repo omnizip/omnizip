@@ -20,17 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../algorithms/lzma/constants"
-require_relative "match_finder"
-require_relative "../../../algorithms/lzma/match_finder_config"
-require_relative "../../../algorithms/lzma/match_finder_factory"
-require_relative "../../../algorithms/lzma/literal_encoder"
-require_relative "state_machine"
-require_relative "../../../algorithms/lzma/length_coder"
-require_relative "../../../algorithms/lzma/distance_coder"
-require_relative "range_encoder" # Use 7-Zip SDK range encoder (not XZ Utils)
-require_relative "../../../algorithms/lzma/bit_model"
-
 module Omnizip
   module Implementations
     module SevenZip

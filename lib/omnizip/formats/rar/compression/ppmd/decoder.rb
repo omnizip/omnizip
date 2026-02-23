@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../../algorithms/ppmd7/decoder"
-require_relative "../../../../algorithms/ppmd7/model"
-require_relative "context"
-
 module Omnizip
   module Formats
     module Rar

@@ -21,18 +21,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require_relative "../../base/lzma2_encoder_base"
-require_relative "../../../algorithms/lzma"
-require_relative "../../../algorithms/lzma2/constants"
-require_relative "../../../algorithms/lzma2/lzma2_chunk"
-require_relative "../../../algorithms/lzma2/properties"
-require_relative "../../../algorithms/lzma/dictionary"
-require_relative "../../../algorithms/lzma/lzma_state"
-require_relative "../../../algorithms/lzma/xz_probability_models"
-require_relative "../../../algorithms/lzma/match_finder"
-require_relative "../../../algorithms/lzma/optimal_encoder"
-require_relative "../../../algorithms/lzma/xz_range_encoder_exact"
-require_relative "../../../algorithms/lzma/constants"
+require "omnizip/implementations/base"
 
 module Omnizip
   module Implementations

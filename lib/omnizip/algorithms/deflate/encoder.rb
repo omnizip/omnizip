@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "zlib"
-require_relative "constants"
 
 module Omnizip
   module Algorithms

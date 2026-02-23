@@ -109,8 +109,6 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Decoder options
             def decompress_lz77_huffman(input, output, options)
-              require_relative "lz77_huffman/decoder"
-
               decoder = LZ77Huffman::Decoder.new(input, options)
               decoded_data = decoder.decode
               output.write(decoded_data)
@@ -136,8 +134,6 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Decoder options
             def decompress_ppmd(input, output, options)
-              require_relative "ppmd/decoder"
-
               decoder = PPMd::Decoder.new(input, options)
               decoded_data = decoder.decode_stream
               output.write(decoded_data)
@@ -158,8 +154,6 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Encoder options
             def compress_lz77_huffman(input, output, options)
-              require_relative "lz77_huffman/encoder"
-
               encoder = LZ77Huffman::Encoder.new(output, options)
               encoder.encode(input)
             end
@@ -184,8 +178,6 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Encoder options
             def compress_ppmd(input, output, options)
-              require_relative "ppmd/encoder"
-
               encoder = PPMd::Encoder.new(output, options)
               encoder.encode_stream(input)
             end
@@ -199,10 +191,8 @@ module Omnizip
               when METHOD_STORE
                 nil
               when METHOD_FASTEST, METHOD_FAST, METHOD_NORMAL, METHOD_GOOD
-                require_relative "lz77_huffman/decoder"
                 LZ77Huffman::Decoder
               when METHOD_BEST
-                require_relative "ppmd/decoder"
                 PPMd::Decoder
               else
                 raise UnsupportedMethodError,

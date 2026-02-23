@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "vint"
-require_relative "crc32"
-
 module Omnizip
   module Formats
     module Rar

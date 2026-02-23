@@ -3,10 +3,8 @@
 require "fileutils"
 require "zlib"
 require "stringio"
-require_relative "constants"
-require_relative "header"
-require_relative "compression/dispatcher"
 
+require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar
@@ -28,7 +26,7 @@ module Omnizip
       #     recovery: 5
       #   )
       class Writer
-        include Constants
+        include Omnizip::Formats::Rar::Constants
 
         # @return [String] Output archive path
         attr_reader :output_path

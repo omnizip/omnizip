@@ -20,8 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../lzma/xz_encoder"
-
 module Omnizip
   module Algorithms
     # Adapter for XZ Encoder to work with LZMA2 chunking

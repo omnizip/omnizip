@@ -20,8 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "xz_utils_decoder"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm
@@ -48,7 +46,7 @@ module Omnizip
           # Use XZ Utils LZMA decoder (full XZ Utils compatibility)
           @impl = XzUtilsDecoder.new(input, options)
 
-          # Expose header info for backward compatibility
+          # Expose header info as attributes
           @lc = @impl.lc
           @lp = @impl.lp
           @pb = @impl.pb

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "models/file_entry"
 
 module Omnizip
   module Formats

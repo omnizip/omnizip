@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "archive_verifier"
-require_relative "recovery_record"
-require_relative "parity_handler"
 require "fileutils"
 
 module Omnizip

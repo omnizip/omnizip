@@ -1,15 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "models/rar_entry"
-
+require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar
       # RAR block parser
       # Parses different block types in RAR archives
       class BlockParser
-        include Constants
+        include Omnizip::Formats::Rar::Constants
 
         attr_reader :version
 

@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "models/performance_result"
-require_relative "models/profile_report"
-require_relative "models/optimization_suggestion"
-
 module Omnizip
   # Main profiler interface using Strategy pattern for different profiling approaches
   class Profiler
+    autoload :PerformanceResult, "omnizip/models/performance_result"
+    autoload :ProfileReport, "omnizip/models/profile_report"
+    autoload :OptimizationSuggestion, "omnizip/models/optimization_suggestion"
     attr_reader :report, :enabled
 
     def initialize(profile_name: "default", enabled: true)

@@ -16,7 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "../cli/output_formatter"
+require "omnizip/cli/output_formatter"
 
 module Omnizip
   module Commands

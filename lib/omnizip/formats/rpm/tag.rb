@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -10,7 +9,7 @@ module Omnizip
       # Maps tag IDs to symbolic names and handles typed value extraction
       # from the header data blob.
       class Tag
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # Tag ID to name mapping (from rpm/rpmtag.h)
         TAG_IDS = {

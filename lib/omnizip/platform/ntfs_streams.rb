@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "English"
-require_relative "../platform"
 
 module Omnizip
   module Platform

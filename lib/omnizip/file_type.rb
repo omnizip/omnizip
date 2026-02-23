@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "marcel"
-require_relative "file_type/mime_classifier"
 
 module Omnizip
   # File type detection module using Marcel for MIME type detection
@@ -25,6 +24,7 @@ module Omnizip
   #     # => 'application/pdf'
   #   end
   module FileType
+    autoload :MimeClassifier, "omnizip/file_type/mime_classifier"
     class << self
       # Detect MIME type from file path
       #

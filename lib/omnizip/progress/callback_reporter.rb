@@ -4,8 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "progress_reporter"
-
 module Omnizip
   module Progress
     # Progress reporter that calls a user-provided Ruby block.

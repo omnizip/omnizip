@@ -6,9 +6,6 @@ rescue LoadError, ArgumentError
   # lutaml-model not available, using simple classes
 end
 
-require_relative "../rar/rar_format_base"
-require_relative "decompressor"
-
 module Omnizip
   module Formats
     module Rar3

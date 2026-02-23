@@ -20,11 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "bwt"
-require_relative "mtf"
-require_relative "rle"
-require_relative "huffman"
-require_relative "../../checksums/crc32"
 
 module Omnizip
   module Algorithms

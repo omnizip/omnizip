@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
-require_relative "constants"
 require "zlib"
-require_relative "../../error"
+require "omnizip/error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Stream Footer encoder
       # Based on XZ Utils stream_flags_encoder.c
       class StreamFooter

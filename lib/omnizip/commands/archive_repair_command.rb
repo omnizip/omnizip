@@ -18,7 +18,7 @@ module Omnizip
       # @param input_path [String] Path to corrupted archive
       # @param output_path [String] Path for repaired archive
       def run(input_path, output_path)
-        require_relative "../formats/rar"
+        require "omnizip/formats/rar"
 
         raise "Archive not found: #{input_path}" unless File.exist?(input_path)
 

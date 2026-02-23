@@ -4,12 +4,8 @@ require "set"
 require "zlib"
 require "stringio"
 require "digest"
-require_relative "constants"
-require_relative "lead"
-require_relative "header"
-require_relative "tag"
-require_relative "../cpio/writer"
 
+require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -37,7 +33,7 @@ module Omnizip
       #   )
       #
       class Writer
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # Supported compression types and their properties
         COMPRESSION_INFO = {
@@ -631,7 +627,6 @@ mtime: nil)
         # @param data [String] Uncompressed data
         # @param output [IO] Output IO
         def compress_bzip2(data, output)
-          require_relative "../bzip2_file"
           input_io = StringIO.new(data)
           Bzip2File.compress_stream(input_io, output, level: 9)
         end
@@ -641,7 +636,6 @@ mtime: nil)
         # @param data [String] Uncompressed data
         # @param output [IO] Output IO
         def compress_xz(data, output)
-          require_relative "../xz"
           Xz.create(data, output, dict_size: 8 * 1024 * 1024)
         end
 
@@ -650,7 +644,6 @@ mtime: nil)
         # @param data [String] Uncompressed data
         # @param output [IO] Output IO
         def compress_zstd(data, output)
-          require_relative "../../algorithms/zstandard"
           encoder = Algorithms::Zstandard::Encoder.new(output, level: 19)
           encoder.encode_stream(data)
         end

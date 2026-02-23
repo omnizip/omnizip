@@ -22,12 +22,11 @@
 
 require "stringio"
 require "zlib"
-require_relative "vli"
-require_relative "../../error"
+require "omnizip/error"
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # XZ Index decoder
       #
       # Index format:

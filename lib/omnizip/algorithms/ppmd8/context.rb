@@ -2,7 +2,7 @@
 
 # Copyright (C) 2025 Ribose Inc.
 
-require_relative "../ppmd7/context"
+require "omnizip/algorithms/ppmd7/context"
 
 module Omnizip
   module Algorithms

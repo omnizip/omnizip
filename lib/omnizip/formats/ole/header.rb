@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-
+require "omnizip/formats/ole"
 module Omnizip
   module Formats
     module Ole
@@ -11,7 +10,7 @@ module Omnizip
       # The first 76 bytes contain the header structure, followed by
       # up to 109 BAT block indices.
       class Header
-        include Constants
+        include Omnizip::Formats::Ole::Constants
 
         # Pack format for header structure
         PACK = "a8 a16 v2 a2 v2 a6 V3 a4 V5"

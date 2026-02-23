@@ -2,9 +2,6 @@
 
 require "digest"
 require "fileutils"
-require_relative "par2_verifier"
-require_relative "reed_solomon_matrix"
-require_relative "chunked_block_processor"
 
 module Omnizip
   module Parity

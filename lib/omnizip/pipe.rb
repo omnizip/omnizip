@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "pipe/stream_compressor"
-require_relative "pipe/stream_decompressor"
-
 module Omnizip
   # Unix pipe operations for stdin/stdout integration
   #
@@ -23,6 +20,8 @@ module Omnizip
   #     end
   #   end
   module Pipe
+    autoload :StreamCompressor, "omnizip/pipe/stream_compressor"
+    autoload :StreamDecompressor, "omnizip/pipe/stream_decompressor"
     class << self
       # Compress from input stream to output stream
       #

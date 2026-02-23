@@ -20,13 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../algorithms/lzma/constants"
-require_relative "range_decoder" # Use 7-Zip SDK range decoder (not XZ Utils)
-require_relative "../../../algorithms/lzma/bit_model"
-require_relative "../../../algorithms/lzma/length_coder"
-require_relative "../../../algorithms/lzma/distance_coder"
-require_relative "state_machine"
-
 module Omnizip
   module Implementations
     module SevenZip

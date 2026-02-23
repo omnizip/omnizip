@@ -21,7 +21,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../filter"
 
 module Omnizip
   module Filters
@@ -38,7 +37,7 @@ module Omnizip
     #   bcj = Omnizip::Filters::BCJ.new(architecture: :x86)
     #   bcj.id_for_format(:xz)         # => 0x04
     #   bcj.id_for_format(:seven_zip)  # => 0x03030103
-    class BCJ < Filter
+    class BCJ < ::Omnizip::Filter
       # Architecture-specific configurations
       CONFIG = {
         x86: {

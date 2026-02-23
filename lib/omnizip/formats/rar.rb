@@ -1,35 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "rar/constants"
-require_relative "rar/header"
-require_relative "rar/block_parser"
-require_relative "rar/decompressor"
-require_relative "rar/volume_manager"
-require_relative "rar/recovery_record"
-require_relative "rar/parity_handler"
-require_relative "rar/archive_verifier"
-require_relative "rar/archive_repairer"
-require_relative "rar/reader"
-require_relative "rar/writer"
-require_relative "rar/models/rar_entry"
-require_relative "rar/models/rar_volume"
-require_relative "rar/models/rar_archive"
-
-# RAR5 format support (pure Ruby)
-require_relative "rar/rar5/vint"
-require_relative "rar/rar5/crc32"
-require_relative "rar/rar5/header"
-require_relative "rar/rar5/writer"
-
-# RAR compression layer (native pure Ruby implementation)
-require_relative "rar/compression/bit_stream"
-require_relative "rar/compression/ppmd/context"
-require_relative "rar/compression/ppmd/decoder"
-require_relative "rar/compression/lz77_huffman/sliding_window"
-require_relative "rar/compression/lz77_huffman/huffman_coder"
-require_relative "rar/compression/lz77_huffman/decoder"
-require_relative "rar/compression/dispatcher"
-
 module Omnizip
   module Formats
     # RAR archive format support
@@ -45,6 +15,97 @@ module Omnizip
     # Note: RAR compression is proprietary, so this implementation
     # is read-only and requires external decompression tools.
     module Rar
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/rar/constants"
+      autoload :Header, "omnizip/formats/rar/header"
+      autoload :BlockParser, "omnizip/formats/rar/block_parser"
+      autoload :Decompressor, "omnizip/formats/rar/decompressor"
+      autoload :VolumeManager, "omnizip/formats/rar/volume_manager"
+      autoload :RecoveryRecord, "omnizip/formats/rar/recovery_record"
+      autoload :ParityHandler, "omnizip/formats/rar/parity_handler"
+      autoload :ArchiveVerifier, "omnizip/formats/rar/archive_verifier"
+      autoload :ArchiveRepairer, "omnizip/formats/rar/archive_repairer"
+      autoload :Reader, "omnizip/formats/rar/reader"
+      autoload :Writer, "omnizip/formats/rar/writer"
+      autoload :RarFormatBase, "omnizip/formats/rar/rar_format_base"
+      autoload :ExternalWriter, "omnizip/formats/rar/external_writer"
+      autoload :LicenseValidator, "omnizip/formats/rar/license_validator"
+      # Models
+      autoload :Models, "omnizip/formats/rar/models"
+      # RAR5 support
+      module Rar5
+        autoload :VINT, "omnizip/formats/rar/rar5/vint"
+        autoload :CRC32, "omnizip/formats/rar/rar5/crc32"
+        autoload :Header, "omnizip/formats/rar/rar5/header"
+        autoload :Writer, "omnizip/formats/rar/rar5/writer"
+        autoload :Reader, "omnizip/formats/rar/rar5/reader"
+        autoload :Compressor, "omnizip/formats/rar/rar5/compressor"
+        autoload :Decompressor, "omnizip/formats/rar/rar5/decompressor"
+        # RAR5 compression
+        module Compression
+          autoload :Store, "omnizip/formats/rar/rar5/compression/store"
+          autoload :Lzma, "omnizip/formats/rar/rar5/compression/lzma"
+          autoload :Lzss, "omnizip/formats/rar/rar5/compression/lzss"
+        end
+        # RAR5 multi-volume
+        module MultiVolume
+          autoload :VolumeManager, "omnizip/formats/rar/rar5/multi_volume/volume_manager"
+          autoload :VolumeWriter, "omnizip/formats/rar/rar5/multi_volume/volume_writer"
+          autoload :VolumeSplitter, "omnizip/formats/rar/rar5/multi_volume/volume_splitter"
+        end
+        # RAR5 models
+        module Models
+          autoload :VolumeOptions, "omnizip/formats/rar/rar5/models/volume_options"
+          autoload :SolidOptions, "omnizip/formats/rar/rar5/models/solid_options"
+          autoload :EncryptionOptions, "omnizip/formats/rar/rar5/models/encryption_options"
+          autoload :RecoveryOptions, "omnizip/formats/rar/rar5/models/recovery_options"
+        end
+        # RAR5 solid compression
+        module Solid
+          autoload :SolidManager, "omnizip/formats/rar/rar5/solid/solid_manager"
+          autoload :SolidEncoder, "omnizip/formats/rar/rar5/solid/solid_encoder"
+          autoload :SolidStream, "omnizip/formats/rar/rar5/solid/solid_stream"
+        end
+        # RAR5 encryption
+        module Encryption
+          autoload :Aes256Cbc, "omnizip/formats/rar/rar5/encryption/aes256_cbc"
+          autoload :EncryptionHeader, "omnizip/formats/rar/rar5/encryption/encryption_header"
+          autoload :KeyDerivation, "omnizip/formats/rar/rar5/encryption/key_derivation"
+          autoload :EncryptionManager, "omnizip/formats/rar/rar5/encryption/encryption_manager"
+        end
+        # RAR5 compression
+        module Compression
+          autoload :Store, "omnizip/formats/rar/rar5/compression/store"
+          autoload :Lzma, "omnizip/formats/rar/rar5/compression/lzma"
+          autoload :Lzss, "omnizip/formats/rar/rar5/compression/lzss"
+        end
+      end
+      # RAR3 support
+      module Rar3
+        autoload :Compressor, "omnizip/formats/rar3/compressor"
+        autoload :Decompressor, "omnizip/formats/rar3/decompressor"
+        autoload :Reader, "omnizip/formats/rar3/reader"
+        autoload :Writer, "omnizip/formats/rar3/writer"
+      end
+      # Compression layer
+      module Compression
+        autoload :BitStream, "omnizip/formats/rar/compression/bit_stream"
+        autoload :Dispatcher, "omnizip/formats/rar/compression/dispatcher"
+        module PPMd
+          autoload :Context, "omnizip/formats/rar/compression/ppmd/context"
+          autoload :Decoder, "omnizip/formats/rar/compression/ppmd/decoder"
+          autoload :Encoder, "omnizip/formats/rar/compression/ppmd/encoder"
+        end
+        module LZ77Huffman
+          autoload :SlidingWindow, "omnizip/formats/rar/compression/lz77_huffman/sliding_window"
+          autoload :HuffmanCoder, "omnizip/formats/rar/compression/lz77_huffman/huffman_coder"
+          autoload :HuffmanBuilder, "omnizip/formats/rar/compression/lz77_huffman/huffman_builder"
+          autoload :MatchFinder, "omnizip/formats/rar/compression/lz77_huffman/match_finder"
+          autoload :Decoder, "omnizip/formats/rar/compression/lz77_huffman/decoder"
+          autoload :Encoder, "omnizip/formats/rar/compression/lz77_huffman/encoder"
+        end
+      end
+
       class << self
         # Check if RAR extraction is available
         #
@@ -60,146 +121,29 @@ module Omnizip
           Decompressor.info
         end
 
-        # Check if RAR creation is available
+        # Verify archive integrity
         #
-        # @return [Boolean] true for pure Ruby writer
-        def writer_available?
-          Writer.available?
+        # @param archive_path [String] Path to RAR archive
+        # @return [ArchiveVerifier::VerificationResult] Verification result
+        def verify(archive_path)
+          ArchiveVerifier.new(archive_path).verify
         end
 
-        # Get RAR writer information
+        # Repair corrupted archive
         #
-        # @return [Hash] Writer type and version
-        def writer_info
-          Writer.info
-        end
-
-        # Create RAR archive (requires licensed WinRAR for RAR4, pure Ruby for RAR5)
-        #
-        # @param path [String] Output RAR file path
-        # @param options [Hash] Creation options
-        # @option options [Integer] :version RAR version (4 or 5, default: 4)
-        # @option options [Symbol] :compression For RAR5: :store, :lzma, :auto (default: :store)
-        # @option options [Integer] :level For RAR5: LZMA level 1-5 (default: 3)
-        # @option options [Boolean] :include_mtime Include modification time (RAR5 only)
-        # @option options [Boolean] :include_crc32 Include CRC32 checksum (RAR5 only)
-        # @yield [Writer] Writer instance
-        # @return [String] Path to created archive
-        #
-        # @example Create RAR4 archive (requires WinRAR)
-        #   Omnizip::Formats::Rar.create('archive.rar') do |rar|
-        #     rar.add_file('document.pdf')
-        #     rar.add_directory('photos/')
-        #   end
-        #
-        # @example Create RAR5 archive (pure Ruby)
-        #   Omnizip::Formats::Rar.create('archive.rar', version: 5) do |rar|
-        #     rar.add_file('document.pdf')
-        #   end
-        #
-        # @example Create RAR5 with LZMA compression
-        #   Omnizip::Formats::Rar.create('archive.rar',
-        #     version: 5,
-        #     compression: :lzma,
-        #     level: 5,
-        #     include_mtime: true,
-        #     include_crc32: true
-        #   ) do |rar|
-        #     rar.add_file('data.txt')
-        #   end
-        def create(path, options = {})
-          version = options.delete(:version) || 4
-
-          writer = if version == 5
-                     # Use pure Ruby RAR5 writer
-                     Rar5::Writer.new(path, options)
-                   else
-                     # Use RAR4 writer (requires WinRAR)
-                     Writer.new(path, options)
-                   end
-
-          yield writer if block_given?
-
-          writer.write
-        end
-
-        # Open RAR archive
-        #
-        # @param path [String] Path to RAR file
-        # @yield [Reader] Archive reader
-        # @return [Reader] Archive reader if no block given
-        def open(path)
-          reader = Reader.new(path)
-          reader.open
-
-          if block_given?
-
-            yield reader
-
-          # Reader doesn't need explicit closing
-
-          else
-            reader
-          end
-        end
-
-        # List RAR archive contents
-        #
-        # @param path [String] Path to RAR file
-        # @return [Array<Models::RarEntry>] File entries
-        def list(path)
-          open(path, &:list_files)
-        end
-
-        # Extract RAR archive to directory
-        #
-        # @param path [String] Path to RAR file
-        # @param dest [String] Destination directory
-        # @param password [String, nil] Optional password
-        def extract(path, dest, password: nil)
-          open(path) do |rar|
-            rar.extract_all(dest, password: password)
-          end
-        end
-
-        # Get archive information
-        #
-        # @param path [String] Path to RAR file
-        # @return [Models::RarArchive] Archive information
-        def info(path)
-          open(path, &:archive_info)
-        end
-
-        # Verify RAR archive integrity
-        #
-        # @param path [String] Path to RAR file
-        # @param use_recovery [Boolean] Use recovery records
-        # @return [ArchiveVerifier::VerificationResult] Verification results
-        def verify(path, use_recovery: true)
-          verifier = ArchiveVerifier.new(path)
-          verifier.verify(use_recovery: use_recovery)
-        end
-
-        # Repair corrupted RAR archive
-        #
-        # @param input_path [String] Path to corrupted RAR file
+        # @param archive_path [String] Path to corrupted RAR archive
         # @param output_path [String] Path for repaired archive
-        # @param options [Hash] Repair options
-        # @return [ArchiveRepairer::RepairResult] Repair results
-        def repair(input_path, output_path, options = {})
-          repairer = ArchiveRepairer.new
-          repairer.repair(input_path, output_path, options)
+        # @return [ArchiveRepairer::RepairResult] Repair result
+        def repair(archive_path, output_path)
+          ArchiveRepairer.new.repair(archive_path, output_path)
         end
 
-        # Auto-register RAR format when loaded
+        # Auto-register .rar format
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".rar", Reader)
         end
       end
     end
   end
 end
-
-# Auto-register on load
-Omnizip::Formats::Rar.register!

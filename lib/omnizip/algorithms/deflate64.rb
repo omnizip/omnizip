@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../algorithm"
 require "zlib"
 
 module Omnizip
@@ -17,6 +16,13 @@ module Omnizip
     # bit-level manipulation that is better handled by libraries
     # specifically designed for it.
     class Deflate64 < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/deflate64/constants"
+      autoload :Decoder, "omnizip/algorithms/deflate64/decoder"
+      autoload :Encoder, "omnizip/algorithms/deflate64/encoder"
+      autoload :HuffmanCoder, "omnizip/algorithms/deflate64/huffman_coder"
+      autoload :Lz77Encoder, "omnizip/algorithms/deflate64/lz77_encoder"
+
       # Constants
       DICTIONARY_SIZE = 65_536 # 64KB window
 

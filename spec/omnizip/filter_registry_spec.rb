@@ -141,11 +141,6 @@ RSpec.describe Omnizip::FilterRegistry do
     it "returns false for unregistered filter" do
       expect(described_class.supports_format?(:nonexistent, :xz)).to be false
     end
-
-    it "handles old-style registration (backward compatibility)" do
-      described_class.register(:old_style, TestFilter)
-      expect(described_class.supports_format?(:old_style, :xz)).to be true
-    end
   end
 
   describe ".filters_for_format" do
@@ -174,44 +169,12 @@ RSpec.describe Omnizip::FilterRegistry do
       described_class.reset!
       expect(described_class.filters_for_format(:xz)).to eq([])
     end
-
-    it "handles old-style registration (backward compatibility)" do
-      described_class.register(:old_style, TestFilter)
-      all_formats = described_class.filters_for_format(:xz)
-      expect(all_formats).to include(:old_style)
-    end
-  end
-
-  describe "backward compatibility with original API" do
-    it ".register still works" do
-      described_class.register(:test, TestFilter)
-      expect(described_class.registered?(:test)).to be true
-    end
-
-    it ".get returns the class for old-style registration" do
-      described_class.register(:test, TestFilter)
-      expect(described_class.get(:test)).to eq(TestFilter)
-    end
-
-    it ".get raises UnknownFilterError for unregistered filter" do
-      expect do
-        described_class.get(:nonexistent)
-      end.to raise_error(Omnizip::UnknownFilterError, /Unknown filter/)
-    end
-
-    it ".available includes both old and new registrations" do
-      described_class.register(:old_style, TestFilter)
-      described_class.register_with_formats(:new_style, AnotherTestFilter,
-                                            formats: [:xz])
-
-      expect(described_class.available).to include(:old_style, :new_style)
-    end
   end
 
   describe ".reset!" do
     it "clears all registrations" do
       described_class.register(:test, TestFilter)
-      described_class.register_with_formats(:test2, AnotherTestFilter,
+      described_class.register(:test2, AnotherTestFilter,
                                             formats: [:xz])
 
       described_class.reset!

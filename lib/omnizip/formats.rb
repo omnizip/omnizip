@@ -7,6 +7,9 @@ module Omnizip
     # This module contains format-specific autoload declarations.
     # Less commonly used formats are autoloaded for lazy loading.
 
+    # Format specification loader
+    autoload :FormatSpecLoader, "omnizip/formats/format_spec_loader"
+
     # CPIO archive format
     autoload :Cpio, "omnizip/formats/cpio"
 
@@ -27,5 +30,11 @@ module Omnizip
 
     # LZIP format
     autoload :Lzip, "omnizip/formats/lzip"
+
+    # XZ format constants (at Formats level for cross-module access)
+    autoload :XzConst, "omnizip/formats/xz_impl/constants"
+
+    # XZ implementation details
+    autoload :XzImpl, "omnizip/formats/xz_impl"
   end
 end

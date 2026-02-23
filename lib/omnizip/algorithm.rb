@@ -16,7 +16,7 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "algorithm_registry"
+require "omnizip/algorithm_registry"
 
 module Omnizip
   # Abstract base class for compression algorithms.

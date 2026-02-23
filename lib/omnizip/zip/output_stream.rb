@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "../formats/zip/constants"
-require_relative "../formats/zip/local_file_header"
-require_relative "../formats/zip/central_directory_header"
-require_relative "../formats/zip/end_of_central_directory"
 
 module Omnizip
   module Zip

@@ -16,43 +16,40 @@
 # See the COPYING file for the complete text of the license.
 #
 
-# Core version and errors
-require_relative "omnizip/version"
-require_relative "omnizip/error"
-
-# Core registries (required before algorithms/formats)
-require_relative "omnizip/algorithm"
-require_relative "omnizip/algorithm_registry"
-require_relative "omnizip/format_registry"
-require_relative "omnizip/optimization_registry"
-require_relative "omnizip/checksum_registry"
-require_relative "omnizip/filter_registry"
-
-# Base classes for algorithms and filters
-require_relative "omnizip/algorithms/ppmd_base"
-require_relative "omnizip/filter"
-require_relative "omnizip/filter_pipeline"
-require_relative "omnizip/filters/filter_base"
-require_relative "omnizip/checksums/crc_base"
-
 module Omnizip
-  # Models - autoloaded for lazy loading
-  module Models
-    autoload :AlgorithmMetadata, "omnizip/models/algorithm_metadata"
-    autoload :CompressionOptions, "omnizip/models/compression_options"
-    autoload :PerformanceResult, "omnizip/models/performance_result"
-    autoload :ProfileReport, "omnizip/models/profile_report"
-    autoload :OptimizationSuggestion, "omnizip/models/optimization_suggestion"
-    autoload :ProgressOptions, "omnizip/models/progress_options"
-    autoload :EtaResult, "omnizip/models/eta_result"
-    autoload :FilterConfig, "omnizip/models/filter_config"
-    autoload :FilterChain, "omnizip/models/filter_chain"
-    autoload :ParallelOptions, "omnizip/models/parallel_options"
-  end
-end
+  # Core version - autoloaded
+  autoload :VERSION, "omnizip/version"
 
-# Feature modules - autoloaded from top level
-module Omnizip
+  # Error classes - autoloaded
+  autoload :Error, "omnizip/error"
+  autoload :CompressionError, "omnizip/error"
+  autoload :DecompressionError, "omnizip/error"
+  autoload :AlgorithmNotFoundError, "omnizip/error"
+  autoload :UnknownAlgorithmError, "omnizip/error"
+  autoload :UnsupportedFormatError, "omnizip/error"
+  autoload :FormatError, "omnizip/error"
+  autoload :InvalidArchiveError, "omnizip/error"
+  autoload :IOError, "omnizip/error"
+  autoload :ChecksumError, "omnizip/error"
+  autoload :OptimizationNotFound, "omnizip/error"
+  autoload :ProgressError, "omnizip/error"
+  autoload :ETAError, "omnizip/error"
+  autoload :NotLicensedError, "omnizip/error"
+  autoload :RarNotAvailableError, "omnizip/error"
+
+  # Core registries
+  autoload :Algorithm, "omnizip/algorithm"
+  autoload :AlgorithmRegistry, "omnizip/algorithm_registry"
+  autoload :FormatRegistry, "omnizip/format_registry"
+  autoload :OptimizationRegistry, "omnizip/optimization_registry"
+  autoload :ChecksumRegistry, "omnizip/checksum_registry"
+  autoload :FilterRegistry, "omnizip/filter_registry"
+
+  # Base classes
+  autoload :Filter, "omnizip/filter"
+  autoload :FilterPipeline, "omnizip/filter_pipeline"
+
+  # Feature modules
   autoload :Buffer, "omnizip/buffer"
   autoload :Pipe, "omnizip/pipe"
   autoload :Chunked, "omnizip/chunked"
@@ -68,59 +65,128 @@ module Omnizip
   autoload :Parity, "omnizip/parity"
   autoload :Platform, "omnizip/platform"
   autoload :Profiler, "omnizip/profiler"
+  autoload :Commands, "omnizip/commands"
 
-  # Sub-module files - autoloaded when accessed
+  # Sub-module files
   autoload :IO, "omnizip/io"
   autoload :Crypto, "omnizip/crypto"
   autoload :Formats, "omnizip/formats"
   autoload :Zip, "omnizip/zip"
 end
 
-# Convenience methods must be explicitly required (not autoloaded)
-# because they extend Omnizip with class methods via `extend Convenience`
-require_relative "omnizip/convenience"
+# Models module with autoloaded classes
+module Omnizip
+  module Models
+    autoload :AlgorithmMetadata, "omnizip/models/algorithm_metadata"
+    autoload :CompressionOptions, "omnizip/models/compression_options"
+    autoload :PerformanceResult, "omnizip/models/performance_result"
+    autoload :ProfileReport, "omnizip/models/profile_report"
+    autoload :OptimizationSuggestion, "omnizip/models/optimization_suggestion"
+    autoload :ProgressOptions, "omnizip/models/progress_options"
+    autoload :ETAResult, "omnizip/models/eta_result"
+    autoload :FilterConfig, "omnizip/models/filter_config"
+    autoload :FilterChain, "omnizip/models/filter_chain"
+    autoload :ParallelOptions, "omnizip/models/parallel_options"
+    autoload :SplitOptions, "omnizip/models/split_options"
+    autoload :ConversionOptions, "omnizip/models/conversion_options"
+    autoload :ConversionResult, "omnizip/models/conversion_result"
+    autoload :ExtractionRule, "omnizip/models/extraction_rule"
+    autoload :MatchResult, "omnizip/models/match_result"
+  end
+end
 
-# Algorithms (with registration - must be required explicitly)
-require_relative "omnizip/algorithms/lzma"
-require_relative "omnizip/algorithms/lzma2"
-require_relative "omnizip/algorithms/ppmd7"
-require_relative "omnizip/algorithms/ppmd8"
-require_relative "omnizip/algorithms/bzip2"
-require_relative "omnizip/algorithms/deflate"
-require_relative "omnizip/algorithms/deflate64"
-require_relative "omnizip/algorithms/zstandard"
+# Algorithms module with autoloaded classes
+module Omnizip
+  module Algorithms
+    autoload :PPMdBase, "omnizip/algorithms/ppmd_base"
+    autoload :LZMA, "omnizip/algorithms/lzma"
+    autoload :LZMA2, "omnizip/algorithms/lzma2"
+    autoload :LZMA2Encoder, "omnizip/algorithms/lzma2/encoder"
+    autoload :LZMA2XzEncoderAdapter, "omnizip/algorithms/lzma2/xz_encoder_adapter"
+    autoload :LZMA2Chunk, "omnizip/algorithms/lzma2/lzma2_chunk"
+    autoload :PPMd7, "omnizip/algorithms/ppmd7"
+    autoload :PPMd8, "omnizip/algorithms/ppmd8"
+    autoload :BZip2, "omnizip/algorithms/bzip2"
+    autoload :Deflate, "omnizip/algorithms/deflate"
+    autoload :Deflate64, "omnizip/algorithms/deflate64"
+    autoload :Zstandard, "omnizip/algorithms/zstandard"
+  end
+end
 
-# Filter implementations (with registration)
-require_relative "omnizip/filters/bcj"
-require_relative "omnizip/filters/bcj_x86"
-require_relative "omnizip/filters/bcj2"
-require_relative "omnizip/filters/bcj_arm"
-require_relative "omnizip/filters/bcj_arm64"
-require_relative "omnizip/filters/bcj_ppc"
-require_relative "omnizip/filters/bcj_sparc"
-require_relative "omnizip/filters/bcj_ia64"
-require_relative "omnizip/filters/delta"
-require_relative "omnizip/filters/registry"
+# Filters module with autoloaded classes
+module Omnizip
+  module Filters
+    autoload :FilterBase, "omnizip/filters/filter_base"
+    autoload :BCJ, "omnizip/filters/bcj"
+    autoload :BCJx86, "omnizip/filters/bcj_x86"
+    autoload :BCJ2, "omnizip/filters/bcj2"
+    autoload :BCJArm, "omnizip/filters/bcj_arm"
+    autoload :BCJArm64, "omnizip/filters/bcj_arm64"
+    autoload :BCJPpc, "omnizip/filters/bcj_ppc"
+    autoload :BCJSparc, "omnizip/filters/bcj_sparc"
+    autoload :BCJIa64, "omnizip/filters/bcj_ia64"
+    autoload :Delta, "omnizip/filters/delta"
+    autoload :Registry, "omnizip/filters/registry"
+  end
+end
 
-# Checksum implementations (with registration)
-require_relative "omnizip/checksums/crc32"
-require_relative "omnizip/checksums/crc64"
+# Checksums module with autoloaded classes
+module Omnizip
+  module Checksums
+    autoload :CrcBase, "omnizip/checksums/crc_base"
+    autoload :Crc32, "omnizip/checksums/crc32"
+    autoload :Crc64, "omnizip/checksums/crc64"
+  end
+end
 
-# Register checksum algorithms
-Omnizip::ChecksumRegistry.register(:crc32, Omnizip::Checksums::Crc32)
-Omnizip::ChecksumRegistry.register(:crc64, Omnizip::Checksums::Crc64)
-
-# Archive formats registry (with autoload declarations for lazy loading)
-require_relative "omnizip/formats"
-
-# Archive formats (with registration - must be required explicitly)
-require_relative "omnizip/formats/seven_zip"
-require_relative "omnizip/formats/zip"
-require_relative "omnizip/formats/rar"
-require_relative "omnizip/formats/tar"
-require_relative "omnizip/formats/gzip"
-require_relative "omnizip/formats/bzip2_file"
-require_relative "omnizip/formats/xz"
+# Formats module with autoloaded classes
+module Omnizip
+  module Formats
+    autoload :SevenZip, "omnizip/formats/seven_zip"
+    autoload :Zip, "omnizip/formats/zip"
+    autoload :Rar, "omnizip/formats/rar"
+    autoload :Tar, "omnizip/formats/tar"
+    autoload :Gzip, "omnizip/formats/gzip"
+    autoload :Bzip2File, "omnizip/formats/bzip2_file"
+    autoload :Xz, "omnizip/formats/xz"
+  end
+end
 
 # Platform-specific features
-require_relative "omnizip/platform/ntfs_streams"
+module Omnizip
+  module Platform
+    autoload :NtfsStreams, "omnizip/platform/ntfs_streams"
+  end
+
+  # Implementations module with autoloaded classes
+  module Implementations
+    autoload :SevenZip, "omnizip/implementations/seven_zip"
+    autoload :XZUtils, "omnizip/implementations/xz_utils"
+    module SevenZip
+      module LZMA
+        autoload :StateMachine, "omnizip/implementations/seven_zip/lzma/state_machine"
+        autoload :MatchFinder, "omnizip/implementations/seven_zip/lzma/match_finder"
+        autoload :Encoder, "omnizip/implementations/seven_zip/lzma/encoder"
+        autoload :Decoder, "omnizip/implementations/seven_zip/lzma/decoder"
+        autoload :RangeEncoder, "omnizip/implementations/seven_zip/lzma/range_encoder"
+        autoload :RangeDecoder, "omnizip/implementations/seven_zip/lzma/range_decoder"
+      end
+      module LZMA2
+        autoload :Encoder, "omnizip/implementations/seven_zip/lzma2/encoder"
+      end
+    end
+    module XZUtils
+      module LZMA2
+        autoload :Encoder, "omnizip/implementations/xz_utils/lzma2/encoder"
+      end
+    end
+  end
+end
+
+# Load convenience module to extend Omnizip with utility methods
+require "omnizip/convenience"
+
+# Auto-register formats after all autoloads are set up
+Omnizip::Formats::SevenZip.register!
+Omnizip::Formats::Rar.register!
+Omnizip::Formats::Iso.register!

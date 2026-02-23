@@ -16,8 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require_relative "crc_base"
-
 module Omnizip
   module Checksums
     # CRC32 checksum implementation using IEEE 802.3 polynomial.
@@ -98,3 +96,6 @@ module Omnizip
     end
   end
 end
+
+# Self-register with checksum registry
+Omnizip::ChecksumRegistry.register(:crc32, Omnizip::Checksums::Crc32)

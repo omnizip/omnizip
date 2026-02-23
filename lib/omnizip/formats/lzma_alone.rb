@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "stringio"
-require_relative "../algorithms/lzma"
-require_relative "../format_registry"
+require "omnizip/algorithms/lzma"
+require "omnizip/format_registry"
 
 module Omnizip
   module Formats
@@ -81,7 +81,6 @@ module Omnizip
                  end
 
           # Decode using LzmaAloneDecoder
-          require_relative "../algorithms/lzma/lzma_alone_decoder"
           decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(
             StringIO.new(data),
             options,
@@ -142,7 +141,6 @@ module Omnizip
         # @param options [Hash] Options
         # @return [Hash] Metadata (lc, lp, pb, dict_size, uncompressed_size)
         def decompress_stream(input_io, output_io, options = {})
-          require_relative "../algorithms/lzma/lzma_alone_decoder"
           decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(input_io,
                                                                     options)
           result = decoder.decode_stream

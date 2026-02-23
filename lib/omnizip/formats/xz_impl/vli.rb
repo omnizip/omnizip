@@ -22,7 +22,7 @@
 
 module Omnizip
   module Formats
-    module XzFormat
+    module XzImpl
       # Variable-Length Integer (VLI) codec for XZ format
       #
       # XZ format uses VLIs extensively for encoding sizes and counts.

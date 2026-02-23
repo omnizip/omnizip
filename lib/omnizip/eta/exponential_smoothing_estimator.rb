@@ -4,9 +4,6 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
-require_relative "time_estimator"
-require_relative "../models/eta_result"
-
 module Omnizip
   module ETA
     # ETA estimator using exponential smoothing.

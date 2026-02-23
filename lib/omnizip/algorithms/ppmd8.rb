@@ -20,13 +20,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "ppmd_base"
-require_relative "ppmd8/constants"
-require_relative "ppmd8/restoration_method"
-require_relative "ppmd8/context"
-require_relative "ppmd8/model"
-require_relative "ppmd8/encoder"
-require_relative "ppmd8/decoder"
+require "omnizip/algorithms"
 
 module Omnizip
   module Algorithms
@@ -40,6 +34,18 @@ module Omnizip
     #
     # This implementation follows the PPMd8 specification from 7-Zip.
     class PPMd8 < PPMdBase
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/ppmd8/constants"
+      autoload :RestorationMethod, "omnizip/algorithms/ppmd8/restoration_method"
+      autoload :Context, "omnizip/algorithms/ppmd8/context"
+      autoload :Model, "omnizip/algorithms/ppmd8/model"
+      autoload :Encoder, "omnizip/algorithms/ppmd8/encoder"
+      autoload :Decoder, "omnizip/algorithms/ppmd8/decoder"
+
+      # Cross-namespace dependencies - autoloaded
+      autoload :RangeDecoder, "omnizip/algorithms/lzma/range_decoder"
+      autoload :RangeEncoder, "omnizip/algorithms/lzma/range_encoder"
+
       include Constants
 
       # Algorithm metadata

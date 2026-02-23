@@ -20,11 +20,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../../../error"
-require_relative "../../../algorithms/lzma2/constants"
-require_relative "../../../algorithms/lzma2/properties"
-require_relative "../../../algorithms/lzma/decoder"
-require_relative "../../../algorithms/lzma/xz_utils_decoder"
+require "omnizip/algorithms"
 
 module Omnizip
   module Implementations

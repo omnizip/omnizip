@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "encryption_strategy"
-
 module Omnizip
   module Password
     # WinZip AES encryption (recommended)

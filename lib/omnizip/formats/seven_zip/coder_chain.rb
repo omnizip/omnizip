@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "../../algorithm_registry"
-require_relative "../../filter_registry"
-require_relative "../../filter_pipeline"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
@@ -12,7 +8,7 @@ module Omnizip
       # Maps method IDs to algorithms and filters, reconstructing the
       # decompression pipeline
       class CoderChain
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         # Build coder chain from folder specification
         #

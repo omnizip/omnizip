@@ -1,12 +1,8 @@
 # frozen_string_literal: true
 
 require "set"
-require_relative "constants"
-require_relative "header"
-require_relative "allocation_table"
-require_relative "dirent"
-require_relative "ranges_io"
 
+require "omnizip/formats/ole"
 module Omnizip
   module Formats
     module Ole
@@ -15,7 +11,7 @@ module Omnizip
       # Main class for reading and writing OLE compound documents.
       # Provides access to the hierarchical file structure within the document.
       class Storage
-        include Constants
+        include Omnizip::Formats::Ole::Constants
 
         # OLE format error
         class FormatError < StandardError; end

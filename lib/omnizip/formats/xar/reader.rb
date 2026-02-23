@@ -2,11 +2,8 @@
 
 require "zlib"
 require "digest"
-require_relative "constants"
-require_relative "header"
-require_relative "toc"
-require_relative "entry"
 
+require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar
@@ -18,7 +15,7 @@ module Omnizip
       # - Extended attributes
       # - Hardlinks and symlinks
       class Reader
-        include Constants
+        include Omnizip::Formats::Xar::Constants
 
         attr_reader :file_path, :header, :toc, :entries
 
@@ -283,7 +280,6 @@ module Omnizip
         # @param data [String] Bzip2 compressed data
         # @return [String] Decompressed data
         def decompress_bzip2(data)
-          require_relative "../../algorithms/bzip2/decompressor"
           decompressor = Omnizip::Algorithms::Bzip2::Decompressor.new
           decompressor.decompress(data)
         end
@@ -293,7 +289,6 @@ module Omnizip
         # @param data [String] LZMA compressed data
         # @return [String] Decompressed data
         def decompress_lzma(data)
-          require_relative "../../algorithms/lzma/decoder"
           decoder = Omnizip::Algorithms::Lzma::Decoder.new
           decoder.decode(data)
         end
@@ -303,7 +298,6 @@ module Omnizip
         # @param data [String] XZ compressed data
         # @return [String] Decompressed data
         def decompress_xz(data)
-          require_relative "../xz"
           reader = Omnizip::Formats::Xz::StreamReader.new(StringIO.new(data))
           reader.read
         ensure

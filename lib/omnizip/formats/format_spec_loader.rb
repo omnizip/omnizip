@@ -7,8 +7,6 @@ rescue LoadError, ArgumentError
   # lutaml-model not available, using simple classes
 end
 
-require_relative "../error"
-
 module Omnizip
   module Formats
     # Loads and manages format specifications from YAML configuration files

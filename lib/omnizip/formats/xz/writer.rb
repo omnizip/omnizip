@@ -22,11 +22,6 @@
 
 require "zlib"
 require "stringio"
-require_relative "../../algorithms/lzma2"
-require_relative "../../checksums/crc64"
-require_relative "../../error"
-require_relative "constants"
-require_relative "block_encoder"
 
 module Omnizip
   module Formats
@@ -38,7 +33,7 @@ module Omnizip
       #
       # Based on: xz/src/liblzma/common/stream_encoder.c
       class Writer
-        include XzConst
+        include Omnizip::Formats::XzConst
 
         # XZ format magic bytes
         HEADER_MAGIC = [0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00].freeze
@@ -75,7 +70,7 @@ module Omnizip
         def add_data(data)
           # Use BlockEncoder for XZ Utils compatibility
           # This produces compressed blocks compatible with XZ Utils
-          block_encoder = XzFormat::BlockEncoder.new(
+          block_encoder = Omnizip::Formats::XzImpl::BlockEncoder.new(
             check_type: @options[:check_type] || CHECK_CRC64,
             dict_size: @options[:dict_size] || (64 * 1024 * 1024), # Use 64MB to match XZ Utils default
             include_block_sizes: true, # Include size fields for XZ Utils compatibility

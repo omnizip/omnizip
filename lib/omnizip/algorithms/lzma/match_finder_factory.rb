@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "match_finder_config"
-require_relative "match_finder"
-require_relative "../../implementations/seven_zip/lzma/match_finder"
-
 module Omnizip
   module Algorithms
     class LZMA < Algorithm
@@ -54,7 +50,7 @@ module Omnizip
           when "sdk"
             Implementations::SevenZip::LZMA::MatchFinder.new(config)
           when "simplified"
-            # Use original MatchFinder for backward compatibility
+            # Use simplified MatchFinder implementation
             MatchFinder.new(config.window_size, config.max_match_length)
           else
             raise ArgumentError, "Unknown match finder mode: #{config.mode}"

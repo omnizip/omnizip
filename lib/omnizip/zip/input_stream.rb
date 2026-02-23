@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "entry"
-require_relative "../formats/zip/constants"
-require_relative "../formats/zip/local_file_header"
-
 module Omnizip
   module Zip
     # Rubyzip-compatible InputStream class

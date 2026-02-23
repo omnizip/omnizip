@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "encryption_strategy"
-
 module Omnizip
   module Password
     # Traditional ZIP encryption (PKWARE)
@@ -116,7 +114,6 @@ module Omnizip
       # @param byte [Integer] Byte to add
       # @return [Integer] Updated CRC
       def crc32_update(crc, byte)
-        require_relative "../checksums/crc32"
         crc32 = Omnizip::Checksums::Crc32.new
         crc32.instance_variable_set(:@crc, crc)
         crc32.update(byte.chr)

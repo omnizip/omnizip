@@ -80,8 +80,6 @@ module Omnizip
       # @param entry_count [Integer] Number of entries
       # @return [ConversionResult] Result object
       def create_result(start_time, entry_count)
-        require_relative "../models/conversion_result"
-
         duration = Time.now - start_time
         source_size = File.size(source_path)
         target_size = File.size(target_path)

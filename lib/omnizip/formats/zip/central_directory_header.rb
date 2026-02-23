@@ -1,14 +1,13 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "unix_extra_field"
+require "omnizip/formats/zip"
 
 module Omnizip
   module Formats
     module Zip
       # ZIP Central Directory File Header
       class CentralDirectoryHeader
-        include Constants
+        include Omnizip::Formats::Zip::Constants
 
         attr_accessor :signature, :version_made_by, :version_needed, :flags,
                       :compression_method, :last_mod_time, :last_mod_date,

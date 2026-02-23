@@ -20,9 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "../algorithm"
-require_relative "../models/algorithm_metadata"
-
 module Omnizip
   module Algorithms
     # Deflate compression algorithm (RFC 1951)
@@ -44,6 +41,11 @@ module Omnizip
     # - Files with repeated patterns
     # - General-purpose compression needs
     class Deflate < Algorithm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/algorithms/deflate/constants"
+      autoload :Encoder, "omnizip/algorithms/deflate/encoder"
+      autoload :Decoder, "omnizip/algorithms/deflate/decoder"
+
       # Get algorithm metadata
       #
       # @return [AlgorithmMetadata] Algorithm information
@@ -118,11 +120,6 @@ module Omnizip
     end
   end
 end
-
-# Load nested classes after Deflate class is defined
-require_relative "deflate/constants"
-require_relative "deflate/encoder"
-require_relative "deflate/decoder"
 
 # Register the Deflate algorithm
 Omnizip::AlgorithmRegistry.register(:deflate, Omnizip::Algorithms::Deflate)

@@ -20,12 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require_relative "constants"
-require_relative "frame/header"
-require_relative "frame/block"
-require_relative "literals"
-require_relative "sequences"
-
 module Omnizip
   module Algorithms
     class Zstandard

@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "../../algorithms/lzma2"
-require_relative "../../checksums/crc32"
-
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
@@ -12,7 +9,7 @@ module Omnizip
       # 7-Zip can compress the Next Header metadata with LZMA2 to save space.
       # This module provides functionality to encode and decode headers.
       module EncodedHeader
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         module_function
 

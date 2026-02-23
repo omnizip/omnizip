@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "models/rar_volume"
-
 module Omnizip
   module Formats
     module Rar

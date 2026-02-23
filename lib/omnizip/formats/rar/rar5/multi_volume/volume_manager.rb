@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "volume_splitter"
-require_relative "volume_writer"
-require_relative "../models/volume_options"
-
 module Omnizip
   module Formats
     module Rar

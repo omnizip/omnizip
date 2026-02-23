@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "cpio/constants"
-require_relative "cpio/entry"
-require_relative "cpio/writer"
-require_relative "cpio/reader"
-
 module Omnizip
   module Formats
     # CPIO archive format support
@@ -27,6 +22,12 @@ module Omnizip
     # @example Extract CPIO archive
     #   Omnizip::Formats::Cpio.extract('archive.cpio', 'output/')
     module Cpio
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/cpio/constants"
+      autoload :Entry, "omnizip/formats/cpio/entry"
+      autoload :Writer, "omnizip/formats/cpio/writer"
+      autoload :Reader, "omnizip/formats/cpio/reader"
+
       class << self
         # Create CPIO archive
         #
@@ -128,7 +129,7 @@ module Omnizip
 
         # Auto-register CPIO format when loaded
         def register!
-          require_relative "../format_registry"
+          require "omnizip/format_registry"
           FormatRegistry.register(".cpio", Reader)
         end
       end

@@ -4,6 +4,11 @@ module Omnizip
   # Temporary file management with automatic cleanup
   # Provides safe, atomic operations with RAII pattern
   module Temp
+    # Nested classes - autoloaded
+    autoload :TempFile, "omnizip/temp/temp_file"
+    autoload :TempFilePool, "omnizip/temp/temp_file_pool"
+    autoload :SafeExtract, "omnizip/temp/safe_extract"
+
     # Configuration for temp file operations
     class Configuration
       attr_accessor :directory, :prefix, :cleanup_on_exit
@@ -124,7 +129,6 @@ module Omnizip
 
         case format
         when :zip
-          require_relative "zip/file"
           Omnizip::Zip::File.create(path) do |zip|
             zip.add(name) { data }
           end
@@ -175,7 +179,3 @@ module Omnizip
     end
   end
 end
-
-require_relative "temp/temp_file"
-require_relative "temp/temp_file_pool"
-require_relative "temp/safe_extract"

@@ -2,11 +2,6 @@
 
 require "stringio"
 require "tempfile"
-require_relative "rpm/constants"
-require_relative "rpm/lead"
-require_relative "rpm/header"
-require_relative "rpm/entry"
-require_relative "cpio"
 
 module Omnizip
   module Formats
@@ -32,7 +27,14 @@ module Omnizip
     #   writer.add_file("/usr/bin/app", "#!/bin/sh\necho hello")
     #   writer.write("mypkg.rpm")
     module Rpm
+      # Nested classes - autoloaded
+      autoload :Constants, "omnizip/formats/rpm/constants"
+      autoload :Lead, "omnizip/formats/rpm/lead"
+      autoload :Header, "omnizip/formats/rpm/header"
+      autoload :Entry, "omnizip/formats/rpm/entry"
       autoload :Writer, "omnizip/formats/rpm/writer"
+      autoload :Tag, "omnizip/formats/rpm/tag"
+
       class << self
         # Open RPM package
         #
@@ -100,7 +102,7 @@ module Omnizip
       #
       # Handles parsing and extraction of RPM packages.
       class Reader
-        include Constants
+        include Omnizip::Formats::Rpm::Constants
 
         # @return [String] File path
         attr_reader :path
@@ -389,7 +391,6 @@ module Omnizip
             require "zlib"
             Zlib::GzipReader.new(io)
           when "bzip2"
-            require_relative "../algorithms/bzip2/decompressor"
             # Bzip2 decompressor needs the whole data
             Omnizip::Algorithms::Bzip2::Decompressor.new.decompress(io.read)
           when "xz", "lzma"
@@ -404,7 +405,6 @@ module Omnizip
         end
 
         def decompress_xz(io)
-          require_relative "xz"
           Xz.decode(io.read)
         end
 

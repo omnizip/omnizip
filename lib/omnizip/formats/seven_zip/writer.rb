@@ -1,17 +1,8 @@
 # frozen_string_literal: true
 
-require_relative "constants"
-require_relative "file_collector"
-require_relative "stream_compressor"
-require_relative "header_writer"
-require_relative "models/file_entry"
-require_relative "split_archive_writer"
-require_relative "header_encryptor"
-require_relative "encrypted_header"
-require_relative "../../models/split_options"
-require_relative "../../algorithms/lzma2"
 require "stringio"
 
+require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip
@@ -25,7 +16,7 @@ module Omnizip
       # - UNCOMPRESSED Next Header metadata (properties: kHeader, kPackInfo, etc.)
       # - Metadata footer (filename, attributes, timestamps)
       class Writer
-        include Constants
+        include Omnizip::Formats::SevenZip::Constants
 
         # Constants for array literals used in loops (RuboCop Performance/CollectionLiteralInLoop)
         COPY_MAIN_BYTE = [0x01].pack("C").freeze

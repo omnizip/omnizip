@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../formats/zip/central_directory_header"
-require_relative "../metadata/entry_metadata"
-
 module Omnizip
   module Zip
     # Rubyzip-compatible Entry class

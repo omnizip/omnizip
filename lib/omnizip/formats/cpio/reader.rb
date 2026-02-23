@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require_relative "constants"
-require_relative "entry"
+require "omnizip/formats/cpio"
 
 module Omnizip
   module Formats
@@ -22,7 +21,7 @@ module Omnizip
       #   reader.open
       #   reader.extract_all('output/')
       class Reader
-        include Constants
+        include Omnizip::Formats::Cpio::Constants
 
         # @return [String] Archive file path
         attr_reader :file_path
