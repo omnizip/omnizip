@@ -171,3 +171,6 @@ module Omnizip
     end
   end
 end
+
+# Auto-register when file is loaded
+Omnizip::Formats::Rar.register!

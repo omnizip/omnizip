@@ -179,7 +179,7 @@ module Omnizip
           algo_sym = CoderChain.algorithm_for_method(coder.method_id)
           return packed_data unless algo_sym
 
-          algo_class = AlgorithmRegistry.get(algo_sym)
+          algo_class = Omnizip::AlgorithmRegistry.get(algo_sym)
           raise "Algorithm not found: #{algo_sym}" unless algo_class
 
           # Build decoder options
