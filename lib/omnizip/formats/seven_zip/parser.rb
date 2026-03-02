@@ -48,23 +48,24 @@ module Omnizip
           # Single byte encoding (0-127)
           return first_byte if first_byte.nobits?(0x80)
 
-          # Determine number of additional bytes from high bits
+          # 7-Zip VLI: extra bytes are in little-endian order.
+          # Per 7-Zip SDK CInByte2::ReadNumber():
+          #   - Each set bit in first_byte (from MSB) means one more extra byte
+          #   - Extra bytes are placed at increasing byte positions (LE)
+          #   - The remaining data bits from first_byte go at the highest position
           mask = 0x80
-          extra_bytes = 0
+          value = 0
+          shift = 0
 
           while first_byte.anybits?(mask)
-            extra_bytes += 1
+            value |= (read_byte << shift)
+            shift += 8
             mask >>= 1
           end
 
-          # Calculate value: data bits from first byte + additional bytes
-          # The data bits start after the leading 1s and 0
+          # The data bits from first_byte go at the highest position
           data_bits = first_byte & (mask - 1)
-          value = data_bits
-
-          extra_bytes.times do
-            value = (value << 8) | read_byte
-          end
+          value |= (data_bits << shift)
 
           value
         end
@@ -517,8 +518,11 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_empty_stream(entries)
-          skip_size
-          empty_stream = read_bit_vector(entries.size)
+          size = read_number
+          # EMPTY_STREAM uses a raw bit vector without an all_defined prefix byte.
+          # The Size field gives the exact number of bytes in the bit vector.
+          bits_data = read_bytes(size)
+          empty_stream = decode_bit_vector(bits_data, entries.size)
           entries.each_with_index do |entry, i|
             # Bit vector: 0 = has stream (file), 1 = empty (directory)
             # Convert to boolean: has_stream = (bit == 0)
@@ -531,9 +535,11 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_empty_file(entries)
-          skip_size
+          size = read_number
+          # EMPTY_FILE uses a raw bit vector without an all_defined prefix byte.
+          bits_data = read_bytes(size)
           empty_files = entries.reject(&:has_stream)
-          empty_bits = read_bit_vector(empty_files.size)
+          empty_bits = decode_bit_vector(bits_data, empty_files.size)
           empty_files.each_with_index do |entry, i|
             entry.is_empty = !empty_bits[i]
           end
@@ -543,9 +549,11 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_anti(entries)
-          skip_size
+          size = read_number
+          # ANTI uses a raw bit vector without an all_defined prefix byte.
+          bits_data = read_bytes(size)
           anti_files = entries.select { |e| !e.has_stream && !e.is_empty }
-          anti_bits = read_bit_vector(anti_files.size)
+          anti_bits = decode_bit_vector(bits_data, anti_files.size)
           anti_files.each_with_index do |entry, i|
             entry.is_anti = anti_bits[i]
           end

@@ -50,34 +50,62 @@ module Omnizip
 
       # Decode 4 streams back to original data.
       #
+      # Uses bulk scanning (C-optimized String#index) to find E8/E9 opcodes
+      # and bulk-copies non-opcode byte runs via String#byteslice.
+      #
       # @return [String] Decoded binary data
       def decode
-        result = String.new(encoding: Encoding::BINARY)
+        main_data = @streams.main
+        main_size = main_data.bytesize
+        result = String.new(capacity: main_size + (main_size >> 3),
+                            encoding: Encoding::BINARY)
         init_range_decoder
 
-        loop do
-          break if @main_pos >= @streams.main.bytesize
+        e8 = "\xE8".b
+        e9 = "\xE9".b
 
-          byte = @streams.main.getbyte(@main_pos)
+        while @main_pos < main_size
+          # Find next E8 or E9 using C-optimized String#index
+          e8_pos = main_data.index(e8, @main_pos)
+          e9_pos = main_data.index(e9, @main_pos)
+
+          next_pos = if e8_pos && e9_pos
+                       [e8_pos, e9_pos].min
+                     else
+                       e8_pos || e9_pos
+                     end
+
+          unless next_pos
+            # No more opcodes - bulk copy rest
+            chunk_len = main_size - @main_pos
+            result << main_data.byteslice(@main_pos, chunk_len)
+            @ip += chunk_len
+            @main_pos = main_size
+            break
+          end
+
+          # Bulk copy bytes before opcode
+          if next_pos > @main_pos
+            chunk_len = next_pos - @main_pos
+            result << main_data.byteslice(@main_pos, chunk_len)
+            @ip += chunk_len
+            @main_pos = next_pos
+          end
+
+          # Handle E8/E9 opcode
+          byte = main_data.getbyte(@main_pos)
           @main_pos += 1
 
-          # Check for CALL (E8) or JUMP (E9) opcodes
-          if [OPCODE_CALL, OPCODE_JUMP].include?(byte)
-            # Use range decoder to determine if convertible
-            if read_bit(get_prob_index(byte))
-              # Convertible - read address from call/jump stream
-              addr = read_address(byte)
-              result << byte.chr(Encoding::BINARY)
-              result << encode_int32_le(addr)
-              @ip += 5
-            else
-              # Not convertible - just copy byte
-              result << byte.chr(Encoding::BINARY)
-              @ip += 1
-            end
+          prob_idx = byte == 0xE8 ? (2 + (@ip & 0xFF)) : 0
+          if read_bit(prob_idx)
+            # Convertible - read address from call/jump stream
+            addr = read_address(byte)
+            result << byte
+            result << [addr & 0xFFFFFFFF].pack("V")
+            @ip += 5
           else
-            # Regular byte - just copy
-            result << byte.chr(Encoding::BINARY)
+            # Not convertible - just copy byte
+            result << byte
             @ip += 1
           end
         end
@@ -107,48 +135,27 @@ module Omnizip
       # @param prob_index [Integer] Probability model index
       # @return [Boolean] Decoded bit (true = 1, false = 0)
       def read_bit(prob_index) # rubocop:disable Naming/PredicateMethod
-        normalize_range
+        # Inlined normalize_range
+        if @range < TOP_VALUE
+          @range <<= 8
+          next_byte = @rc_pos < @streams.rc.bytesize ? @streams.rc.getbyte(@rc_pos) : 0
+          @code = (@code << 8) | next_byte
+          @rc_pos += 1 if @rc_pos < @streams.rc.bytesize
+        end
 
         prob = @probs[prob_index]
         bound = (@range >> BIT_MODEL_TOTAL_BITS) * prob
 
         if @code < bound
-          # Bit is 0
           @range = bound
-          @probs[prob_index] += (BIT_MODEL_TOTAL - prob) >> MOVE_BITS
+          @probs[prob_index] = prob + ((BIT_MODEL_TOTAL - prob) >> MOVE_BITS)
           false
         else
-          # Bit is 1
           @range -= bound
           @code -= bound
-          @probs[prob_index] -= prob >> MOVE_BITS
+          @probs[prob_index] = prob - (prob >> MOVE_BITS)
           true
         end
-      end
-
-      # Normalize range decoder if needed.
-      #
-      # @return [void]
-      def normalize_range
-        while @range < TOP_VALUE
-          @range <<= 8
-          next_byte = if @rc_pos < @streams.rc.bytesize
-                        @streams.rc.getbyte(@rc_pos)
-                      else
-                        0
-                      end
-          @code = (@code << 8) | next_byte
-          @rc_pos += 1 if @rc_pos < @streams.rc.bytesize
-        end
-      end
-
-      # Get probability model index for a byte.
-      #
-      # @param byte [Integer] Byte value
-      # @return [Integer] Probability model index
-      def get_prob_index(byte)
-        # Use byte-specific model for E8, general model for E9
-        byte == OPCODE_CALL ? (2 + (@ip & 0xFF)) : 0
       end
 
       # Read 32-bit address from call or jump stream.
@@ -156,10 +163,15 @@ module Omnizip
       # @param opcode [Integer] Opcode (E8 or E9)
       # @return [Integer] Converted address
       def read_address(opcode)
-        stream_pos = opcode == OPCODE_CALL ? @call_pos : @jump_pos
-        stream = opcode == OPCODE_CALL ? @streams.call : @streams.jump
+        if opcode == 0xE8
+          stream = @streams.call
+          stream_pos = @call_pos
+        else
+          stream = @streams.jump
+          stream_pos = @jump_pos
+        end
 
-        # Read 4 bytes (big-endian in stream, stored as absolute)
+        # Read 4 bytes big-endian
         addr = 0
         4.times do |i|
           break if stream_pos >= stream.bytesize
@@ -168,8 +180,7 @@ module Omnizip
           stream_pos += 1
         end
 
-        # Update stream position
-        if opcode == OPCODE_CALL
+        if opcode == 0xE8
           @call_pos = stream_pos
         else
           @jump_pos = stream_pos
@@ -177,20 +188,6 @@ module Omnizip
 
         # Convert back to relative
         addr - (@ip + 5)
-      end
-
-      # Encode 32-bit integer as little-endian bytes.
-      #
-      # @param value [Integer] Value to encode
-      # @return [String] 4-byte string
-      def encode_int32_le(value)
-        unsigned = value & 0xFFFFFFFF
-        [
-          unsigned & 0xFF,
-          (unsigned >> 8) & 0xFF,
-          (unsigned >> 16) & 0xFF,
-          (unsigned >> 24) & 0xFF,
-        ].pack("C*")
       end
     end
   end
