@@ -99,6 +99,44 @@ module Omnizip
       LZ_DICT_REPEAT_MAX = 288
       LZ_DICT_INIT_POS = 2 * LZ_DICT_REPEAT_MAX # = 576
 
+      # Map a monotonic position to a circular buffer index.
+      # Buffer layout: [LZ_DICT_INIT_POS zero bytes] + [dict_size circular region]
+      # @pos grows forever; this maps it to the fixed-size buffer.
+      # Matches C++ 7-Zip SDK: dic[dicPos] with dicPos wrapping at dicBufSize.
+      def dict_index(pos)
+        LZ_DICT_INIT_POS + ((pos - LZ_DICT_INIT_POS) % @dict_size)
+      end
+
+      # Flush decoded output from the circular dictionary buffer.
+      # Copies bytes from @flush_pos to @pos into the output stream or accumulator.
+      # Handles wrap-around when the data spans the circular buffer boundary.
+      def flush_circular_output(output)
+        return if @pos == @flush_pos
+
+        length = @pos - @flush_pos
+        start_idx = dict_index(@flush_pos)
+        buf_end = @buf_end
+
+        if start_idx + length <= buf_end
+          # No wrap
+          data = @dict_buf.byteslice(start_idx, length)
+        else
+          # Wraps around the circular boundary
+          first_len = buf_end - start_idx
+          data = @dict_buf.byteslice(start_idx, first_len)
+          data << @dict_buf.byteslice(LZ_DICT_INIT_POS, length - first_len)
+        end
+
+        if output
+          output.write(data.force_encoding(Encoding::BINARY))
+        else
+          @output_accumulator ||= StringIO.new("".b)
+          @output_accumulator.write(data)
+        end
+
+        @flush_pos = @pos
+      end
+
       # Initialize the SDK-compatible decoder
       #
       # @param input [IO] Input stream of compressed data
@@ -260,9 +298,11 @@ check_rc_finished: true)
         # For the first chunk (when @dict_buf is nil), we need to init it here
         puts "DEBUG: Checking @dict_buf.nil? = #{@dict_buf.nil?}, preserve_dict=#{preserve_dict}" if @lzma_debug_reset
         if @dict_buf.nil?
-          buf_size = @dict_size + LZ_DICT_INIT_POS
+          @buf_end = LZ_DICT_INIT_POS + @dict_size
+          buf_size = @buf_end
           @dict_buf = ("\0" * buf_size).b
           @pos = LZ_DICT_INIT_POS
+          @dict_pos = LZ_DICT_INIT_POS  # Circular buffer write position (tracks @pos)
           @dict_full = 0
           @has_wrapped = false
 
@@ -272,11 +312,15 @@ check_rc_finished: true)
             if @lzma_debug_reset
               warn "DEBUG: Preloading #{@preloaded_data.bytesize} bytes into dictionary[#{@decoder_id}]"
             end
-            ensure_capacity(@pos + @preloaded_data.bytesize)
+            idx = @dict_pos
+            buf_end = @buf_end
             @preloaded_data.each_byte do |byte|
-              @dict_buf.setbyte(@pos, byte)
+              @dict_buf.setbyte(idx, byte)
               @pos += 1
+              idx += 1
+              idx = LZ_DICT_INIT_POS if idx >= buf_end
             end
+            @dict_pos = idx
             # Update dict_full to reflect preloaded data
             @dict_full = @pos - LZ_DICT_INIT_POS
             if @lzma_debug_reset
@@ -334,17 +378,11 @@ check_rc_finished: true)
                   start_pos + @uncompressed_size
                 end
 
-        # Ensure buffer can hold this chunk's output.
-        # The buffer has fixed size (dict_size + LZ_DICT_INIT_POS) but @pos
-        # grows linearly across chunks. Grow the buffer when needed.
-        # Cap growth to prevent NoMemoryError on invalid/garbage data.
-        # LZMA2 chunks are at most 2MB, so @dict_size is a safe upper bound
-        # per growth step. For LZMA_Alone with valid large files, the buffer
-        # will be grown incrementally across decode_stream calls.
-        if limit && limit > @dict_buf.size
-          grow = [limit - @dict_buf.size, @dict_size].min
-          @dict_buf << ("\0" * grow)
-        end
+        # Circular buffer: no growth needed. Buffer is fixed at dict_size + LZ_DICT_INIT_POS.
+        # Output is flushed incrementally when the circular position nears wrap point.
+        # Matches C++ 7-Zip SDK: dic is pre-allocated to dicBufSize and never resized.
+        @flush_pos = @pos
+        @output_accumulator = output.nil? ? StringIO.new("".b) : nil
 
         # DEBUG: Show limit calculation for chunk #1
         if @lzma_debug_limit && @dict_full && @dict_full >= 220 && @dict_full <= 240
@@ -384,6 +422,12 @@ check_rc_finished: true)
 
           # DEBUG: Track position before decoding
           @pos if @lzma_debug_pos
+
+          # Circular buffer: flush output before it can be overwritten.
+          # LZMA matches are at most 273 bytes, so flush when within 273 of wrapping.
+          if @pos - @flush_pos > @dict_size - 273
+            flush_circular_output(output)
+          end
 
           # Decode is_match bit
           pos_state = @pos & @pb_mask
@@ -500,7 +544,7 @@ check_rc_finished: true)
 
             # Trace positions 45-65 for debugging good-1-lzma2-3.xz divergence
             if @lzma_debug && @dict_full >= 45 && @dict_full <= 65
-              last_byte = @dict_buf.getbyte(@pos - 1)
+              last_byte = @dict_buf.getbyte(dict_index(@pos - 1))
               range_after = @range_decoder.instance_variable_get(:@range)
               code_after = @range_decoder.instance_variable_get(:@code)
               puts "  literal decoded: 0x#{last_byte.to_s(16).upcase} ('#{last_byte.chr}') at pos=#{@pos - 1}, dict_full=#{@dict_full}"
@@ -508,7 +552,7 @@ check_rc_finished: true)
             end
 
             if @lzma_debug_iter
-              last_byte = @dict_buf.getbyte(@pos - 1)
+              last_byte = @dict_buf.getbyte(dict_index(@pos - 1))
               puts "  literal byte=0x#{last_byte.to_s(16)} ('#{last_byte.chr}')"
             end
             if @lzma_debug_pos && @pos >= limit
@@ -649,29 +693,14 @@ check_rc_finished: true)
           end
         end
 
-        # Return output - only the valid portion of dictionary
-        # XZ Utils: valid data starts from LZ_DICT_INIT_POS onwards
-        # IMPORTANT: For LZMA2 multi-chunk streams, only return NEW bytes since start_pos!
-        # This ensures each chunk returns only its own output, not previous chunks' output.
-        if @debug_dict_buf
-          XzUtilsDecoderDebug.debug_puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_buf.size=#{@dict_buf.size}, LZ_DICT_INIT_POS=#{LZ_DICT_INIT_POS}"
-        end
-        valid_data = @dict_buf.byteslice(start_pos, @pos - start_pos)
-        # DEBUG: Show return value calculation
-        puts "DEBUG RETURN CALCULATION: call_num=#{call_num}, start_pos=#{start_pos}, @pos=#{@pos}, valid_data.size=#{valid_data.size}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}" if @lzma_debug && @dict_full && @dict_full >= 220 && @dict_full <= 240 && call_num == 2
-        puts "DEBUG RETURN CALCULATION: call_num=#{call_num}, start_pos=#{start_pos}, @pos=#{@pos}, valid_data.size=#{valid_data.size}, dict_full=#{@dict_full}, chunk_bytes_decoded=#{@chunk_bytes_decoded}" if @lzma_debug && call_num == 2
-        if @debug_dict_buf
-          XzUtilsDecoderDebug.debug_puts "DEBUG: valid_data=#{begin
-            valid_data.size
-          rescue StandardError
-            valid_data.inspect
-          end}"
-        end
+        # Flush remaining output from the circular buffer
+        flush_circular_output(output)
+
+        # Return output
         if output
-          output.write(valid_data.force_encoding(Encoding::BINARY))
-          valid_data.bytesize
+          @pos - start_pos
         else
-          valid_data.force_encoding(Encoding::BINARY)
+          @output_accumulator.string.force_encoding(Encoding::BINARY)
         end
       end
 
@@ -1025,18 +1054,23 @@ check_rc_finished: true)
           XzUtilsDecoderDebug.debug_puts "=== add_to_dictionary: adding #{data.bytesize} bytes to dictionary[#{@decoder_id}], current dict_full=#{@dict_full}, pos=#{@pos}"
         end
 
-        ensure_capacity(@pos + data.bytesize)
+        idx = @dict_pos
+        buf_end = @buf_end
         data.each_byte do |byte|
-          @dict_buf.setbyte(@pos, byte)
+          @dict_buf.setbyte(idx, byte)
           @pos += 1
+          idx += 1
+          idx = LZ_DICT_INIT_POS if idx >= buf_end
         end
+        @dict_pos = idx
 
         # Update dict_full to reflect new data
-        @dict_full = @pos - LZ_DICT_INIT_POS
-
-        # Check if we've reached the maximum dictionary size
-        if @dict_full >= @dict_size
-          @dict_full = @dict_size
+        unless @has_wrapped
+          @dict_full = @pos - LZ_DICT_INIT_POS
+          if @dict_full >= @dict_size
+            @has_wrapped = true
+            @dict_full = @dict_size
+          end
         end
 
         if @lzma_debug
@@ -1044,33 +1078,9 @@ check_rc_finished: true)
         end
       end
 
-      # Compact the dictionary buffer to bound memory at ~2x dict_size.
-      # LZMA back-references reach at most dict_size bytes back, so we only
-      # need to keep the last dict_size bytes.  @rep0-@rep3 are relative
-      # distances and @dict_full is clamped at @dict_size, so they are
-      # unaffected.  Only call between chunks, never during decoding.
-      def compact_buffer
-        return if @dict_buf.nil?
-        return if @dict_buf.bytesize <= @dict_size + LZ_DICT_INIT_POS + @dict_size
-
-        keep_start = @pos - @dict_size
-        return if keep_start <= LZ_DICT_INIT_POS
-
-        window = @dict_buf.byteslice(keep_start, @dict_size)
-        @dict_buf = ("\0" * LZ_DICT_INIT_POS).b << window
-        @pos = LZ_DICT_INIT_POS + @dict_size
-      end
-
-      # Grow dict_buf so that positions up to (but not including) needed_pos
-      # are valid for setbyte.  Growth is aligned to @dict_size increments.
-      # Fast-path: a single integer comparison when no growth is needed.
-      def ensure_capacity(needed_pos)
-        return if needed_pos <= @dict_buf.bytesize
-
-        deficit = needed_pos - @dict_buf.bytesize
-        grow = (((deficit - 1) / @dict_size) + 1) * @dict_size
-        @dict_buf << ("\0" * grow)
-      end
+      # No-op: circular buffer has fixed size, no compaction needed.
+      # Kept for API compatibility — LZMA2 decoder calls this between chunks.
+      def compact_buffer; end
 
       # Set uncompressed size for chunked decoding
       #
@@ -1249,7 +1259,7 @@ check_rc_finished: true)
 
         # DEBUG: Check array integrity before decode
         if @lzma_debug_array && @dict_full.positive? && @pos > 1
-          idx = @pos - 1
+          idx = dict_index(@pos - 1)
           if @dict_buf.getbyte(idx).nil?
             raise "DEBUG before decode: @dict_buf[#{idx}] is nil! @pos=#{@pos}, @dict_full=#{@dict_full}, @dict_buf.size=#{@dict_buf.size}"
           end
@@ -1261,7 +1271,7 @@ check_rc_finished: true)
         # DEBUG: Trace lit_state at position 61
         if @dict_full == 61 && @trace_literal_61
           XzUtilsDecoderDebug.debug_puts "=== CALC_LITERAL_STATE at dict_full=61 ==="
-          XzUtilsDecoderDebug.debug_puts "  prev_byte=#{@dict_full.positive? ? @dict_buf.getbyte(@pos - 1) : 0}"
+          XzUtilsDecoderDebug.debug_puts "  prev_byte=#{@dict_full.positive? ? @dict_buf.getbyte(dict_index(@pos - 1)) : 0}"
           XzUtilsDecoderDebug.debug_puts "  lit_state=#{lit_state}"
           XzUtilsDecoderDebug.debug_puts "  lc=#{@lc}, lp=#{@lp}"
           XzUtilsDecoderDebug.debug_puts "  state.value=#{@state.value}"
@@ -1289,10 +1299,9 @@ check_rc_finished: true)
           # omnizip uses @pos for buffer position (includes LZ_DICT_INIT_POS offset)
           # and @dict_full for actual output position (starts at 0)
           # So we must convert: buffer_pos = LZ_DICT_INIT_POS + (output_pos - rep0 - 1)
-          match_byte_pos = @pos - @rep0 - 1
-          match_byte = @dict_buf.getbyte(match_byte_pos)
+          match_byte = @dict_buf.getbyte(dict_index(@pos - @rep0 - 1))
           if @lzma_debug
-            warn "DEBUG: matched literal - dict_full=#{@dict_full}, rep0=#{@rep0}, reading dict_buf[#{match_byte_pos}]=0x#{match_byte.to_s(16).upcase} ('#{match_byte.chr}'), lit_state=#{lit_state}, state=#{@state.value}"
+            warn "DEBUG: matched literal - dict_full=#{@dict_full}, rep0=#{@rep0}, reading dict_buf[#{dict_index(@pos - @rep0 - 1)}]=0x#{match_byte.to_s(16).upcase} ('#{match_byte.chr}'), lit_state=#{lit_state}, state=#{@state.value}"
           end
           byte = @literal_decoder.decode_matched(match_byte, lit_state, @lc,
                                                  @range_decoder, @literal_models)
@@ -1355,7 +1364,7 @@ check_rc_finished: true)
             end}')"
             XzUtilsDecoderDebug.debug_puts "    state.value=#{@state.value}, lit_state=#{lit_state}"
             XzUtilsDecoderDebug.debug_puts "    use_matched_literal?=#{@state.use_matched_literal?}"
-            prev_byte_val = @dict_full.positive? ? @dict_buf.getbyte(@pos - 1) : "N/A"
+            prev_byte_val = @dict_full.positive? ? @dict_buf.getbyte(dict_index(@pos - 1)) : "N/A"
             XzUtilsDecoderDebug.debug_puts "    prev_byte=#{prev_byte_val.inspect} (#{if prev_byte_val.is_a?(Integer)
                                                                                         "0x#{prev_byte_val.to_s(16)} ('#{begin
                                                                                           prev_byte_val.chr
@@ -1392,8 +1401,7 @@ check_rc_finished: true)
           XzUtilsDecoderDebug.debug_puts "  byte.ord=#{byte.is_a?(String) ? byte.ord : 'N/A (not a string)'}"
           XzUtilsDecoderDebug.debug_puts "  Integer value=#{byte.is_a?(Integer) ? byte : byte.ord}"
         end
-        ensure_capacity(@pos + 1)
-        @dict_buf.setbyte(@pos, byte)
+        @dict_buf.setbyte(@dict_pos, byte)
         # DEBUG: Track array size changes
         if @lzma_debug_array_write && @dict_buf.size != (@dict_size + LZ_DICT_INIT_POS)
           XzUtilsDecoderDebug.debug_puts "DEBUG: Array expanded! pos=#{@pos}, byte=#{byte}, old_size=#{@dict_buf.size - 1}, new_size=#{@dict_buf.size}, decoder_id=#{@decoder_id}"
@@ -1404,21 +1412,23 @@ check_rc_finished: true)
         end
         if @lzma_debug_array
           # Verify the write succeeded
-          if @dict_buf.getbyte(@pos) != byte
-            raise "DEBUG after write: @dict_buf[#{@pos}] = #{@dict_buf.getbyte(@pos).inspect}, expected #{byte}!"
+          if @dict_buf.getbyte(@dict_pos) != byte
+            raise "DEBUG after write: @dict_buf[#{@dict_pos}] = #{@dict_buf.getbyte(@dict_pos).inspect}, expected #{byte}!"
           end
-          if @dict_full.positive? && @pos > LZ_DICT_INIT_POS && @dict_buf.getbyte(@pos - 1).nil?
+          if @dict_full.positive? && @pos > LZ_DICT_INIT_POS && @dict_buf.getbyte(dict_index(@pos - 1)).nil?
             raise "DEBUG after write: @dict_buf[#{@pos - 1}] is nil! @pos=#{@pos}, @dict_full=#{@dict_full}"
           end
         end
         @pos += 1
+        @dict_pos += 1
+        @dict_pos = LZ_DICT_INIT_POS if @dict_pos >= @buf_end
 
         # ARM64 DEBUG: Trace first 20 bytes being written to dictionary
         if @trace_arm64_bytes
           @arm64_trace ||= []
           if @arm64_trace.size < 20
             @arm64_trace << [@dict_full, @pos, byte.class,
-                             byte.is_a?(Integer) ? byte : byte.ord, @dict_buf.getbyte(@pos)]
+                             byte.is_a?(Integer) ? byte : byte.ord, @dict_buf.getbyte(dict_index(@pos))]
             if @arm64_trace.size == 20
               # Dump the trace
               puts "\n=== ARM64 BYTE TRACE (first 20 bytes) ==="
@@ -1705,9 +1715,9 @@ check_rc_finished: true)
         end
 
         if @lzma_debug
-          b0 = @dict_buf.getbyte(buffer_back)
-          b1 = @dict_buf.getbyte(buffer_back + 1)
-          b2 = @dict_buf.getbyte(buffer_back + 2)
+          b0 = @dict_buf.getbyte(dict_index(buffer_back))
+          b1 = @dict_buf.getbyte(dict_index(buffer_back + 1))
+          b2 = @dict_buf.getbyte(dict_index(buffer_back + 2))
           b0_str = b0 ? "0x#{b0.to_s(16).upcase}" : "nil"
           b1_str = b1 ? "0x#{b1.to_s(16).upcase}" : "nil"
           b2_str = b2 ? "0x#{b2.to_s(16).upcase}" : "nil"
@@ -1728,17 +1738,21 @@ check_rc_finished: true)
           puts "  First 5 target bytes before copy: #{@dict_buf[@pos,
                                                                 5].inspect}"
         end
-        ensure_capacity(@pos + length)
-        length.times do |i|
-          byte = @dict_buf.getbyte(buffer_back + i)
+        src_idx = dict_index(buffer_back)
+        dst_idx = @dict_pos
+        buf_end = @buf_end
+        length.times do
+          byte = @dict_buf.getbyte(src_idx)
           if @lzma_debug
-            warn "DEBUG: copy iteration #{i}: reading dict_buf[#{buffer_back + i}]=0x#{byte.to_s(16).upcase} ('#{byte.chr}'), writing to dict_buf[#{@pos + i}]"
+            warn "DEBUG: copy reading dict_buf[#{src_idx}]=0x#{byte.to_s(16).upcase} ('#{byte.chr}'), writing to dict_buf[#{dst_idx}]"
           end
-          @dict_buf.setbyte(@pos + i, byte)
-          if @lzma_debug_array_write && @dict_buf.size != (@dict_size + LZ_DICT_INIT_POS)
-            XzUtilsDecoderDebug.debug_puts "DEBUG: Array expanded during copy! write_pos=#{@pos + i}, byte=#{byte}, old_size=#{@dict_buf.size - 1}, new_size=#{@dict_buf.size}, decoder_id=#{@decoder_id}"
-          end
+          @dict_buf.setbyte(dst_idx, byte)
+          src_idx += 1
+          src_idx = LZ_DICT_INIT_POS if src_idx >= buf_end
+          dst_idx += 1
+          dst_idx = LZ_DICT_INIT_POS if dst_idx >= buf_end
         end
+        @dict_pos = dst_idx
         if @lzma_debug && old_dict_full.between?(220, 230)
           puts "  After copy: #{@dict_buf[@pos, length].inspect}"
         end
@@ -2006,43 +2020,27 @@ check_rc_finished: true)
         # Copy bytes from dictionary and extend buffer as needed
         # XZ Utils dict_repeat pattern: dict->buf[dict->pos++] = dict->buf[back++]
         if @lzma_debug && old_dict_full&.between?(250, 260)
-          source_val = @dict_buf.getbyte(@pos - 1)
+          source_val = @dict_buf.getbyte(dict_index(@pos - 1))
           puts "  Rep match copy at dict_full=#{@dict_full}: length=#{length}, distance=#{distance}, @pos=#{@pos} (will write to #{@pos}...#{@pos + length - 1})"
           puts "  Reading from @pos-1=#{@pos - 1}, source byte = #{source_val} (0x#{source_val.to_s(16)} '#{begin
             source_val.chr
           rescue StandardError
             '?'
           end}')"
-          puts "  Before copy: @dict_buf[#{@pos}...#{@pos + length - 1}] = #{@dict_buf[@pos,
-                                                                                       length].inspect}"
+          puts "  Before copy: @dict_buf[#{dict_index(@pos)}...] (circular)"
         end
-        ensure_capacity(@pos + length)
-        length.times do |i|
-          byte = @dict_buf.getbyte(buffer_back + i)
-          if @lzma_debug && @dict_full == 227 && i.zero?
-            puts "DEBUG dict_copy at dict_full=227, i=0:"
-            puts "  buffer_back=#{buffer_back}, byte=#{byte} ('#{byte.chr}')"
-            puts "  Writing to @pos=#{@pos + i}"
-            puts "  dict_buf[buffer_back...buffer_back+10] = #{@dict_buf[buffer_back,
-                                                                         10].inspect}"
-            # DEBUG: Check if buffer_back+1 has the correct byte
-            puts "  dict_buf[buffer_back+1=#{buffer_back + 1}] = #{@dict_buf.getbyte(buffer_back + 1).inspect} ('#{begin
-              @dict_buf.getbyte(buffer_back + 1).chr
-            rescue StandardError
-              '?'
-            end}')"
-            prev_5 = if buffer_back > 4
-                       @dict_buf.byteslice(buffer_back - 5, 5).bytes.map do |b|
-                         "0x#{b.to_s(16).upcase} (#{b.chr})"
-                       end.join(", ")
-                     else
-                       "N/A"
-                     end
-            puts "  Previous 5 bytes: [#{prev_5}]"
-            puts "  Current dict_full=#{@dict_full}, @pos=#{@pos}"
-          end
-          @dict_buf.setbyte(@pos + i, byte)
+        src_idx = dict_index(buffer_back)
+        dst_idx = @dict_pos
+        buf_end = @buf_end
+        length.times do
+          byte = @dict_buf.getbyte(src_idx)
+          @dict_buf.setbyte(dst_idx, byte)
+          src_idx += 1
+          src_idx = LZ_DICT_INIT_POS if src_idx >= buf_end
+          dst_idx += 1
+          dst_idx = LZ_DICT_INIT_POS if dst_idx >= buf_end
         end
+        @dict_pos = dst_idx
 
         # Update position
         @pos += length
@@ -2097,10 +2095,11 @@ check_rc_finished: true)
         if @lzma_debug_calc_state && @dict_full == 8
           XzUtilsDecoderDebug.debug_puts "DEBUG before calc_state[#{@decoder_id}]: pos=#{@pos}, dict_full=#{@dict_full}"
           XzUtilsDecoderDebug.debug_puts "  @dict_buf.object_id=#{@dict_buf.object_id}, size=#{@dict_buf.size}"
-          XzUtilsDecoderDebug.debug_puts "  Accessing index #{@pos - 1}: value=#{@dict_buf.getbyte(@pos - 1).inspect}"
+          XzUtilsDecoderDebug.debug_puts "  Accessing index #{dict_index(@pos - 1)}: value=#{@dict_buf.getbyte(dict_index(@pos - 1)).inspect}"
         end
 
-        prev_byte = @dict_full.positive? ? @dict_buf.getbyte(@pos - 1) : 0
+        prev_idx = @dict_pos == LZ_DICT_INIT_POS ? @buf_end - 1 : @dict_pos - 1
+        prev_byte = @dict_full.positive? ? @dict_buf.getbyte(prev_idx) : 0
 
         # Safeguard: if prev_byte is nil, use 0 and log detailed diagnostics
         # This can happen if the buffer was not properly initialized or we're accessing the wrong buffer
@@ -2116,11 +2115,13 @@ check_rc_finished: true)
           XzUtilsDecoderDebug.debug_puts "DEBUG calc_state[#{@decoder_id}]: pos=#{@pos}, dict_full=#{@dict_full}, @dict_buf.object_id=#{@dict_buf.object_id}, prev_byte=#{prev_byte}"
         end
 
-        # Combine dict_full (actual decoded position) and prev_byte, then apply cached mask
-        # IMPORTANT: XZ Utils uses dict.pos (which starts at 0 and increments)
-        # omnizip's @pos starts at LZ_DICT_INIT_POS (576), so we use @dict_full instead
-        # This ensures we match XZ Utils's literal state calculation exactly
-        (((@dict_full << 8) + prev_byte) & @literal_mask)
+        # Combine current output position and prev_byte, then apply cached mask.
+        # XZ Utils uses dict.pos (continuous write position) for this calculation.
+        # We use @pos - LZ_DICT_INIT_POS (total bytes decoded) instead of @dict_full,
+        # because @dict_full is clamped at @dict_size after the circular buffer wraps,
+        # which would freeze the position-dependent literal model selection.
+        output_pos = @pos - LZ_DICT_INIT_POS
+        ((output_pos << 8) + prev_byte) & @literal_mask
       end
     end
   end

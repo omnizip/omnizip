@@ -64,10 +64,7 @@ module Omnizip
           bcj2_data.rc = streams[:rc]
 
           decoder = Omnizip::Filters::Bcj2Decoder.new(bcj2_data)
-          result = decoder.decode
-
-          # Truncate to expected size if needed
-          result.bytesize > expected_size ? result[0, expected_size] : result
+          decoder.decode(expected_size)
         end
 
         private
