@@ -20,11 +20,11 @@ module Omnizip
   module Filters
     # BCJ2 decoder - reconstructs original data from 4 streams.
     #
-    # Combines:
-    # - Main stream (non-convertible bytes)
-    # - Call stream (CALL/E8 addresses)
-    # - Jump stream (JUMP/E9 addresses)
-    # - RC stream (range coder probability data)
+    # Matches the modern 7-Zip SDK Bcj2.c decode loop (v18.06+):
+    # - Pre-allocated output buffer (no dynamic growth)
+    # - Handles E8 (CALL), E9 (JMP), and JCC (0x0F 0x80-0x8F) opcodes
+    # - Probability model: index 0=JCC, 1=E9, 2+prev_byte=E8
+    # - Inline range decoder with cached locals
     class Bcj2Decoder
       include Bcj2Constants
 
@@ -50,144 +50,185 @@ module Omnizip
 
       # Decode 4 streams back to original data.
       #
-      # Uses bulk scanning (C-optimized String#index) to find E8/E9 opcodes
-      # and bulk-copies non-opcode byte runs via String#byteslice.
+      # Matches modern 7-Zip SDK Bcj2Dec_Decode pattern:
+      # - Pre-allocated output buffer sized to expected output
+      # - Single C-optimized regex scan for E8/E9/JCC opcodes
+      # - Direct setbyte writes (no intermediate String allocations)
+      # - Opcode written to output before range-coded decision (matches SDK)
       #
+      # @param expected_size [Integer, nil] Expected output size for pre-allocation
       # @return [String] Decoded binary data
-      def decode
+      def decode(expected_size = nil)
         main_data = @streams.main
         main_size = main_data.bytesize
-        result = String.new(capacity: main_size + (main_size >> 3),
-                            encoding: Encoding::BINARY)
-        init_range_decoder
 
-        e8 = "\xE8".b
-        e9 = "\xE9".b
+        # Pre-allocate output buffer to expected size (C++ SDK: dic is pre-allocated)
+        out_capacity = expected_size || (main_size + (main_size >> 2))
+        result = ("\0" * out_capacity).b
+        result_pos = 0
 
-        while @main_pos < main_size
-          # Find next E8 or E9 using C-optimized String#index
-          e8_pos = main_data.index(e8, @main_pos)
-          e9_pos = main_data.index(e9, @main_pos)
+        # Cache stream references as locals (avoids repeated ivar lookups in hot loop)
+        call_data = @streams.call
+        jump_data = @streams.jump
+        rc_data = @streams.rc
+        call_size = call_data.bytesize
+        jump_size = jump_data.bytesize
+        rc_size = rc_data.bytesize
+        call_pos = @call_pos
+        jump_pos = @jump_pos
+        rc_pos = @rc_pos
+        probs = @probs
+        ip = @ip
 
-          next_pos = if e8_pos && e9_pos
-                       [e8_pos, e9_pos].min
-                     else
-                       e8_pos || e9_pos
-                     end
+        # Initialize range decoder (read first 5 bytes from RC stream)
+        range = 0xFFFFFFFF
+        code = 0
+        5.times do
+          break if rc_pos >= rc_size
+
+          code = (code << 8) | rc_data.getbyte(rc_pos)
+          rc_pos += 1
+        end
+
+        # Regex to find E8, E9, or JCC (0x0F followed by 0x80-0x8F)
+        opcode_re = /[\xe8\xe9]|\x0f[\x80-\x8f]/n
+        main_pos = @main_pos
+        prev_byte = 0
+
+        while main_pos < main_size
+          # C-optimized scan for E8, E9, and JCC opcodes
+          next_pos = main_data.index(opcode_re, main_pos)
 
           unless next_pos
-            # No more opcodes - bulk copy rest
-            chunk_len = main_size - @main_pos
-            result << main_data.byteslice(@main_pos, chunk_len)
-            @ip += chunk_len
-            @main_pos = main_size
+            # No more opcodes — bulk copy remaining bytes
+            chunk_len = main_size - main_pos
+            result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
+            result_pos += chunk_len
+            ip += chunk_len
+            main_pos = main_size
             break
           end
 
           # Bulk copy bytes before opcode
-          if next_pos > @main_pos
-            chunk_len = next_pos - @main_pos
-            result << main_data.byteslice(@main_pos, chunk_len)
-            @ip += chunk_len
-            @main_pos = next_pos
+          if next_pos > main_pos
+            chunk_len = next_pos - main_pos
+            result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
+            result_pos += chunk_len
+            ip += chunk_len
+            main_pos = next_pos
+            # Track prev_byte from bulk copy (last byte before opcode in output)
+            prev_byte = main_data.getbyte(next_pos - 1)
           end
 
-          # Handle E8/E9 opcode
-          byte = main_data.getbyte(@main_pos)
-          @main_pos += 1
+          byte = main_data.getbyte(main_pos)
 
-          prob_idx = byte == 0xE8 ? (2 + (@ip & 0xFF)) : 0
-          if read_bit(prob_idx)
-            # Convertible - read address from call/jump stream
-            addr = read_address(byte)
-            result << byte
-            result << [addr & 0xFFFFFFFF].pack("V")
-            @ip += 5
+          if byte == 0x0F
+            # JCC: 0x0F followed by 0x80-0x8F conditional jump
+            # Write 0x0F to output (SDK writes opcode bytes before range decision)
+            result.setbyte(result_pos, 0x0F)
+            result_pos += 1
+            ip += 1
+            main_pos += 1
+
+            # Read and write the 0x8x second opcode byte
+            byte = main_data.getbyte(main_pos)
+            result.setbyte(result_pos, byte)
+            result_pos += 1
+            ip += 1
+            main_pos += 1
+
+            prob_idx = 0 # JCC uses probability index 0
+            is_call = false
           else
-            # Not convertible - just copy byte
-            result << byte
-            @ip += 1
+            # E8 (CALL) or E9 (JMP) — write opcode before range decision
+            result.setbyte(result_pos, byte)
+            result_pos += 1
+            ip += 1
+            main_pos += 1
+
+            if byte == 0xE8
+              prob_idx = 2 + prev_byte  # E8 uses prev_byte context (256 models)
+              is_call = true
+            else
+              prob_idx = 1              # E9 uses fixed index 1
+              is_call = false
+            end
+          end
+
+          # Inline range decoder normalization
+          if range < TOP_VALUE
+            range <<= 8
+            rc_byte = rc_pos < rc_size ? rc_data.getbyte(rc_pos) : 0
+            code = (code << 8) | rc_byte
+            rc_pos += 1 if rc_pos < rc_size
+          end
+
+          prob = probs[prob_idx]
+          bound = (range >> BIT_MODEL_TOTAL_BITS) * prob
+
+          if code < bound
+            # Bit = 0: not convertible (opcode already written to output)
+            range = bound
+            probs[prob_idx] = prob + ((BIT_MODEL_TOTAL - prob) >> MOVE_BITS)
+            prev_byte = byte
+          else
+            # Bit = 1: convertible — read 4-byte address from call/jump stream
+            range -= bound
+            code -= bound
+            probs[prob_idx] = prob - (prob >> MOVE_BITS)
+
+            # Read 4 bytes big-endian from call stream (E8) or jump stream (E9/JCC)
+            if is_call
+              if call_pos + 4 <= call_size
+                addr = call_data.byteslice(call_pos, 4).unpack1("N")
+                call_pos += 4
+              else
+                addr = 0
+                4.times do |i|
+                  break if call_pos >= call_size
+
+                  addr |= call_data.getbyte(call_pos) << (24 - (i * 8))
+                  call_pos += 1
+                end
+              end
+            elsif jump_pos + 4 <= jump_size
+              addr = jump_data.byteslice(jump_pos, 4).unpack1("N")
+              jump_pos += 4
+            else
+              addr = 0
+              4.times do |i|
+                break if jump_pos >= jump_size
+
+                addr |= jump_data.getbyte(jump_pos) << (24 - (i * 8))
+                jump_pos += 1
+              end
+            end
+
+            # Convert absolute address to relative (ip already past opcode bytes)
+            addr = (addr - (ip + 4)) & 0xFFFFFFFF
+
+            # Write 4-byte little-endian address directly (no pack/Array alloc)
+            result.setbyte(result_pos, addr & 0xFF)
+            result.setbyte(result_pos + 1, (addr >> 8) & 0xFF)
+            result.setbyte(result_pos + 2, (addr >> 16) & 0xFF)
+            result.setbyte(result_pos + 3, (addr >> 24) & 0xFF)
+            result_pos += 4
+            ip += 4
+            prev_byte = (addr >> 24) & 0xFF
           end
         end
 
-        result
-      end
+        # Store final positions back
+        @main_pos = main_pos
+        @call_pos = call_pos
+        @jump_pos = jump_pos
+        @rc_pos = rc_pos
+        @range = range
+        @code = code
+        @ip = ip
 
-      private
-
-      # Initialize range decoder by reading first 5 bytes from RC stream.
-      #
-      # @return [void]
-      def init_range_decoder
-        @range = 0xFFFFFFFF
-        @code = 0
-
-        5.times do
-          break if @rc_pos >= @streams.rc.bytesize
-
-          @code = (@code << 8) | @streams.rc.getbyte(@rc_pos)
-          @rc_pos += 1
-        end
-      end
-
-      # Read a single bit from range coder.
-      #
-      # @param prob_index [Integer] Probability model index
-      # @return [Boolean] Decoded bit (true = 1, false = 0)
-      def read_bit(prob_index) # rubocop:disable Naming/PredicateMethod
-        # Inlined normalize_range
-        if @range < TOP_VALUE
-          @range <<= 8
-          next_byte = @rc_pos < @streams.rc.bytesize ? @streams.rc.getbyte(@rc_pos) : 0
-          @code = (@code << 8) | next_byte
-          @rc_pos += 1 if @rc_pos < @streams.rc.bytesize
-        end
-
-        prob = @probs[prob_index]
-        bound = (@range >> BIT_MODEL_TOTAL_BITS) * prob
-
-        if @code < bound
-          @range = bound
-          @probs[prob_index] = prob + ((BIT_MODEL_TOTAL - prob) >> MOVE_BITS)
-          false
-        else
-          @range -= bound
-          @code -= bound
-          @probs[prob_index] = prob - (prob >> MOVE_BITS)
-          true
-        end
-      end
-
-      # Read 32-bit address from call or jump stream.
-      #
-      # @param opcode [Integer] Opcode (E8 or E9)
-      # @return [Integer] Converted address
-      def read_address(opcode)
-        if opcode == 0xE8
-          stream = @streams.call
-          stream_pos = @call_pos
-        else
-          stream = @streams.jump
-          stream_pos = @jump_pos
-        end
-
-        # Read 4 bytes big-endian
-        addr = 0
-        4.times do |i|
-          break if stream_pos >= stream.bytesize
-
-          addr |= stream.getbyte(stream_pos) << (24 - (i * 8))
-          stream_pos += 1
-        end
-
-        if opcode == 0xE8
-          @call_pos = stream_pos
-        else
-          @jump_pos = stream_pos
-        end
-
-        # Convert back to relative
-        addr - (@ip + 5)
+        # Return exact output (trim if pre-allocated too large)
+        result_pos < result.bytesize ? result.byteslice(0, result_pos) : result
       end
     end
   end
