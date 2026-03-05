@@ -155,7 +155,7 @@ module Omnizip
         # Parse Start Header fields (bytes 12-31)
         next_header_data = header_data.byteslice(12, 20)
         next_header_offset = next_header_data.unpack1("Q<")
-        next_header_size = next_header_data[8, 8].unpack1("Q<")
+        next_header_size = next_header_data.byteslice(8, 8).unpack1("Q<")
 
         # next_header_offset is relative to end of Start Header
         header_end = offset + header_size + next_header_offset + next_header_size
@@ -163,7 +163,7 @@ module Omnizip
         return false if next_header_size.zero? || next_header_size > file_size
 
         # Validate Start Header CRC (bytes 8-11) over next_header_data (bytes 12-31)
-        stored_crc = header_data[8, 4].unpack1("V")
+        stored_crc = header_data.byteslice(8, 4).unpack1("V")
         computed_crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(next_header_data) }.finalize
         return false unless stored_crc == computed_crc
 

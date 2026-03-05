@@ -60,7 +60,7 @@ module Omnizip
           @high = Array.new(1 << (NUM_LEN_HIGH_BITS + 1)) { BitModel.new }
 
           # Cache ENV lookups once at initialization
-          @lzma_debug = ENV.fetch("LZMA_DEBUG", nil)
+
           @lzma_debug_length = ENV.fetch("LZMA_DEBUG_LENGTH", nil)
           @lzma_debug_encode = ENV.fetch("LZMA_DEBUG_ENCODE", nil)
           @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)

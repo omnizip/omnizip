@@ -114,6 +114,12 @@ module Omnizip
         return if @pos == @flush_pos
 
         length = @pos - @flush_pos
+
+        if length > @dict_size
+          raise Omnizip::DecompressionError,
+                "Internal error: flush lag (#{length}) exceeds dict_size (#{@dict_size})"
+        end
+
         start_idx = dict_index(@flush_pos)
         buf_end = @buf_end
 
@@ -155,11 +161,30 @@ module Omnizip
       def initialize(input, options = {})
         @input = input
         @decoder_id = object_id # Track decoder instance ID
+
+        # Cache ENV lookups once at initialization (ENV[] is a getenv() syscall)
+        @lzma_debug_iter = ENV.fetch("LZMA_DEBUG_ITER", nil)
+        @lzma_debug_limit = ENV.fetch("LZMA_DEBUG_LIMIT", nil)
+        @lzma_debug_pos = ENV.fetch("LZMA_DEBUG_POS", nil)
+        @lzma_debug_reset = ENV.fetch("LZMA_DEBUG_RESET", nil)
+        @debug_dict_buf = ENV.fetch("DEBUG_DICT_BUF", nil)
+        @lzma_debug_decode_literal = ENV.fetch("LZMA_DEBUG_DECODE_LITERAL", nil)
+        @lzma_debug_array = ENV.fetch("LZMA_DEBUG_ARRAY", nil)
+        @trace_literal_61 = ENV.fetch("TRACE_LITERAL_61", nil)
+        @lzma_debug_array_write = ENV.fetch("LZMA_DEBUG_ARRAY_WRITE", nil)
+        @trace_arm64_bytes = ENV.fetch("TRACE_ARM64_BYTES", nil)
+        @trace_is_rep = ENV.fetch("TRACE_IS_REP", nil)
+        @trace_model_init = ENV.fetch("TRACE_MODEL_INIT", nil)
+        @lzma_debug_decode_stream = ENV.fetch("LZMA_DEBUG_DECODE_STREAM", nil)
+        @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+        @lzma_debug_pos_227 = ENV.fetch("LZMA_DEBUG_POS_227", nil)
+        @lzma_debug_calc_state = ENV.fetch("LZMA_DEBUG_CALC_STATE", nil)
+        @lzma_debug_nil_byte = ENV.fetch("LZMA_DEBUG_NIL_BYTE", nil)
+
         puts "DEBUG LZMA::Decoder.new created[#{@decoder_id}]" if @lzma_debug_decode_stream
         if @lzma_debug_decode_stream
           warn "SDK Decoder #{@decoder_id} created"
         end
-        @input = input
 
         # Check for preloaded data (from LZMA2 uncompressed chunks)
         @preloaded_data = options[:preloaded_data]
@@ -179,26 +204,6 @@ module Omnizip
           # Standalone LZMA file - read header from input
           read_header
         end
-
-        # Cache ENV lookups once at initialization (ENV[] is a getenv() syscall)
-        @lzma_debug = ENV.fetch("LZMA_DEBUG", nil)
-        @lzma_debug_iter = ENV.fetch("LZMA_DEBUG_ITER", nil)
-        @lzma_debug_limit = ENV.fetch("LZMA_DEBUG_LIMIT", nil)
-        @lzma_debug_pos = ENV.fetch("LZMA_DEBUG_POS", nil)
-        @lzma_debug_reset = ENV.fetch("LZMA_DEBUG_RESET", nil)
-        @debug_dict_buf = ENV.fetch("DEBUG_DICT_BUF", nil)
-        @lzma_debug_decode_literal = ENV.fetch("LZMA_DEBUG_DECODE_LITERAL", nil)
-        @lzma_debug_array = ENV.fetch("LZMA_DEBUG_ARRAY", nil)
-        @trace_literal_61 = ENV.fetch("TRACE_LITERAL_61", nil)
-        @lzma_debug_array_write = ENV.fetch("LZMA_DEBUG_ARRAY_WRITE", nil)
-        @trace_arm64_bytes = ENV.fetch("TRACE_ARM64_BYTES", nil)
-        @trace_is_rep = ENV.fetch("TRACE_IS_REP", nil)
-        @trace_model_init = ENV.fetch("TRACE_MODEL_INIT", nil)
-        @lzma_debug_decode_stream = ENV.fetch("LZMA_DEBUG_DECODE_STREAM", nil)
-        @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
-        @lzma_debug_pos_227 = ENV.fetch("LZMA_DEBUG_POS_227", nil)
-        @lzma_debug_calc_state = ENV.fetch("LZMA_DEBUG_CALC_STATE", nil)
-        @lzma_debug_nil_byte = ENV.fetch("LZMA_DEBUG_NIL_BYTE", nil)
 
         validate_parameters
         init_models
@@ -234,7 +239,7 @@ check_rc_finished: true)
         @decode_stream_call_count += 1
         call_num = @decode_stream_call_count
 
-        puts "DEBUG decode_stream START (call ##{call_num}): @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @uncompressed_size=#{@uncompressed_size.inspect}" if @lzma_debug && @dict_full && @dict_full >= 200 && @dict_full <= 230
+        puts "DEBUG decode_stream START (call ##{call_num}): @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @uncompressed_size=#{@uncompressed_size.inspect}" if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 200 && @dict_full <= 230
         if @lzma_debug_decode_stream
           warn "DEBUG decode_stream[#{@decoder_id}] START: preserve_dict=#{preserve_dict}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @dict_buf.object_id=#{@dict_buf&.object_id || 'nil'}, @dict_buf.size=#{@dict_buf&.size || 'nil'}"
         end
@@ -243,7 +248,7 @@ check_rc_finished: true)
         # For LZMA2, reuse persistent range decoder across chunks (like XZ Utils)
         # The range decoder is created in set_input when the first chunk is processed
         # See: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma2_decoder.c:140-141
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_stream - reusing range decoder @input.pos=#{begin
             @input.pos
           rescue StandardError
@@ -254,7 +259,7 @@ check_rc_finished: true)
         # Create range decoder if it doesn't exist (first chunk)
         # This happens when the decoder is created directly for LZMA (not LZMA2)
         unless @range_decoder
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: decode_stream - creating NEW range decoder"
           end
           @range_decoder = RangeDecoder.new(@input)
@@ -263,13 +268,12 @@ check_rc_finished: true)
         # Special case: empty input (uncompressed_size == 0)
         # Return immediately without trying to decode anything
         if @uncompressed_size != 0xFFFFFFFFFFFFFFFF && @uncompressed_size.zero?
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: decode_stream - empty input (uncompressed_size=0), returning immediately"
           end
           return "" # Empty output
         end
 
-        # TEMP DEBUG: Trace first 10 iterations
         @debug_iter = 0
 
         # Track bytes decoded in this chunk (for multi-chunk streams)
@@ -278,7 +282,7 @@ check_rc_finished: true)
         @chunk_bytes_decoded = 0
 
         # DEBUG: Show chunk_bytes_decoded initialization
-        if @dict_full && @dict_full >= 220 && @dict_full <= 240 && @lzma_debug
+        if @dict_full && @dict_full >= 220 && @dict_full <= 240 && XzUtilsDecoderDebug::ENABLED
           puts "DEBUG: chunk_bytes_decoded reset to 0 for chunk (call_num=#{call_num}, dict_full=#{@dict_full})"
         end
 
@@ -343,9 +347,9 @@ check_rc_finished: true)
         # properly reflected in start_pos, so we only return NEW bytes.
         # For LZMA2, we need to return only the NEW bytes, not all bytes from LZ_DICT_INIT_POS
         start_pos = @pos || LZ_DICT_INIT_POS
-        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @decoder_id=#{@decoder_id}" if @lzma_debug && @dict_full && @dict_full >= 200 && @dict_full <= 230
+        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, preserve_dict=#{preserve_dict}, @decoder_id=#{@decoder_id}" if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 200 && @dict_full <= 230
         # Also show for chunk #1 start (dict_full around 227)
-        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @uncompressed_size=#{@uncompressed_size}, @decoder_id=#{@decoder_id}" if @lzma_debug && @dict_full && @dict_full >= 225 && @dict_full <= 230
+        puts "DEBUG: start_pos=#{start_pos}, @pos=#{@pos.inspect}, @dict_full=#{@dict_full.inspect}, @uncompressed_size=#{@uncompressed_size}, @decoder_id=#{@decoder_id}" if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 225 && @dict_full <= 230
 
         # Initialize rep distances (XZ Utils initializes to 0)
         # See: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma_decoder.c:1054-1055
@@ -354,7 +358,7 @@ check_rc_finished: true)
         #
         # IMPORTANT: Initialize rep distances if they're nil OR not preserving dict
         if @rep0.nil? || @rep1.nil? || @rep2.nil? || @rep3.nil? || !preserve_dict
-          puts "DEBUG: Resetting rep distances to 0 (rep0.nil?=#{@rep0.nil?}, preserve_dict=#{preserve_dict})" if @lzma_debug && @dict_full && @dict_full >= 200 && @dict_full <= 230
+          puts "DEBUG: Resetting rep distances to 0 (rep0.nil?=#{@rep0.nil?}, preserve_dict=#{preserve_dict})" if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 200 && @dict_full <= 230
           @rep0 = 0
           @rep1 = 0
           @rep2 = 0
@@ -362,7 +366,9 @@ check_rc_finished: true)
         end
 
         # Read range decoder init bytes (must happen after set_input sets correct stream)
-        @range_decoder.read_init_bytes if @range_decoder.respond_to?(:read_init_bytes)
+        if @range_decoder.respond_to?(:read_init_bytes) && @range_decoder.init_bytes_remaining.positive?
+          @range_decoder.read_init_bytes
+        end
 
         # Main decoding loop
         # XZ Utils pattern (lzma_decoder.c:305-306):
@@ -395,7 +401,7 @@ check_rc_finished: true)
 
         iteration = 0
         loop do
-          iteration += 1 if @lzma_debug
+          iteration += 1 if XzUtilsDecoderDebug::ENABLED
           # DEBUG: Show every iteration after position 200
           if @lzma_debug_iter && @dict_full && @dict_full >= 200 && @dict_full <= 500
             puts "DEBUG ITERATION ##{iteration}: pos=#{@pos}, dict_full=#{@dict_full}, limit=#{limit.inspect}"
@@ -420,9 +426,6 @@ check_rc_finished: true)
             XzUtilsDecoderDebug.debug_puts "DEBUG LIMIT: iter=#{iteration}, pos=#{@pos}, dict_full=#{@dict_full}, limit=#{limit}"
           end
 
-          # DEBUG: Track position before decoding
-          @pos if @lzma_debug_pos
-
           # Circular buffer: flush output before it can be overwritten.
           # LZMA matches are at most 273 bytes, so flush when within 273 of wrapping.
           if @pos - @flush_pos > @dict_size - 273
@@ -441,18 +444,16 @@ check_rc_finished: true)
           end
 
           # Debug trace (disabled - remove or enable with ENV var as needed)
-          @debug_iter += 1 if @lzma_debug
+          @debug_iter += 1 if XzUtilsDecoderDebug::ENABLED
 
           # DEBUG: Trace is_match decision around position 256
           # IMPORTANT: Capture range/code BEFORE calling decode_bit
-          if @lzma_debug && @dict_full.between?(255, 257)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(255, 257)
             range = @range_decoder.instance_variable_get(:@range)
             code = @range_decoder.instance_variable_get(:@code)
             model = @is_match_models[model_index]
             XzUtilsDecoderDebug.debug_puts "  [IS_MATCH] pos=#{@pos}, dict_full=#{@dict_full}, state=#{@state.value}, pos_state=#{pos_state}, model_index=#{model_index}"
             XzUtilsDecoderDebug.debug_puts "    BEFORE decode: range=0x#{range.to_s(16)}, code=0x#{code.to_s(16)}, prob=#{model.probability}"
-            # Enable detailed tracing for the critical is_match[0][0] decision
-            $trace_is_match_0_0 = (@dict_full == 256)
           end
 
           if @lzma_debug_iter
@@ -471,7 +472,7 @@ check_rc_finished: true)
           is_match = @range_decoder.decode_bit(@is_match_models[model_index])
 
           # DEBUG: Trace is_match and literal/match decisions around dict_full = 50-62
-          if @lzma_debug && @dict_full.between?(50, 62)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(50, 62)
             range_val = @range_decoder.instance_variable_get(:@range)
             code_val = @range_decoder.instance_variable_get(:@code)
             prob_val = @is_match_models[model_index].probability
@@ -485,13 +486,13 @@ check_rc_finished: true)
           end
 
           # DEBUG: Show is_match result after decode
-          if @lzma_debug && @dict_full.between?(255, 257)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(255, 257)
             XzUtilsDecoderDebug.debug_puts "    AFTER decode: is_match=#{is_match}"
             XzUtilsDecoderDebug.debug_puts "    (is_match=0 means literal, is_match=1 means match)"
           end
 
           # DEBUG: Track what's happening around dict_full=227 (corruption point)
-          if @lzma_debug && @dict_full == 227
+          if XzUtilsDecoderDebug::ENABLED && @dict_full == 227
             puts "DEBUG CORRUPTION POINT: dict_full=#{@dict_full}, pos=#{@pos}"
             puts "  is_match=#{is_match}, state=#{@state.value}"
             range_val = @range_decoder.instance_variable_get(:@range)
@@ -502,7 +503,7 @@ check_rc_finished: true)
             ].max...[@pos + 5, @dict_buf.size - 1].min].inspect}"
           end
 
-          if @lzma_debug && @dict_full.between?(224, 235)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(224, 235)
             puts "DEBUG pos #{@dict_full}: is_match=#{is_match}, state=#{@state.value}"
             if is_match.zero?
               puts "  Next byte should be literal"
@@ -512,7 +513,7 @@ check_rc_finished: true)
           end
 
           # DEBUG: Verify first 256 bytes are correct
-          if @lzma_debug && @dict_full == 256
+          if XzUtilsDecoderDebug::ENABLED && @dict_full == 256
             XzUtilsDecoderDebug.debug_puts ""
             XzUtilsDecoderDebug.debug_puts "  Verifying first 256 bytes:"
             # Check specific bytes around position 253
@@ -525,7 +526,7 @@ check_rc_finished: true)
               actual = @dict_buf.getbyte(LZ_DICT_INIT_POS + i)
               if actual != expected
                 all_correct = false
-                if (i >= 253) && @lzma_debug
+                if (i >= 253) && XzUtilsDecoderDebug::ENABLED
                   puts "    Byte #{i}: expected 0x#{expected.to_s(16)}, got 0x#{actual.to_s(16)} MISMATCH!"
                 end
               end
@@ -534,7 +535,7 @@ check_rc_finished: true)
             XzUtilsDecoderDebug.debug_puts ""
           end
 
-          if @lzma_debug && @pos >= 605 && @pos <= 615
+          if XzUtilsDecoderDebug::ENABLED && @pos >= 605 && @pos <= 615
             warn "DEBUG: is_match at pos=#{@pos}, state=#{@state.value}, pos_state=#{pos_state}, model_index=#{model_index}, is_match=#{is_match}"
           end
 
@@ -543,7 +544,7 @@ check_rc_finished: true)
             decode_literal
 
             # Trace positions 45-65 for debugging good-1-lzma2-3.xz divergence
-            if @lzma_debug && @dict_full >= 45 && @dict_full <= 65
+            if XzUtilsDecoderDebug::ENABLED && @dict_full >= 45 && @dict_full <= 65
               last_byte = @dict_buf.getbyte(dict_index(@pos - 1))
               range_after = @range_decoder.instance_variable_get(:@range)
               code_after = @range_decoder.instance_variable_get(:@code)
@@ -723,7 +724,7 @@ check_rc_finished: true)
         end
 
         # DEBUG: Trace reset calls around position 224-227
-        if @dict_full && @dict_full >= 220 && @dict_full <= 230
+        if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 220 && @dict_full <= 230
           XzUtilsDecoderDebug.debug_puts "\n=== reset called at dict_full=#{@dict_full} ==="
           XzUtilsDecoderDebug.debug_puts "  preserve_dict=#{preserve_dict}"
           XzUtilsDecoderDebug.debug_puts "  Before reset: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
@@ -800,6 +801,7 @@ check_rc_finished: true)
           # XZ Utils allocates a new buffer for each dictionary reset
           @dict_buf = ("\0" * (@dict_size + LZ_DICT_INIT_POS)).b
           @pos = LZ_DICT_INIT_POS
+          @dict_pos = LZ_DICT_INIT_POS
           @dict_full = 0
           @has_wrapped = false
           if @lzma_debug_reset
@@ -865,7 +867,7 @@ check_rc_finished: true)
       # @return [void]
       def prepare_state_reset
         # DEBUG: Trace when prepare_state_reset is called
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           XzUtilsDecoderDebug.debug_puts "\n=== prepare_state_reset called (decoder_id=#{@decoder_id}) ==="
           XzUtilsDecoderDebug.debug_puts "  Before reset: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
@@ -880,14 +882,14 @@ check_rc_finished: true)
         @rep3 = 0
 
         # DEBUG: Show after reset
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           XzUtilsDecoderDebug.debug_puts "  After reset: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
         # Reset probability models (XZ Utils init_temporals for control >= 0xA0)
         reset_models
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           XzUtilsDecoderDebug.debug_puts "=== end prepare_state_reset (range decoder will be reset in finish_state_reset) ==="
         end
 
@@ -903,7 +905,7 @@ check_rc_finished: true)
       # @return [void]
       def reset_state_machine_only
         # DEBUG: Trace when reset_state_machine_only is called
-        if @dict_full && @dict_full >= 220 && @dict_full <= 230
+        if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 220 && @dict_full <= 230
           XzUtilsDecoderDebug.debug_puts "\n=== reset_state_machine_only called at dict_full=#{@dict_full} (decoder_id=#{@decoder_id}) ==="
           XzUtilsDecoderDebug.debug_puts "  Before reset: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
@@ -915,7 +917,7 @@ check_rc_finished: true)
         reset_models
 
         # DEBUG: Show after reset (note: rep distances are preserved)
-        if @dict_full && @dict_full >= 220 && @dict_full <= 230
+        if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 220 && @dict_full <= 230
           XzUtilsDecoderDebug.debug_puts "  After reset: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3}) (preserved)"
         end
 
@@ -938,7 +940,7 @@ check_rc_finished: true)
         # This reinitializes the range decoder for the new chunk
         # The reset will read 5 bytes from the input when decode_stream starts
         if @range_decoder
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             input_pos = begin
               @input.pos
             rescue StandardError
@@ -952,7 +954,7 @@ check_rc_finished: true)
             XzUtilsDecoderDebug.debug_puts "=== finish_state_reset: resetting range_decoder, input pos=#{input_pos}, size=#{input_size}"
           end
           @range_decoder.reset
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             input_pos_after = begin
               @input.pos
             rescue StandardError
@@ -997,7 +999,7 @@ check_rc_finished: true)
         @input = new_input
 
         # DEBUG: Trace input stream contents
-        if @lzma_debug && @dict_full && @dict_full >= 220 && @dict_full <= 230
+        if XzUtilsDecoderDebug::ENABLED && @dict_full && @dict_full >= 220 && @dict_full <= 230
           puts "\n=== set_input at dict_full=#{@dict_full} ==="
           puts "  new_input.size=#{new_input.size}"
           puts "  new_input.pos=#{new_input.pos}"
@@ -1024,14 +1026,14 @@ check_rc_finished: true)
         # Create range decoder if it doesn't exist (first chunk)
         if @range_decoder.nil?
           @range_decoder = RangeDecoder.new(@input)
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             XzUtilsDecoderDebug.debug_puts "=== set_input: created NEW range_decoder, input has #{@input.size} bytes"
           end
         else
           # Update the range decoder's input stream to the new input
           # This is needed because RangeDecoder holds a reference to the stream
           @range_decoder.update_stream(@input)
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             XzUtilsDecoderDebug.debug_puts "=== set_input: reusing range_decoder, new input has #{@input.size} bytes, pos=#{@input.pos}"
           end
         end
@@ -1049,7 +1051,7 @@ check_rc_finished: true)
       # @param data [String] Uncompressed data to add to dictionary
       # @return [void]
       def add_to_dictionary(data)
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           old_dict_full = @dict_full
           XzUtilsDecoderDebug.debug_puts "=== add_to_dictionary: adding #{data.bytesize} bytes to dictionary[#{@decoder_id}], current dict_full=#{@dict_full}, pos=#{@pos}"
         end
@@ -1073,7 +1075,7 @@ check_rc_finished: true)
           end
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           XzUtilsDecoderDebug.debug_puts "=== add_to_dictionary: after adding, dict_full=#{@dict_full} (was #{old_dict_full}), pos=#{@pos}"
         end
       end
@@ -1095,7 +1097,7 @@ check_rc_finished: true)
         @uncompressed_size = size
         @allow_eopm = allow_eopm
         # DEBUG: Track when uncompressed size is set
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           puts "DEBUG set_uncompressed_size: size=#{size}, @decoder_id=#{@decoder_id}, @dict_full=#{@dict_full}"
         end
       end
@@ -1249,7 +1251,7 @@ check_rc_finished: true)
       # @return [void]
       def decode_literal
         # DEBUG: Trace literals around position 224-227
-        old_dict_full = @dict_full if @lzma_debug
+        old_dict_full = @dict_full if XzUtilsDecoderDebug::ENABLED
 
         # DEBUG: Track how many times we're called for each position
         if @lzma_debug_decode_literal
@@ -1300,7 +1302,7 @@ check_rc_finished: true)
           # and @dict_full for actual output position (starts at 0)
           # So we must convert: buffer_pos = LZ_DICT_INIT_POS + (output_pos - rep0 - 1)
           match_byte = @dict_buf.getbyte(dict_index(@pos - @rep0 - 1))
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: matched literal - dict_full=#{@dict_full}, rep0=#{@rep0}, reading dict_buf[#{dict_index(@pos - @rep0 - 1)}]=0x#{match_byte.to_s(16).upcase} ('#{match_byte.chr}'), lit_state=#{lit_state}, state=#{@state.value}"
           end
           byte = @literal_decoder.decode_matched(match_byte, lit_state, @lc,
@@ -1319,14 +1321,14 @@ check_rc_finished: true)
             puts
           end
 
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: calling decode_unmatched - pos=#{@pos}, lit_state=#{lit_state}"
           end
           byte = @literal_decoder.decode_unmatched(lit_state, @lc,
                                                    @range_decoder, @literal_models)
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_literal RETURNED - pos=#{@pos}, byte=#{'0x%02X' % byte} ('#{byte.chr}'), lit_state=#{lit_state}"
         end
 
@@ -1345,13 +1347,13 @@ check_rc_finished: true)
           end
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           decoded_bytes = @dict_full.positive? ? @dict_buf.byteslice(LZ_DICT_INIT_POS, @pos - LZ_DICT_INIT_POS) : ""
           warn "DEBUG: decode_literal - pos=#{@pos}, byte=#{'0x%02X' % byte} ('#{byte.chr}'), state=#{@state.value}, dict_full=#{@dict_full}, decoded_so_far='#{decoded_bytes[-10..]}'"
         end
 
         # DEBUG: Detailed trace around position 256
-        if @lzma_debug && @dict_full.between?(230, 265)
+        if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(230, 265)
           expected = @dict_full % 256
           match = byte == expected ? "✓" : "✗ MISMATCH!"
           XzUtilsDecoderDebug.debug_puts "  [LITERAL] dict_full=#{@dict_full}: 0x#{byte.to_s(16).upcase} (expected 0x#{expected.to_s(16).upcase}) #{match}"
@@ -1389,7 +1391,7 @@ check_rc_finished: true)
         # if (!dict->has_wrapped)
         #     dict->full = dict->pos - LZ_DICT_INIT_POS;
         @state.update_literal
-        warn "DEBUG: After update_literal - state=#{@state.value}" if @lzma_debug
+        warn "DEBUG: After update_literal - state=#{@state.value}" if XzUtilsDecoderDebug::ENABLED
 
         # Write to dictionary buffer at current position
         # XZ Utils dict_put pattern: dict->buf[dict->pos++] = byte;
@@ -1466,7 +1468,7 @@ check_rc_finished: true)
         end
 
         # DEBUG: Show literal decode for position 220-230
-        if @lzma_debug && old_dict_full&.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(220, 230)
           XzUtilsDecoderDebug.debug_puts "\n=== decode_literal at dict_full=#{old_dict_full} ==="
           XzUtilsDecoderDebug.debug_puts "  Decoded: 0x#{byte.to_s(16)} ('#{byte.chr}')"
           XzUtilsDecoderDebug.debug_puts "  rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
@@ -1493,7 +1495,7 @@ check_rc_finished: true)
         pos_state = @pos & @pb_mask
 
         # DEEP DEBUG: Trace every detail at position 227
-        if @lzma_debug && @dict_full == 227
+        if XzUtilsDecoderDebug::ENABLED && @dict_full == 227
           puts "\n=== DEEP DEBUG at dict_full=227 ==="
           puts "  State: #{@state.value}, pos_state=#{pos_state}"
           puts "  Rep distances BEFORE: (#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
@@ -1523,25 +1525,25 @@ check_rc_finished: true)
           puts "  After is_rep: range=#{range_val} (0x#{range_val.to_s(16)}), code=#{code_val} (0x#{code_val.to_s(16)})"
         end
 
-        if @lzma_debug && @dict_full == 227
+        if XzUtilsDecoderDebug::ENABLED && @dict_full == 227
           puts "  Decoded is_rep bit: #{is_rep} (#{@is_rep_models[@state.value].probability})"
           puts "  After is_rep: range=0x#{@range_decoder.range.to_s(16).upcase}, code=0x#{@range_decoder.code.to_s(16).upcase}"
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_match START - is_rep=#{is_rep}, state.value=#{@state.value}, pos_state=#{pos_state}, rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
         if is_rep.zero?
           # Regular match (not rep)
-          if @lzma_debug && @dict_full.between?(220, 240)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(220, 240)
             puts "DEBUG pos #{@dict_full}: Regular match (not rep)"
           end
           # Return result from decode_regular_match (true if EOS marker detected)
           return true if decode_regular_match(pos_state)
         else
           # Rep match - decode which rep distance to use
-          if @lzma_debug && @dict_full.between?(220, 240)
+          if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(220, 240)
             puts "DEBUG pos #{@dict_full}: Rep match (is_rep=1)"
           end
           decode_rep_match(pos_state)
@@ -1563,7 +1565,7 @@ check_rc_finished: true)
       # @return [Boolean] True if EOS marker detected, false otherwise
       def decode_regular_match(pos_state)
         # DEBUG: Trace matches around dict_full = 60-63
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           old_dict_full = @dict_full
           old_rep0 = @rep0
           old_state = @state.value
@@ -1585,7 +1587,7 @@ check_rc_finished: true)
                     end
 
         # DEBUG: Show bytes being copied
-        if @lzma_debug && (old_dict_full&.between?(210, 230) || @lzma_debug_distance)
+        if XzUtilsDecoderDebug::ENABLED && (old_dict_full&.between?(210, 230) || @lzma_debug_distance)
           XzUtilsDecoderDebug.debug_puts "\n=== decode_regular_match at dict_full=#{old_dict_full} ===" if old_dict_full&.between?(
             210, 230
           )
@@ -1612,7 +1614,7 @@ check_rc_finished: true)
           puts "[DISTANCE_DECODER]   rep0_before=#{old_rep0}" if @lzma_debug_distance
         end
 
-        if @lzma_debug && old_dict_full.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full.between?(220, 230)
           puts "DEBUG decode_regular_match at dict_full=#{old_dict_full}: length=#{length}"
         end
 
@@ -1622,13 +1624,12 @@ check_rc_finished: true)
         rep0 = @distance_coder.decode(@range_decoder, len_state)
 
         # DEBUG
-        if (@lzma_debug && old_dict_full.between?(210,
-                                                     230)) || old_dict_full == 293
+        if XzUtilsDecoderDebug::ENABLED && (old_dict_full&.between?(210, 230) || old_dict_full == 293)
           puts "  rep0_decoded=#{rep0} (distance = #{rep0})"
           puts "  buffer_back calculation: back=#{@dict_full - rep0 - 1}"
         end
-        if @lzma_debug && rep0 > 100000
-          puts "  [LARGE_DISTANCE at dict_full=#{old_dict_full}] rep0=#{rep0}, call count=#{$distance_decode_count || 'unknown'}"
+        if XzUtilsDecoderDebug::ENABLED && rep0 > 100000
+          puts "  [LARGE_DISTANCE at dict_full=#{old_dict_full}] rep0=#{rep0}"
         end
 
         # Check for SDK EOS marker FIRST (before validation)
@@ -1675,7 +1676,7 @@ check_rc_finished: true)
           # @uncompressed_size is the target for THIS chunk (not cumulative)
           remaining = @uncompressed_size - @chunk_bytes_decoded
           if length > remaining
-            if @lzma_debug || remaining <= 5
+            if XzUtilsDecoderDebug::ENABLED
               puts "DEBUG: Limiting match length from #{length} to #{remaining} (chunk_bytes_decoded=#{@chunk_bytes_decoded}, uncompressed_size=#{@uncompressed_size}, dict_full=#{@dict_full})"
             end
             length = remaining
@@ -1699,22 +1700,15 @@ check_rc_finished: true)
         buffer_back = @pos - rep0 - 1
 
         # DEBUG: Show buffer position for position 217
-        if @lzma_debug && old_dict_full&.between?(210, 230)
-          XzUtilsDecoderDebug.debug_puts "  buffer_back=#{buffer_back}"
-          bytes_at_back = @dict_buf[buffer_back, 3]
-          bytes_hex = if bytes_at_back.is_a?(String)
-                        bytes_at_back.bytes.map do |b|
-                          "%02x" % b
-                        end.join(" ")
-                      else
-                        bytes_at_back.map do |b|
-                          "%02x" % b
-                        end.join(" ")
-                      end
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(210, 230)
+          back_idx = dict_index(buffer_back)
+          XzUtilsDecoderDebug.debug_puts "  buffer_back=#{buffer_back} (circular idx=#{back_idx})"
+          bytes_at_back = @dict_buf.byteslice(back_idx, 3)
+          bytes_hex = bytes_at_back.bytes.map { |b| "%02x" % b }.join(" ")
           XzUtilsDecoderDebug.debug_puts "  First 3 bytes at buffer_back: #{bytes_hex} (#{bytes_at_back.inspect})"
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           b0 = @dict_buf.getbyte(dict_index(buffer_back))
           b1 = @dict_buf.getbyte(dict_index(buffer_back + 1))
           b2 = @dict_buf.getbyte(dict_index(buffer_back + 2))
@@ -1732,18 +1726,19 @@ check_rc_finished: true)
 
         # Copy bytes from dictionary and extend buffer as needed
         # XZ Utils dict_repeat pattern: dict->buf[dict->pos++] = dict->buf[back++]
-        if @lzma_debug && old_dict_full.between?(220, 260)
-          puts "  Copying #{length} bytes from buffer_back=#{buffer_back} to @pos=#{@pos}, dict_full=#{@dict_full}"
-          puts "  Source bytes: #{@dict_buf[buffer_back, length].inspect}"
-          puts "  First 5 target bytes before copy: #{@dict_buf[@pos,
-                                                                5].inspect}"
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full.between?(220, 260)
+          src_debug_idx = dict_index(buffer_back)
+          dst_debug_idx = dict_index(@pos)
+          puts "  Copying #{length} bytes from buffer_back=#{buffer_back} (idx=#{src_debug_idx}) to @pos=#{@pos} (idx=#{dst_debug_idx}), dict_full=#{@dict_full}"
+          puts "  Source bytes: #{@dict_buf.byteslice(src_debug_idx, [length, 8].min).inspect}"
+          puts "  First 5 target bytes before copy: #{@dict_buf.byteslice(dst_debug_idx, 5).inspect}"
         end
         src_idx = dict_index(buffer_back)
         dst_idx = @dict_pos
         buf_end = @buf_end
         length.times do
           byte = @dict_buf.getbyte(src_idx)
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: copy reading dict_buf[#{src_idx}]=0x#{byte.to_s(16).upcase} ('#{byte.chr}'), writing to dict_buf[#{dst_idx}]"
           end
           @dict_buf.setbyte(dst_idx, byte)
@@ -1753,13 +1748,13 @@ check_rc_finished: true)
           dst_idx = LZ_DICT_INIT_POS if dst_idx >= buf_end
         end
         @dict_pos = dst_idx
-        if @lzma_debug && old_dict_full.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full.between?(220, 230)
           puts "  After copy: #{@dict_buf[@pos, length].inspect}"
         end
 
         # Update state and position
         @state.update_match
-        warn "DEBUG: After update_match - state=#{@state.value}" if @lzma_debug
+        warn "DEBUG: After update_match - state=#{@state.value}" if XzUtilsDecoderDebug::ENABLED
         @pos += length
 
         # Update dict_full (XZ Utils pattern)
@@ -1785,12 +1780,12 @@ check_rc_finished: true)
         # Update rep distances - rotate and set new rep0
         # SDK rotation: rep3←rep2, rep2←rep1, rep1←rep0, rep0←rep0
         # XZ Utils stores the actual distance in rep0 (no +1)
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: Before rotation - rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3}), new distance=#{rep0}"
         end
 
         # DEBUG: Trace rep rotation for position 224
-        if @lzma_debug && old_dict_full.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full.between?(220, 230)
           puts "\n=== Rep rotation after match at dict_full=#{old_dict_full} ==="
           puts "  Before: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
           puts "  Setting rep0 to: #{rep0.inspect}"
@@ -1801,23 +1796,23 @@ check_rc_finished: true)
         @rep1 = @rep0
         @rep0 = rep0
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: After rotation - rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
         # DEBUG: Show final rep values
-        if @lzma_debug && old_dict_full.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full.between?(220, 230)
           puts "  After: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
         # DEBUG: Verify rep0 is actually set
-        if @lzma_debug && old_dict_full&.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(220, 230)
           actual_rep0 = @rep0
           XzUtilsDecoderDebug.debug_puts "  VERIFICATION: @rep0=#{actual_rep0.inspect}, @rep0.object_id=#{@rep0.object_id}"
         end
 
         # DEBUG: Trace range/code state after match at dict_full 56-62
-        if @lzma_debug && old_dict_full >= 56 && old_dict_full <= 62
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full >= 56 && old_dict_full <= 62
           range_after = @range_decoder.instance_variable_get(:@range)
           code_after = @range_decoder.instance_variable_get(:@code)
           XzUtilsDecoderDebug.debug_puts "  AFTER match (dict_full #{old_dict_full}→#{@dict_full}): range=0x#{range_after.to_s(16).upcase}, code=0x#{code_after.to_s(16).upcase}"
@@ -1841,18 +1836,18 @@ check_rc_finished: true)
       # @return [Boolean] Always false (rep matches are never EOS)
       def decode_rep_match(pos_state)
         # DEBUG: Trace rep matches around position 217
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           old_dict_full = @dict_full
           old_rep0 = @rep0
         end
 
         # DEBUG: Show rep distances at the start
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_rep_match START[#{@decoder_id}] - rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
         # DEBUG: Trace rep matches around position 227
-        if @lzma_debug && old_dict_full&.between?(220, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(220, 230)
           XzUtilsDecoderDebug.debug_puts "\n=== decode_rep_match at dict_full=#{old_dict_full} (decoder_id=#{@decoder_id}) ==="
           XzUtilsDecoderDebug.debug_puts "  At START: rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
           XzUtilsDecoderDebug.debug_puts "  old_rep0=#{old_rep0} (captured @rep0)"
@@ -1862,26 +1857,26 @@ check_rc_finished: true)
         # Decode which rep distance to use
         is_rep0 = @range_decoder.decode_bit(@is_rep0_models[@state.value])
 
-        puts "DEBUG rep match selection at dict_full=#{@dict_full}: is_rep0=#{is_rep0}, rep0/1/2/3 before=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})" if @lzma_debug && @dict_full.between?(
+        puts "DEBUG rep match selection at dict_full=#{@dict_full}: is_rep0=#{is_rep0}, rep0/1/2/3 before=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})" if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(
           220, 230
         )
-        puts "  state.value=#{@state.value}, pos_state=#{pos_state}, model_index=#{(@state.value * @pb_shift) + pos_state}" if @lzma_debug && @dict_full.between?(
+        puts "  state.value=#{@state.value}, pos_state=#{pos_state}, model_index=#{(@state.value * @pb_shift) + pos_state}" if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(
           220, 230
         )
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_rep_match - is_rep0=#{is_rep0}"
         end
 
         if is_rep0.zero?
           # Use rep0
-          puts "DEBUG rep match using rep0" if @lzma_debug && @dict_full.between?(220, 230)
+          puts "DEBUG rep match using rep0" if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(220, 230)
           # XZ Utils: is_rep0_long[state][pos_state] where the array size is NUM_STATES * (1 << pb)
           is_rep0_long = @range_decoder.decode_bit(
             @is_rep0_long_models[(@state.value * @pb_shift) + pos_state],
           )
 
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             warn "DEBUG: decode_rep_match - is_rep0_long=#{is_rep0_long}"
           end
 
@@ -1897,7 +1892,7 @@ check_rc_finished: true)
           end
         else
           # Not rep0, check rep1/rep2/rep3
-          puts "DEBUG rep match NOT using rep0 (is_rep0=#{is_rep0})" if @lzma_debug && @dict_full.between?(
+          puts "DEBUG rep match NOT using rep0 (is_rep0=#{is_rep0})" if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(
             220, 230
           )
 
@@ -1945,18 +1940,18 @@ check_rc_finished: true)
         # XZ Utils stores distances without +1 offset
         distance = @rep0
 
-        puts "DEBUG rep match after rotation: dict_full=#{old_dict_full}, distance=#{distance}, rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})" if @lzma_debug && old_dict_full&.between?(
+        puts "DEBUG rep match after rotation: dict_full=#{old_dict_full}, distance=#{distance}, rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})" if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(
           220, 230
         )
 
         # DEBUG: Trace rep matches around position 217
-        if @lzma_debug && old_dict_full&.between?(210, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(210, 230)
           XzUtilsDecoderDebug.debug_puts "\n=== decode_rep_match at dict_full=#{old_dict_full} ==="
           XzUtilsDecoderDebug.debug_puts "  old_rep0=#{old_rep0}, new rep0=#{@rep0} (distance=#{distance})"
           XzUtilsDecoderDebug.debug_puts "  pos_state=#{pos_state}"
         end
 
-        if @lzma_debug
+        if XzUtilsDecoderDebug::ENABLED
           warn "DEBUG: decode_rep_match - length=#{length}, distance=#{distance}, dict_full=#{@dict_full}, rep0/1/2/3=(#{@rep0},#{@rep1},#{@rep2},#{@rep3})"
         end
 
@@ -1977,7 +1972,7 @@ check_rc_finished: true)
           # @uncompressed_size is the target for THIS chunk (not cumulative)
           remaining = @uncompressed_size - @chunk_bytes_decoded
           if length > remaining
-            if @lzma_debug || remaining <= 5
+            if XzUtilsDecoderDebug::ENABLED
               puts "DEBUG REP: Limiting rep match length from #{length} to #{remaining} (chunk_bytes_decoded=#{@chunk_bytes_decoded}, uncompressed_size=#{@uncompressed_size}, dict_full=#{@dict_full})"
             end
             length = remaining
@@ -1996,30 +1991,23 @@ check_rc_finished: true)
         # Linear buffer: use @pos directly for back reference
         buffer_back = @pos - distance - 1
 
-        puts "DEBUG rep match copy at dict_full=#{@dict_full}: @dict_full=#{@dict_full}, distance=#{distance}, buffer_back=#{buffer_back}" if @lzma_debug && @dict_full.between?(
+        puts "DEBUG rep match copy at dict_full=#{@dict_full}: @dict_full=#{@dict_full}, distance=#{distance}, buffer_back=#{buffer_back}" if XzUtilsDecoderDebug::ENABLED && @dict_full.between?(
           220, 230
         )
 
         # DEBUG: Show back calculation for position 217
-        if @lzma_debug && old_dict_full&.between?(210, 230)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(210, 230)
+          back_idx = dict_index(buffer_back)
           XzUtilsDecoderDebug.debug_puts "  back calculation: @pos=#{@pos}, distance=#{distance}"
-          XzUtilsDecoderDebug.debug_puts "  buffer_back=#{buffer_back}"
-          bytes_at_back = @dict_buf[buffer_back, 3]
-          bytes_hex = if bytes_at_back.is_a?(String)
-                        bytes_at_back.bytes.map do |b|
-                          "%02x" % b
-                        end.join(" ")
-                      else
-                        [bytes_at_back].flatten.map do |b|
-                          "%02x" % b
-                        end.join(" ")
-                      end
+          XzUtilsDecoderDebug.debug_puts "  buffer_back=#{buffer_back} (circular idx=#{back_idx})"
+          bytes_at_back = @dict_buf.byteslice(back_idx, 3)
+          bytes_hex = bytes_at_back.bytes.map { |b| "%02x" % b }.join(" ")
           XzUtilsDecoderDebug.debug_puts "  First 3 bytes at buffer_back: #{bytes_hex} (#{bytes_at_back.inspect})"
         end
 
         # Copy bytes from dictionary and extend buffer as needed
         # XZ Utils dict_repeat pattern: dict->buf[dict->pos++] = dict->buf[back++]
-        if @lzma_debug && old_dict_full&.between?(250, 260)
+        if XzUtilsDecoderDebug::ENABLED && old_dict_full&.between?(250, 260)
           source_val = @dict_buf.getbyte(dict_index(@pos - 1))
           puts "  Rep match copy at dict_full=#{@dict_full}: length=#{length}, distance=#{distance}, @pos=#{@pos} (will write to #{@pos}...#{@pos + length - 1})"
           puts "  Reading from @pos-1=#{@pos - 1}, source byte = #{source_val} (0x#{source_val.to_s(16)} '#{begin

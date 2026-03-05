@@ -86,7 +86,7 @@ module Omnizip
         5.times do
           break if rc_pos >= rc_size
 
-          code = (code << 8) | rc_data.getbyte(rc_pos)
+          code = ((code << 8) | rc_data.getbyte(rc_pos)) & 0xFFFFFFFF
           rc_pos += 1
         end
 
@@ -157,9 +157,9 @@ module Omnizip
 
           # Inline range decoder normalization
           if range < TOP_VALUE
-            range <<= 8
+            range = (range << 8) & 0xFFFFFFFF
             rc_byte = rc_pos < rc_size ? rc_data.getbyte(rc_pos) : 0
-            code = (code << 8) | rc_byte
+            code = ((code << 8) | rc_byte) & 0xFFFFFFFF
             rc_pos += 1 if rc_pos < rc_size
           end
 
