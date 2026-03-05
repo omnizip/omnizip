@@ -64,10 +64,7 @@ module Omnizip
           bcj2_data.rc = streams[:rc]
 
           decoder = Omnizip::Filters::Bcj2Decoder.new(bcj2_data)
-          result = decoder.decode
-
-          # Truncate to expected size if needed
-          result.bytesize > expected_size ? result[0, expected_size] : result
+          decoder.decode(expected_size)
         end
 
         private
@@ -84,53 +81,85 @@ module Omnizip
 
         # Determine how streams are laid out based on folder structure
         #
-        # BCJ2 folders can have different layouts:
-        # Type 0 (7z default): numInStreams=5, numOutStreams=2
-        #   - Coder 0: LZMA (1 in, 1 out)
-        #   - Coder 1: BCJ2 (4 in, 1 out)
-        #   - Pack streams: [main_lzma, call, jump, rc]
+        # Analyzes bind pairs to determine which pack stream feeds which
+        # BCJ2 input, and which coder (if any) decompresses it.
+        #
+        # BCJ2 has 4 inputs: main(0), call(1), jump(2), rc(3)
+        # Each input is either:
+        #   - Bound: fed by another coder's output (needs decompression)
+        #   - Unbound: a direct pack stream (raw data, typically rc)
         #
         # @param bcj2_coder [Models::CoderInfo] BCJ2 coder
-        # @param compression_coder [Models::CoderInfo] Compression coder
+        # @param _compression_coder [Models::CoderInfo] (unused, kept for API compat)
         # @return [Hash] Stream layout specification
-        def determine_stream_layout(_bcj2_coder, compression_coder)
-          num_in = @folder.num_in_streams
-          num_out = @folder.num_out_streams
-          num_pack = @pack_sizes.size
-
-          # Type 0: 7z default (5 in, 2 out, 4 pack)
-          if num_in == 5 && num_out == 2 && num_pack == 4
-            {
-              type: :type0,
-              main: { pack_idx: 0, coder: compression_coder },
-              call: { pack_idx: 1, coder: nil },  # Usually COPY
-              jump: { pack_idx: 2, coder: nil },  # Usually COPY
-              rc: { pack_idx: 3, coder: nil },    # Usually COPY
-            }
-          # Type 1: 7zr style (7 in, 4 out, 4 pack)
-          elsif num_in == 7 && num_out == 4 && num_pack == 4
-            # More complex layout - need to analyze bind pairs
-            determine_type1_layout(compression_coder)
-          else
-            raise "Unsupported BCJ2 folder layout: in=#{num_in}, out=#{num_out}, pack=#{num_pack}"
+        def determine_stream_layout(_bcj2_coder, _compression_coder)
+          # Compute composite in/out stream base indices for each coder
+          in_bases = []
+          out_bases = []
+          in_pos = 0
+          out_pos = 0
+          @folder.coders.each do |coder|
+            in_bases << in_pos
+            out_bases << out_pos
+            in_pos += coder.num_in_streams
+            out_pos += coder.num_out_streams
           end
-        end
 
-        # Determine Type 1 layout (7zr style with separate compression per stream)
-        #
-        # @param compression_coder [Models::CoderInfo] Compression coder
-        # @return [Hash] Stream layout
-        def determine_type1_layout(compression_coder)
-          # In Type 1, each stream may have its own compression
-          # This is more complex and needs bind pair analysis
-          # For now, assume main is compressed, others are COPY
-          {
-            type: :type1,
-            main: { pack_idx: 0, coder: compression_coder },
-            call: { pack_idx: 1, coder: nil },
-            jump: { pack_idx: 2, coder: nil },
-            rc: { pack_idx: 3, coder: nil },
-          }
+          # Find the BCJ2 coder index and its input stream base
+          bcj2_idx = @folder.coders.index { |c| c.method_id == FilterId::BCJ2 }
+          bcj2_in_base = in_bases[bcj2_idx]
+
+          # BCJ2's 4 input streams: main, call, jump, rc
+          bcj2_in_streams = (0...4).map { |i| bcj2_in_base + i }
+
+          # Build bind map: in_stream -> out_stream
+          bind_map = {}
+          @folder.bind_pairs.each { |pair| bind_map[pair[0]] = pair[1] }
+
+          # Build out_stream -> coder_index map
+          out_to_coder = {}
+          @folder.coders.each_with_index do |coder, ci|
+            coder.num_out_streams.times do |j|
+              out_to_coder[out_bases[ci] + j] = ci
+            end
+          end
+
+          # Map unbound input streams to pack streams using pack_stream_indices
+          # pack_stream_indices[i] = unbound_input_stream for pack stream i
+          # This mapping is NOT necessarily sorted order!
+          unbound_to_pack = {}
+          @folder.pack_stream_indices.each_with_index do |input_stream, pack_idx|
+            unbound_to_pack[input_stream] = pack_idx
+          end
+
+          # For each BCJ2 input, determine its source
+          stream_names = %i[main call jump rc]
+          layout = { type: :generic }
+
+          bcj2_in_streams.each_with_index do |in_stream, i|
+            name = stream_names[i]
+
+            if bind_map.key?(in_stream)
+              # Bound: fed by a coder's output
+              source_out = bind_map[in_stream]
+              source_coder_idx = out_to_coder[source_out]
+              source_coder = @folder.coders[source_coder_idx]
+
+              # Find the source coder's pack stream (its unbound input)
+              source_in_base = in_bases[source_coder_idx]
+              source_pack_in = (source_in_base...(source_in_base + source_coder.num_in_streams))
+                .find { |s| unbound_to_pack.key?(s) }
+              pack_idx = unbound_to_pack[source_pack_in]
+
+              layout[name] = { pack_idx: pack_idx, coder: source_coder, unpack_idx: source_out }
+            else
+              # Unbound: direct pack stream (no decompression)
+              pack_idx = unbound_to_pack[in_stream]
+              layout[name] = { pack_idx: pack_idx, coder: nil }
+            end
+          end
+
+          layout
         end
 
         # Read and decompress BCJ2 streams
@@ -138,30 +167,35 @@ module Omnizip
         # @param layout [Hash] Stream layout specification
         # @return [Hash] Decompressed stream data
         def read_bcj2_streams(layout)
-          streams = {}
-          offset = 0
+          # Precompute absolute positions for each pack stream
+          pack_positions = []
+          pos = @pack_pos
+          @pack_sizes.each do |size|
+            pack_positions << pos
+            pos += size
+          end
 
-          %i[main call jump rc].each_with_index do |stream_name, idx|
+          streams = {}
+
+          %i[main call jump rc].each do |stream_name|
             spec = layout[stream_name]
             pack_idx = spec[:pack_idx]
             pack_size = @pack_sizes[pack_idx] || 0
 
-            # Calculate absolute position
-            pos = @pack_pos + offset
-
-            # Read pack data
-            @archive_io.seek(pos)
+            # Use absolute position for this pack stream
+            abs_pos = pack_positions[pack_idx]
+            @archive_io.seek(abs_pos)
             packed_data = @archive_io.read(pack_size)
 
             # Decompress if needed
             streams[stream_name] = if spec[:coder]
-                                     decompress_stream(packed_data, spec[:coder], idx)
+                                     unpack_idx = spec[:unpack_idx]
+                                     unpack_size = @folder.unpack_sizes[unpack_idx] if unpack_idx
+                                     decompress_stream(packed_data, spec[:coder], unpack_size)
                                    else
                                      # COPY - no decompression needed
                                      packed_data || "".b
                                    end
-
-            offset += pack_size
           end
 
           streams
@@ -171,9 +205,9 @@ module Omnizip
         #
         # @param packed_data [String] Compressed data
         # @param coder [Models::CoderInfo] Coder specification
-        # @param stream_idx [Integer] Stream index for unpack size lookup
+        # @param unpack_size [Integer, nil] Expected decompressed size
         # @return [String] Decompressed data
-        def decompress_stream(packed_data, coder, stream_idx)
+        def decompress_stream(packed_data, coder, unpack_size = nil)
           return packed_data if coder.nil?
 
           algo_sym = CoderChain.algorithm_for_method(coder.method_id)
@@ -192,8 +226,8 @@ module Omnizip
 
           decoder = algo_class.new(options)
 
-          # Get unpack size for this stream
-          unpack_size = @folder.unpack_sizes[stream_idx] || (packed_data.bytesize * 10)
+          # Use provided unpack size or estimate
+          unpack_size ||= packed_data.bytesize * 10
 
           decoder.decompress(input_io, output_io, size: unpack_size)
           output_io.string

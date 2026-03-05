@@ -49,6 +49,8 @@ module Omnizip
           end
 
           # Position encoders for slots 4-13
+          # SDK convention: size = NUM_FULL_DISTANCES - END_POS_MODEL_INDEX = 128 - 14 = 114
+          # Indexed by: base - slot - 1 (matches LZMA SDK and XZ Utils)
           @pos_encoders = Array.new(NUM_FULL_DISTANCES - END_POS_MODEL_INDEX) do
             BitModel.new
           end
@@ -62,6 +64,20 @@ module Omnizip
           # Precompute distance slot lookup table for fast encoding
           @slot_fast = Array.new(DIST_SLOT_FAST_LIMIT)
           init_slot_fast_table
+
+          # Cache ENV lookups once at initialization
+          @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+          @debug_reset_models = ENV.fetch("DEBUG_RESET_MODELS", nil)
+
+          @lzma_debug_encode = ENV.fetch("LZMA_DEBUG_ENCODE", nil)
+          @trace_direct_bits_slot40 = ENV.fetch("TRACE_DIRECT_BITS_SLOT40", nil)
+          @trace_distance_decode = ENV.fetch("TRACE_DISTANCE_DECODE", nil)
+          @trace_distance_slot = ENV.fetch("TRACE_DISTANCE_SLOT", nil)
+          @trace_all_slot_encode = ENV.fetch("TRACE_ALL_SLOT_ENCODE", nil)
+          @trace_slot_decode = ENV.fetch("TRACE_SLOT_DECODE", nil)
+          @trace_all_slot_decode = ENV.fetch("TRACE_ALL_SLOT_DECODE", nil)
+          @trace_length_coder = ENV.fetch("TRACE_LENGTH_CODER", nil)
+          @distance_decode_count = 0
         end
 
         # Reset all probability models in place
@@ -71,8 +87,7 @@ module Omnizip
         #
         # @return [void]
         def reset_models
-          if ENV.fetch("DEBUG_RESET_MODELS",
-                       nil) && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+          if @debug_reset_models && @lzma_debug_distance
             puts "    [DistanceCoder.reset_models] Resetting #{@slot_encoders.size} len_states, each with #{@slot_encoders[0]&.size || '?'} models"
           end
           @slot_encoders.each do |len_state_models|
@@ -80,8 +95,7 @@ module Omnizip
           end
           @pos_encoders.each(&:reset)
           @align_encoder.each(&:reset)
-          if ENV.fetch("DEBUG_RESET_MODELS",
-                       nil) && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+          if @debug_reset_models && @lzma_debug_distance
             puts "    [DistanceCoder.reset_models] Done resetting"
           end
         end
@@ -95,7 +109,7 @@ module Omnizip
         def encode(range_encoder, distance, len_state)
           slot = get_dist_slot(distance)
 
-          if ENV["LZMA_DEBUG_ENCODE"]
+          if @lzma_debug_encode
             puts "[DistanceCoder.encode] distance=#{distance} slot=#{slot} len_state=#{len_state}"
             puts "[DistanceCoder.encode] CALLING encode_tree with symbol=#{slot}"
           end
@@ -111,6 +125,7 @@ module Omnizip
 
             if slot < END_POS_MODEL_INDEX
               # Slots 4-13: Use position encoders (reverse tree encoding)
+              # SDK/XZ Utils convention: base_idx = base - slot - 1
               encode_reverse_tree(range_encoder,
                                   @pos_encoders,
                                   base - slot - 1,
@@ -138,44 +153,24 @@ module Omnizip
         # @param len_state [Integer] Length state for slot selection
         # @return [Integer] Decoded distance value (before adding 1)
         def decode(range_decoder, len_state)
-          # DEBUG: Trace specific calls to find corruption
-          $distance_decode_count ||= 0
-          debug_calls = (320..330)
-          debug_this = debug_calls.include?($distance_decode_count)
-          trace_326 = ($distance_decode_count == 326)
-          trace_325 = ($distance_decode_count == 325)
-
-          # DEBUG: Trace large distances (> 100000)
-          trace_large = $distance_decode_count.between?(25,
-                                                        35) || $distance_decode_count.between?(
-                                                          315, 330
-                                                        )
-
-          # DEBUG: Trace all when LZMA_DEBUG_DISTANCE is set
-          trace_all = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
-
-          if (trace_325 || trace_large || trace_all) && ENV.fetch(
-            "LZMA_DEBUG_DISTANCE", nil
-          )
-            puts "  [DistanceCoder.decode ##{$distance_decode_count}] START - len_state=#{len_state}"
+          if @lzma_debug_distance
+            puts "  [DistanceCoder.decode ##{@distance_decode_count}] START - len_state=#{len_state}"
             puts "    BEFORE: range=#{range_decoder.range.inspect}, code=#{range_decoder.code.inspect}"
           end
 
           slot = decode_tree(range_decoder, @slot_encoders[len_state],
                              NUM_DIST_SLOT_BITS)
 
-          if (debug_this || trace_large || trace_all) && ENV.fetch(
-            "LZMA_DEBUG_DISTANCE", nil
-          )
-            puts "  [DistanceCoder.decode ##{$distance_decode_count}] len_state=#{len_state}, slot=#{slot}"
+          if @lzma_debug_distance
+            puts "  [DistanceCoder.decode ##{@distance_decode_count}] len_state=#{len_state}, slot=#{slot}"
             puts "    @slot_encoders[#{len_state}] object_id=#{@slot_encoders[len_state].object_id}"
           end
 
           # Decode extra bits based on slot
           if slot < START_POS_MODEL_INDEX
             # Slots 0-3: No extra bits
-            $distance_decode_count += 1
-            if debug_this && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+            @distance_decode_count += 1 if @lzma_debug_distance
+            if @lzma_debug_distance
               puts "    -> distance=#{slot}"
             end
             slot
@@ -184,13 +179,14 @@ module Omnizip
 
             if slot < END_POS_MODEL_INDEX
               # Slots 4-13: Use position encoders (reverse tree decoding)
+              # SDK/XZ Utils convention: base_idx = base - slot - 1
               base = (2 | (slot & 1)) << footer_bits
               result = base + decode_reverse_tree(range_decoder,
                                                   @pos_encoders,
                                                   base - slot - 1,
                                                   footer_bits)
-              $distance_decode_count += 1
-              if debug_this && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+              @distance_decode_count += 1 if @lzma_debug_distance
+              if @lzma_debug_distance
                 puts "    -> distance=#{result} (slot #{slot})"
               end
             else
@@ -225,22 +221,20 @@ module Omnizip
                                              @align_encoder,
                                              0,
                                              DIST_ALIGN_BITS)
-              if trace_326 && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+              if @lzma_debug_distance
                 puts "    TRACE_326: low_bits=#{low_bits}"
               end
 
               # Final result: (result << 4) + low_bits
               # NOTE: slot value is NOT added (XZ Utils pattern - line 513 adds symbol for EOPM check only)
               result = (result << DIST_ALIGN_BITS) + low_bits
-              $distance_decode_count += 1
-              if (debug_this || trace_large) && ENV.fetch(
-                "LZMA_DEBUG_DISTANCE", nil
-              )
+              @distance_decode_count += 1 if @lzma_debug_distance
+              if @lzma_debug_distance
                 puts "    -> slot=#{slot}, result_after_direct=#{result >> DIST_ALIGN_BITS}, low_bits=#{low_bits}, distance=#{result}"
               end
               if result > 100000
-                puts "    [LARGE_DISTANCE ##{$distance_decode_count}] distance=#{result}, slot=#{slot}" if ENV["LZMA_DEBUG_DISTANCE"]
-                puts "      BEFORE: range_decoder.range=#{range_decoder.range}, range_decoder.code=#{range_decoder.code}" if ENV["LZMA_DEBUG_DISTANCE"]
+                puts "    [LARGE_DISTANCE ##{@distance_decode_count}] distance=#{result}, slot=#{slot}" if @lzma_debug_distance
+                puts "      BEFORE: range_decoder.range=#{range_decoder.range}, range_decoder.code=#{range_decoder.code}" if @lzma_debug_distance
               end
             end
             result
@@ -321,10 +315,10 @@ module Omnizip
         # @return [void]
         def encode_tree(range_encoder, models, symbol, num_bits)
           m = 1
-          trace_all = ENV.fetch("TRACE_ALL_SLOT_ENCODE", nil)
+          trace_all = @trace_all_slot_encode
           iteration = 0
 
-          if trace_all && ENV.fetch("LZMA_DEBUG_ENCODE", nil)
+          if trace_all && @lzma_debug_encode
             puts "    [encode_tree START] RECEIVED symbol=#{symbol}, num_bits=#{num_bits}"
             puts "      BEFORE: range=#{range_encoder.range}, low=#{range_encoder.low}"
           end
@@ -332,7 +326,7 @@ module Omnizip
           (num_bits - 1).downto(0) do |i|
             iteration += 1
             bit = (symbol >> i) & 1
-            if trace_all && ENV.fetch("LZMA_DEBUG_ENCODE", nil)
+            if trace_all && @lzma_debug_encode
               model_idx = m
               puts "      [#{iteration}/#{num_bits}] i=#{i}, bit=#{bit}, m=#{m}, model_idx=#{model_idx}, prob=#{models[m].probability}"
             end
@@ -340,7 +334,7 @@ module Omnizip
             m = (m << 1) | bit
           end
 
-          if trace_all && ENV.fetch("LZMA_DEBUG_ENCODE", nil)
+          if trace_all && @lzma_debug_encode
             puts "      AFTER: range=#{range_encoder.range}, low=#{range_encoder.low}"
             puts "    [encode_tree END] ENCODED symbol=#{symbol}"
           end
@@ -355,12 +349,11 @@ module Omnizip
         def decode_tree(range_decoder, models, num_bits)
           m = 1
           symbol = 0
-          trace_this = (num_bits == 6 && ENV.fetch("TRACE_SLOT_DECODE",
-                                                   nil)) || ($distance_decode_count == 28)
-          trace_all = ENV.fetch("TRACE_ALL_SLOT_DECODE", nil)
+          trace_this = (num_bits == 6 && @trace_slot_decode) || (@lzma_debug_distance && @distance_decode_count == 28)
+          trace_all = @trace_all_slot_decode
           iteration = 0
 
-          if (trace_this || trace_all) && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+          if (trace_this || trace_all) && @lzma_debug_distance
             puts "    [decode_tree START] num_bits=#{num_bits}, range=#{range_decoder.range}, code=#{range_decoder.code}"
             puts "      models array object_id=#{models.object_id}"
           end
@@ -371,12 +364,11 @@ module Omnizip
             bit = range_decoder.decode_bit(model)
             m = (m << 1) | bit
             symbol |= (bit << i)
-            if (trace_this || trace_all) && ENV.fetch("LZMA_DEBUG_DISTANCE",
-                                                      nil)
+            if (trace_this || trace_all) && @lzma_debug_distance
               puts "      [#{iteration}/#{num_bits}] i=#{i}, bit=#{bit}, m=#{m}, model.object_id=#{model.object_id}, prob=#{model.probability}, symbol=#{symbol}"
             end
           end
-          if (trace_this || trace_all) && ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
+          if (trace_this || trace_all) && @lzma_debug_distance
             puts "    [decode_tree END] symbol=#{symbol}"
           end
           symbol

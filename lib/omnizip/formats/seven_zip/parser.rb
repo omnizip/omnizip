@@ -48,23 +48,24 @@ module Omnizip
           # Single byte encoding (0-127)
           return first_byte if first_byte.nobits?(0x80)
 
-          # Determine number of additional bytes from high bits
+          # 7-Zip VLI: extra bytes are in little-endian order.
+          # Per 7-Zip SDK CInByte2::ReadNumber():
+          #   - Each set bit in first_byte (from MSB) means one more extra byte
+          #   - Extra bytes are placed at increasing byte positions (LE)
+          #   - The remaining data bits from first_byte go at the highest position
           mask = 0x80
-          extra_bytes = 0
+          value = 0
+          shift = 0
 
           while first_byte.anybits?(mask)
-            extra_bytes += 1
+            value |= (read_byte << shift)
+            shift += 8
             mask >>= 1
           end
 
-          # Calculate value: data bits from first byte + additional bytes
-          # The data bits start after the leading 1s and 0
+          # The data bits from first_byte go at the highest position
           data_bits = first_byte & (mask - 1)
-          value = data_bits
-
-          extra_bytes.times do
-            value = (value << 8) | read_byte
-          end
+          value |= (data_bits << shift)
 
           value
         end
