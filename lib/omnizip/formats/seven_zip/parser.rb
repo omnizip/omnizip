@@ -518,11 +518,8 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_empty_stream(entries)
-          size = read_number
-          # EMPTY_STREAM uses a raw bit vector without an all_defined prefix byte.
-          # The Size field gives the exact number of bytes in the bit vector.
-          bits_data = read_bytes(size)
-          empty_stream = decode_bit_vector(bits_data, entries.size)
+          skip_size
+          empty_stream = read_bit_vector(entries.size)
           entries.each_with_index do |entry, i|
             # Bit vector: 0 = has stream (file), 1 = empty (directory)
             # Convert to boolean: has_stream = (bit == 0)
@@ -535,11 +532,9 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_empty_file(entries)
-          size = read_number
-          # EMPTY_FILE uses a raw bit vector without an all_defined prefix byte.
-          bits_data = read_bytes(size)
+          skip_size
           empty_files = entries.reject(&:has_stream)
-          empty_bits = decode_bit_vector(bits_data, empty_files.size)
+          empty_bits = read_bit_vector(empty_files.size)
           empty_files.each_with_index do |entry, i|
             entry.is_empty = !empty_bits[i]
           end
@@ -549,11 +544,9 @@ module Omnizip
         #
         # @param entries [Array<Models::FileEntry>] File entries
         def read_anti(entries)
-          size = read_number
-          # ANTI uses a raw bit vector without an all_defined prefix byte.
-          bits_data = read_bytes(size)
+          skip_size
           anti_files = entries.select { |e| !e.has_stream && !e.is_empty }
-          anti_bits = decode_bit_vector(bits_data, anti_files.size)
+          anti_bits = read_bit_vector(anti_files.size)
           anti_files.each_with_index do |entry, i|
             entry.is_anti = anti_bits[i]
           end
