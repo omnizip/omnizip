@@ -33,7 +33,7 @@ module Omnizip
       # extract the original bit values. It maintains a code value
       # that represents the current position within the range.
       class RangeDecoder < RangeCoder
-        attr_reader :code
+        attr_reader :code, :init_bytes_remaining
 
         # Initialize the range decoder
         #
@@ -52,7 +52,7 @@ module Omnizip
           @trace_specific_decode = ENV.fetch("TRACE_SPECIFIC_DECODE", nil)
           @trace_decode_bit257 = ENV.fetch("TRACE_DECODE_BIT_257", nil)
           @range_decoder_trace = ENV.fetch("RANGE_DECODER_TRACE", nil)
-          @lzma_debug = ENV.fetch("LZMA_DEBUG", nil)
+
           @trace_direct_bits = ENV.fetch("TRACE_DIRECT_BITS_SLOT40", nil)
           # Combined flag: true if ANY debug flag is set in decode_bit
           @any_decode_bit_debug = @trace_model_updates || @trace_is_rep ||
@@ -177,7 +177,7 @@ module Omnizip
         # @return [Integer] The decoded value
         def decode_direct_bits(num_bits)
           result = 0
-          trace_this = @lzma_debug && (num_bits == 25)
+          trace_this = XzUtilsDecoderDebug::ENABLED && (num_bits == 25)
           iteration = 0
 
           if trace_this
@@ -299,7 +299,7 @@ module Omnizip
         #
         # @return [void]
         def reset
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             stream_pos = begin
               @stream.pos
             rescue StandardError
@@ -318,7 +318,9 @@ module Omnizip
         # @return [void]
         def read_init_bytes
           while @init_bytes_remaining.positive?
-            byte = @stream.getbyte || 0
+            byte = @stream.getbyte
+            raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder initialization" if byte.nil?
+
             code_before = @code
             @code = ((code_before << 8) | byte) & 0xFFFFFFFF
             @init_bytes_remaining -= 1
@@ -330,7 +332,7 @@ module Omnizip
             end
           end
 
-          if @lzma_debug
+          if XzUtilsDecoderDebug::ENABLED
             stream_pos_after = begin
               @stream.pos
             rescue StandardError
@@ -363,7 +365,9 @@ module Omnizip
             end
 
             while @init_bytes_remaining.positive?
-              byte = @stream.getbyte || 0
+              byte = @stream.getbyte
+              raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder initialization" if byte.nil?
+
               code_before = @code
               @code = ((code_before << 8) | byte) & 0xFFFFFFFF
               @init_bytes_remaining -= 1
@@ -420,7 +424,7 @@ module Omnizip
                   "LZMA compressed data exhausted prematurely. The file may be corrupted or the uncompressed size field may be incorrect."
           end
 
-          if @initialization_complete && @init_bytes_remaining.zero? && (@range_decoder_trace || @lzma_debug)
+          if @initialization_complete && @init_bytes_remaining.zero? && (@range_decoder_trace || XzUtilsDecoderDebug::ENABLED)
             pos = begin
               @stream.pos
             rescue StandardError
@@ -430,7 +434,7 @@ module Omnizip
               warn "      READ_BYTE: pos=#{pos.inspect}, byte=0x#{byte.to_s(16).upcase}"
               $stderr.flush
             end
-            if @lzma_debug
+            if XzUtilsDecoderDebug::ENABLED
               warn "      READ_BYTE: pos=#{pos.inspect}, byte=0x#{byte.to_s(16).upcase}, @code now=0x#{@code.to_s(16)}"
             end
           end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "set"
 
 module Omnizip
   module Formats
@@ -26,7 +27,7 @@ module Omnizip
           @password = options[:password]
           @offset = options[:offset] || 0
           @solid_cache = {}
-          @solid_cache_remaining = {}
+          @solid_cache_extracted = {}
         end
 
         # Open and parse .7z archive
@@ -133,12 +134,22 @@ module Omnizip
         def extract_all(output_dir)
           FileUtils.mkdir_p(output_dir)
 
+          real_out = File.realpath(output_dir)
+
           @entries.each do |entry|
             next if entry.name.nil? || entry.name.empty?
 
-            output_path = File.join(output_dir, entry.name)
+            output_path = File.join(real_out, entry.name)
+            expanded = File.expand_path(output_path)
+            unless expanded.start_with?("#{real_out}#{File::SEPARATOR}") || expanded == real_out
+              raise Omnizip::FormatError, "Path traversal detected: #{entry.name}"
+            end
+
             extract_entry(entry.name, output_path)
           end
+        ensure
+          @solid_cache.clear
+          @solid_cache_extracted.clear
         end
 
         # Check if archive is valid .7z format
@@ -437,7 +448,7 @@ module Omnizip
             num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
             if num_files_in_folder > 1
               @solid_cache[entry.folder_index] = full_data
-              @solid_cache_remaining[entry.folder_index] = num_files_in_folder
+              @solid_cache_extracted[entry.folder_index] = Set.new
             end
           end
 
@@ -467,11 +478,11 @@ module Omnizip
           end
 
           # Evict solid cache entry when all files in folder have been extracted
-          if @solid_cache_remaining.key?(entry.folder_index)
-            @solid_cache_remaining[entry.folder_index] -= 1
-            if @solid_cache_remaining[entry.folder_index] <= 0
+          if @solid_cache_extracted.key?(entry.folder_index)
+            @solid_cache_extracted[entry.folder_index].add(entry.file_index)
+            if @solid_cache_extracted[entry.folder_index].size >= num_files_in_folder
               @solid_cache.delete(entry.folder_index)
-              @solid_cache_remaining.delete(entry.folder_index)
+              @solid_cache_extracted.delete(entry.folder_index)
             end
           end
 
@@ -503,7 +514,7 @@ module Omnizip
                                                     pack_size)
               full_data = decompressor.decompress(total_unpack_size)
               @solid_cache[entry.folder_index] = full_data
-              @solid_cache_remaining[entry.folder_index] = num_files_in_folder
+              @solid_cache_extracted[entry.folder_index] = Set.new
             end
 
             # Find offset of this file within the uncompressed stream
@@ -527,11 +538,11 @@ module Omnizip
             end
 
             # Evict solid cache entry when all files in folder have been extracted
-            if @solid_cache_remaining.key?(entry.folder_index)
-              @solid_cache_remaining[entry.folder_index] -= 1
-              if @solid_cache_remaining[entry.folder_index] <= 0
+            if @solid_cache_extracted.key?(entry.folder_index)
+              @solid_cache_extracted[entry.folder_index].add(entry.file_index)
+              if @solid_cache_extracted[entry.folder_index].size >= num_files_in_folder
                 @solid_cache.delete(entry.folder_index)
-                @solid_cache_remaining.delete(entry.folder_index)
+                @solid_cache_extracted.delete(entry.folder_index)
               end
             end
 

@@ -105,8 +105,6 @@ module Omnizip
             out_pos += coder.num_out_streams
           end
 
-          in_pos
-
           # Find the BCJ2 coder index and its input stream base
           bcj2_idx = @folder.coders.index { |c| c.method_id == FilterId::BCJ2 }
           bcj2_in_base = in_bases[bcj2_idx]

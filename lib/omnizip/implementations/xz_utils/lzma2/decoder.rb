@@ -108,21 +108,11 @@ module Omnizip
               end
 
               # XZ Utils pattern (lzma2_decoder.c:121-126):
-              # Perform dictionary reset if needed
-              # For control >= 0xE0 or control == 1, need_dictionary_reset is set above
-              # and we perform the reset here, then clear the flag
-              # IMPORTANT: Only UNCOMPRESSED chunks with reset (control == 1) should
-              # suppress output. Compressed chunks with reset (control >= 0x80) should
-              # ALWAYS produce output - the dictionary reset happens before decoding.
+              # Clear dictionary reset flag. The actual dict_reset is handled
+              # by the LZMA decoder when processing the chunk data.
               # Reference: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma2_decoder.c:121-127
-              false
               if @need_dictionary_reset
                 @need_dictionary_reset = false
-                # For uncompressed chunks with reset (control == 1), output is suppressed
-                # For compressed chunks (control >= 0x80), output is always produced
-                (control == CONTROL_UNCOMPRESSED_RESET)
-                # Note: Dictionary reset will be handled by the LZMA decoder
-                # based on the control byte
               end
 
               # XZ Utils pattern (lzma2_decoder.c:84-110):
@@ -523,7 +513,7 @@ module Omnizip
                 rescue StandardError
                   nil
                 end
-                if @lzma2_debug || (decoder_dict_full && decoder_dict_full >= 220 && decoder_dict_full <= 230)
+                if @lzma2_debug || (Omnizip::Algorithms::XzUtilsDecoderDebug::ENABLED && decoder_dict_full && decoder_dict_full >= 220 && decoder_dict_full <= 230)
                   warn "DEBUG: decompress_lzma_chunk - Calling reset with preserved dict (control=#{control}, dict_full=#{decoder_dict_full})"
                 end
                 @lzma_decoder.reset(preserve_dict: preserve_dict)
@@ -664,52 +654,6 @@ module Omnizip
               size = (size << 8) | byte
             end
             size
-          end
-
-          # Ensure LZMA decoder exists
-          # Creates a decoder with default properties if one doesn't exist yet
-          # This is needed for uncompressed chunks that come before the first compressed chunk
-          def ensure_lzma_decoder_exists
-            return if @lzma_decoder
-
-            if @lzma2_debug
-              warn "DEBUG: ensure_lzma_decoder_exists - Creating LZMA decoder for uncompressed chunk"
-            end
-
-            # Create LZMA decoder with default properties (lc=3, lp=0, pb=2)
-            # These defaults match XZ Utils and ensure compatibility
-            @lzma_decoder = Omnizip::Algorithms::XzUtilsDecoder.new(
-              StringIO.new(""), # Empty input for now
-              lzma2_mode: true,
-              lc: 3,
-              lp: 0,
-              pb: 2,
-              dict_size: @dict_size,
-              uncompressed_size: 0xFFFFFFFFFFFFFFFF, # Unknown size
-            )
-
-            # Initialize dictionary buffer explicitly since we're not calling decode_stream
-            # This mimics the initialization done in decode_stream
-            dict_buf_size = @dict_size + Omnizip::Algorithms::LZMA::XzUtilsDecoder::LZ_DICT_INIT_POS
-            @lzma_decoder.instance_variable_set(:@dict_buf,
-                                                ("\0" * dict_buf_size).b)
-            @lzma_decoder.instance_variable_set(:@pos, Omnizip::Algorithms::LZMA::XzUtilsDecoder::LZ_DICT_INIT_POS)
-            @lzma_decoder.instance_variable_set(:@dict_full, 0)
-            @lzma_decoder.instance_variable_set(:@has_wrapped, false)
-
-            # Initialize rep distances
-            @lzma_decoder.instance_variable_set(:@rep0, 0)
-            @lzma_decoder.instance_variable_set(:@rep1, 0)
-            @lzma_decoder.instance_variable_set(:@rep2, 0)
-            @lzma_decoder.instance_variable_set(:@rep3, 0)
-
-            # Initialize state machine
-            @lzma_decoder.instance_variable_set(:@state, Omnizip::Algorithms::LZMA::SdkStateMachine.new)
-
-            if @lzma2_debug
-              warn "DEBUG: ensure_lzma_decoder_exists - Created LZMA decoder with lc=3, lp=0, pb=2, dict_size=#{@dict_size}"
-              warn "DEBUG: ensure_lzma_decoder_exists - Initialized dict_buf_size=#{dict_buf_size}, pos=#{Omnizip::Algorithms::LZMA::XzUtilsDecoder::LZ_DICT_INIT_POS}"
-            end
           end
         end
       end
