@@ -14,9 +14,9 @@ Gem::Specification.new do |spec|
     of data compression algorithms and archive formats, in pure Ruby.
     Supports LZMA, ZIP, 7z, RAR, XZ, CPIO, ISO 9660, PAR and more.
   DESC
-  spec.homepage = "https://github.com/riboseinc/omnizip"
+  spec.homepage = "https://github.com/omnizip/omnizip"
   spec.license = "LGPL-2.1-or-later"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["source_code_uri"] = spec.homepage
