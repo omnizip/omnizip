@@ -175,9 +175,25 @@ module Omnizip
 
         # Close storage
         def close
-          @sb_file&.close
+          free
           flush if @writeable
           @io.close if @close_parent
+        end
+
+        # Free internal resources to prevent memory leaks
+        #
+        # Call this to release memory while keeping the IO open.
+        # @return [void]
+        def free
+          @sb_file&.free if @sb_file.respond_to?(:free)
+          @sb_file = nil
+          @sbat&.free if @sbat.respond_to?(:free)
+          @sbat = nil
+          @bbat&.free if @bbat.respond_to?(:free)
+          @bbat = nil
+          @dirents = nil
+          @root = nil
+          @header = nil
         end
 
         # Flush all changes to disk

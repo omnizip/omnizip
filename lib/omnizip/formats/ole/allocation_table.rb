@@ -63,6 +63,16 @@ module Omnizip
           @entries.length
         end
 
+        # Free resources to prevent memory leaks
+        #
+        # Call this when done with the allocation table to release memory.
+        # @return [void]
+        def free
+          @entries = nil
+          @ole = nil
+          @io = nil
+        end
+
         # Follow chain from starting index
         #
         # @param idx [Integer] Starting block index

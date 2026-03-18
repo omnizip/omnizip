@@ -43,6 +43,10 @@ xz_reference_*.txt
 magic.mgc
 
 spec/fixtures/7zip/reference_source
+
+# Adobe MSI test file (downloaded on demand, copyrighted)
+spec/fixtures/adobe/*.msi
+
 *.bak
 *.bak2
 lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak3

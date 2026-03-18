@@ -1,0 +1,96 @@
+= Test Fixtures from lessmsi
+
+== Source
+
+These test fixtures are from the lessmsi project, from the
+directory `src/Lessmsi.Tests/TestFiles`.
+
+* Project: lessmsi
+* URL: http://lessmsi.activescott.com
+* Repository: https://github.com/activescott/lessmsi
+* License: MIT License
+* Maintainer: Scott Willeke (@activescott) and contributors
+
+== Attribution
+
+Copyright (c) 2004- Scott Willeke and contributors
+All rights reserved.
+
+These test fixtures are from the lessmsi project and are used
+under the MIT license for compatibility testing.
+
+== License
+
+MIT License
+
+Copyright (c) 2004 Scott Willeke (http://scott.willeke.com)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+== Files Included
+
+=== MSI Format (Windows Installer Package)
+
+MsiInput/ directory contains:
+
+* `putty-0.68-installer.msi` - Simple embedded CAB (2.7MB) - 10 files
+* `NUnit-2.5.2.9222.msi` - Standard installer (2.4MB)
+* `python-2.7.3.msi` - Larger installer (15MB)
+* `vcredist.msi` + `vcredis1.cab` - External CAB reference (2.8MB + 253KB)
+* `msi_with_external_cab.msi` + `msi_with_external_cab.cab` - Minimal external CAB test
+* `AppleMobileDeviceSupport64.msi` - Large installer (40MB)
+* `IviNetSharedComponents32_Fx20_1.3.0.msi` - NI VISA components
+* `VBRuntime.msi` - Visual Basic runtime
+* `Slik-Subversion-1.6.6-x64.msi` - Subversion client
+* `X86 Debuggers And Tools-x86_en-us.msi` - Visual Studio debug tools
+* `ExtractOnlySomeFiles.msi` - Test for partial extraction
+* `Path With Spaces/spaces example.msi` - Path with spaces handling (2.4MB)
+* `long-directory-name/very/unusually/long/directory/name/with/cream/sugar/and/chocolate/topping/python-2.7.3.msi` - Long path handling
+
+=== MSP Format (Windows Installer Patch)
+
+* `SQL2008_AS.msp` - SQL Server Analysis Services patch (22KB)
+* `WPF2_32.msp` - WPF patch (22KB)
+* `msxml5.msp` - MSXML patch (7.5MB)
+
+=== Expected Output
+
+ExpectedOutput/ directory contains CSV files with expected extraction results.
+Format:
+
+----
+Path,Size,CreationTime,LastWriteTime,Attributes
+\SourceDir\PFiles\PuTTY\LICENCE,1338,2017-02-18T17:10:22.0000000,2017-02-18T17:10:22.0000000,Archive
+----
+
+* Paths use Windows-style backslashes, start with `\SourceDir\`
+* Size in bytes
+* Timestamps in ISO 8601 format
+* Attributes: `Archive`, `Hidden`, `ReadOnly`, etc.
+
+== Usage in Omnizip
+
+These fixtures ensure Omnizip maintains compatibility with standard
+MSI extraction as implemented by lessmsi, a widely-used open-source
+MSI extraction tool.
+
+== Modifications
+
+None. These are standard test archives from the lessmsi test suite.

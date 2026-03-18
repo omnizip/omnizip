@@ -366,6 +366,18 @@ module Omnizip
           @children&.each(&block)
         end
 
+        # Free resources to prevent memory leaks
+        #
+        # Call this when done with the dirent to release memory.
+        # @return [void]
+        def free
+          @children&.each { |child| child.free if child.respond_to?(:free) }
+          @children = nil
+          @parent = nil
+          @ole = nil
+          @data = nil
+        end
+
         # Flatten tree to array for serialization
         #
         # @param dirents [Array<Dirent>] Output array

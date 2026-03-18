@@ -19,6 +19,9 @@ module Omnizip
     # OLE compound documents (MSI, DOC, XLS, PPT)
     autoload :Ole, "omnizip/formats/ole"
 
+    # MSI (Microsoft Installer) - overrides OLE's .msi registration
+    autoload :Msi, "omnizip/formats/msi"
+
     # XAR archive format
     autoload :Xar, "omnizip/formats/xar"
 
