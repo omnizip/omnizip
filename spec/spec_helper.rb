@@ -32,9 +32,8 @@ RSpec.configure do |config|
   # Use documentation format for clearer output
   config.default_formatter = "doc" if config.files_to_run.one?
 
-  # Print the 10 slowest examples and example groups
-  config.profile_examples = 10
-
+  # Print slow examples for debugging
+  # config.profile_examples = 10
   # Run specs in random order to surface order dependencies
   config.order = :random
   Kernel.srand config.seed

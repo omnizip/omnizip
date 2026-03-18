@@ -5,6 +5,8 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in omnizip.gemspec
 gemspec
 
+# For spec testing
+gem "csv"
 gem "rake"
 gem "rspec"
 gem "rubocop"

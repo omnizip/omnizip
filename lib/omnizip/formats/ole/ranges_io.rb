@@ -73,6 +73,15 @@ module Omnizip
           @pos = 0
         end
 
+        # Free resources to prevent memory leaks
+        #
+        # @return [void]
+        def free
+          @io = nil
+          @ranges = nil
+          @offsets = nil
+        end
+
         # Set position
         #
         # @param new_pos [Integer]
@@ -217,9 +226,9 @@ module Omnizip
           raise NotImplementedError, "truncate not supported"
         end
 
-        # Close (no-op by default)
+        # Close and free resources
         def close
-          # No-op
+          free
         end
 
         # Inspect
@@ -261,6 +270,15 @@ module Omnizip
           # Grow underlying IO if needed
           max_pos = @ranges.map { |pos, len| pos + len }.max || 0
           @io.truncate(max_pos) if max_pos > @io.size
+        end
+
+        # Free resources to prevent memory leaks
+        #
+        # @return [void]
+        def free
+          @bat = nil
+          @blocks = nil
+          super
         end
       end
 

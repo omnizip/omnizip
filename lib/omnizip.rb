@@ -135,6 +135,9 @@ require_relative "omnizip/formats/gzip"
 require_relative "omnizip/formats/bzip2_file"
 require_relative "omnizip/formats/xz"
 
+# MSI format (must be loaded after OLE to override .msi registration)
+require_relative "omnizip/formats/msi"
+
 # Platform-specific features
 module Omnizip
   module Platform

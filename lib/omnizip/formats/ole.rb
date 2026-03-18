@@ -124,7 +124,6 @@ module Omnizip
           FormatRegistry.register(".doc", Storage)
           FormatRegistry.register(".xls", Storage)
           FormatRegistry.register(".ppt", Storage)
-          FormatRegistry.register(".msi", Storage)
         end
 
         private

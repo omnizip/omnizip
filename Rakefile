@@ -9,4 +9,7 @@ require "rubocop/rake_task"
 
 RuboCop::RakeTask.new
 
+# Load custom rake tasks
+Dir["lib/tasks/*.rake"].each { |task| load task }
+
 task default: %i[spec rubocop]
