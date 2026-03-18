@@ -90,7 +90,7 @@ RSpec.describe Omnizip::Formats::Msi do
           matching = actual_paths.any? do |actual|
             actual.end_with?(expected_path) || expected_path.end_with?(actual)
           end
-          expect(matching).to be true, "Expected file not found: #{expected_path}"
+          expect(matching).to be_truthy, "Expected file not found: #{expected_path}"
         end
       end
     end
