@@ -580,10 +580,6 @@ module Omnizip
             max_volumes = 1000
             max_size = 10 * 1024 * 1024 * 1024 # 10GB
 
-            if ENV["LZMA2_DEBUG"]
-              warn "DEBUG: MultiVolumeIO.load_combined_data - starting, volumes=#{@handles.size}"
-            end
-
             @handles.each_with_index do |handle, idx|
               # Safety check: prevent infinite loop on corrupted archives
               if idx >= max_volumes
@@ -598,17 +594,7 @@ module Omnizip
 
               handle.rewind
               chunk = handle.read
-
-              if ENV["LZMA2_DEBUG"]
-                chunk_size = chunk&.bytesize || 0
-                warn "DEBUG: MultiVolumeIO - loaded volume #{idx}: #{chunk_size} bytes, total=#{@combined_data.bytesize + chunk_size}"
-              end
-
               @combined_data << chunk if chunk
-            end
-
-            if ENV["LZMA2_DEBUG"]
-              warn "DEBUG: MultiVolumeIO.load_combined_data - complete, total_size=#{@combined_data.bytesize}"
             end
           end
 

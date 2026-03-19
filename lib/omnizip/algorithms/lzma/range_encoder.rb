@@ -61,11 +61,6 @@ module Omnizip
 
           prob = model.probability
 
-          # DEBUG: Trace is_rep bit encoding
-          if ENV["TRACE_IS_REP_BITS"] && bit.zero?
-            puts "  [RangeEncoder.encode_bit] BEFORE: range=#{@range}, low=#{@low}, prob=#{prob}, bit=#{bit}"
-          end
-
           if bit.zero?
             # RC_BIT_0: shrink range to lower portion
             # rc->range = (rc->range >> 11) * prob
@@ -79,10 +74,6 @@ module Omnizip
             bound = prob * (@range >> 11)
             @low = (@low + bound) & 0xFFFFFFFFFFFFFFFF # low can grow beyond 32 bits
             @range = (@range - bound) & 0xFFFFFFFF
-          end
-
-          if ENV["TRACE_IS_REP_BITS"] && bit.zero?
-            puts "  [RangeEncoder.encode_bit] AFTER: range=#{@range}, low=#{@low}"
           end
 
           # Update probability model based on the bit value

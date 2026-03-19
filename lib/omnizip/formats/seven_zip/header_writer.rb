@@ -64,9 +64,6 @@ module Omnizip
           # 7-Zip VLI encoding: extra bytes are little-endian per SDK ReadNumberSpec().
           # Reference: https://py7zr.readthedocs.io/en/latest/archive_format.html
           result = String.new(encoding: "BINARY")
-          mask = 0x80
-          num_extra = 0
-          temp = value
 
           # Determine how many extra bytes are needed
           thresholds = [0x80, 0x4000, 0x20_0000, 0x1000_0000,

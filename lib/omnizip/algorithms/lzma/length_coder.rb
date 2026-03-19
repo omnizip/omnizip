@@ -58,15 +58,6 @@ module Omnizip
           # High tree: shared across all position states, 256 symbols
           # Tree needs 2^(num_bits+1) models: 2^9 = 512 for 8-bit tree
           @high = Array.new(1 << (NUM_LEN_HIGH_BITS + 1)) { BitModel.new }
-
-          # Cache ENV lookups once at initialization
-
-          @lzma_debug_length = ENV.fetch("LZMA_DEBUG_LENGTH", nil)
-          @lzma_debug_encode = ENV.fetch("LZMA_DEBUG_ENCODE", nil)
-          @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
-          @trace_length_coder = ENV.fetch("TRACE_LENGTH_CODER", nil)
-          @trace_reset_models = ENV.fetch("TRACE_RESET_MODELS", nil)
-          @debug_reset_models = ENV.fetch("DEBUG_RESET_MODELS", nil)
         end
 
         # Encode a match length using SDK-compatible encoding
@@ -76,65 +67,24 @@ module Omnizip
         # @param pos_state [Integer] Position state for tree selection
         # @return [void]
         def encode(range_encoder, length, pos_state)
-          trace_encode = @lzma_debug_encode && @trace_length_coder
-
-          if trace_encode
-            puts "    [LengthCoder.encode] START: length=#{length}, pos_state=#{pos_state}"
-            puts "      @choice.prob=#{@choice.probability} @choice2.prob=#{@choice2.probability}"
-          end
-
           if length < LEN_LOW_SYMBOLS
             # 0-7: Use low tree
-            if trace_encode
-              puts "      Using LOW tree (length #{length} < #{LEN_LOW_SYMBOLS})"
-              puts "      Encoding choice=0 with prob=#{@choice.probability}"
-            end
             range_encoder.encode_bit(@choice, 0)
-            if trace_encode
-              puts "      After choice: @choice.prob=#{@choice.probability}"
-            end
             encode_tree(range_encoder, @low[pos_state], length,
                         NUM_LEN_LOW_BITS)
           elsif length < LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS
             # 8-15: Use mid tree
-            if trace_encode
-              puts "      Using MID tree (length #{length} < #{LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS})"
-              puts "      Encoding choice=1 with prob=#{@choice.probability}"
-            end
             range_encoder.encode_bit(@choice, 1)
-            if trace_encode
-              puts "      After choice: @choice.prob=#{@choice.probability}"
-              puts "      Encoding choice2=0 with prob=#{@choice2.probability}"
-            end
             range_encoder.encode_bit(@choice2, 0)
-            if trace_encode
-              puts "      After choice2: @choice2.prob=#{@choice2.probability}"
-            end
             encode_tree(range_encoder, @mid[pos_state],
                         length - LEN_LOW_SYMBOLS, NUM_LEN_MID_BITS)
           else
             # 16+: Use high tree
-            if trace_encode
-              puts "      Using HIGH tree (length #{length} >= #{LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS})"
-              puts "      Encoding choice=1 with prob=#{@choice.probability}"
-            end
             range_encoder.encode_bit(@choice, 1)
-            if trace_encode
-              puts "      After choice: @choice.prob=#{@choice.probability}"
-              puts "      Encoding choice2=1 with prob=#{@choice2.probability}"
-            end
             range_encoder.encode_bit(@choice2, 1)
-            if trace_encode
-              puts "      After choice2: @choice2.prob=#{@choice2.probability}"
-            end
             encode_tree(range_encoder, @high,
                         length - LEN_LOW_SYMBOLS - LEN_MID_SYMBOLS,
                         NUM_LEN_HIGH_BITS)
-          end
-
-          if trace_encode
-            puts "      FINAL @choice.prob=#{@choice.probability} @choice2.prob=#{@choice2.probability}"
-            puts "    [LengthCoder.encode] END"
           end
         end
 
@@ -144,57 +94,21 @@ module Omnizip
         # @param pos_state [Integer] Position state for tree selection
         # @return [Integer] Decoded length value (before adding MATCH_LEN_MIN)
         def decode(range_decoder, pos_state)
-          trace_decode = @lzma_debug_distance && @trace_length_coder
-
-          if trace_decode
-            caller_loc = caller_locations(2, 1).first
-            puts "    [LengthCoder.decode] START: pos_state=#{pos_state}"
-            puts "      self.object_id=#{object_id}"
-            puts "      @choice.object_id=#{@choice.object_id} prob=#{@choice.probability}"
-            puts "      @choice2.object_id=#{@choice2.object_id} prob=#{@choice2.probability}"
-            puts "      Called from: #{caller_loc.label} at #{caller_loc.lineno}"
-          end
-
           choice_bit = range_decoder.decode_bit(@choice)
-          if trace_decode
-            puts "      Decoded choice=#{choice_bit} with prob=#{@choice.probability}"
-            puts "      After choice decode: @choice.prob=#{@choice.probability}"
-          end
 
           if choice_bit.zero?
             # Low tree
-            if trace_decode
-              puts "      Using LOW tree"
-            end
-            result = decode_tree(range_decoder, @low[pos_state],
-                                 NUM_LEN_LOW_BITS)
+            decode_tree(range_decoder, @low[pos_state],
+                        NUM_LEN_LOW_BITS)
           elsif range_decoder.decode_bit(@choice2).zero?
             # Mid tree
-            if trace_decode
-              puts "      Decoded choice2=0 with prob=#{@choice2.probability}"
-              puts "      After choice2 decode: @choice2.prob=#{@choice2.probability}"
-              puts "      Using MID tree"
-            end
-            result = LEN_LOW_SYMBOLS +
+            LEN_LOW_SYMBOLS +
               decode_tree(range_decoder, @mid[pos_state], NUM_LEN_MID_BITS)
           else
             # High tree
-            if trace_decode
-              puts "      Decoded choice2=1 with prob=#{@choice2.probability}"
-              puts "      After choice2 decode: @choice2.prob=#{@choice2.probability}"
-              puts "      Using HIGH tree"
-            end
-            result = LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS +
+            LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS +
               decode_tree(range_decoder, @high, NUM_LEN_HIGH_BITS)
           end
-
-          if trace_decode
-            puts "      FINAL @choice.prob=#{@choice.probability} @choice2.prob=#{@choice2.probability}"
-            puts "      Result: length_encoded=#{result}"
-            puts "    [LengthCoder.decode] END"
-          end
-
-          result
         end
 
         # Reset probability models to initial values
@@ -204,12 +118,6 @@ module Omnizip
         #
         # @return [void]
         def reset_models
-          if @trace_reset_models
-            puts "    [LengthCoder.reset_models] CALLED!"
-            puts "      Before reset: @choice.prob=#{@choice.probability} @choice2.prob=#{@choice2.probability}"
-            caller_loc = caller_locations(2, 1).first
-            puts "      Called from: #{caller_loc.label} at #{caller_loc.path}:#{caller_loc.lineno}"
-          end
           @choice.reset
           @choice2.reset
 
@@ -222,9 +130,6 @@ module Omnizip
           end
 
           @high.each(&:reset)
-          if @trace_reset_models
-            puts "      After reset: @choice.prob=#{@choice.probability} @choice2.prob=#{@choice2.probability}"
-          end
         end
 
         private

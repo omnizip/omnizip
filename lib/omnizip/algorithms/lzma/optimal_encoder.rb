@@ -31,8 +31,6 @@ module Omnizip
           buf_pos = position
           buf_avail = [buf.bytesize - buf_pos, MATCH_LEN_MAX].min
 
-          # puts "[OPTIMUM] position=#{position} buf_avail=#{buf_avail} buf.bytesize=#{buf.bytesize}" if ENV['DEBUG']
-
           # Not enough input for a match
           return [UINT32_MAX, 1] if buf_avail < 2
 
@@ -51,13 +49,8 @@ module Omnizip
             # In Ruby: buf_back_index = buf_pos - rep_dist - 1
             buf_back_index = buf_pos - rep_dist - 1
 
-            # DEBUG: Trace repeated match check
-            # puts "[OPTIMAL] Checking rep#{i}: rep_dist=#{rep_dist} buf_pos=#{buf_pos} buf_back_index=#{buf_back_index}" if ENV['DEBUG']
-
             # Skip if out of bounds
             next if buf_back_index.negative? || buf_back_index >= buf.bytesize
-
-            # puts "[OPTIMAL] buf[#{buf_pos}]=#{'%02x' % buf.getbyte(buf_pos)} buf[#{buf_back_index}]=#{'%02x' % buf.getbyte(buf_back_index)}" if ENV['DEBUG']
 
             # If the first two bytes (2 == MATCH_LEN_MIN) do not match,
             # this rep is not useful.

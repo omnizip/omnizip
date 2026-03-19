@@ -134,7 +134,7 @@ module Omnizip
       #
       # Checks:
       # 1. Enough bytes remain for a full 32-byte Start Header
-      # 2. Major version is 0 (only supported version)
+      # 2. Major version is 0 and minor version is 4 (only supported version)
       # 3. Next Header offset + size points within (or at the end of) the file
       # 4. Start Header CRC matches the header content
       #
@@ -148,9 +148,11 @@ module Omnizip
 
         header_data = data.byteslice(offset, header_size)
 
-        # Check major version byte (offset 6) is 0
+        # Check version bytes (offsets 6 and 7) - must be 0.4
         major_version = header_data.getbyte(6)
-        return false unless major_version == Constants::MAJOR_VERSION
+        minor_version = header_data.getbyte(7)
+        return false unless major_version == Constants::MAJOR_VERSION &&
+                            minor_version == Constants::MINOR_VERSION
 
         # Parse Start Header fields (bytes 12-31)
         next_header_data = header_data.byteslice(12, 20)

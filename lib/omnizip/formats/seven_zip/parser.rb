@@ -64,7 +64,8 @@ module Omnizip
           end
 
           # The data bits from first_byte go at the highest position
-          data_bits = first_byte & (mask - 1)
+          # When mask reaches 0 (first_byte == 0xFF, 8 extra bytes), there are no data bits
+          data_bits = mask.zero? ? 0 : (first_byte & (mask - 1))
           value |= (data_bits << shift)
 
           value

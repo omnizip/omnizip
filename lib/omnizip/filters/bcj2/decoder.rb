@@ -58,14 +58,34 @@ module Omnizip
       #
       # @param expected_size [Integer, nil] Expected output size for pre-allocation
       # @return [String] Decoded binary data
+      # @raise [Omnizip::DecompressionError] If output exceeds buffer capacity when expected_size is nil
       def decode(expected_size = nil)
         main_data = @streams.main
         main_size = main_data.bytesize
 
         # Pre-allocate output buffer to expected size (C++ SDK: dic is pre-allocated)
-        out_capacity = expected_size || (main_size + (main_size >> 2))
+        # When expected_size is unknown, use a conservative upper bound
+        # Each byte can produce at most 5 bytes (opcode + 4-byte address), but
+        # in practice BCJ2 never expands more than 2x due to rarity of convertible opcodes
+        out_capacity = expected_size || (main_size * 2)
         result = ("\0" * out_capacity).b
         result_pos = 0
+
+        # Helper to grow buffer if needed (only when expected_size is nil)
+        grow_buffer = lambda do |required|
+          return if result_pos + required <= result.bytesize
+
+          if expected_size
+            raise Omnizip::DecompressionError,
+                  "BCJ2 output size (#{result_pos + required}) exceeds expected size (#{expected_size})"
+          end
+
+          # Dynamic growth when expected_size is unknown
+          new_capacity = [result.bytesize * 2, result_pos + required].max
+          new_buf = ("\0" * new_capacity).b
+          new_buf[0, result_pos] = result.byteslice(0, result_pos)
+          result = new_buf
+        end
 
         # Cache stream references as locals (avoids repeated ivar lookups in hot loop)
         call_data = @streams.call
@@ -102,6 +122,7 @@ module Omnizip
           unless next_pos
             # No more opcodes — bulk copy remaining bytes
             chunk_len = main_size - main_pos
+            grow_buffer.call(chunk_len)
             result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
             result_pos += chunk_len
             ip += chunk_len
@@ -112,6 +133,7 @@ module Omnizip
           # Bulk copy bytes before opcode
           if next_pos > main_pos
             chunk_len = next_pos - main_pos
+            grow_buffer.call(chunk_len)
             result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
             result_pos += chunk_len
             ip += chunk_len
@@ -124,6 +146,8 @@ module Omnizip
 
           if byte == 0x0F
             # JCC: 0x0F followed by 0x80-0x8F conditional jump
+            # Ensure buffer has room for 2 opcode bytes + potential 4 address bytes
+            grow_buffer.call(6)
             # Write 0x0F to output (SDK writes opcode bytes before range decision)
             result.setbyte(result_pos, 0x0F)
             result_pos += 1
@@ -141,6 +165,8 @@ module Omnizip
             is_call = false
           else
             # E8 (CALL) or E9 (JMP) — write opcode before range decision
+            # Ensure buffer has room for 1 opcode byte + potential 4 address bytes
+            grow_buffer.call(5)
             result.setbyte(result_pos, byte)
             result_pos += 1
             ip += 1

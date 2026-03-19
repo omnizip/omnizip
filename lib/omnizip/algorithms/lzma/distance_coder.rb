@@ -64,20 +64,6 @@ module Omnizip
           # Precompute distance slot lookup table for fast encoding
           @slot_fast = Array.new(DIST_SLOT_FAST_LIMIT)
           init_slot_fast_table
-
-          # Cache ENV lookups once at initialization
-          @lzma_debug_distance = ENV.fetch("LZMA_DEBUG_DISTANCE", nil)
-          @debug_reset_models = ENV.fetch("DEBUG_RESET_MODELS", nil)
-
-          @lzma_debug_encode = ENV.fetch("LZMA_DEBUG_ENCODE", nil)
-          @trace_direct_bits_slot40 = ENV.fetch("TRACE_DIRECT_BITS_SLOT40", nil)
-          @trace_distance_decode = ENV.fetch("TRACE_DISTANCE_DECODE", nil)
-          @trace_distance_slot = ENV.fetch("TRACE_DISTANCE_SLOT", nil)
-          @trace_all_slot_encode = ENV.fetch("TRACE_ALL_SLOT_ENCODE", nil)
-          @trace_slot_decode = ENV.fetch("TRACE_SLOT_DECODE", nil)
-          @trace_all_slot_decode = ENV.fetch("TRACE_ALL_SLOT_DECODE", nil)
-          @trace_length_coder = ENV.fetch("TRACE_LENGTH_CODER", nil)
-          @distance_decode_count = 0
         end
 
         # Reset all probability models in place
@@ -87,17 +73,11 @@ module Omnizip
         #
         # @return [void]
         def reset_models
-          if @debug_reset_models && @lzma_debug_distance
-            puts "    [DistanceCoder.reset_models] Resetting #{@slot_encoders.size} len_states, each with #{@slot_encoders[0]&.size || '?'} models"
-          end
           @slot_encoders.each do |len_state_models|
             len_state_models.each(&:reset)
           end
           @pos_encoders.each(&:reset)
           @align_encoder.each(&:reset)
-          if @debug_reset_models && @lzma_debug_distance
-            puts "    [DistanceCoder.reset_models] Done resetting"
-          end
         end
 
         # Encode a match distance using SDK-compatible encoding
@@ -108,11 +88,6 @@ module Omnizip
         # @return [void]
         def encode(range_encoder, distance, len_state)
           slot = get_dist_slot(distance)
-
-          if @lzma_debug_encode
-            puts "[DistanceCoder.encode] distance=#{distance} slot=#{slot} len_state=#{len_state}"
-            puts "[DistanceCoder.encode] CALLING encode_tree with symbol=#{slot}"
-          end
 
           # Encode the slot using the appropriate slot encoder
           encode_tree(range_encoder, @slot_encoders[len_state], slot,
@@ -153,26 +128,12 @@ module Omnizip
         # @param len_state [Integer] Length state for slot selection
         # @return [Integer] Decoded distance value (before adding 1)
         def decode(range_decoder, len_state)
-          if @lzma_debug_distance
-            puts "  [DistanceCoder.decode ##{@distance_decode_count}] START - len_state=#{len_state}"
-            puts "    BEFORE: range=#{range_decoder.range.inspect}, code=#{range_decoder.code.inspect}"
-          end
-
           slot = decode_tree(range_decoder, @slot_encoders[len_state],
                              NUM_DIST_SLOT_BITS)
-
-          if @lzma_debug_distance
-            puts "  [DistanceCoder.decode ##{@distance_decode_count}] len_state=#{len_state}, slot=#{slot}"
-            puts "    @slot_encoders[#{len_state}] object_id=#{@slot_encoders[len_state].object_id}"
-          end
 
           # Decode extra bits based on slot
           if slot < START_POS_MODEL_INDEX
             # Slots 0-3: No extra bits
-            @distance_decode_count += 1 if @lzma_debug_distance
-            if @lzma_debug_distance
-              puts "    -> distance=#{slot}"
-            end
             slot
           else
             footer_bits = (slot >> 1) - 1
@@ -185,10 +146,6 @@ module Omnizip
                                                   @pos_encoders,
                                                   base - slot - 1,
                                                   footer_bits)
-              @distance_decode_count += 1 if @lzma_debug_distance
-              if @lzma_debug_distance
-                puts "    -> distance=#{result} (slot #{slot})"
-              end
             else
               # Slots 14+: Fixed direct bits + aligned bits
               # XZ Utils pattern (lzma_decoder.c:500-514):
@@ -221,21 +178,10 @@ module Omnizip
                                              @align_encoder,
                                              0,
                                              DIST_ALIGN_BITS)
-              if @lzma_debug_distance
-                puts "    TRACE_326: low_bits=#{low_bits}"
-              end
 
               # Final result: (result << 4) + low_bits
               # NOTE: slot value is NOT added (XZ Utils pattern - line 513 adds symbol for EOPM check only)
               result = (result << DIST_ALIGN_BITS) + low_bits
-              @distance_decode_count += 1 if @lzma_debug_distance
-              if @lzma_debug_distance
-                puts "    -> slot=#{slot}, result_after_direct=#{result >> DIST_ALIGN_BITS}, low_bits=#{low_bits}, distance=#{result}"
-              end
-              if result > 100000
-                puts "    [LARGE_DISTANCE ##{@distance_decode_count}] distance=#{result}, slot=#{slot}" if @lzma_debug_distance
-                puts "      BEFORE: range_decoder.range=#{range_decoder.range}, range_decoder.code=#{range_decoder.code}" if @lzma_debug_distance
-              end
             end
             result
           end
@@ -315,28 +261,10 @@ module Omnizip
         # @return [void]
         def encode_tree(range_encoder, models, symbol, num_bits)
           m = 1
-          trace_all = @trace_all_slot_encode
-          iteration = 0
-
-          if trace_all && @lzma_debug_encode
-            puts "    [encode_tree START] RECEIVED symbol=#{symbol}, num_bits=#{num_bits}"
-            puts "      BEFORE: range=#{range_encoder.range}, low=#{range_encoder.low}"
-          end
-
           (num_bits - 1).downto(0) do |i|
-            iteration += 1
             bit = (symbol >> i) & 1
-            if trace_all && @lzma_debug_encode
-              model_idx = m
-              puts "      [#{iteration}/#{num_bits}] i=#{i}, bit=#{bit}, m=#{m}, model_idx=#{model_idx}, prob=#{models[m].probability}"
-            end
             range_encoder.encode_bit(models[m], bit)
             m = (m << 1) | bit
-          end
-
-          if trace_all && @lzma_debug_encode
-            puts "      AFTER: range=#{range_encoder.range}, low=#{range_encoder.low}"
-            puts "    [encode_tree END] ENCODED symbol=#{symbol}"
           end
         end
 
@@ -349,27 +277,10 @@ module Omnizip
         def decode_tree(range_decoder, models, num_bits)
           m = 1
           symbol = 0
-          trace_this = (num_bits == 6 && @trace_slot_decode) || (@lzma_debug_distance && @distance_decode_count == 28)
-          trace_all = @trace_all_slot_decode
-          iteration = 0
-
-          if (trace_this || trace_all) && @lzma_debug_distance
-            puts "    [decode_tree START] num_bits=#{num_bits}, range=#{range_decoder.range}, code=#{range_decoder.code}"
-            puts "      models array object_id=#{models.object_id}"
-          end
-
           (num_bits - 1).downto(0) do |i|
-            iteration += 1
-            model = models[m]
-            bit = range_decoder.decode_bit(model)
+            bit = range_decoder.decode_bit(models[m])
             m = (m << 1) | bit
             symbol |= (bit << i)
-            if (trace_this || trace_all) && @lzma_debug_distance
-              puts "      [#{iteration}/#{num_bits}] i=#{i}, bit=#{bit}, m=#{m}, model.object_id=#{model.object_id}, prob=#{model.probability}, symbol=#{symbol}"
-            end
-          end
-          if (trace_this || trace_all) && @lzma_debug_distance
-            puts "    [decode_tree END] symbol=#{symbol}"
           end
           symbol
         end
@@ -382,8 +293,7 @@ module Omnizip
         # @param symbol [Integer] Symbol to encode
         # @param num_bits [Integer] Number of bits
         # @return [void]
-        def encode_reverse_tree(range_encoder, models, base_idx, symbol,
-num_bits)
+        def encode_reverse_tree(range_encoder, models, base_idx, symbol, num_bits)
           m = 1
           num_bits.times do |i|
             bit = (symbol >> i) & 1
