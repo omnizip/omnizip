@@ -15,6 +15,8 @@ RSpec.describe "XZ Official Test Suite" do
     # Test that we can decode all official good-*.xz files
     Dir.glob(File.join(FIXTURES_DIR, "good-*.xz")).each do |test_file|
       it "decodes #{File.basename(test_file)}" do
+        skip "xz command not available" unless xz_available?
+
         # First verify xz can decode it (sanity check)
         reference = `xz -dc #{test_file} 2>&1`
         expect($?.success?).to eq(true), "Reference xz failed: #{reference}"
@@ -42,6 +44,8 @@ RSpec.describe "XZ Official Test Suite" do
       "binary" => (0..255).to_a.pack("C*"),
     }.each do |name, data|
       it "creates xz-compatible file for #{name}" do
+        skip "xz command not available" unless xz_available?
+
         Omnizip::Formats::Xz::Writer.create("test_output.xz") do |xz|
           xz.add_data(data)
         end
@@ -74,6 +78,8 @@ RSpec.describe "XZ Official Test Suite" do
 
   describe "Structure comparison with official files" do
     it "compares our output structure with good-1-check-crc64.xz" do
+      skip "xz command not available" unless xz_available?
+
       reference_file = File.join(FIXTURES_DIR, "good-1-check-crc64.xz")
       skip "Reference file not found" unless File.exist?(reference_file)
 

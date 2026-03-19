@@ -131,6 +131,8 @@ RSpec.describe "Official RAR Tool Compatibility" do
 
   describe "Official tools reading Omnizip archives" do
     it "creates STORE archive readable by official unrar" do
+      skip "unrar command not available" unless unrar_available?
+
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"
       File.write(test_file, test_content)
@@ -144,7 +146,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
       # Extract with official unrar
       extract_dir = File.join(temp_dir, "extracted_store")
       FileUtils.mkdir_p(extract_dir)
-      result = system("unrar x -y #{archive} #{extract_dir}/ > /dev/null 2>&1")
+      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
 
       expect(result).to be true
 
@@ -156,6 +158,8 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "creates NORMAL archive readable by official unrar" do
+      skip "unrar command not available" unless unrar_available?
+
       # NOTE: RAR5 uses LZSS compression (methods 1-5), not LZMA.
       # Until LZSS is implemented, :lzma/:lzss compression falls back to STORE.
       # This test verifies that STORE fallback produces valid archives.
@@ -173,7 +177,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
       # Extract with official unrar
       extract_dir = File.join(temp_dir, "extracted_normal")
       FileUtils.mkdir_p(extract_dir)
-      result = system("unrar x -y #{archive} #{extract_dir}/ > /dev/null 2>&1")
+      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
 
       expect(result).to be true
 
@@ -185,6 +189,8 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "creates multi-file archive readable by official unrar" do
+      skip "unrar command not available" unless unrar_available?
+
       file1 = File.join(temp_dir, "file1.txt")
       file2 = File.join(temp_dir, "file2.txt")
       File.write(file1, "Content 1\n" * 10)
@@ -200,7 +206,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
       # Extract with official unrar
       extract_dir = File.join(temp_dir, "extracted_multi")
       FileUtils.mkdir_p(extract_dir)
-      result = system("unrar x -y #{archive} #{extract_dir}/ > /dev/null 2>&1")
+      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
 
       expect(result).to be true
 

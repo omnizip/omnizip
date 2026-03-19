@@ -254,6 +254,8 @@ module Omnizip
         end
 
         it "writes RPM and extracts payload" do
+          skip "File permissions not supported on Windows" if windows?
+
           Tempfile.create(%w[test .rpm]) do |rpm_temp|
             Dir.mktmpdir do |extract_dir|
               rpm_path = rpm_temp.path

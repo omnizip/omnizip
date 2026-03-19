@@ -247,6 +247,8 @@ RSpec.describe Omnizip::Formats::Xar do
     end
 
     it "preserves file metadata" do
+      skip "Unix file permissions not supported on Windows" if windows?
+
       mtime = Time.new(2020, 1, 1, 12, 0, 0)
 
       described_class.create(output_path) do |xar|
