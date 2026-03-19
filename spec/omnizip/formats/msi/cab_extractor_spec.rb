@@ -20,25 +20,39 @@ RSpec.describe Omnizip::Formats::Msi::CabExtractor do
     lambda do |base_name|
       # Try decoded name from map first
       if stream_name_map.key?(base_name)
-        data = ole.read(stream_name_map[base_name]) rescue nil
+        data = begin
+          ole.read(stream_name_map[base_name])
+        rescue StandardError
+          nil
+        end
         return data if data && !data.empty?
       end
 
       # Try various encodings
       utf16le = base_name.encode("UTF-16LE")
       [1, 5].each do |prefix|
-        encoded = "#{prefix.chr.b}".b << utf16le.b
-        data = ole.read(encoded) rescue nil
+        encoded = prefix.chr.b.to_s.b << utf16le.b
+        data = begin
+          ole.read(encoded)
+        rescue StandardError
+          nil
+        end
         return data if data && !data.empty?
       end
 
-      ole.read(base_name) rescue nil
+      begin
+        ole.read(base_name)
+      rescue StandardError
+        nil
+      end
     end
   end
   let(:string_pool) { Omnizip::Formats::Msi::StringPool.new(ole, stream_reader) }
   let(:table_parser) { Omnizip::Formats::Msi::TableParser.new(string_pool, stream_reader) }
   let(:media_table) { table_parser.table("Media") }
-  let(:extractor) { described_class.new(ole, media_table, msi_path, stream_reader) }
+  let(:extractor) do
+    described_class.new(ole, media_table, msi_path, stream_reader)
+  end
 
   after do
     ole.close

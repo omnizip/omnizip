@@ -164,7 +164,8 @@ module Omnizip
               # Continue in unmatched mode for remaining bits
               break if symbol >= 0x100
 
-              return decode_unmatched_tail(symbol, base_offset, lc, range_decoder, models)
+              return decode_unmatched_tail(symbol, base_offset, lc,
+                                           range_decoder, models)
             end
 
             # Done when symbol reaches 0x100
@@ -187,7 +188,8 @@ module Omnizip
         # @param range_decoder [RangeDecoder] Range decoder instance
         # @param models [Array<BitModel>] Literal probability models
         # @return [Integer] Decoded byte value (0-255)
-        def decode_unmatched_tail(symbol, base_offset, _lc, range_decoder, models)
+        def decode_unmatched_tail(symbol, base_offset, _lc, range_decoder,
+models)
           # Continue building symbol from current value to 0x100
           while symbol < 0x100
             model_index = base_offset + symbol

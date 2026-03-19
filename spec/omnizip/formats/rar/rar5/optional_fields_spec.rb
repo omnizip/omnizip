@@ -102,7 +102,7 @@ RSpec.describe "RAR5 Optional File Fields" do
 
           # Verify archive integrity
           result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
@@ -164,7 +164,7 @@ RSpec.describe "RAR5 Optional File Fields" do
 
           # Test integrity and extraction
           expect(system(unrar_command, "t", "-y", output.path, out: File::NULL,
-                                                         err: File::NULL)).to be true
+                                                               err: File::NULL)).to be true
 
           output_dir = Dir.mktmpdir
           begin
@@ -202,7 +202,7 @@ RSpec.describe "RAR5 Optional File Fields" do
 
           # Should pass unrar test (CRC32 was auto-disabled)
           result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
@@ -230,7 +230,7 @@ RSpec.describe "RAR5 Optional File Fields" do
 
           # Verify archive format is valid
           result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
@@ -251,7 +251,7 @@ RSpec.describe "RAR5 Optional File Fields" do
 
           # Should still work fine
           expect(system(unrar_command, "t", "-y", output.path, out: File::NULL,
-                                                         err: File::NULL)).to be true
+                                                               err: File::NULL)).to be true
         end
       end
     end

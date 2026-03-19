@@ -123,7 +123,8 @@ module Omnizip
             # No more opcodes — bulk copy remaining bytes
             chunk_len = main_size - main_pos
             grow_buffer.call(chunk_len)
-            result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
+            result[result_pos, chunk_len] =
+              main_data.byteslice(main_pos, chunk_len)
             result_pos += chunk_len
             ip += chunk_len
             main_pos = main_size
@@ -134,7 +135,8 @@ module Omnizip
           if next_pos > main_pos
             chunk_len = next_pos - main_pos
             grow_buffer.call(chunk_len)
-            result[result_pos, chunk_len] = main_data.byteslice(main_pos, chunk_len)
+            result[result_pos, chunk_len] =
+              main_data.byteslice(main_pos, chunk_len)
             result_pos += chunk_len
             ip += chunk_len
             main_pos = next_pos

@@ -34,7 +34,9 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
 
     # Compute and insert CRC over bytes 12-31
     next_header_data = header.byteslice(12, 20)
-    crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(next_header_data) }.finalize
+    crc = Omnizip::Checksums::Crc32.new.tap do |c|
+      c.update(next_header_data)
+    end.finalize
     header[8, 4] = [crc].pack("V")
 
     header
@@ -45,7 +47,7 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
     header = String.new(encoding: "BINARY")
     header << signature
     header << [0, 0].pack("CC") # Version 0.0 - INVALID
-    header << [0].pack("V") * 6 # Padding
+    header << ([0].pack("V") * 6) # Padding
     header
   end
 
@@ -88,7 +90,7 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
     it "finds valid 7z archive embedded after prefix data" do
       Tempfile.create(["test", ".bin"]) do |f|
         # Write some prefix data (simulating a stub executable)
-        prefix = "MZ" + ("X" * 100) # Fake PE header
+        prefix = "MZ#{'X' * 100}" # Fake PE header
         f.write(prefix)
 
         # Write valid 7z header
@@ -202,7 +204,9 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
 
         # Compute CRC (it will be valid, but size check should fail)
         next_header_data = header.byteslice(12, 20)
-        crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(next_header_data) }.finalize
+        crc = Omnizip::Checksums::Crc32.new.tap do |c|
+          c.update(next_header_data)
+        end.finalize
         header[8, 4] = [crc].pack("V")
 
         f.write(header)
@@ -217,10 +221,11 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
   describe ".valid_7z_start_header?" do
     it "returns true for valid header" do
       header = build_valid_7z_header
-      data = header + "\x00" * 16
+      data = header + ("\x00" * 16)
       file_size = data.bytesize
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, file_size)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                 file_size)
       expect(result).to be true
     end
 
@@ -229,7 +234,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       data = header.ljust(48, "\x00")
       file_size = data.bytesize
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, file_size)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                 file_size)
       expect(result).to be false
     end
 
@@ -238,7 +244,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       # Only take first 20 bytes (not enough for 32-byte header)
       truncated = header.byteslice(0, 20)
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0, truncated.bytesize)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0,
+                                                                 truncated.bytesize)
       expect(result).to be false
     end
 
@@ -246,7 +253,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       header = build_invalid_crc_header
       data = header.ljust(48, "\x00")
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                 data.bytesize)
       expect(result).to be false
     end
   end

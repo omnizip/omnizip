@@ -311,7 +311,8 @@ module Omnizip
           # Link info
           if (link = elem.elements["link"])
             options[:link_type] = link.attributes["type"]
-            options[:link_target] = text_content(link) || text_content(link.elements["target"])
+            options[:link_target] =
+              text_content(link) || text_content(link.elements["target"])
           end
 
           # Device info

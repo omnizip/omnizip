@@ -182,16 +182,15 @@ module Omnizip
 
           # Read 4 bytes as 32-bit integer (little-endian)
           v = data.getbyte(pos) |
-              (data.getbyte(pos + 1) << 8) |
-              (data.getbyte(pos + 2) << 16) |
-              (data.getbyte(pos + 3) << 24)
+            (data.getbyte(pos + 1) << 8) |
+            (data.getbyte(pos + 2) << 16) |
+            (data.getbyte(pos + 3) << 24)
 
           # FNV-1a style mixing for better distribution
           # Hash avalanche: each input bit affects all output bits
           v = (v ^ (v >> 16)) * 0x45D9F3B
           v = (v ^ (v >> 16)) * 0x45D9F3B
-          v = (v ^ (v >> 16)) & HASH_MASK
-          v
+          (v ^ (v >> 16)) & HASH_MASK
         end
 
         # Verify match length between two positions

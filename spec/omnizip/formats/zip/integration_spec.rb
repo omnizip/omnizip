@@ -25,8 +25,7 @@ RSpec.describe "ZIP Format Integration" do
       expect(reader.entries.size).to be > 1
 
       # Should have both files and directories
-      files = reader.entries.reject(&:directory?)
-      dirs = reader.entries.select(&:directory?)
+      dirs, files = reader.entries.partition(&:directory?)
 
       expect(files).not_to be_empty
       expect(dirs).not_to be_empty

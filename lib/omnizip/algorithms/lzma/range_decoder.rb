@@ -67,7 +67,10 @@ module Omnizip
           if @range < 0x01000000
             @range <<= 8
             byte = @stream.getbyte
-            raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder normalization" if byte.nil?
+            if byte.nil?
+              raise Omnizip::DecompressionError,
+                    "Truncated LZMA stream during range decoder normalization"
+            end
 
             @code = ((@code << 8) | byte) & 0xFFFFFFFF
           end
@@ -101,7 +104,10 @@ module Omnizip
             if @range < 0x01000000
               @range <<= 8
               byte = @stream.getbyte
-              raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder normalization" if byte.nil?
+              if byte.nil?
+                raise Omnizip::DecompressionError,
+                      "Truncated LZMA stream during range decoder normalization"
+              end
 
               @code = ((@code << 8) | byte) & 0xFFFFFFFF
             end
@@ -158,7 +164,10 @@ module Omnizip
             if @range < 0x01000000
               @range <<= 8
               byte = @stream.getbyte
-              raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder normalization" if byte.nil?
+              if byte.nil?
+                raise Omnizip::DecompressionError,
+                      "Truncated LZMA stream during range decoder normalization"
+              end
 
               @code = ((@code << 8) | byte) & 0xFFFFFFFF
             end
@@ -194,7 +203,10 @@ module Omnizip
         def read_init_bytes
           while @init_bytes_remaining.positive?
             byte = @stream.getbyte
-            raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder initialization" if byte.nil?
+            if byte.nil?
+              raise Omnizip::DecompressionError,
+                    "Truncated LZMA stream during range decoder initialization"
+            end
 
             @code = ((@code << 8) | byte) & 0xFFFFFFFF
             @init_bytes_remaining -= 1
@@ -212,7 +224,10 @@ module Omnizip
           if @init_bytes_remaining.positive?
             while @init_bytes_remaining.positive?
               byte = @stream.getbyte
-              raise Omnizip::DecompressionError, "Truncated LZMA stream during range decoder initialization" if byte.nil?
+              if byte.nil?
+                raise Omnizip::DecompressionError,
+                      "Truncated LZMA stream during range decoder initialization"
+              end
 
               @code = ((@code << 8) | byte) & 0xFFFFFFFF
               @init_bytes_remaining -= 1

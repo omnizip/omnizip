@@ -166,7 +166,9 @@ module Omnizip
 
         # Validate Start Header CRC (bytes 8-11) over next_header_data (bytes 12-31)
         stored_crc = header_data.byteslice(8, 4).unpack1("V")
-        computed_crc = Omnizip::Checksums::Crc32.new.tap { |c| c.update(next_header_data) }.finalize
+        computed_crc = Omnizip::Checksums::Crc32.new.tap do |c|
+          c.update(next_header_data)
+        end.finalize
         return false unless stored_crc == computed_crc
 
         true

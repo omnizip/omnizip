@@ -293,7 +293,8 @@ module Omnizip
         # @param symbol [Integer] Symbol to encode
         # @param num_bits [Integer] Number of bits
         # @return [void]
-        def encode_reverse_tree(range_encoder, models, base_idx, symbol, num_bits)
+        def encode_reverse_tree(range_encoder, models, base_idx, symbol,
+num_bits)
           m = 1
           num_bits.times do |i|
             bit = (symbol >> i) & 1

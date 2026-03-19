@@ -148,10 +148,14 @@ module Omnizip
               # Find the source coder's pack stream (its unbound input)
               source_in_base = in_bases[source_coder_idx]
               source_pack_in = (source_in_base...(source_in_base + source_coder.num_in_streams))
-                .find { |s| unbound_to_pack.key?(s) }
+                .find do |s|
+                unbound_to_pack.key?(s)
+              end
               pack_idx = unbound_to_pack[source_pack_in]
 
-              layout[name] = { pack_idx: pack_idx, coder: source_coder, unpack_idx: source_out }
+              layout[name] =
+                { pack_idx: pack_idx, coder: source_coder,
+                  unpack_idx: source_out }
             else
               # Unbound: direct pack stream (no decompression)
               pack_idx = unbound_to_pack[in_stream]

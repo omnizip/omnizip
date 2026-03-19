@@ -38,6 +38,7 @@ module Omnizip
         constant = Object
         names.each do |n|
           return nil unless constant.const_defined?(n, false)
+
           constant = constant.const_get(n)
         end
         constant

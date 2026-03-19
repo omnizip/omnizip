@@ -119,7 +119,7 @@ module Omnizip
             elsif ch >= 0x4800 && ch < 0x4840
               # Single character encoding
               result << mime_char(ch - 0x4800)
-            elsif i == 0 && (ch == 0x4840 || ch == 0x0005)
+            elsif i.zero? && [0x4840, 0x0005].include?(ch)
               # Prefix character to skip (0x4840 is always first for tables)
               # 0x5 is also a prefix seen in some streams
             else

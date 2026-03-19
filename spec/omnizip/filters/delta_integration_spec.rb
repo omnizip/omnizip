@@ -10,7 +10,7 @@ RSpec.describe "Delta Filter Integration" do
   describe "with LZMA compression" do
     it "improves compression of audio-like data" do
       # Generate audio-like data (gradual changes)
-      audio_data = (0..1023).map { |i| (i % 256) }.pack("C*")
+      audio_data = (0..1023).map { |i| i % 256 }.pack("C*")
 
       # Compress without filter
       plain_out = StringIO.new
@@ -73,7 +73,7 @@ RSpec.describe "Delta Filter Integration" do
   describe "with LZMA2 compression" do
     it "works correctly with chunked compression" do
       # Large audio-like data to trigger multiple chunks
-      data = (0..4095).map { |i| (i % 256) }.pack("C*")
+      data = (0..4095).map { |i| i % 256 }.pack("C*")
 
       delta = Omnizip::Filters::Delta.new(1)
       filtered_data = delta.encode(data)
@@ -90,7 +90,7 @@ RSpec.describe "Delta Filter Integration" do
 
   describe "with FilterPipeline" do
     it "can be used in a filter pipeline" do
-      data = (0..511).map { |i| (i % 256) }.pack("C*")
+      data = (0..511).map { |i| i % 256 }.pack("C*")
 
       pipeline = Omnizip::FilterPipeline.new
       delta = Omnizip::Filters::Delta.new(1)
@@ -261,7 +261,7 @@ RSpec.describe "Delta Filter Integration" do
 
     it "handles large buffers efficiently" do
       # 100KB of data
-      data = Array.new(100_000) { |i| (i % 256) }.pack("C*")
+      data = Array.new(100_000) { |i| i % 256 }.pack("C*")
 
       delta = Omnizip::Filters::Delta.new(1)
       filtered = delta.encode(data)

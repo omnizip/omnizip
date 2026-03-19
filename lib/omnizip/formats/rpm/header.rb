@@ -58,8 +58,8 @@ module Omnizip
         #
         # @return [Hash] Tag names to values
         def to_h
-          @tags.each_with_object({}) do |tag, hash|
-            hash[tag.name] = tag.value
+          @tags.to_h do |tag|
+            [tag.name, tag.value]
           end
         end
 

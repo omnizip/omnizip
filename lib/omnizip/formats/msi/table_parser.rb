@@ -105,7 +105,7 @@ module Omnizip
           # Column 4: Type (unsigned short, 2 bytes)
 
           # Determine number of rows
-          num_rows = data.bytesize / 8  # 4 columns * 2 bytes each
+          num_rows = data.bytesize / 8 # 4 columns * 2 bytes each
 
           # Extract each column (column-major order)
           col_size = num_rows * 2
@@ -126,7 +126,7 @@ module Omnizip
             # Number column: signed short with nullable bit
             raw_num = number_col[i]
             col_num = raw_num & 0x7FFF
-            is_primary_key = (raw_num & 0x8000) != 0
+            is_primary_key = raw_num.anybits?(0x8000)
 
             # Type column: determine storage width
             type_val = type_col[i]
@@ -160,7 +160,7 @@ module Omnizip
         def parse_column_type(raw)
           low_byte = raw & 0xFF
           high_byte = (raw >> 8) & 0xFF
-          nullable = (high_byte & 0x80) != 0
+          nullable = high_byte.anybits?(0x80)
           type_id = high_byte & 0x7F
 
           # Determine type and width based on type_id
@@ -198,7 +198,7 @@ module Omnizip
 
           # Calculate row count from data size and column widths
           total_width = column_defs.sum { |c| c[:width] }
-          return rows if total_width == 0
+          return rows if total_width.zero?
 
           num_rows = data.bytesize / total_width
 
@@ -236,8 +236,6 @@ module Omnizip
             val = data[offset, 4]&.unpack1("V") || 0
             # Handle nullable marker (high bit)
             col[:nullable] ? (val & 0x7FFFFFFF) : val
-          else
-            nil
           end
         end
       end

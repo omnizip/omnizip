@@ -142,7 +142,8 @@ module Omnizip
             output_path = File.join(real_out, entry.name)
             expanded = File.expand_path(output_path)
             unless expanded.start_with?("#{real_out}#{File::SEPARATOR}") || expanded == real_out
-              raise Omnizip::FormatError, "Path traversal detected: #{entry.name}"
+              raise Omnizip::FormatError,
+                    "Path traversal detected: #{entry.name}"
             end
 
             extract_entry(entry.name, output_path)

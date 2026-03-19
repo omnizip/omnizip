@@ -210,9 +210,7 @@ check_rc_finished: true)
 
         # Create range decoder if it doesn't exist (first chunk)
         # This happens when the decoder is created directly for LZMA (not LZMA2)
-        unless @range_decoder
-          @range_decoder = RangeDecoder.new(@input)
-        end
+        @range_decoder ||= RangeDecoder.new(@input)
 
         # Special case: empty input (uncompressed_size == 0)
         # Return immediately without trying to decode anything
@@ -246,7 +244,7 @@ check_rc_finished: true)
           buf_size = @buf_end
           @dict_buf = ("\0" * buf_size).b
           @pos = LZ_DICT_INIT_POS
-          @dict_pos = LZ_DICT_INIT_POS  # Circular buffer write position (tracks @pos)
+          @dict_pos = LZ_DICT_INIT_POS # Circular buffer write position (tracks @pos)
           @dict_full = 0
           @has_wrapped = false
 
