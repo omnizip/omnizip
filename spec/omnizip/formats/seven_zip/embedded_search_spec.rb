@@ -3,6 +3,9 @@
 require "spec_helper"
 require "tempfile"
 
+# 7-Zip version validation follows the official 7-Zip SDK behavior:
+# Only the major version is validated, not the minor version.
+# See: https://github.com/ip7z/7zip/blob/main/CPP/7zip/Archive/7z/7zIn.cpp#L1591-L1598
 RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
   # 7z signature: '7z' + BC AF 27 1C
   let(:signature) { "7z\xBC\xAF\x27\x1C".b }
@@ -10,17 +13,17 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
   # Helper to build a minimal valid 7z Start Header at a given offset
   # Start Header structure (32 bytes):
   # - Bytes 0-5: Signature (6 bytes)
-  # - Bytes 6-7: Version (major.minor) - must be 0.4
+  # - Bytes 6-7: Version (major.minor) - only major version is validated per 7-Zip SDK
   # - Bytes 8-11: Start Header CRC32 (over bytes 12-31)
   # - Bytes 12-19: Next Header Offset (uint64 LE)
   # - Bytes 20-27: Next Header Size (uint64 LE)
   # - Bytes 28-31: Next Header CRC32
-  def build_valid_7z_header(next_header_size: 16)
+  def build_valid_7z_header(next_header_size: 16, major_version: 0, minor_version: 4)
     header = String.new(encoding: "BINARY")
 
     # Signature + version
     header << signature
-    header << [0, 4].pack("CC") # Version 0.4
+    header << [major_version, minor_version].pack("CC")
 
     # Placeholder for CRC (4 bytes) - we'll fill this in
     header << [0].pack("V")
@@ -42,12 +45,12 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
     header
   end
 
-  # Build an invalid 7z header (wrong version)
+  # Build an invalid 7z header (invalid CRC - all zeros)
   def build_invalid_version_header
     header = String.new(encoding: "BINARY")
     header << signature
-    header << [0, 0].pack("CC") # Version 0.0 - INVALID
-    header << ([0].pack("V") * 6) # Padding
+    header << [0, 0].pack("CC") # Version 0.0 (valid, but CRC is all zeros)
+    header << ([0].pack("V") * 6) # Padding with all-zero CRC (invalid)
     header
   end
 
@@ -104,46 +107,21 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       end
     end
 
-    it "skips invalid signatures with wrong version (0.0)" do
+    it "skips signatures with invalid CRC and finds valid one" do
       Tempfile.create(["test", ".bin"]) do |f|
-        # Write an invalid signature (version 0.0)
-        invalid_header = build_invalid_version_header
-        f.write(invalid_header)
-
-        # Write a valid signature after some padding
-        f.write("PADDING" * 10)
+        # Write invalid signatures with different CRC issues
+        f.write(build_invalid_version_header) # all-zero CRC
+        f.write("PADDING" * 5)
+        f.write(build_invalid_crc_header)     # wrong CRC value
+        f.write("PADDING" * 5)
 
         # Write valid 7z header
         valid_offset = f.pos
-        header = build_valid_7z_header
-        f.write(header)
+        f.write(build_valid_7z_header)
         f.write("\x00" * 16)
         f.flush
 
         result = Omnizip::Formats::SevenZip.search_embedded(f.path)
-        # Should skip the invalid one and find the valid one
-        expect(result).to eq(valid_offset)
-      end
-    end
-
-    it "skips signatures with invalid CRC" do
-      Tempfile.create(["test", ".bin"]) do |f|
-        # Write an invalid signature (bad CRC)
-        invalid_header = build_invalid_crc_header
-        f.write(invalid_header)
-
-        # Write a valid signature after some padding
-        f.write("PADDING" * 10)
-
-        # Write valid 7z header
-        valid_offset = f.pos
-        header = build_valid_7z_header
-        f.write(header)
-        f.write("\x00" * 16)
-        f.flush
-
-        result = Omnizip::Formats::SevenZip.search_embedded(f.path)
-        # Should skip the invalid one and find the valid one
         expect(result).to eq(valid_offset)
       end
     end
@@ -229,33 +207,45 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       expect(result).to be true
     end
 
-    it "returns false for version 0.0" do
-      header = build_invalid_version_header
-      data = header.ljust(48, "\x00")
-      file_size = data.bytesize
-
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
-                                                                 file_size)
-      expect(result).to be false
+    it "returns false for headers with invalid CRC" do
+      # Test both all-zero CRC and wrong CRC value
+      [build_invalid_version_header, build_invalid_crc_header].each do |header|
+        data = header.ljust(48, "\x00")
+        result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+        expect(result).to be false
+      end
     end
 
     it "returns false for truncated header" do
       header = build_valid_7z_header
-      # Only take first 20 bytes (not enough for 32-byte header)
-      truncated = header.byteslice(0, 20)
+      truncated = header.byteslice(0, 20) # Not enough for 32-byte header
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0,
-                                                                 truncated.bytesize)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0, truncated.bytesize)
       expect(result).to be false
     end
 
-    it "returns false for CRC mismatch" do
-      header = build_invalid_crc_header
-      data = header.ljust(48, "\x00")
+    # Version validation tests - only major version is checked per 7-Zip SDK
+    # See: https://github.com/ip7z/7zip/blob/main/CPP/7zip/Archive/7z/7zIn.cpp#L1591-L1598
+    context "version validation" do
+      it "accepts any minor version when major version is 0" do
+        [0, 3, 4, 5].each do |minor|
+          header = build_valid_7z_header(major_version: 0, minor_version: minor)
+          data = header + ("\x00" * 16)
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
-                                                                 data.bytesize)
-      expect(result).to be false
+          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+          expect(result).to be(true), "expected version 0.#{minor} to be valid"
+        end
+      end
+
+      it "rejects non-zero major version" do
+        [1, 2].each do |major|
+          header = build_valid_7z_header(major_version: major, minor_version: 4)
+          data = header + ("\x00" * 16)
+
+          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+          expect(result).to be(false), "expected version #{major}.4 to be invalid"
+        end
+      end
     end
   end
 end

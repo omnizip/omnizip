@@ -148,11 +148,10 @@ module Omnizip
 
         header_data = data.byteslice(offset, header_size)
 
-        # Check version bytes (offsets 6 and 7) - must be 0.4
+        # Check version byte (offset 6) - only major version is validated per 7-Zip SDK
+        # See: https://github.com/ip7z/7zip/blob/main/CPP/7zip/Archive/7z/7zIn.cpp#L1591-L1598
         major_version = header_data.getbyte(6)
-        minor_version = header_data.getbyte(7)
-        return false unless major_version == Constants::MAJOR_VERSION &&
-                            minor_version == Constants::MINOR_VERSION
+        return false unless major_version == Constants::MAJOR_VERSION
 
         # Parse Start Header fields (bytes 12-31)
         next_header_data = header_data.byteslice(12, 20)
