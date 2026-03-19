@@ -58,12 +58,27 @@ module Omnizip
               buf.getbyte(buf_pos + 1) != buf.getbyte(buf_back_index + 1)
 
             # The first two bytes matched. Calculate the length of the match.
+            # Use 64-bit integer comparison for speed (no string allocation)
+            max_match_len = [
+              buf.bytesize - buf_pos,
+              buf.bytesize - buf_back_index,
+              MATCH_LEN_MAX,
+              buf_avail,
+            ].min
+
             len = 2
-            while (buf_pos + len < buf.bytesize) &&
-                (buf_back_index + len < buf.bytesize) &&
-                (buf.getbyte(buf_pos + len) == buf.getbyte(buf_back_index + len)) &&
-                (len < MATCH_LEN_MAX) &&
-                (len < buf_avail)
+            # Compare 8 bytes at a time using 64-bit integers
+            while len + 8 <= max_match_len
+              # Read 8 bytes as little-endian 64-bit integers
+              v1 = buf.byteslice(buf_pos + len, 8).unpack1("Q<")
+              v2 = buf.byteslice(buf_back_index + len, 8).unpack1("Q<")
+              break if v1 != v2
+
+              len += 8
+            end
+            # Finalize with byte-by-byte for remaining bytes
+            while len < max_match_len &&
+                buf.getbyte(buf_pos + len) == buf.getbyte(buf_back_index + len)
               len += 1
             end
 

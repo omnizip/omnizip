@@ -28,13 +28,19 @@ module Omnizip
       class MatchFinder
         HASH_SIZE = 4096
         MAX_MATCHES = 274
+        # Maximum hash chain depth to prevent O(n) lookups
+        # XZ Utils uses different values based on compression level (4-256)
+        # Ruby needs much lower values due to slower string operations
+        # 32 is a good balance between compression ratio and speed in Ruby
+        DEFAULT_CHAIN_DEPTH = 32
 
         attr_reader :dictionary, :buffer, :position
 
-        def initialize(dictionary)
+        def initialize(dictionary, chain_depth: DEFAULT_CHAIN_DEPTH)
           @dictionary = dictionary
           @buffer = String.new(encoding: Encoding::BINARY)
           @position = 0
+          @chain_depth = chain_depth
           # Use nil as empty marker (not 0) to distinguish from position 0
           @hash_table = Array.new(HASH_SIZE, nil)
           @hash_chain = Array.new(0)
@@ -114,8 +120,10 @@ module Omnizip
 
           @matches_count = 0
           chain_pos = @hash_chain[current_pos]
+          chain_depth = 0
 
-          while chain_pos && @matches_count < MAX_MATCHES
+          while chain_pos && @matches_count < MAX_MATCHES && chain_depth < @chain_depth
+            chain_depth += 1
             # CRITICAL: Skip invalid chain_pos values (beyond buffer or negative)
             next if chain_pos >= @buffer.bytesize || chain_pos.negative?
 
@@ -182,20 +190,34 @@ module Omnizip
         end
 
         # Verify match length between two positions
+        # Optimized to compare chunks instead of byte-by-byte
         #
         # @param pos1 [Integer] First position
         # @param pos2 [Integer] Second position
         # @return [Integer] Match length
         def verify_match(pos1, pos2)
           max_len = [273, @buffer.bytesize - pos1, @buffer.bytesize - pos2].min
-          length = 0
+          return 0 if max_len <= 0
 
-          while length < max_len &&
-              @buffer.getbyte(pos1 + length) == @buffer.getbyte(pos2 + length)
-            length += 1
+          # Quick check: compare first 8 bytes as integers for fast rejection
+          # This avoids string allocation for most non-matches
+          return 0 if max_len >= 8 && @buffer[pos1, 8] != @buffer[pos2, 8]
+
+          # Binary search for the match length using chunk comparison
+          # This is O(log n) string comparisons instead of O(n) byte comparisons
+          low = 0
+          high = max_len
+
+          while low < high
+            mid = (low + high + 1) / 2
+            if @buffer[pos1, mid] == @buffer[pos2, mid]
+              low = mid
+            else
+              high = mid - 1
+            end
           end
 
-          length
+          low
         end
       end
     end
