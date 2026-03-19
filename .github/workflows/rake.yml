@@ -18,5 +18,8 @@ jobs:
         if [ "$RUNNER_OS" = "Linux" ]; then
           sudo apt-get update && sudo apt-get install -y unrar 7zip
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          brew install unrar sevenzip
+          brew install rar 7-zip
+        elif [ "$RUNNER_OS" = "Windows" ]; then
+          choco install 7zip winrar
         fi
+      shell: bash
