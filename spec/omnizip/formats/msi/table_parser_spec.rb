@@ -7,8 +7,36 @@ RSpec.describe Omnizip::Formats::Msi::TableParser do
   let(:msi_path) { "#{fixtures_dir}/putty-0.68-installer.msi" }
 
   let(:ole) { Omnizip::Formats::Ole::Storage.open(msi_path) }
-  let(:string_pool) { Omnizip::Formats::Msi::StringPool.new(ole) }
-  let(:parser) { described_class.new(ole, string_pool) }
+  let(:stream_name_map) do
+    map = {}
+    ole.root.children.each do |child|
+      encoded_name = child.name
+      decoded_name = Omnizip::Formats::Msi::Constants.decode_stream_name(encoded_name)
+      map[decoded_name] = encoded_name
+    end
+    map
+  end
+  let(:stream_reader) do
+    lambda do |base_name|
+      # Try decoded name from map first
+      if stream_name_map.key?(base_name)
+        data = ole.read(stream_name_map[base_name]) rescue nil
+        return data if data && !data.empty?
+      end
+
+      # Try various encodings
+      utf16le = base_name.encode("UTF-16LE")
+      [1, 5].each do |prefix|
+        encoded = "#{prefix.chr.b}".b << utf16le.b
+        data = ole.read(encoded) rescue nil
+        return data if data && !data.empty?
+      end
+
+      ole.read(base_name) rescue nil
+    end
+  end
+  let(:string_pool) { Omnizip::Formats::Msi::StringPool.new(ole, stream_reader) }
+  let(:parser) { described_class.new(string_pool, stream_reader) }
 
   after do
     ole.close
@@ -95,7 +123,7 @@ RSpec.describe Omnizip::Formats::Msi::TableParser do
       col = cols.first
       expect(col).to have_key(:name)
       expect(col).to have_key(:type)
-      expect(col).to have_key(:size)
+      expect(col).to have_key(:width)
     end
   end
 

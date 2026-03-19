@@ -13,3 +13,10 @@ on:
 jobs:
   rake:
     uses: metanorma/ci/.github/workflows/generic-rake.yml@main
+    with:
+      before-setup-ruby: |
+        if [ "$RUNNER_OS" = "Linux" ]; then
+          sudo apt-get update && sudo apt-get install -y unrar 7zip
+        elif [ "$RUNNER_OS" = "macOS" ]; then
+          brew install unrar sevenzip
+        fi

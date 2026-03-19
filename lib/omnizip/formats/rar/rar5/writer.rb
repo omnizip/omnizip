@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "omnizip/parity/par2_creator"
+require "omnizip/formats/rar/rar5/header"
 
 module Omnizip
   module Formats

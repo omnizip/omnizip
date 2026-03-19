@@ -175,8 +175,8 @@ module Omnizip
 
         # Close storage
         def close
-          free
           flush if @writeable
+          free
           @io.close if @close_parent
         end
 

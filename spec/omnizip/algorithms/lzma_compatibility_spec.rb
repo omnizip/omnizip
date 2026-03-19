@@ -86,9 +86,9 @@ RSpec.describe "LZMA Official Tool Compatibility" do
 
   describe "7z utility compatibility" do
     before do
-      # Check if 7z is available
-      _, _, status = Open3.capture3("which 7z")
-      skip "7z utility not installed" unless status.success?
+      # Check if 7zz is available (7-Zip standalone console version)
+      _, _, status = Open3.capture3("which 7zz")
+      skip "7zz utility not installed" unless status.success?
     end
 
     it "produces archives extractable by 7z" do
@@ -101,20 +101,20 @@ RSpec.describe "LZMA Official Tool Compatibility" do
         f.write(compressed.string)
       end
 
-      # Try to extract with 7z
-      stdout, stderr, status = Open3.capture3("7z x -o#{temp_dir} #{lzma_file}")
+      # Try to extract with 7zz
+      stdout, stderr, status = Open3.capture3("7zz x -o#{temp_dir} #{lzma_file}")
 
       if status.success?
-        # 7z extracts to file without .lzma extension
+        # 7zz extracts to file without .lzma extension
         extracted_file = File.join(temp_dir, "test")
         expect(File.exist?(extracted_file)).to be true
         expect(File.read(extracted_file)).to eq(test_data)
       else
-        puts "\n7z extraction failed:"
+        puts "\n7zz extraction failed:"
         puts "STDOUT: #{stdout}"
         puts "STDERR: #{stderr}"
 
-        skip "7z compatibility not yet implemented (expected)"
+        skip "7zz compatibility not yet implemented (expected)"
       end
     end
 
@@ -123,10 +123,10 @@ RSpec.describe "LZMA Official Tool Compatibility" do
       source_file = File.join(temp_dir, "source.txt")
       File.write(source_file, test_data)
 
-      # Create .7z archive with 7z CLI (uses LZMA by default)
+      # Create .7z archive with 7zz CLI (uses LZMA by default)
       seven_z_file = File.join(temp_dir, "test.7z")
       _, stderr, status = Open3.capture3(
-        "7z a -t7z #{seven_z_file} #{source_file} 2>&1",
+        "7zz a -t7z #{seven_z_file} #{source_file} 2>&1",
       )
 
       unless status.success?
@@ -163,20 +163,20 @@ RSpec.describe "LZMA Official Tool Compatibility" do
         f.write(compressed.string)
       end
 
-      # Try to extract with 7z (it can decode raw LZMA files)
-      stdout, stderr, status = Open3.capture3("7z x -o#{temp_dir} -y #{lzma_file}")
+      # Try to extract with 7zz (it can decode raw LZMA files)
+      stdout, stderr, status = Open3.capture3("7zz x -o#{temp_dir} -y #{lzma_file}")
 
       if status.success?
-        # 7z extracts to file without .lzma extension
+        # 7zz extracts to file without .lzma extension
         extracted_file = File.join(temp_dir, "test")
         expect(File.exist?(extracted_file)).to be true
         expect(File.read(extracted_file)).to eq(test_data)
       else
-        puts "\n7z extraction failed:"
+        puts "\n7zz extraction failed:"
         puts "STDOUT: #{stdout}"
         puts "STDERR: #{stderr}"
 
-        skip "7z raw LZMA compatibility not yet implemented (expected)"
+        skip "7zz raw LZMA compatibility not yet implemented (expected)"
       end
     end
   end

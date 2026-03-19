@@ -229,61 +229,58 @@ module Omnizip
         end
 
         # Extract files from cabinets to output directory
+        # Maps cabinet file names to proper MSI file paths
         #
         # @param cabinets [Hash] Cabinet info from CabExtractor
         # @param output_dir [String] Output directory
         # @return [Array<String>] Extracted file paths
         def extract_from_cabinets(cabinets, output_dir)
+          require "cabriolet"
+
           extracted_files = []
+          decompressor = Cabriolet::CAB::Decompressor.new
 
-          # Get all file entries sorted by sequence
-          file_entries = files.sort_by(&:sequence)
+          # Build file key to entry mapping
+          file_key_map = {}
+          files.each do |entry|
+            file_key_map[entry.file_key] = entry
+          end
 
-          file_entries.each do |entry|
-            # Find the cabinet containing this file
-            cab_info = @cab_extractor.find_cabinet_for_sequence(entry.sequence, cabinets)
-            next unless cab_info
+          # Process each cabinet
+          cabinets.each_value do |cab_info|
+            next unless cab_info[:path] && File.exist?(cab_info[:path])
 
-            # Extract file from cabinet
-            extracted_path = extract_file_from_cab(entry, cab_info[:path], output_dir)
-            extracted_files << extracted_path if extracted_path
+            # Extract to temp directory first
+            Dir.mktmpdir("msi_cab_extract") do |temp_dir|
+              cabinet = decompressor.open(cab_info[:path])
+              decompressor.extract_all(cabinet, temp_dir)
+
+              # Rename extracted files to proper paths
+              Dir.glob("#{temp_dir}/**/*").each do |temp_file|
+                next unless File.file?(temp_file)
+
+                # Get the base name (cabinet internal name)
+                cab_name = File.basename(temp_file)
+
+                # Look up the entry by file key
+                entry = file_key_map[cab_name]
+                if entry
+                  # Use the proper path from the entry
+                  target_path = File.join(output_dir, entry.path)
+                else
+                  # Fallback: use cabinet name in output dir
+                  target_path = File.join(output_dir, cab_name)
+                end
+
+                # Create target directory and move file
+                FileUtils.mkdir_p(File.dirname(target_path))
+                FileUtils.mv(temp_file, target_path)
+                extracted_files << target_path
+              end
+            end
           end
 
           extracted_files
-        end
-
-        # Extract a single file from cabinet
-        #
-        # @param entry [Entry] File entry
-        # @param cab_path [String] Path to cabinet file
-        # @param output_dir [String] Output directory
-        # @return [String, nil] Extracted file path or nil
-        def extract_file_from_cab(entry, cab_path, output_dir)
-          return nil unless cab_path && File.exist?(cab_path)
-
-          require "cabriolet"
-
-          decompressor = Cabriolet::CAB::Decompressor.new
-          cabinet = decompressor.open(cab_path)
-
-          target_path = File.join(output_dir, entry.path)
-          target_dir = File.dirname(target_path)
-
-          FileUtils.mkdir_p(target_dir)
-
-          # Find the file in the cabinet by file_key (MSI stores files by key, not name)
-          cab_file = cabinet.files.find do |f|
-            f.filename == entry.file_key
-          end
-
-          if cab_file
-            decompressor.extract_file(cab_file, target_path)
-            return target_path
-          end
-
-          nil
-        rescue StandardError
-          nil
         end
 
         # Clean up temporary cabinet files
