@@ -18,7 +18,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
   # - Bytes 12-19: Next Header Offset (uint64 LE)
   # - Bytes 20-27: Next Header Size (uint64 LE)
   # - Bytes 28-31: Next Header CRC32
-  def build_valid_7z_header(next_header_size: 16, major_version: 0, minor_version: 4)
+  def build_valid_7z_header(next_header_size: 16, major_version: 0,
+minor_version: 4)
     header = String.new(encoding: "BINARY")
 
     # Signature + version
@@ -211,7 +212,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       # Test both all-zero CRC and wrong CRC value
       [build_invalid_version_header, build_invalid_crc_header].each do |header|
         data = header.ljust(48, "\x00")
-        result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+        result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                   data.bytesize)
         expect(result).to be false
       end
     end
@@ -220,7 +222,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
       header = build_valid_7z_header
       truncated = header.byteslice(0, 20) # Not enough for 32-byte header
 
-      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0, truncated.bytesize)
+      result = Omnizip::Formats::SevenZip.valid_7z_start_header?(truncated, 0,
+                                                                 truncated.bytesize)
       expect(result).to be false
     end
 
@@ -232,7 +235,8 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
           header = build_valid_7z_header(major_version: 0, minor_version: minor)
           data = header + ("\x00" * 16)
 
-          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
+          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                     data.bytesize)
           expect(result).to be(true), "expected version 0.#{minor} to be valid"
         end
       end
@@ -242,8 +246,10 @@ RSpec.describe "Omnizip::Formats::SevenZip.search_embedded" do
           header = build_valid_7z_header(major_version: major, minor_version: 4)
           data = header + ("\x00" * 16)
 
-          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0, data.bytesize)
-          expect(result).to be(false), "expected version #{major}.4 to be invalid"
+          result = Omnizip::Formats::SevenZip.valid_7z_start_header?(data, 0,
+                                                                     data.bytesize)
+          expect(result).to be(false),
+                            "expected version #{major}.4 to be invalid"
         end
       end
     end
