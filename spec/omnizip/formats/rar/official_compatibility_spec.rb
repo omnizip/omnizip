@@ -16,8 +16,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
   after { FileUtils.rm_rf(temp_dir) }
 
   describe "Reading official RAR archives" do
-    # These tests require fixture files that may not exist
-    # Skip only if fixtures are missing, but DO NOT skip if unrar is missing
     before(:each) do
       skip "Official RAR fixtures not found at spec/fixtures/rar/official/" unless Dir.exist?(RAR_FIXTURES_DIR)
     end
@@ -132,7 +130,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
   end
 
   describe "Official tools reading Omnizip archives" do
-    # These tests DO NOT skip for missing unrar - unrar is required
     it "creates STORE archive readable by official unrar" do
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"

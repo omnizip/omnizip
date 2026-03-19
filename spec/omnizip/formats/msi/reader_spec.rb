@@ -88,8 +88,8 @@ RSpec.describe Omnizip::Formats::Msi::Reader do
 
         expect(files).to be_an(Array)
         expect(files.size).to be > 0
-        expect(files.first).to be_a(String)
-        expect(files.first).to include("SourceDir")
+        expect(files.first).to be_a(Omnizip::Formats::Msi::Entry)
+        expect(files.first.path).to include("SourceDir")
       ensure
         reader.close
       end
