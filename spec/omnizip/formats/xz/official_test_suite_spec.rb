@@ -50,23 +50,14 @@ RSpec.describe "XZ Official Test Suite" do
           xz.add_data(data)
         end
 
-        # Verify with xz -dc
-        output = `xz -dc test_output.xz 2>&1`
+        # Verify with xz -dc (use binary-mode pipe for Windows)
+        output = IO.popen("xz -dc test_output.xz", "rb", &:read)
         exit_code = $?.exitstatus
 
         if exit_code != 0
-          # Dump hex for debugging
-          hex = `xxd test_output.xz | head -20`.strip
           puts "\n=== Test: #{name} ==="
           puts "Expected: #{data.inspect}"
           puts "XZ error: #{output}"
-          puts "\nFirst 20 lines of hex:\n#{hex}"
-
-          # Compare with reference
-          if File.exist?(File.join(FIXTURES_DIR, "good-1-check-crc64.xz"))
-            ref_hex = `xxd #{FIXTURES_DIR}/good-1-check-crc64.xz | head -20`.strip
-            puts "\nReference file hex:\n#{ref_hex}"
-          end
         end
 
         expect(exit_code).to eq(0), "xz -dc failed with: #{output}"

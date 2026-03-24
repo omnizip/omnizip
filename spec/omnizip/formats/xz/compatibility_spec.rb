@@ -68,7 +68,8 @@ RSpec.describe "XZ Format Compatibility" do
         xz.add_data(data)
       end
 
-      output = `xz -dc test.xz 2>&1`
+      # Use binary-mode pipe to avoid Windows CRLF conversion
+      output = IO.popen("xz -dc test.xz", "rb", &:read)
       expect($?.success?).to be true
       expect(output.bytes).to eq(data.bytes)
     end

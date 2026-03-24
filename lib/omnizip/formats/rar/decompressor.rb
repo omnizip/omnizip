@@ -114,9 +114,45 @@ module Omnizip
           #
           # @return [String, nil] Command path or nil
           def find_command
-            ["unrar", "/usr/bin/unrar", "/usr/local/bin/unrar"].each do |cmd|
-              return cmd if system("which #{cmd} > /dev/null 2>&1")
+            if Gem.win_platform?
+              find_command_windows
+            else
+              find_command_unix
             end
+          end
+
+          # Find unrar command on Unix
+          #
+          # @return [String, nil] Command path or nil
+          def find_command_unix
+            ["unrar", "/usr/bin/unrar", "/usr/local/bin/unrar"].each do |cmd|
+              return cmd if system("which #{cmd} > #{File::NULL} 2>&1")
+            end
+            nil
+          end
+
+          # Find unrar command on Windows
+          #
+          # @return [String, nil] Command path or nil
+          def find_command_windows
+            # Check for unrar in PATH
+            ["UnRAR.exe", "unrar.exe"].each do |cmd|
+              return cmd if system("where #{cmd} > #{File::NULL} 2>&1")
+            end
+
+            # Check common WinRAR install locations
+            [
+              File.join(ENV.fetch("ProgramFiles", 'C:\Program Files'),
+                        "WinRAR", "UnRAR.exe"),
+              File.join(
+                ENV.fetch("ProgramFiles(x86)",
+                          'C:\Program Files (x86)'),
+                "WinRAR", "UnRAR.exe"
+              ),
+            ].each do |path|
+              return "\"#{path}\"" if File.exist?(path)
+            end
+
             nil
           end
 
