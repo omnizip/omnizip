@@ -57,7 +57,8 @@ module Omnizip
           @table_parser = TableParser.new(@string_pool, method(:read_stream))
           @directory_resolver = DirectoryResolver.new(@table_parser.table(DIRECTORY_TABLE))
           build_component_dirs
-          @cab_extractor = CabExtractor.new(@ole, @table_parser.table(MEDIA_TABLE), @path, method(:read_stream))
+          @cab_extractor = CabExtractor.new(@ole,
+                                            @table_parser.table(MEDIA_TABLE), @path, method(:read_stream))
           self
         end
 
@@ -71,7 +72,7 @@ module Omnizip
         #
         # @return [Array<Entry>] File entries
         def files
-          @entries ||= build_entries
+          @files ||= build_entries
         end
 
         # Alias for files
@@ -137,7 +138,7 @@ module Omnizip
         # @return [String, nil] Stream content or nil
         def read_stream(base_name)
           # Try encoded name from the map first
-          if @stream_name_map && @stream_name_map.key?(base_name)
+          if @stream_name_map&.key?(base_name)
             encoded = @stream_name_map[base_name]
             data = try_read_stream(encoded)
             return data if data && !data.empty?
@@ -165,7 +166,7 @@ module Omnizip
           # MSI uses \x01 or \x05 prefix followed by UTF-16LE encoded name
           utf16le = base_name.encode("UTF-16LE")
           [1, 5].each do |prefix|
-            candidates << "#{prefix.chr.b}".b << utf16le.b
+            candidates << prefix.chr.b.to_s.b << utf16le.b
           end
 
           # Try plain ASCII name
@@ -264,13 +265,13 @@ module Omnizip
 
                 # Look up the entry by file key
                 entry = file_key_map[cab_name]
-                if entry
-                  # Use the proper path from the entry
-                  target_path = File.join(output_dir, entry.path)
-                else
-                  # Fallback: use cabinet name in output dir
-                  target_path = File.join(output_dir, cab_name)
-                end
+                target_path = if entry
+                                # Use the proper path from the entry
+                                File.join(output_dir, entry.path)
+                              else
+                                # Fallback: use cabinet name in output dir
+                                File.join(output_dir, cab_name)
+                              end
 
                 # Create target directory and move file
                 FileUtils.mkdir_p(File.dirname(target_path))

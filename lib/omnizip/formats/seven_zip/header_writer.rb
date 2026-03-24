@@ -61,67 +61,29 @@ module Omnizip
         def write_number(value)
           return [value].pack("C") if value < 0x80
 
-          # Determine how many bytes needed and encode accordingly
-          if value < 0x4000 # 14-bit: 2 bytes
-            first_byte = 0x80 | (value >> 8)
-            second_byte = value & 0xFF
-            [first_byte, second_byte].pack("C*")
-          elsif value < 0x200000 # 21-bit: 3 bytes
-            first_byte = 0xC0 | (value >> 16)
-            second_byte = (value >> 8) & 0xFF
-            third_byte = value & 0xFF
-            [first_byte, second_byte, third_byte].pack("C*")
-          elsif value < 0x10000000 # 28-bit: 4 bytes
-            first_byte = 0xE0 | (value >> 24)
-            [
-              first_byte,
-              (value >> 16) & 0xFF,
-              (value >> 8) & 0xFF,
-              value & 0xFF,
-            ].pack("C*")
-          elsif value < 0x800000000 # 35-bit: 5 bytes
-            first_byte = 0xF0 | (value >> 32)
-            [
-              first_byte,
-              (value >> 24) & 0xFF,
-              (value >> 16) & 0xFF,
-              (value >> 8) & 0xFF,
-              value & 0xFF,
-            ].pack("C*")
-          elsif value < 0x40000000000 # 42-bit: 6 bytes
-            first_byte = 0xF8 | (value >> 40)
-            [
-              first_byte,
-              (value >> 32) & 0xFF,
-              (value >> 24) & 0xFF,
-              (value >> 16) & 0xFF,
-              (value >> 8) & 0xFF,
-              value & 0xFF,
-            ].pack("C*")
-          elsif value < 0x2000000000000 # 49-bit: 7 bytes
-            first_byte = 0xFC | (value >> 48)
-            [
-              first_byte,
-              (value >> 40) & 0xFF,
-              (value >> 32) & 0xFF,
-              (value >> 24) & 0xFF,
-              (value >> 16) & 0xFF,
-              (value >> 8) & 0xFF,
-              value & 0xFF,
-            ].pack("C*")
-          else # 56-bit: 8 bytes
-            first_byte = 0xFE | (value >> 56)
-            [
-              first_byte,
-              (value >> 48) & 0xFF,
-              (value >> 40) & 0xFF,
-              (value >> 32) & 0xFF,
-              (value >> 24) & 0xFF,
-              (value >> 16) & 0xFF,
-              (value >> 8) & 0xFF,
-              value & 0xFF,
-            ].pack("C*")
+          # 7-Zip VLI encoding: extra bytes are little-endian per SDK ReadNumberSpec().
+          # Reference: https://py7zr.readthedocs.io/en/latest/archive_format.html
+          result = String.new(encoding: "BINARY")
+
+          # Determine how many extra bytes are needed
+          thresholds = [0x80, 0x4000, 0x20_0000, 0x1000_0000,
+                        0x8_0000_0000, 0x400_0000_0000,
+                        0x2_0000_0000_0000, 0x100_0000_0000_0000]
+          num_extra = thresholds.index { |t| value < t } || 8
+
+          # Build first byte: num_extra leading 1-bits, then 0-bit, then data bits
+          first_byte = 0
+          num_extra.times { |i| first_byte |= (0x80 >> i) }
+          data_bits_shift = 8 * num_extra
+          first_byte |= (value >> data_bits_shift) & ((0x80 >> num_extra) - 1)
+          result << [first_byte].pack("C")
+
+          # Extra bytes in little-endian order (low byte first)
+          num_extra.times do |i|
+            result << [(value >> (8 * i)) & 0xFF].pack("C")
           end
+
+          result
         end
 
         # Write bit vector

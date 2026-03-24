@@ -107,12 +107,72 @@ module Omnizip
 
       # Search for embedded .7z archive in self-extracting executable
       #
+      # Scans the file for 7z signatures and validates each candidate by
+      # checking the Start Header (version bytes, CRC, and header field
+      # sanity). Returns the offset of the first valid embedded archive.
+      #
       # @param path [String] Path to potential self-extracting archive
       # @return [Integer, nil] Offset of embedded 7z signature, or nil if not found
       def self.search_embedded(path)
         data = File.binread(path)
+        file_size = data.bytesize
         signature = Constants::SIGNATURE
-        data.index(signature)
+        pos = 0
+
+        while (offset = data.index(signature, pos))
+          if valid_7z_start_header?(data, offset, file_size)
+            return offset
+          end
+
+          pos = offset + 1
+        end
+
+        nil
+      end
+
+      # Validate a candidate 7z Start Header at the given offset.
+      #
+      # Checks:
+      # 1. Enough bytes remain for a full 32-byte Start Header
+      # 2. Major version is 0 and minor version is 4 (only supported version)
+      # 3. Next Header offset + size points within (or at the end of) the file
+      # 4. Start Header CRC matches the header content
+      #
+      # @param data [String] File data
+      # @param offset [Integer] Offset of the 7z signature
+      # @param file_size [Integer] Total file size
+      # @return [Boolean] true if the header looks valid
+      def self.valid_7z_start_header?(data, offset, file_size)
+        header_size = Constants::START_HEADER_SIZE # 32
+        return false if offset + header_size > file_size
+
+        header_data = data.byteslice(offset, header_size)
+
+        # Check version byte (offset 6) - only major version is validated per 7-Zip SDK
+        # See: https://github.com/ip7z/7zip/blob/main/CPP/7zip/Archive/7z/7zIn.cpp#L1591-L1598
+        major_version = header_data.getbyte(6)
+        return false unless major_version == Constants::MAJOR_VERSION
+
+        # Parse Start Header fields (bytes 12-31)
+        next_header_data = header_data.byteslice(12, 20)
+        next_header_offset = next_header_data.unpack1("Q<")
+        next_header_size = next_header_data.byteslice(8, 8).unpack1("Q<")
+
+        # next_header_offset is relative to end of Start Header
+        header_end = offset + header_size + next_header_offset + next_header_size
+        return false if header_end > file_size
+        return false if next_header_size.zero? || next_header_size > file_size
+
+        # Validate Start Header CRC (bytes 8-11) over next_header_data (bytes 12-31)
+        stored_crc = header_data.byteslice(8, 4).unpack1("V")
+        computed_crc = Omnizip::Checksums::Crc32.new.tap do |c|
+          c.update(next_header_data)
+        end.finalize
+        return false unless stored_crc == computed_crc
+
+        true
+      rescue StandardError
+        false
       end
 
       # Auto-register .7z format when loaded

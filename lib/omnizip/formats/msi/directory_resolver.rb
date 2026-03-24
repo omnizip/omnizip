@@ -139,7 +139,10 @@ module Omnizip
         # @param default_dir [String] DefaultDir value
         # @return [Hash] {source:, target:}
         def parse_default_dir(default_dir)
-          return { source: "", target: "" } if default_dir.nil? || default_dir.empty?
+          if default_dir.nil? || default_dir.empty?
+            return { source: "",
+                     target: "" }
+          end
 
           # Check for source|target format
           if default_dir.include?("|")

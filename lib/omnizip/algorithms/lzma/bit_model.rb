@@ -37,7 +37,7 @@ module Omnizip
         MAX_PROB = 1 << 11 # 4096
         BIT_MODEL_TOTAL = 0x800 # XZ Utils RC_BIT_MODEL_TOTAL = 2048
 
-        attr_reader :probability
+        attr_accessor :probability
 
         # Initialize a new bit probability model
         #

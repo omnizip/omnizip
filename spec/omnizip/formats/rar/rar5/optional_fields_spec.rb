@@ -9,6 +9,8 @@ require "stringio"
 RSpec.describe "RAR5 Optional File Fields" do
   describe "mtime (modification time)" do
     it "includes mtime when mtime parameter is provided" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content with mtime")
         file.flush
@@ -25,7 +27,7 @@ RSpec.describe "RAR5 Optional File Fields" do
           # Verify archive can be extracted
           output_dir = Dir.mktmpdir
           begin
-            result = system("unrar", "x", "-y", output.path, output_dir,
+            result = system(unrar_command, "x", "-y", output.path, output_dir,
                             out: File::NULL, err: File::NULL)
             expect(result).to be true
 
@@ -41,6 +43,8 @@ RSpec.describe "RAR5 Optional File Fields" do
     end
 
     it "preserves mtime from original file" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content")
         file.flush
@@ -61,7 +65,7 @@ RSpec.describe "RAR5 Optional File Fields" do
           # Extract and verify mtime (allow 1 second tolerance for precision loss)
           output_dir = Dir.mktmpdir
           begin
-            result = system("unrar", "x", "-y", output.path, output_dir,
+            result = system(unrar_command, "x", "-y", output.path, output_dir,
                             out: File::NULL, err: File::NULL)
             expect(result).to be true
 
@@ -81,6 +85,8 @@ RSpec.describe "RAR5 Optional File Fields" do
 
   describe "CRC32 checksum" do
     it "includes CRC32 when crc32 parameter is provided" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content with CRC32")
         file.flush
@@ -95,14 +101,16 @@ RSpec.describe "RAR5 Optional File Fields" do
           writer.write
 
           # Verify archive integrity
-          result = system("unrar", "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+          result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
     end
 
     it "verifies CRC32 during extraction with STORE compression" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content for CRC verification")
         file.flush
@@ -119,7 +127,7 @@ RSpec.describe "RAR5 Optional File Fields" do
           # Extract and verify
           output_dir = Dir.mktmpdir
           begin
-            result = system("unrar", "x", "-y", output.path, output_dir,
+            result = system(unrar_command, "x", "-y", output.path, output_dir,
                             out: File::NULL, err: File::NULL)
             expect(result).to be true
 
@@ -135,6 +143,8 @@ RSpec.describe "RAR5 Optional File Fields" do
 
   describe "combined optional fields" do
     it "includes both mtime and CRC32 when both are enabled with STORE" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content with both fields")
         file.flush
@@ -153,12 +163,12 @@ RSpec.describe "RAR5 Optional File Fields" do
           writer.write
 
           # Test integrity and extraction
-          expect(system("unrar", "t", "-y", output.path, out: File::NULL,
-                                                         err: File::NULL)).to be true
+          expect(system(unrar_command, "t", "-y", output.path, out: File::NULL,
+                                                               err: File::NULL)).to be true
 
           output_dir = Dir.mktmpdir
           begin
-            expect(system("unrar", "x", "-y", output.path, output_dir,
+            expect(system(unrar_command, "x", "-y", output.path, output_dir,
                           out: File::NULL, err: File::NULL)).to be true
 
             extracted_file = File.join(output_dir, File.basename(file.path))
@@ -173,6 +183,8 @@ RSpec.describe "RAR5 Optional File Fields" do
     end
 
     it "auto-disables CRC32 with LZMA compression (RAR5 limitation)" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test data for LZMA with CRC32")
         file.flush
@@ -189,14 +201,16 @@ RSpec.describe "RAR5 Optional File Fields" do
           writer.write
 
           # Should pass unrar test (CRC32 was auto-disabled)
-          result = system("unrar", "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+          result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
     end
 
     it "allows mtime with LZMA compression" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test mtime with LZMA")
         file.flush
@@ -215,14 +229,16 @@ RSpec.describe "RAR5 Optional File Fields" do
           writer.write
 
           # Verify archive format is valid
-          result = system("unrar", "t", "-y", output.path, out: File::NULL,
-                                                           err: File::NULL)
+          result = system(unrar_command, "t", "-y", output.path, out: File::NULL,
+                                                                 err: File::NULL)
           expect(result).to be true
         end
       end
     end
 
     it "works with default options (no optional fields)" do
+      skip "unrar command not available" unless unrar_available?
+
       Tempfile.create(["test", ".txt"]) do |file|
         file.write("Test content without optional fields")
         file.flush
@@ -234,8 +250,8 @@ RSpec.describe "RAR5 Optional File Fields" do
           writer.write
 
           # Should still work fine
-          expect(system("unrar", "t", "-y", output.path, out: File::NULL,
-                                                         err: File::NULL)).to be true
+          expect(system(unrar_command, "t", "-y", output.path, out: File::NULL,
+                                                               err: File::NULL)).to be true
         end
       end
     end

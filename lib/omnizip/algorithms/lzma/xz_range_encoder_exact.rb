@@ -128,7 +128,6 @@ module Omnizip
 
         # Queue flush operation (matches XZ Utils rc_flush)
         def flush
-          puts "[FLUSH] Adding 5 RC_FLUSH symbols, @count before=#{@count}" if ENV["DEBUG"]
           5.times do
             raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
@@ -136,7 +135,6 @@ module Omnizip
             @probs[@count] = nil
             @count += 1
           end
-          puts "[FLUSH] @count after=#{@count}" if ENV["DEBUG"]
         end
         alias queue_flush flush
 
@@ -162,8 +160,6 @@ module Omnizip
         # @return [Boolean] True if output buffer filled before encoding complete
         def encode(out, out_pos, out_size)
           raise "Symbol buffer overflow" if @count > RC_SYMBOLS_MAX
-
-          puts "[ENCODE] Start: @count=#{@count} @pos=#{@pos} @out_total=#{@out_total}" if ENV["DEBUG"]
 
           skip_increment = false
 
@@ -206,19 +202,10 @@ module Omnizip
               # Prevent further normalizations (XZ Utils behavior)
               @range = 0xFFFFFFFF
 
-              puts "[ENCODE] RC_FLUSH: @pos=#{@pos} @count=#{@count}" if ENV["DEBUG"]
-
-              iteration = 0
               # Flush the last five bytes (see rc_flush)
               begin
-                iteration += 1
-                puts "[ENCODE] RC_FLUSH iteration #{iteration}: @pos=#{@pos}" if ENV["DEBUG"]
                 return true if shift_low(out, out_pos, out_size)
-
-                puts "[ENCODE] After shift_low: @pos=#{@pos}" if ENV["DEBUG"]
               end while (@pos += 1) < @count
-
-              puts "[ENCODE] After RC_FLUSH loop: total #{iteration} iterations" if ENV["DEBUG"]
 
               # Reset the range encoder (matches XZ Utils)
               reset
@@ -232,8 +219,6 @@ module Omnizip
 
             @pos += 1 unless skip_increment
           end
-
-          puts "[ENCODE] End: @count=#{@count} @pos=#{@pos} @out_total=#{@out_total}" if ENV["DEBUG"]
 
           @count = 0
           @pos = 0

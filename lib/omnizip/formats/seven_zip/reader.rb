@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "set"
 
 module Omnizip
   module Formats
@@ -25,6 +26,8 @@ module Omnizip
           @split_reader = nil
           @password = options[:password]
           @offset = options[:offset] || 0
+          @solid_cache = {}
+          @solid_cache_extracted = {}
         end
 
         # Open and parse .7z archive
@@ -80,7 +83,7 @@ module Omnizip
         #
         # @return [Array<Models::FileEntry>] File entries
         def list_files
-          @entries
+          @entries.reject { |e| e.name.nil? || e.name.empty? }
         end
 
         # Extract file to output path
@@ -131,10 +134,23 @@ module Omnizip
         def extract_all(output_dir)
           FileUtils.mkdir_p(output_dir)
 
+          real_out = File.realpath(output_dir)
+
           @entries.each do |entry|
-            output_path = File.join(output_dir, entry.name)
+            next if entry.name.nil? || entry.name.empty?
+
+            output_path = File.join(real_out, entry.name)
+            expanded = File.expand_path(output_path)
+            unless expanded.start_with?("#{real_out}#{File::SEPARATOR}") || expanded == real_out
+              raise Omnizip::FormatError,
+                    "Path traversal detected: #{entry.name}"
+            end
+
             extract_entry(entry.name, output_path)
           end
+        ensure
+          @solid_cache.clear
+          @solid_cache_extracted.clear
         end
 
         # Check if archive is valid .7z format
@@ -413,17 +429,29 @@ module Omnizip
         # @param pack_idx [Integer] Starting pack index
         # @return [String] Extracted data
         def extract_bcj2_entry(io, entry, folder, pack_pos, pack_idx)
-          # BCJ2 folders have multiple pack streams
-          num_pack_streams = folder.pack_stream_indices.size
-          pack_sizes = Array.new(num_pack_streams) do |i|
-            @stream_info.pack_sizes[pack_idx + i] || 0
-          end
+          # Cache solid block to avoid re-decompressing for every file
+          full_data = @solid_cache[entry.folder_index]
 
-          # Decompress the entire BCJ2 folder
-          decompressor = Bcj2StreamDecompressor.new(
-            io, folder, pack_pos, pack_sizes, @stream_info
-          )
-          full_data = decompressor.decompress(folder.uncompressed_size)
+          unless full_data
+            # BCJ2 folders have multiple pack streams
+            num_pack_streams = folder.pack_stream_indices.size
+            pack_sizes = Array.new(num_pack_streams) do |i|
+              @stream_info.pack_sizes[pack_idx + i] || 0
+            end
+
+            # Decompress the entire BCJ2 folder
+            decompressor = Bcj2StreamDecompressor.new(
+              io, folder, pack_pos, pack_sizes, @stream_info
+            )
+            full_data = decompressor.decompress(folder.uncompressed_size)
+
+            # Cache for other entries in the same folder
+            num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
+            if num_files_in_folder > 1
+              @solid_cache[entry.folder_index] = full_data
+              @solid_cache_extracted[entry.folder_index] = Set.new
+            end
+          end
 
           # For solid archives, extract this file's portion
           num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
@@ -450,6 +478,15 @@ module Omnizip
             end
           end
 
+          # Evict solid cache entry when all files in folder have been extracted
+          if @solid_cache_extracted.key?(entry.folder_index)
+            @solid_cache_extracted[entry.folder_index].add(entry.file_index)
+            if @solid_cache_extracted[entry.folder_index].size >= num_files_in_folder
+              @solid_cache.delete(entry.folder_index)
+              @solid_cache_extracted.delete(entry.folder_index)
+            end
+          end
+
           data
         end
 
@@ -469,11 +506,17 @@ module Omnizip
           num_files_in_folder = @stream_info.num_unpack_streams_in_folders[entry.folder_index] || 1
 
           if num_files_in_folder > 1
-            # Solid archive: decompress entire folder and extract this file's portion
-            total_unpack_size = folder.uncompressed_size
-            decompressor = StreamDecompressor.new(io, folder, pack_pos,
-                                                  pack_size)
-            full_data = decompressor.decompress(total_unpack_size)
+            # Cache solid block to avoid re-decompressing for every file
+            full_data = @solid_cache[entry.folder_index]
+
+            unless full_data
+              total_unpack_size = folder.uncompressed_size
+              decompressor = StreamDecompressor.new(io, folder, pack_pos,
+                                                    pack_size)
+              full_data = decompressor.decompress(total_unpack_size)
+              @solid_cache[entry.folder_index] = full_data
+              @solid_cache_extracted[entry.folder_index] = Set.new
+            end
 
             # Find offset of this file within the uncompressed stream
             file_offset = 0
@@ -492,6 +535,15 @@ module Omnizip
               crc.update(data)
               unless crc.value == entry.crc
                 raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+              end
+            end
+
+            # Evict solid cache entry when all files in folder have been extracted
+            if @solid_cache_extracted.key?(entry.folder_index)
+              @solid_cache_extracted[entry.folder_index].add(entry.file_index)
+              if @solid_cache_extracted[entry.folder_index].size >= num_files_in_folder
+                @solid_cache.delete(entry.folder_index)
+                @solid_cache_extracted.delete(entry.folder_index)
               end
             end
 

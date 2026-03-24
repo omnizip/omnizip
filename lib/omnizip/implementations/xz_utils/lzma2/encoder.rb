@@ -245,11 +245,12 @@ module Omnizip
                 encode_queued_symbols(encoder, output_buffer)
               end
 
-              # Find matches at current position in match finder buffer
+              # Position in match finder's buffer for encoding
+              # Start after the data we just fed
               match_pos = start_pos + pos
-              @match_finder.find_matches(match_pos)
 
               # Get optimal encoding choice
+              # Note: find_optimal calls find_matches internally, no need to call twice
               distance, length = @optimal.find_optimal(
                 match_pos,
                 @match_finder,

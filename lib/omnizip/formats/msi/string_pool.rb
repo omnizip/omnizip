@@ -87,7 +87,7 @@ module Omnizip
 
           # Try encoded name from the map first (set by Reader)
           stream_name_map = instance_variable_get(:@stream_name_map)
-          if stream_name_map && stream_name_map.key?(base_name)
+          if stream_name_map&.key?(base_name)
             candidates << stream_name_map[base_name]
           end
 
@@ -95,7 +95,7 @@ module Omnizip
           # MSI uses \x01 prefix followed by UTF-16LE encoded name
           utf16le = base_name.encode("UTF-16LE")
           [1, 5].each do |prefix|
-            candidates << "#{prefix.chr.b}".b << utf16le.b
+            candidates << prefix.chr.b.to_s.b << utf16le.b
           end
 
           # Try plain ASCII name
@@ -130,11 +130,9 @@ module Omnizip
         # @param name [String] Stream name
         # @return [String, nil] Stream content or nil
         def try_read_stream(name)
-          begin
-            @ole.read(name)
-          rescue StandardError
-            nil
-          end
+          @ole.read(name)
+        rescue StandardError
+          nil
         end
 
         # Parse string pool and data streams
@@ -167,7 +165,7 @@ module Omnizip
           data_offset = 0
           entries.each do |entry|
             length = entry[:length]
-            if length > 0 && data_offset + length <= data.bytesize
+            if length.positive? && data_offset + length <= data.bytesize
               str_data = data[data_offset, length]
               @strings << decode_string(str_data)
               data_offset += length
@@ -187,11 +185,12 @@ module Omnizip
           return "" if data.nil? || data.empty?
 
           # Try codepage encoding if set
-          if @codepage > 0 && @codepage != 65001 # 65001 is UTF-8
+          if @codepage.positive? && @codepage != 65001 # 65001 is UTF-8
             begin
               # Map common MSI codepages to Ruby encodings
               encoding = codepage_to_encoding(@codepage)
-              return data.force_encoding(encoding).encode("UTF-8", invalid: :replace, undef: :replace)
+              return data.force_encoding(encoding).encode("UTF-8",
+                                                          invalid: :replace, undef: :replace)
             rescue StandardError
               # Fall through
             end
@@ -199,14 +198,18 @@ module Omnizip
 
           # Try UTF-8 first (common for newer MSIs)
           begin
-            return data.encode("UTF-8", invalid: :replace, undef: :replace) if data.valid_encoding?
+            if data.valid_encoding?
+              return data.encode("UTF-8", invalid: :replace,
+                                          undef: :replace)
+            end
           rescue StandardError
             # Fall through
           end
 
           # Try Windows-1252 (most common MSI codepage)
           begin
-            return data.force_encoding("Windows-1252").encode("UTF-8", invalid: :replace, undef: :replace)
+            return data.force_encoding("Windows-1252").encode("UTF-8",
+                                                              invalid: :replace, undef: :replace)
           rescue StandardError
             # Fall through
           end

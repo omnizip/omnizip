@@ -35,7 +35,6 @@ module Omnizip
         # Update state after encoding literal
         # Matches XZ Utils update_literal() macro
         def update_literal
-          old_value = @value
           @value = if @value <= STATE_SHORTREP_LIT_LIT
                      STATE_LIT_LIT
                    elsif @value <= STATE_LIT_SHORTREP
@@ -43,19 +42,12 @@ module Omnizip
                    else
                      @value - 6
                    end
-          if ENV["LZMA_DEBUG"]
-            warn "DEBUG: update_literal - state: #{old_value} → #{@value}"
-          end
         end
 
         # Update state after encoding match
         # Matches XZ Utils update_match() macro
         def update_match
-          old_value = @value
           @value = @value < LIT_STATES ? STATE_LIT_MATCH : STATE_NONLIT_MATCH
-          if ENV["LZMA_DEBUG"]
-            warn "DEBUG: update_match - state: #{old_value} → #{@value}"
-          end
         end
 
         # Update state after encoding long rep match

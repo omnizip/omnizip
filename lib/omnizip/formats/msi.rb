@@ -67,7 +67,7 @@ module Omnizip
         # @param path [String] Path to MSI file
         # @return [Hash] Package information
         def info(path)
-          open(path) { |r| r.info }
+          open(path, &:info)
         end
 
         # Register MSI format with format registry

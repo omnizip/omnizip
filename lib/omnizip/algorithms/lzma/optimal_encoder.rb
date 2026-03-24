@@ -31,8 +31,6 @@ module Omnizip
           buf_pos = position
           buf_avail = [buf.bytesize - buf_pos, MATCH_LEN_MAX].min
 
-          # puts "[OPTIMUM] position=#{position} buf_avail=#{buf_avail} buf.bytesize=#{buf.bytesize}" if ENV['DEBUG']
-
           # Not enough input for a match
           return [UINT32_MAX, 1] if buf_avail < 2
 
@@ -51,13 +49,8 @@ module Omnizip
             # In Ruby: buf_back_index = buf_pos - rep_dist - 1
             buf_back_index = buf_pos - rep_dist - 1
 
-            # DEBUG: Trace repeated match check
-            # puts "[OPTIMAL] Checking rep#{i}: rep_dist=#{rep_dist} buf_pos=#{buf_pos} buf_back_index=#{buf_back_index}" if ENV['DEBUG']
-
             # Skip if out of bounds
             next if buf_back_index.negative? || buf_back_index >= buf.bytesize
-
-            # puts "[OPTIMAL] buf[#{buf_pos}]=#{'%02x' % buf.getbyte(buf_pos)} buf[#{buf_back_index}]=#{'%02x' % buf.getbyte(buf_back_index)}" if ENV['DEBUG']
 
             # If the first two bytes (2 == MATCH_LEN_MIN) do not match,
             # this rep is not useful.
@@ -65,12 +58,27 @@ module Omnizip
               buf.getbyte(buf_pos + 1) != buf.getbyte(buf_back_index + 1)
 
             # The first two bytes matched. Calculate the length of the match.
+            # Use 64-bit integer comparison for speed (no string allocation)
+            max_match_len = [
+              buf.bytesize - buf_pos,
+              buf.bytesize - buf_back_index,
+              MATCH_LEN_MAX,
+              buf_avail,
+            ].min
+
             len = 2
-            while (buf_pos + len < buf.bytesize) &&
-                (buf_back_index + len < buf.bytesize) &&
-                (buf.getbyte(buf_pos + len) == buf.getbyte(buf_back_index + len)) &&
-                (len < MATCH_LEN_MAX) &&
-                (len < buf_avail)
+            # Compare 8 bytes at a time using 64-bit integers
+            while len + 8 <= max_match_len
+              # Read 8 bytes as little-endian 64-bit integers
+              v1 = buf.byteslice(buf_pos + len, 8).unpack1("Q<")
+              v2 = buf.byteslice(buf_back_index + len, 8).unpack1("Q<")
+              break if v1 != v2
+
+              len += 8
+            end
+            # Finalize with byte-by-byte for remaining bytes
+            while len < max_match_len &&
+                buf.getbyte(buf_pos + len) == buf.getbyte(buf_back_index + len)
               len += 1
             end
 

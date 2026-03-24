@@ -13,6 +13,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "produces simple file decodable by xz -dc" do
+      skip "xz command not available" unless xz_available?
+
       data = "a"
 
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
@@ -28,6 +30,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "handles Hello World" do
+      skip "xz command not available" unless xz_available?
+
       data = "Hello World!"
 
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
@@ -40,6 +44,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "handles various input sizes" do
+      skip "xz command not available" unless xz_available?
+
       [10, 100, 1000].each do |size|
         data = "a" * size
 
@@ -54,18 +60,23 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "handles binary data" do
+      skip "xz command not available" unless xz_available?
+
       data = (0..255).to_a.pack("C*") * 10
 
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
         xz.add_data(data)
       end
 
-      output = `xz -dc test.xz 2>&1`
+      # Use binary-mode pipe to avoid Windows CRLF conversion
+      output = IO.popen("xz -dc test.xz", "rb", &:read)
       expect($?.success?).to be true
       expect(output.bytes).to eq(data.bytes)
     end
 
     it "handles text with newlines" do
+      skip "xz command not available" unless xz_available?
+
       data = "Line 1\nLine 2\nLine 3\n"
 
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
@@ -78,6 +89,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "round-trip works (Omnizip → xz → Omnizip)" do
+      skip "xz command not available" unless xz_available?
+
       data = "The quick brown fox jumps over the lazy dog"
 
       # Omnizip encode
@@ -94,6 +107,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "can be inspected with xz -l" do
+      skip "xz command not available" unless xz_available?
+
       data = "Test data for inspection"
 
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
@@ -131,6 +146,8 @@ RSpec.describe "XZ Format Compatibility" do
     end
 
     it "handles empty data" do
+      skip "xz command not available" unless xz_available?
+
       Omnizip::Formats::Xz::Writer.create("test.xz") do |xz|
         xz.add_data("")
       end

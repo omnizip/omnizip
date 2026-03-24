@@ -669,70 +669,26 @@ next_header_data)
           # Single byte encoding (0-127)
           return [value].pack("C") if value < 0x80
 
-          # Determine number of bytes needed using 7-Zip VLI thresholds
-          # 2 bytes: 128 - 16383 (0x80 - 0x3FFF encoded as 10xxxxxx + 1 byte)
-          # 3 bytes: 16384 - 2097151 (0x4000 - 0x1FFFFF)
-          # etc.
-          bytes_needed = case value
-                         when 0x80..0x3FFF then 2
-                         when 0x4000..0x1F_FFFF then 3
-                         when 0x20_0000..0xFFF_FFFF then 4
-                         when 0x1000_0000..0x7_FFFF_FFFF then 5
-                         when 0x8_0000_0000..0x3FF_FFFF_FFFF then 6
-                         when 0x400_0000_0000..0x1_FFFF_FFFF_FFFF then 7
-                         else 8
-                         end
-
+          # 7-Zip VLI encoding: extra bytes are little-endian per SDK ReadNumberSpec().
+          # Reference: https://py7zr.readthedocs.io/en/latest/archive_format.html
           result = String.new(encoding: "BINARY")
 
-          case bytes_needed
-          when 2
-            # 10xxxxxx pattern
-            first_byte = 0x80 | (value >> 8)
-            result << [first_byte].pack("C")
-            result << [value & 0xFF].pack("C")
-          when 3
-            # 110xxxxx pattern
-            first_byte = 0xC0 | (value >> 16)
-            result << [first_byte].pack("C")
-            result << [(value >> 8) & 0xFF].pack("C")
-            result << [value & 0xFF].pack("C")
-          when 4
-            # 1110xxxx pattern
-            first_byte = 0xE0 | (value >> 24)
-            result << [first_byte].pack("C")
-            result << [(value >> 16) & 0xFF].pack("C")
-            result << [(value >> 8) & 0xFF].pack("C")
-            result << [value & 0xFF].pack("C")
-          when 5
-            # 11110xxx pattern
-            first_byte = 0xF0 | (value >> 32)
-            result << [first_byte].pack("C")
-            4.downto(1) do |i|
-              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
-            end
-          when 6
-            # 111110xx pattern
-            first_byte = 0xF8 | (value >> 40)
-            result << [first_byte].pack("C")
-            5.downto(1) do |i|
-              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
-            end
-          when 7
-            # 1111110x pattern
-            first_byte = 0xFC | (value >> 48)
-            result << [first_byte].pack("C")
-            6.downto(1) do |i|
-              result << [(value >> (8 * (i - 1))) & 0xFF].pack("C")
-            end
-          else
-            # 8 bytes: 11111110 or 11111111 prefix
-            result << if value < (1 << 56)
-                        [0xFE].pack("C")
-                      else
-                        [0xFF].pack("C")
-                      end
-            7.downto(0) { |i| result << [(value >> (8 * i)) & 0xFF].pack("C") }
+          # Determine how many extra bytes are needed
+          thresholds = [0x80, 0x4000, 0x20_0000, 0x1000_0000,
+                        0x8_0000_0000, 0x400_0000_0000,
+                        0x2_0000_0000_0000, 0x100_0000_0000_0000]
+          num_extra = thresholds.index { |t| value < t } || 8
+
+          # Build first byte: num_extra leading 1-bits, then 0-bit, then data bits
+          first_byte = 0
+          num_extra.times { |i| first_byte |= (0x80 >> i) }
+          data_bits_shift = 8 * num_extra
+          first_byte |= (value >> data_bits_shift) & ((0x80 >> num_extra) - 1)
+          result << [first_byte].pack("C")
+
+          # Extra bytes in little-endian order (low byte first)
+          num_extra.times do |i|
+            result << [(value >> (8 * i)) & 0xFF].pack("C")
           end
 
           result
