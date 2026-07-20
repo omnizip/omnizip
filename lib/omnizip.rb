@@ -81,6 +81,8 @@ module Omnizip
   autoload :Zip, "omnizip/zip"
   autoload :Extraction, "omnizip/extraction"
   autoload :Implementations, "omnizip/implementations"
+  autoload :ArchiveHandler, "omnizip/archive_handler"
+  autoload :ArchiveHandlers, "omnizip/archive_handlers"
   autoload :Convenience, "omnizip/convenience"
 end
 
