@@ -2,22 +2,18 @@
 
 module Omnizip
   module Models
-    # Model for format conversion options
+    # Options for converting between archive formats.
+    #
+    # Plain Ruby value object. (Track 13 of TODO.refactor recommends
+    # migrating this to lutaml-model once symbol-typed attributes are
+    # available.)
     class ConversionOptions
+      VALID_FORMATS = %i[zip seven_zip 7z].freeze
+
       attr_accessor :source_format, :target_format, :compression,
                     :compression_level, :filter, :preserve_metadata,
                     :temp_directory, :solid, :delete_source
 
-      # Initialize conversion options
-      # @param source_format [Symbol, nil] Source format (auto-detect if nil)
-      # @param target_format [Symbol] Target format
-      # @param compression [Symbol, nil] Compression algorithm
-      # @param compression_level [Integer] Compression level (1-9)
-      # @param filter [Symbol, nil] Filter to apply
-      # @param preserve_metadata [Boolean] Preserve metadata
-      # @param temp_directory [String, nil] Temporary directory
-      # @param solid [Boolean] Use solid compression (7z only)
-      # @param delete_source [Boolean] Delete source after conversion
       def initialize(
         source_format: nil,
         target_format: :seven_zip,
@@ -40,8 +36,6 @@ module Omnizip
         @delete_source = delete_source
       end
 
-      # Convert to hash
-      # @return [Hash] Options as hash
       def to_h
         {
           source_format: source_format,
@@ -56,8 +50,6 @@ module Omnizip
         }
       end
 
-      # Validate options
-      # @raise [ArgumentError] If options are invalid
       def validate
         validate_format(target_format, "target")
         validate_format(source_format, "source") if source_format
@@ -69,11 +61,10 @@ module Omnizip
       private
 
       def validate_format(format, type)
-        valid_formats = %i[zip seven_zip 7z]
-        return if valid_formats.include?(format)
+        return if VALID_FORMATS.include?(format)
 
         raise ArgumentError, "Invalid #{type} format: #{format}. " \
-                             "Valid formats: #{valid_formats.join(', ')}"
+                             "Valid formats: #{VALID_FORMATS.join(', ')}"
       end
 
       def validate_compression_level
