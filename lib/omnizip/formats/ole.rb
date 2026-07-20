@@ -119,7 +119,7 @@ module Omnizip
 
         # Register OLE format in registry
         def register!
-          require "omnizip/format_registry"
+          require_relative "../format_registry"
           FormatRegistry.register(".ole", Storage)
           FormatRegistry.register(".doc", Storage)
           FormatRegistry.register(".xls", Storage)

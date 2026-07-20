@@ -142,7 +142,7 @@ module Omnizip
 
         # Auto-register XAR format when loaded
         def register!
-          require "omnizip/format_registry"
+          require_relative "../format_registry"
           FormatRegistry.register(".xar", Reader)
         end
       end
