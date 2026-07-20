@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar

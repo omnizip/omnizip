@@ -21,7 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "stringio"
-require "omnizip/implementations/base"
 
 module Omnizip
   module Implementations

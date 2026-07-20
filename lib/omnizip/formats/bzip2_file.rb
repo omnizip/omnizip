@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require "omnizip/algorithm_registry"
 
 module Omnizip
   module Formats
@@ -115,7 +114,6 @@ module Omnizip
 
         # Register BZIP2 format when loaded
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".bz2", Omnizip::Formats::Bzip2File)
           FormatRegistry.register(".bzip2", Omnizip::Formats::Bzip2File)
         end

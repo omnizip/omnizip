@@ -4,7 +4,6 @@ require "zlib"
 require "digest"
 require "fileutils"
 
-require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar

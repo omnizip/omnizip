@@ -5,7 +5,6 @@ require "zlib"
 require "stringio"
 require "digest"
 
-require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm

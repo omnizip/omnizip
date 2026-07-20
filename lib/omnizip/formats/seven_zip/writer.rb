@@ -2,7 +2,6 @@
 
 require "stringio"
 
-require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip

@@ -2,7 +2,6 @@
 
 require "fileutils"
 
-require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar

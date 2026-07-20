@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/tar"
 
 module Omnizip
   module Formats

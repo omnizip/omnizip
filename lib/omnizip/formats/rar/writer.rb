@@ -4,7 +4,6 @@ require "fileutils"
 require "zlib"
 require "stringio"
 
-require "omnizip/formats/rar"
 module Omnizip
   module Formats
     module Rar

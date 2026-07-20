@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm

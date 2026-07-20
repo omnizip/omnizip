@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/seven_zip"
 module Omnizip
   module Formats
     module SevenZip

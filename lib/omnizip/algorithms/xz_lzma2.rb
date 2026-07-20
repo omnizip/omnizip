@@ -20,10 +20,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-require "omnizip/algorithm"
-require "omnizip/models/algorithm_metadata"
-require "omnizip/implementations/xz_utils/lzma2/encoder"
-require "omnizip/implementations/xz_utils/lzma2/decoder"
 
 module Omnizip
   module Algorithms

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "zlib"
-require "omnizip/error"
 
 module Omnizip
   module Formats

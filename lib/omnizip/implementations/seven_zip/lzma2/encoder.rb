@@ -71,12 +71,6 @@ module Omnizip
 
             # Initialize shared state across all chunks
             # Using XZ Utils components (tested and working)
-            require "omnizip/algorithms/lzma/dictionary"
-            require "omnizip/algorithms/lzma/lzma_state"
-            require "omnizip/algorithms/lzma/xz_probability_models"
-            require "omnizip/algorithms/lzma/match_finder"
-            require "omnizip/algorithms/lzma/optimal_encoder"
-            require "omnizip/algorithms/lzma/xz_range_encoder_exact"
 
             @dictionary = Omnizip::Algorithms::LZMA::Dictionary.new(dict_size)
             @state = Omnizip::Algorithms::LZMA::LZMAState.new(0)

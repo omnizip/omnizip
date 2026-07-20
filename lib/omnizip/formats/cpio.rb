@@ -129,7 +129,6 @@ module Omnizip
 
         # Auto-register CPIO format when loaded
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".cpio", Reader)
         end
       end

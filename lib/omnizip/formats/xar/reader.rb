@@ -3,7 +3,6 @@
 require "zlib"
 require "digest"
 
-require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar

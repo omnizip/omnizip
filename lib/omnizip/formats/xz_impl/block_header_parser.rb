@@ -22,8 +22,6 @@
 
 require "stringio"
 require "zlib"
-require "omnizip/error"
-require "omnizip/checksums/verifier"
 
 module Omnizip
   module Formats

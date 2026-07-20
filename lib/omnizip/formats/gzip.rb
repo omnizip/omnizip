@@ -2,7 +2,6 @@
 
 require "zlib"
 require "stringio"
-require "omnizip/algorithm_registry"
 
 module Omnizip
   module Formats
@@ -130,7 +129,6 @@ module Omnizip
 
         # Register GZIP format when loaded
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".gz", Omnizip::Formats::Gzip)
           FormatRegistry.register(".gzip", Omnizip::Formats::Gzip)
         end

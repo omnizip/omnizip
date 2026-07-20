@@ -17,9 +17,6 @@ module Omnizip
         # @option options [Integer] :dict_size Dictionary size (default: 8MB to match XZ Utils preset 6)
         # @option options [Integer] :check Check type (default: CRC64)
         def create(input, output = nil, options = {})
-          require "omnizip/formats/xz_impl"
-          require "omnizip/formats/xz_const"
-          require "omnizip/formats/xz_impl/stream_encoder"
 
           encoder = ::Omnizip::Formats::XzImpl::StreamEncoder.new(
             check_type: options[:check] || ::Omnizip::Formats::XzConst::CHECK_CRC64,

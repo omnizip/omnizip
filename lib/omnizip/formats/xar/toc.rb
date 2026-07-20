@@ -5,7 +5,6 @@ require "zlib"
 require "time"
 require "rexml/document"
 
-require "omnizip/formats/xar"
 module Omnizip
   module Formats
     module Xar

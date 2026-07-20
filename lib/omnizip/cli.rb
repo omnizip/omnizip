@@ -17,9 +17,6 @@
 #
 
 require "thor"
-require "omnizip/commands"
-require "omnizip/cli/output_formatter"
-require "omnizip/cli/shared"
 
 module Omnizip
   # Profile commands subcommand group
@@ -455,7 +452,6 @@ module Omnizip
                      aliases: "-v",
                      desc: "Enable verbose output"
     def convert(source, target)
-      require "omnizip/converter"
 
       puts "Converting #{source} to #{target}..." if options[:verbose]
 
