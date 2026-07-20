@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "tempfile"
+require "tmpdir"
 
 module Omnizip
   module Formats

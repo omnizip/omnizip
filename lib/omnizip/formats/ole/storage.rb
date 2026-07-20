@@ -79,7 +79,7 @@ module Omnizip
                                end
 
           # Force binary encoding
-          @io.set_encoding(Encoding::ASCII_8BIT) if @io.respond_to?(:set_encoding)
+          @io.set_encoding(Encoding::ASCII_8BIT) if @io.is_a?(::IO)
 
           # Determine if writable
           @writeable = determine_writeable(mode)
@@ -184,11 +184,11 @@ module Omnizip
         # Call this to release memory while keeping the IO open.
         # @return [void]
         def free
-          @sb_file&.free if @sb_file.respond_to?(:free)
+          @sb_file&.free
           @sb_file = nil
-          @sbat&.free if @sbat.respond_to?(:free)
+          @sbat&.free
           @sbat = nil
-          @bbat&.free if @bbat.respond_to?(:free)
+          @bbat&.free
           @bbat = nil
           @dirents = nil
           @root = nil
@@ -457,7 +457,7 @@ module Omnizip
           else
             begin
               @io.flush
-              @io.write_nonblock("") if @io.respond_to?(:write_nonblock)
+              @io.write_nonblock("") if @io.is_a?(::IO)
               true
             rescue IOError, Errno::EBADF
               false

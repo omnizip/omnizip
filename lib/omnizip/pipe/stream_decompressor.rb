@@ -163,11 +163,8 @@ module Omnizip
         end
 
         # Preserve timestamp if available
-        if entry.is_a?(Omnizip::Metadata::EntryMetadata) && entry.mtime
-          File.utime(entry.mtime, entry.mtime, dest_path)
-        elsif entry.respond_to?(:mtime) && entry.mtime
-          File.utime(entry.mtime, entry.mtime, dest_path)
-        end
+        mtime = entry.mtime if entry.is_a?(Omnizip::Metadata::EntryMetadata)
+        File.utime(mtime, mtime, dest_path) if mtime
 
         bytes
       end

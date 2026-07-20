@@ -10,7 +10,7 @@ module Omnizip
           attr_accessor :name, :size, :compressed_size, :crc, :is_dir,
                         :is_empty, :is_anti, :has_stream, :mtime, :atime,
                         :ctime, :attributes, :folder_index, :file_index,
-                        :source_path, :inline_data
+                        :source_path, :inline_data, :compression_options
 
           # Initialize file entry
           def initialize
