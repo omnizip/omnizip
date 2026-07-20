@@ -62,8 +62,7 @@ module Omnizip
           entry.mtime = Time.now
           entry.has_stream = true
           entry.inline_data = data_str
-          # Store compression options for later use
-          entry.compression_options = options if entry.respond_to?(:compression_options=)
+          entry.compression_options = options
           @entries << entry
         end
 

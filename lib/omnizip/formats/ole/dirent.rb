@@ -319,7 +319,7 @@ module Omnizip
           raise Errno::EISDIR unless file?
 
           io = RangesIOMigrateable.new(self, mode)
-          @modify_time = Time.now if io.respond_to?(:writeable?) && io.writeable?
+          @modify_time = Time.now if io.is_a?(RangesIOMigrateable) && io.writeable?
 
           if block_given?
             begin
@@ -376,7 +376,7 @@ module Omnizip
         # Call this when done with the dirent to release memory.
         # @return [void]
         def free
-          @children&.each { |child| child.free if child.respond_to?(:free) }
+          @children&.each { |child| child.free if child.is_a?(Dirent) }
           @children = nil
           @parent = nil
           @ole = nil

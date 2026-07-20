@@ -133,7 +133,7 @@ module Omnizip
           decompressor = algo_class.new
           # Pass properties if algorithm supports them
           # Some algorithms (LZMA2) need properties
-          if chain_config[:properties] && !chain_config[:properties].empty? && decompressor.respond_to?(:properties=)
+          if chain_config[:properties] && !chain_config[:properties].empty? && decompressor.is_a?(Omnizip::Algorithms::LZMA2)
             decompressor.properties = chain_config[:properties]
           end
 

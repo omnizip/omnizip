@@ -36,7 +36,7 @@ module Omnizip
         def initialize(input)
           @input = if input.is_a?(String)
                      File.open(input, "rb")
-                   elsif input.respond_to?(:read)
+                   elsif input.is_a?(::IO) || input.is_a?(StringIO)
                      input
                    else
                      raise ArgumentError,
@@ -56,14 +56,18 @@ module Omnizip
 
         # Close the input stream if we opened it
         def close
-          @input.close if @input.respond_to?(:close) && !@input.closed?
+          @input.close unless @input.closed?
+        rescue IOError
+          nil
         end
 
         # Check if reader is open
         #
         # @return [Boolean] True if input is open
         def closed?
-          @input.respond_to?(:closed?) ? @input.closed? : false
+          @input.closed?
+        rescue IOError
+          true
         end
 
         # Read in a streaming fashion (for large files)

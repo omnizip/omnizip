@@ -257,8 +257,9 @@ module Omnizip
         # return other types on Windows) into a Time.
         def to_time(value)
           return value if value.is_a?(Time)
+          return value.to_time if value.is_a?(Date) || value.is_a?(DateTime)
 
-          value.respond_to?(:to_time) ? value.to_time : value
+          value
         end
 
         # Read file data and add to heap
