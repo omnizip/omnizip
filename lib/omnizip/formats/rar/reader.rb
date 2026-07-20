@@ -242,7 +242,7 @@ module Omnizip
           return false unless @header.version == 4
 
           # Check if we have the compression method
-          return false unless entry.respond_to?(:method) && entry.method
+          return false if entry.nil? || entry.method.nil?
 
           # All RAR4 methods are supported by our Dispatcher
           true
@@ -260,7 +260,7 @@ module Omnizip
           File.open(output_path, "wb") do |output|
             # For now, assume METHOD_STORE (0x30)
             # Real implementation would get method from entry
-            method = entry.respond_to?(:method) ? entry.method : 0x30
+            method = entry.method || 0x30
 
             Compression::Dispatcher.decompress(method, compressed_data, output)
           end

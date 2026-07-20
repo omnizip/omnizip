@@ -223,7 +223,7 @@ module Omnizip
         def self.text_content(elem)
           return nil if elem.nil?
 
-          text = elem.respond_to?(:text) ? elem.text : elem.to_s
+          text = elem.is_a?(REXML::Element) ? elem.text : elem.to_s
           text&.strip
         end
         private_class_method :text_content

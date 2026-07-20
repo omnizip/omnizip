@@ -179,7 +179,7 @@ module Omnizip
         # @param data [String] Data to write
         # @return [Integer] Bytes written
         def write(data)
-          data = data.dup.force_encoding(Encoding::ASCII_8BIT) if data.respond_to?(:encoding)
+          data = data.dup.force_encoding(Encoding::ASCII_8BIT) if data.is_a?(String)
           return 0 if data.empty?
 
           # Grow if needed

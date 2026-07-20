@@ -74,21 +74,7 @@ module Omnizip
         # @option options [Boolean] :concatenated If true, decode concatenated .lz members (default: false)
         # @return [String, nil] Decompressed data (if output is nil)
         def decompress(input, output = nil, options = {})
-          # Handle raw data string vs file path vs IO object
-          data = if input.respond_to?(:read)
-                   # Already an IO object
-                   input.read
-                 elsif input.is_a?(String)
-                   # Could be file path or raw data
-                   if !input.include?("\0") && File.exist?(input)
-                     File.binread(input)
-                   else
-                     input.b
-                   end
-                 else
-                   raise ArgumentError,
-                         "Input must be a String or IO object"
-                 end
+          data = Omnizip::IO::Source.for(input).read
 
           # Decode using LzipDecoder
           decoder = Omnizip::Algorithms::LZMA::LzipDecoder.new(
@@ -98,11 +84,7 @@ module Omnizip
           result = decoder.decode_stream
 
           if output
-            if output.respond_to?(:write)
-              output.write(result)
-            else
-              File.binwrite(output, result)
-            end
+            Omnizip::IO::Sink.for(output).write(result)
           else
             result
           end
