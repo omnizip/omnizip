@@ -77,8 +77,8 @@ RSpec.describe Omnizip::ChecksumRegistry do
       expect do
         described_class.get(:unknown)
       end.to raise_error(
-        Omnizip::UnknownAlgorithmError,
-        /Unknown checksum: 'unknown'/,
+        Omnizip::UnknownChecksumError,
+        /Checksum not registered/,
       )
     end
 
@@ -86,7 +86,7 @@ RSpec.describe Omnizip::ChecksumRegistry do
       expect do
         described_class.get(:nonexistent)
       end.to raise_error(
-        Omnizip::UnknownAlgorithmError,
+        Omnizip::UnknownChecksumError,
         /Available: crc32, crc64/,
       )
     end

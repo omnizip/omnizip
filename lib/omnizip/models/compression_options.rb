@@ -35,7 +35,7 @@ module Omnizip
         @buffer_size = 65_536
 
         kwargs.each do |key, value|
-          instance_variable_set("@#{key}", value)
+          public_send("#{key}=", value)
         end
       end
 

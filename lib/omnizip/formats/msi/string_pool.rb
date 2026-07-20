@@ -86,9 +86,8 @@ module Omnizip
           candidates = []
 
           # Try encoded name from the map first (set by Reader)
-          stream_name_map = instance_variable_get(:@stream_name_map)
-          if stream_name_map&.key?(base_name)
-            candidates << stream_name_map[base_name]
+          if @stream_name_map&.key?(base_name)
+            candidates << @stream_name_map[base_name]
           end
 
           # Try with standard prefix bytes

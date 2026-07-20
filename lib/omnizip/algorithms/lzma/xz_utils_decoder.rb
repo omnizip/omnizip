@@ -86,7 +86,8 @@ module Omnizip
       RangeDecoder = LZMA::RangeDecoder
       SdkStateMachine = Implementations::SevenZip::LZMA::StateMachine
 
-      attr_reader :lc, :lp, :pb, :dict_size, :uncompressed_size
+      attr_reader :lc, :lp, :pb, :dict_size, :uncompressed_size,
+                  :range_decoder
 
       # XZ Utils dictionary constants (from lz_decoder.h)
       # See: /Users/mulgogi/src/external/xz/src/liblzma/lz/lz_decoder.h
@@ -431,8 +432,8 @@ check_rc_finished: true)
           #
           # If EOPM was NOT encountered (code != 0), leftover data is expected
           # (it's part of the compressed stream that we haven't read yet).
-          if @allow_eopm && @range_decoder&.code&.zero? && @range_decoder.instance_variable_get(:@stream)
-            stream = @range_decoder.instance_variable_get(:@stream)
+          if @allow_eopm && @range_decoder&.code&.zero? && @range_decoder&.stream
+            stream = @range_decoder.stream
             # Try to peek at the next byte - if available, there's data AFTER EOPM
             begin
               next_byte = stream.getbyte
@@ -445,9 +446,9 @@ check_rc_finished: true)
             rescue IOError, EOFError
               # Stream doesn't support peeking or is exhausted, that's fine
             end
-          elsif !@allow_eopm && @range_decoder&.instance_variable_get(:@stream)
+          elsif !@allow_eopm && @range_decoder&.stream
             # For LZMA2 mode (EOPM not allowed): check for leftover data
-            stream = @range_decoder.instance_variable_get(:@stream)
+            stream = @range_decoder.stream
             begin
               next_byte = stream.getbyte
               if next_byte

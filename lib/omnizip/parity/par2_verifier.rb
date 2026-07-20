@@ -58,6 +58,12 @@ module Omnizip
       # @return [Hash] Parsed PAR2 metadata
       attr_reader :metadata
 
+      # @return [Array<Hash>] Parsed file list (one entry per managed file)
+      attr_reader :file_list
+
+      # @return [Array] Available recovery blocks
+      attr_reader :recovery_blocks
+
       # Initialize verifier
       #
       # @param par2_file [String] Path to .par2 index file
@@ -125,11 +131,11 @@ module Omnizip
         )
       end
 
-      private
-
-      # Parse PAR2 index file using packet models
+      # Parse the PAR2 index file and populate +metadata+, +file_list+,
+      # and +recovery_blocks+. Idempotent — safe to call multiple times.
+      #
+      # @return [void]
       def parse_par2_file
-        # Reset state to prevent accumulation if called multiple times
         @metadata = {}
         @file_list = []
         @recovery_blocks = []
@@ -157,24 +163,6 @@ module Omnizip
 
         # Load recovery blocks from volume files
         load_recovery_volumes
-      end
-
-      # Process packet using model-based approach
-      #
-      # @param packet [Models::Packet] Parsed packet model
-      def process_packet_model(packet)
-        case packet
-        when Models::MainPacket
-          process_main_packet_model(packet)
-        when Models::FileDescriptionPacket
-          process_file_description_packet_model(packet)
-        when Models::IfscPacket
-          process_ifsc_packet_model(packet)
-        when Models::RecoverySlicePacket
-          process_recovery_packet_model(packet)
-        when Models::CreatorPacket
-          # Creator packets are informational only
-        end
       end
 
       # Process main packet model
@@ -356,6 +344,23 @@ module Omnizip
       def calculate_total_blocks
         @file_list.sum do |file_info|
           (file_info[:size].to_f / @metadata[:block_size]).ceil
+        end
+      end
+
+      private
+
+      def process_packet_model(packet)
+        case packet
+        when Models::MainPacket
+          process_main_packet_model(packet)
+        when Models::FileDescriptionPacket
+          process_file_description_packet_model(packet)
+        when Models::IfscPacket
+          process_ifsc_packet_model(packet)
+        when Models::RecoverySlicePacket
+          process_recovery_packet_model(packet)
+        when Models::CreatorPacket
+          # Creator packets are informational only
         end
       end
     end

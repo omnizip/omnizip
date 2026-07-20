@@ -32,9 +32,7 @@ module Omnizip
         # @return [Header] Parsed header object
         # @raise [ArgumentError] If magic is invalid
         def self.parse(io)
-          new.tap do |header|
-            header.send(:parse!, io)
-          end
+          new.tap { |header| header.parse!(io) }
         end
 
         # Get tag value by name
@@ -72,8 +70,6 @@ module Omnizip
                   "Invalid header magic: #{@magic.inspect}"
           end
         end
-
-        private
 
         def parse!(io)
           # Read header header (16 bytes)

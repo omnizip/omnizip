@@ -33,7 +33,7 @@ module Omnizip
       # extract the original bit values. It maintains a code value
       # that represents the current position within the range.
       class RangeDecoder < RangeCoder
-        attr_reader :code, :init_bytes_remaining
+        attr_reader :code, :init_bytes_remaining, :range, :stream
 
         # Initialize the range decoder
         #

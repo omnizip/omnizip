@@ -174,6 +174,17 @@ module Omnizip
           encrypted? && !@password.nil?
         end
 
+        # Extract raw entry payload from the archive. Public so converters
+        # and parallel extractors can reuse the stream-positioning +
+        # decompression logic.
+        #
+        # @param io [IO] Archive file handle
+        # @param entry [Models::FileEntry] Entry to extract
+        # @return [String] Extracted bytes
+        def extract_entry_data(io, entry)
+          extract_entry_data_private(io, entry)
+        end
+
         private
 
         # Parse .7z archive structure
@@ -386,12 +397,12 @@ module Omnizip
           end
         end
 
-        # Extract entry data
+        # Extract entry data (private implementation)
         #
         # @param io [IO] Archive file handle
         # @param entry [Models::FileEntry] Entry to extract
         # @return [String] Extracted data
-        def extract_entry_data(io, entry)
+        def extract_entry_data_private(io, entry)
           return "" unless entry.has_stream?
           return "" unless @stream_info
 

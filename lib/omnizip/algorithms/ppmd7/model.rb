@@ -36,7 +36,7 @@ module Omnizip
       class Model
         include Constants
 
-        attr_reader :max_order, :root_context, :current_context
+        attr_reader :max_order, :root_context, :current_context, :mem_size
 
         # Initialize the PPMd7 model
         #

@@ -87,7 +87,12 @@ module Omnizip
         # @return [OpenSSL::Cipher] Configured cipher
         def create_cipher(mode)
           cipher = OpenSSL::Cipher.new("AES-256-CBC")
-          cipher.send(mode)  # Call encrypt or decrypt first
+          case mode
+          when :encrypt then cipher.encrypt
+          when :decrypt then cipher.decrypt
+          else
+            raise ArgumentError, "Unknown cipher mode: #{mode.inspect}"
+          end
           cipher.key = @key  # Then set key
           cipher.iv = @iv    # Then set IV
           cipher.padding = 1 # PKCS7 padding

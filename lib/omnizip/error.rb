@@ -3,59 +3,64 @@
 # Copyright (C) 2025 Ribose Inc.
 
 module Omnizip
-  # Base error class for all Omnizip errors
   class Error < StandardError
   end
 
-  # Error raised when compression fails
   class CompressionError < Error
   end
 
-  # Error raised when decompression fails
   class DecompressionError < Error
   end
 
-  # Error raised when an algorithm is not found
   class AlgorithmNotFoundError < Error
   end
 
-  # Error raised when an unknown algorithm is requested
-  class UnknownAlgorithmError < Error
+  # Canonical alias of +AlgorithmNotFoundError+. Older code referenced
+  # +UnknownAlgorithmError+; both names are kept for backward
+  # compatibility.
+  UnknownAlgorithmError = AlgorithmNotFoundError
+
+  class UnknownChecksumError < Error
   end
 
-  # Error raised when a format is not supported
+  class UnknownFilterError < Error
+  end
+
+  class UnknownEncryptionStrategyError < Error
+  end
+
+  class ConversionNotSupportedError < Error
+  end
+
   class UnsupportedFormatError < Error
   end
 
-  # Error raised when format parsing fails
   class FormatError < Error
   end
 
-  # Error raised when archive is invalid
   class InvalidArchiveError < Error
   end
 
-  # Error raised when I/O operations fail
-  class IOError < Error
+  # Renamed from +IOError+ to avoid shadowing Ruby's built-in IOError.
+  # The legacy name is kept as an alias.
+  class IOOperationError < Error
   end
+  IOError = IOOperationError
 
-  # Error raised when checksum validation fails
   class ChecksumError < Error
   end
 
-  # Error raised when optimization strategy is not found
-  class OptimizationNotFound < Error
+  # Canonical name. +OptimizationNotFound+ kept as alias.
+  class OptimizationNotFoundError < Error
   end
+  OptimizationNotFound = OptimizationNotFoundError
 
-  # Error raised when progress tracking fails
   class ProgressError < Error
   end
 
-  # Error raised when ETA calculation fails
   class ETAError < Error
   end
 
-  # Error raised when RAR write is attempted without license
   class NotLicensedError < Error
     def initialize(message = default_message)
       super
@@ -82,7 +87,6 @@ module Omnizip
     end
   end
 
-  # Error raised when RAR executable is not found
   class RarNotAvailableError < Error
     def initialize(message = default_message)
       super

@@ -175,16 +175,16 @@ module Omnizip
         return nil unless File.exist?(par2_file)
 
         verifier = Par2Verifier.new(par2_file)
-        verifier.send(:parse_par2_file)
+        verifier.parse_par2_file
 
-        total_blocks = verifier.send(:calculate_total_blocks)
-        recovery_blocks = verifier.instance_variable_get(:@recovery_blocks).size
+        total_blocks = verifier.calculate_total_blocks
+        recovery_blocks = verifier.recovery_blocks.size
 
         {
           par2_file: par2_file,
           block_size: verifier.metadata[:block_size],
           total_blocks: total_blocks,
-          file_count: verifier.metadata[:file_count] || verifier.instance_variable_get(:@file_list).size,
+          file_count: verifier.metadata[:file_count] || verifier.file_list.size,
           recovery_blocks: recovery_blocks,
           redundancy: calculate_redundancy(total_blocks, recovery_blocks),
         }

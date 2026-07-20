@@ -60,6 +60,31 @@ module Omnizip
         true
       end
 
+      # Apply a hash of attributes to this options object. Only keys
+      # that correspond to known writers (+threads=+, +queue_size=+,
+      # etc.) are applied; unknown keys are silently ignored.
+      #
+      # @param attributes [Hash{Symbol=>Object}] attributes to set
+      # @return [self]
+      def apply(attributes)
+        SETTERS.each do |key, setter|
+          next unless attributes.key?(key)
+
+          public_send(setter, attributes[key])
+        end
+        self
+      end
+
+      SETTERS = {
+        threads: :threads=,
+        queue_size: :queue_size=,
+        chunk_size: :chunk_size=,
+        strategy: :strategy=,
+        verbose: :verbose=,
+        batch_size: :batch_size=,
+      }.freeze
+      private_constant :SETTERS
+
       # Create a copy of options
       #
       # @return [ParallelOptions] new instance with same values

@@ -129,8 +129,7 @@ dereference_links: false)
         end
 
         # List all entries in the archive
-        def list_entries(show_links: false)
-          entries.map do |entry|
+        def list_entries(show_links: false)          entries.map do |entry|
             info = {
               filename: entry.filename,
               compressed_size: entry.compressed_size,
@@ -147,6 +146,18 @@ dereference_links: false)
 
             info
           end
+        end
+
+        # Decompress +compressed_data+ according to +method+. Public API
+        # for callers (e.g., ParallelExtractor) that hold raw compressed
+        # payload outside an entry stream.
+        #
+        # @param compressed_data [String] Compressed bytes
+        # @param method [Integer] ZIP compression method code
+        # @param uncompressed_size [Integer] Expected uncompressed size
+        # @return [String] Decompressed bytes
+        def decompress(compressed_data, method, uncompressed_size)
+          decompress_data(compressed_data, method, uncompressed_size)
         end
 
         private

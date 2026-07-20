@@ -3,6 +3,7 @@
 module Omnizip
   # Compression algorithm implementations
   module Algorithms
+    autoload :PPMdBase, "omnizip/algorithms/ppmd_base"
     autoload :LZMA2Const, "omnizip/algorithms/lzma2/constants"
     autoload :LZMA, "omnizip/algorithms/lzma"
     autoload :LZMA2, "omnizip/algorithms/lzma2"

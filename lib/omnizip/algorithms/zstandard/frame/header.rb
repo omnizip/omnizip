@@ -69,15 +69,15 @@ module Omnizip
 
             # Parse optional fields based on descriptor bits
             if header.window_descriptor?
-              header.send(:parse_window_descriptor, input)
+              header.parse_window_descriptor(input)
             end
 
             if header.dictionary_id?
-              header.send(:parse_dictionary_id, input)
+              header.parse_dictionary_id(input)
             end
 
             if header.content_size?
-              header.send(:parse_content_size, input)
+              header.parse_content_size(input)
             end
 
             header
@@ -173,8 +173,6 @@ module Omnizip
             mantissa = @window_log < 22 ? (@window_log - 10) : (@window_log - 11)
             (1 << @window_log) + (mantissa << (@window_log - 4))
           end
-
-          private
 
           # Parse window descriptor byte
           def parse_window_descriptor(input)

@@ -35,7 +35,7 @@ module Omnizip
         include Constants
 
         attr_reader :max_order, :root_context, :current_context,
-                    :restoration_method, :run_length, :glue_count
+                    :restoration_method, :run_length, :glue_count, :mem_size
         attr_accessor :order_fall, :prev_success
 
         # Initialize the PPMd8 model

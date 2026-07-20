@@ -149,11 +149,11 @@ module Omnizip
 
           # Return metadata
           {
-            lc: decoder.instance_variable_get(:@lc),
-            lp: decoder.instance_variable_get(:@lp),
-            pb: decoder.instance_variable_get(:@pb),
-            dict_size: decoder.instance_variable_get(:@dict_size),
-            uncompressed_size: decoder.instance_variable_get(:@uncompressed_size),
+            lc: decoder.lc,
+            lp: decoder.lp,
+            pb: decoder.pb,
+            dict_size: decoder.dict_size,
+            uncompressed_size: decoder.uncompressed_size,
           }
         end
 

@@ -8,7 +8,13 @@ module Omnizip
       class DirectoryRecord
         attr_reader :length, :extended_attr_length, :location, :data_length,
                     :recording_date, :flags, :file_unit_size, :interleave_gap_size,
-                    :volume_sequence_number, :name, :system_use
+                    :volume_sequence_number, :name, :system_use,
+                    :full_path
+
+        # Set the full path for this record, used by Reader when walking
+        # a directory tree. Allows callers to look up records by path
+        # without re-joining parent names.
+        attr_writer :full_path
 
         # Parse directory record from binary data
         #

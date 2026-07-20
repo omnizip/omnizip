@@ -567,11 +567,8 @@ module Omnizip
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
-                                                                          raw_mode: true)
-
-          # Set dict_size directly since we skipped property byte reading
-          decoder.instance_variable_set(:@dict_size, dict_size)
-          decoder.instance_variable_set(:@properties, Omnizip::Algorithms::LZMA2::Properties.new(dict_size))
+                                                                          raw_mode: true,
+                                                                          dict_size: dict_size)
 
           # Decode stream
           uncompressed_data = decoder.decode_stream
@@ -623,11 +620,8 @@ module Omnizip
 
           # Create LZMA2 decoder with raw_mode for XZ format
           decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(input_buffer,
-                                                                          raw_mode: true)
-
-          # Set dict_size directly since we skipped property byte reading
-          decoder.instance_variable_set(:@dict_size, dict_size)
-          decoder.instance_variable_set(:@properties, Omnizip::Algorithms::LZMA2::Properties.new(dict_size))
+                                                                          raw_mode: true,
+                                                                          dict_size: dict_size)
 
           # Decode stream
           decoder.decode_stream

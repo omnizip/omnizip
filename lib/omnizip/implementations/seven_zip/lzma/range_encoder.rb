@@ -91,7 +91,7 @@ module Omnizip
                          # Update probability: ttt -= ttt >> kNumMoveBits
                          prob - (prob >> MOVE_BITS)
                        end
-            model.instance_variable_set(:@probability, new_prob)
+            model.probability = new_prob
 
             # RC_NORM: Normalize AFTER encoding (key SDK difference!)
             normalize

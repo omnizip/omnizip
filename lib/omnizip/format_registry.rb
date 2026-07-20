@@ -1,42 +1,71 @@
 # frozen_string_literal: true
 
 module Omnizip
-  # Registry for archive format handlers
-  # Manages different archive format readers (7z, zip, tar, etc.)
-  class FormatRegistry
+  class FormatRegistry < Omnizip::Registry
+    BUILTIN_FORMATS = {
+      ".7z" => "Omnizip::Formats::SevenZip::Reader",
+      ".zip" => "Omnizip::Formats::Zip",
+      ".rar" => "Omnizip::Formats::Rar::Reader",
+      ".tar" => "Omnizip::Formats::Tar",
+      ".gz" => "Omnizip::Formats::Gzip",
+      ".gzip" => "Omnizip::Formats::Gzip",
+      ".bz2" => "Omnizip::Formats::Bzip2File",
+      ".bzip2" => "Omnizip::Formats::Bzip2File",
+      ".xz" => "Omnizip::Formats::Xz",
+      ".msi" => "Omnizip::Formats::Msi",
+      ".msp" => "Omnizip::Formats::Msi",
+      ".cpio" => "Omnizip::Formats::Cpio::Reader",
+      ".iso" => "Omnizip::Formats::Iso::Reader",
+      ".xar" => "Omnizip::Formats::Xar::Reader",
+      ".lz" => "Omnizip::Formats::Lzip",
+      ".lzip" => "Omnizip::Formats::Lzip",
+      ".lzma" => "Omnizip::Formats::LzmaAlone",
+      ".ole" => "Omnizip::Formats::Ole::Storage",
+      ".doc" => "Omnizip::Formats::Ole::Storage",
+      ".xls" => "Omnizip::Formats::Ole::Storage",
+      ".ppt" => "Omnizip::Formats::Ole::Storage",
+    }.freeze
+
     class << self
-      # Register a format handler
-      #
-      # @param extension [String] File extension (e.g., ".7z", ".zip")
-      # @param handler_class [Class, String] Format handler class or class name string
-      def register(extension, handler_class)
-        registry[normalize_extension(extension)] = handler_class
+      def label
+        "Format"
       end
 
-      # Get format handler for extension
-      #
-      # @param extension [String] File extension
-      # @return [Class, Module, nil] Handler class/module or nil if not found
+      def normalize_key(extension)
+        ext = extension.to_s
+        ext = ".#{ext}" unless ext.start_with?(".")
+        ext.downcase
+      end
+
       def get(extension)
-        handler = registry[normalize_extension(extension)]
-        return handler if handler.nil? || handler.is_a?(Class) || handler.is_a?(Module)
+        normalized = normalize_key(extension)
+        handler = storage[normalized]
+        return resolve_handler(handler, extension) if handler
 
-        # Resolve string to class if needed
-        resolve_constant(handler)
+        trigger = lazy_triggers[normalized]
+        if trigger
+          synchronize { lazy_triggers.delete(normalized) }
+          trigger.call
+          handler = storage[normalized]
+          return resolve_handler(handler, extension) if handler
+        end
+
+        nil
       end
 
-      # Resolve a string to a constant (class/module)
-      #
-      # @param name [String] Fully qualified class name
-      # @return [Class, Module, nil] Resolved constant or nil
+      def supported?(extension)
+        registered?(extension) || lazy_triggers.key?(normalize_key(extension))
+      end
+      alias supported_formats available
+
       def resolve_constant(name)
         return nil unless name.is_a?(String)
 
-        names = name.split("::")
-        names.shift if names.empty? || names.first.empty?
+        parts = name.split("::")
+        parts.shift if parts.empty? || parts.first.empty?
 
         constant = Object
-        names.each do |n|
+        parts.each do |n|
           return nil unless constant.const_defined?(n, false)
 
           constant = constant.const_get(n)
@@ -46,39 +75,20 @@ module Omnizip
         nil
       end
 
-      # Check if format is supported
-      #
-      # @param extension [String] File extension
-      # @return [Boolean] true if supported
-      def supported?(extension)
-        registry.key?(normalize_extension(extension))
-      end
-
-      # List all supported formats
-      #
-      # @return [Array<String>] Supported extensions
-      def supported_formats
-        registry.keys.sort
-      end
-
       private
 
-      # Format registry storage
-      #
-      # @return [Hash] Extension to handler class mapping
-      def registry
-        @registry ||= {}
-      end
+      def resolve_handler(handler, original_extension)
+        return nil if handler.nil?
+        return handler if handler.is_a?(Class) || handler.is_a?(Module)
 
-      # Normalize file extension
-      #
-      # @param ext [String] Extension
-      # @return [String] Normalized extension
-      def normalize_extension(ext)
-        ext = ext.to_s
-        ext = ".#{ext}" unless ext.start_with?(".")
-        ext.downcase
+        resolve_constant(handler)
       end
     end
   end
+end
+
+# Lazy triggers — referencing the constant autoloads the file, which
+# self-registers with its extension(s).
+Omnizip::FormatRegistry::BUILTIN_FORMATS.each do |ext, const_path|
+  Omnizip::FormatRegistry.register_lazy(ext) { Object.const_get(const_path) }
 end

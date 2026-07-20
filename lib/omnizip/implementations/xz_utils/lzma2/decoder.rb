@@ -418,10 +418,10 @@ module Omnizip
                 if @lzma2_debug
                   warn "DEBUG: decompress_lzma_chunk - After set_input, checking range_decoder..."
                   # Check if the decoder has a range_decoder variable
-                  if @lzma_decoder.instance_variable_defined?(:@range_decoder)
-                    range_decoder = @lzma_decoder.instance_variable_get(:@range_decoder)
+                  if @lzma_decoder.respond_to?(:range_decoder)
+                    range_decoder = @lzma_decoder.range_decoder
                     if range_decoder
-                      warn "  range_decoder exists: code=0x#{range_decoder.instance_variable_get(:@code).to_s(16)}, range=0x#{range_decoder.instance_variable_get(:@range).to_s(16)}, init_bytes_remaining=#{range_decoder.instance_variable_get(:@init_bytes_remaining)}"
+                      warn "  range_decoder exists: code=0x#{range_decoder.code.to_s(16)}, range=0x#{range_decoder.range.to_s(16)}, init_bytes_remaining=#{range_decoder.init_bytes_remaining}"
                     else
                       warn "  range_decoder is nil"
                     end

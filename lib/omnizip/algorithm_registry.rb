@@ -17,70 +17,40 @@
 #
 
 module Omnizip
-  # Registry for managing compression algorithm classes.
-  #
-  # This class provides a centralized registry for compression algorithms,
-  # allowing algorithms to self-register and be retrieved by name.
-  # It implements a plugin-style architecture for extensibility.
-  class AlgorithmRegistry
+  class AlgorithmRegistry < Omnizip::Registry
+    BUILTIN_ALGORITHMS = {
+      lzma: "Omnizip::Algorithms::LZMA",
+      lzma2: "Omnizip::Algorithms::LZMA2",
+      ppmd7: "Omnizip::Algorithms::PPMd7",
+      ppmd8: "Omnizip::Algorithms::PPMd8",
+      bzip2: "Omnizip::Algorithms::BZip2",
+      deflate: "Omnizip::Algorithms::Deflate",
+      deflate64: "Omnizip::Algorithms::Deflate64",
+      zstandard: "Omnizip::Algorithms::Zstandard",
+    }.freeze
+
     class << self
-      # Register an algorithm class with the registry.
-      #
-      # @param name [Symbol, String] The name identifier for the algorithm
-      # @param klass [Class] The algorithm class to register
-      # @raise [ArgumentError] If name or klass is nil
-      # @return [void]
+      def not_found_error_class
+        Omnizip::UnknownAlgorithmError
+      end
+
+      def label
+        "Algorithm"
+      end
+
       def register(name, klass)
         raise ArgumentError, "Algorithm name cannot be nil" if name.nil?
         raise ArgumentError, "Algorithm class cannot be nil" if klass.nil?
 
-        algorithms[name.to_sym] = klass
-      end
-
-      # Retrieve an algorithm class by name.
-      #
-      # @param name [Symbol, String] The name identifier for the algorithm
-      # @raise [UnknownAlgorithmError] If algorithm is not registered
-      # @return [Class] The registered algorithm class
-      def get(name)
-        algorithm = algorithms[name.to_sym]
-        return algorithm if algorithm
-
-        raise UnknownAlgorithmError,
-              "Unknown algorithm: #{name}. " \
-              "Available: #{available.join(', ')}"
-      end
-
-      # Check if an algorithm is registered.
-      #
-      # @param name [Symbol, String] The name identifier for the algorithm
-      # @return [Boolean] True if algorithm is registered, false otherwise
-      def registered?(name)
-        algorithms.key?(name.to_sym)
-      end
-
-      # Get list of all registered algorithm names.
-      #
-      # @return [Array<Symbol>] Array of registered algorithm names
-      def available
-        algorithms.keys
-      end
-
-      # Reset the registry (primarily for testing).
-      #
-      # @return [void]
-      def reset!
-        algorithms.clear
-      end
-
-      private
-
-      # Get or initialize the algorithms hash.
-      #
-      # @return [Hash] The algorithms registry
-      def algorithms
-        @algorithms ||= {}
+        super
       end
     end
   end
+end
+
+# Lazy triggers: when +AlgorithmRegistry.get(:lzma)+ is called before the
+# LZMA file has been autoloaded, the trigger references the constant
+# (which autoloads the file), and the file's body self-registers.
+Omnizip::AlgorithmRegistry::BUILTIN_ALGORITHMS.each do |name, const_path|
+  Omnizip::AlgorithmRegistry.register_lazy(name) { Object.const_get(const_path) }
 end

@@ -64,7 +64,7 @@ module Omnizip
               dest_path: dest_path,
               data: data,
               directory: entry.directory?,
-              unix_perms: entry.respond_to?(:unix_perms) ? entry.unix_perms : 0,
+              unix_perms: entry.unix_perms rescue 0,
             },
             work: work,
           )
@@ -107,10 +107,11 @@ module Omnizip
             return "" unless compressed_data
 
             # Decompress
-            reader.send(:decompress_data,
-                        compressed_data,
-                        reader_entry.compression_method,
-                        reader_entry.uncompressed_size)
+            reader.decompress(
+              compressed_data,
+              reader_entry.compression_method,
+              reader_entry.uncompressed_size,
+            )
           end
         end
       end
@@ -130,11 +131,7 @@ module Omnizip
                    when Omnizip::Models::ParallelOptions
                      options.dup
                    when Hash
-                     Omnizip::Models::ParallelOptions.new.tap do |opts|
-                       options.each do |k, v|
-                         opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=")
-                       end
-                     end
+                     Omnizip::Models::ParallelOptions.new.apply(options)
                    else
                      Omnizip::Models::ParallelOptions.new
                    end
@@ -182,7 +179,7 @@ module Omnizip
 
         # Schedule jobs
         entries.each do |entry|
-          file_size = entry.respond_to?(:size) ? entry.size : 0
+          file_size = (entry.size rescue 0)
 
           job_queue.push_with_size(
             file: entry.name,

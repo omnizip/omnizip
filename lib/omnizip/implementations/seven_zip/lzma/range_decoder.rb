@@ -74,14 +74,14 @@ module Omnizip
               # UPDATE_0: bit is 0
               @range = bound & 0xFFFFFFFF
               new_prob = prob + ((BIT_MODEL_TOTAL - prob) >> MOVE_BITS)
-              model.instance_variable_set(:@probability, new_prob)
+              model.probability = new_prob
               0
             else
               # UPDATE_1: bit is 1
               @range = (@range - bound) & 0xFFFFFFFF
               @code = (@code - bound) & 0xFFFFFFFF
               new_prob = prob - (prob >> MOVE_BITS)
-              model.instance_variable_set(:@probability, new_prob)
+              model.probability = new_prob
               1
             end
           end

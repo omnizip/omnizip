@@ -74,6 +74,12 @@ module Omnizip
         # @return [Array<Dirent>] Child entries (for directories)
         attr_reader :parent
 
+        # Public read access to the per-dirent name lookup hash. Used by
+        # children to update the parent's index when their name changes.
+        def name_lookup
+          @name_lookup ||= {}
+        end
+
         # @return [Integer, nil] Index in dirent array (used during loading)
         attr_accessor :idx
 
@@ -154,7 +160,7 @@ module Omnizip
         # @param value [String] Entry name
         def name=(value)
           if @parent
-            map = @parent.instance_variable_get(:@name_lookup)
+            map = @parent.name_lookup
             map&.delete(@name)
             map&.store(value, self)
           end

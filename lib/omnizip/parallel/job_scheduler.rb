@@ -49,7 +49,7 @@ module Omnizip
       # @return [Float] estimated seconds to completion
       def estimate_completion_time(jobs, worker_count:,
 bytes_per_second: 10_000_000)
-        total_bytes = jobs.sum { |job| job.respond_to?(:size) ? job.size : 0 }
+        total_bytes = jobs.sum { |job| job_size(job) }
         return 0.0 if total_bytes.zero? || worker_count.zero?
 
         # Simple estimate: total bytes / (workers * rate)
@@ -65,7 +65,7 @@ bytes_per_second: 10_000_000)
 
         # Calculate total size per worker
         worker_sizes = assignments.transform_values do |jobs|
-          jobs.sum { |job| job.respond_to?(:size) ? job.size : 1 }
+          jobs.sum { |job| job_size(job) }
         end
 
         sizes = worker_sizes.values
@@ -76,6 +76,16 @@ bytes_per_second: 10_000_000)
       end
 
       private
+
+      # Job size helper. Returns the job's #size if defined, else 1
+      # (counts as one unit of work). Centralized so the rest of the
+      # scheduler doesn't need +respond_to?+ checks.
+      #
+      # @param job [Object]
+      # @return [Integer]
+      def job_size(job)
+        job.is_a?(::Numeric) ? job : (job.size rescue nil) || 1
+      end
 
       # Validate scheduling strategy
       #
@@ -116,7 +126,7 @@ bytes_per_second: 10_000_000)
 
         # Sort jobs by size (largest first) for better balance
         sorted_jobs = jobs.sort_by do |job|
-          -(job.respond_to?(:size) ? job.size : 0)
+          -(job_size(job))
         end
 
         # Initialize worker assignments
@@ -125,14 +135,14 @@ bytes_per_second: 10_000_000)
 
         # Assign each job to worker with smallest current load
         sorted_jobs.each do |job|
-          job_size = job.respond_to?(:size) ? job.size : 1
+          job_size_value = job_size(job)
 
           # Find worker with minimum load
           min_worker = worker_loads.each_with_index.min_by { |load, _| load }[1]
 
           # Assign job to this worker
           assignments[min_worker] << job
-          worker_loads[min_worker] += job_size
+          worker_loads[min_worker] += job_size_value
         end
 
         # Add metadata
@@ -175,19 +185,19 @@ bytes_per_second: 10_000_000)
 
         # Sort jobs by size (largest first)
         sorted_jobs = jobs.sort_by do |job|
-          -(job.respond_to?(:size) ? job.size : 0)
+          -(job_size(job))
         end
 
         # First-fit decreasing bin packing
         bins = Array.new(worker_count) { { jobs: [], total_size: 0 } }
 
         sorted_jobs.each do |job|
-          job_size = job.respond_to?(:size) ? job.size : 1
+          job_size_value = job_size(job)
 
           # Find bin with minimum total size
           min_bin = bins.min_by { |bin| bin[:total_size] }
           min_bin[:jobs] << job
-          min_bin[:total_size] += job_size
+          min_bin[:total_size] += job_size_value
         end
 
         # Convert to standard format

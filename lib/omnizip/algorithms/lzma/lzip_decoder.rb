@@ -52,6 +52,7 @@ module Omnizip
       #   result = decoder.decode_stream
       #
       class LzipDecoder
+        attr_reader :version, :dict_size, :member_size
         # Lzip magic bytes: "LZIP" in ASCII
         # Reference: lzip_decoder.c:106
         MAGIC = [0x4C, 0x5A, 0x49, 0x50].freeze
