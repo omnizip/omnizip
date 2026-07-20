@@ -58,7 +58,7 @@ RSpec.describe Omnizip::IO::Sink do
         described_class.for(path).write("on disk")
         expect(File.binread(path)).to eq("on disk")
       ensure
-        File.delete(path) if File.exist?(path)
+        FileUtils.rm_f(path)
       end
     end
 

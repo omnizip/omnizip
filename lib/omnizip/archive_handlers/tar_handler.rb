@@ -5,12 +5,12 @@ module Omnizip
     # Adapter that exposes the canonical +create+/+open+/+extract_to+
     # /+list+ interface for the TAR format. Wraps +Omnizip::Formats::Tar+.
     class TarHandler
-      def create(path)
-        Omnizip::Formats::Tar.create(path) { |writer| yield writer }
+      def create(path, &block)
+        Omnizip::Formats::Tar.create(path, &block)
       end
 
-      def open(path)
-        Omnizip::Formats::Tar.open(path) { |reader| yield reader }
+      def open(path, &block)
+        Omnizip::Formats::Tar.open(path, &block)
       end
 
       def extract_to(path, output_dir, **_)
