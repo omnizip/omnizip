@@ -2,7 +2,6 @@
 
 require "set"
 
-require "omnizip/formats/ole"
 module Omnizip
   module Formats
     module Ole

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/ole"
 module Omnizip
   module Formats
     module Ole

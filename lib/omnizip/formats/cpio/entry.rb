@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/cpio"
 
 module Omnizip
   module Formats
