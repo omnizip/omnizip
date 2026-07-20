@@ -98,7 +98,7 @@ module Omnizip
           begin
             yield reader
           ensure
-            reader.split_reader&.close if reader.respond_to?(:split_reader)
+            reader.split_reader&.close
           end
         end
 

@@ -9,5 +9,7 @@ module Omnizip
     autoload :BufferedInput, "omnizip/io/buffered_input"
     autoload :BufferedOutput, "omnizip/io/buffered_output"
     autoload :StreamManager, "omnizip/io/stream_manager"
+    autoload :Source, "omnizip/io/source"
+    autoload :Sink, "omnizip/io/source"
   end
 end

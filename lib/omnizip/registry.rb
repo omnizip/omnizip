@@ -60,7 +60,8 @@ module Omnizip
       end
 
       def registered?(key)
-        storage.key?(normalize_key(key))
+        normalized = normalize_key(key)
+        storage.key?(normalized) || lazy_triggers.key?(normalized)
       end
 
       def available

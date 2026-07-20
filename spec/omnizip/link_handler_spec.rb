@@ -18,25 +18,25 @@ RSpec.describe Omnizip::LinkHandler do
   end
 
   describe ".symlink_supported?" do
-    it "returns true when File.symlink exists and platform is supported" do
-      allow(described_class).to receive(:supported?).and_return(true)
-      expect(described_class.symlink_supported?).to be(File.respond_to?(:symlink))
+    it "delegates to Omnizip::Platform.supports_symlinks?" do
+      expect(Omnizip::Platform).to receive(:supports_symlinks?).and_return(true)
+      expect(described_class.symlink_supported?).to be true
     end
 
-    it "returns false when platform is not supported" do
-      allow(described_class).to receive(:supported?).and_return(false)
+    it "returns false when platform does not support symlinks" do
+      expect(Omnizip::Platform).to receive(:supports_symlinks?).and_return(false)
       expect(described_class.symlink_supported?).to be false
     end
   end
 
   describe ".hardlink_supported?" do
-    it "returns true when File.link exists and platform is supported" do
-      allow(described_class).to receive(:supported?).and_return(true)
-      expect(described_class.hardlink_supported?).to be(File.respond_to?(:link))
+    it "delegates to Omnizip::Platform.supports_hardlinks?" do
+      expect(Omnizip::Platform).to receive(:supports_hardlinks?).and_return(true)
+      expect(described_class.hardlink_supported?).to be true
     end
 
-    it "returns false when platform is not supported" do
-      allow(described_class).to receive(:supported?).and_return(false)
+    it "returns false when platform does not support hardlinks" do
+      expect(Omnizip::Platform).to receive(:supports_hardlinks?).and_return(false)
       expect(described_class.hardlink_supported?).to be false
     end
   end

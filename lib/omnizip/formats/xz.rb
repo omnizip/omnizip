@@ -26,11 +26,7 @@ module Omnizip
           compressed = encoder.encode(input)
 
           if output
-            if output.respond_to?(:write)
-              output.write(compressed)
-            else
-              File.binwrite(output, compressed)
-            end
+            Omnizip::IO::Sink.for(output).write(compressed)
           else
             compressed
           end
@@ -69,42 +65,13 @@ module Omnizip
         # @param options [Hash] Options (reserved for future use)
         # @return [String, nil] Decompressed data (if output is nil)
         def decompress(input, output = nil, _options = {})
-          # Handle raw data string vs file path
-          data = if input.respond_to?(:read)
-                   # Already an IO object - read content
-                   if input.respond_to?(:size)
-                     # Seekable IO (File, etc.) - read without consuming
-                     original_pos = input.pos
-                     content = input.read
-                     input.seek(original_pos)
-                   else
-                     # Non-seekable IO - read and consume
-                     content = input.read
-                   end
-                   content
-                 elsif input.is_a?(String)
-                   # Could be file path or raw data
-                   # If string contains null byte, it's definitely data (not a path)
-                   # Also check if it's a valid file path first
-                   if !input.include?("\0") && File.exist?(input)
-                     File.binread(input)
-                   else
-                     input.b
-                   end
-                 else
-                   raise ArgumentError,
-                         "Input must be a String or IO object"
-                 end
+          data = Omnizip::IO::Source.for(input).read
 
           # Detect format and decode
           decompressed = decode_lzma_data(data)
 
           if output
-            if output.respond_to?(:write)
-              output.write(decompressed)
-            else
-              File.binwrite(output, decompressed)
-            end
+            Omnizip::IO::Sink.for(output).write(decompressed)
             nil
           else
             decompressed

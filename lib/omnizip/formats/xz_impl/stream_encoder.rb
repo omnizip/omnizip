@@ -25,7 +25,7 @@ module Omnizip
           output.set_encoding(Encoding::BINARY)
 
           # Read input data
-          input_data = input.respond_to?(:read) ? input.read : input.to_s
+          input_data = Omnizip::IO::Source.for(input).read
           input_data = input_data.dup.force_encoding(Encoding::BINARY)
 
           # 1. Write Stream Header

@@ -13,12 +13,12 @@ module Omnizip
 
       # Check if symbolic links are supported
       def symlink_supported?
-        File.respond_to?(:symlink) && supported?
+        Omnizip::Platform.supports_symlinks?
       end
 
       # Check if hard links are supported
       def hardlink_supported?
-        File.respond_to?(:link) && supported?
+        Omnizip::Platform.supports_hardlinks?
       end
 
       # Detect if a path is a symbolic link

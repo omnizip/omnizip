@@ -74,7 +74,7 @@ module Omnizip
                               size: stat.size,
                               mtime: stat.mtime,
                               atime: stat.atime,
-                              ctime: stat.ctime.respond_to?(:to_time) ? stat.ctime.to_time : stat.ctime,
+                              ctime: to_time(stat.ctime),
                             })
 
           # Check for hardlink
@@ -113,7 +113,7 @@ module Omnizip
                               gid: stat.gid,
                               mtime: stat.mtime,
                               atime: stat.atime,
-                              ctime: stat.ctime.respond_to?(:to_time) ? stat.ctime.to_time : stat.ctime,
+                              ctime: to_time(stat.ctime),
                             })
 
           add_entry(entry)
@@ -252,6 +252,14 @@ module Omnizip
         end
 
         private
+
+        # Coerce a ctime value (File::Stat returns Time on Unix, may
+        # return other types on Windows) into a Time.
+        def to_time(value)
+          return value if value.is_a?(Time)
+
+          value.respond_to?(:to_time) ? value.to_time : value
+        end
 
         # Read file data and add to heap
         #

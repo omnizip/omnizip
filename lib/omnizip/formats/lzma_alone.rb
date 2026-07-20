@@ -64,19 +64,7 @@ module Omnizip
         # @option options [Boolean] :picky If true, reject files unlikely to be .lzma (default: false)
         # @return [String, nil] Decompressed data (if output is nil)
         def decompress(input, output = nil, options = {})
-          # Handle raw data string vs file path
-          data = if input.respond_to?(:read)
-                   input.read
-                 elsif input.is_a?(String)
-                   if !input.include?("\0") && File.exist?(input)
-                     File.binread(input)
-                   else
-                     input.b
-                   end
-                 else
-                   raise ArgumentError,
-                         "Input must be a String or IO object"
-                 end
+          data = Omnizip::IO::Source.for(input).read
 
           # Decode using LzmaAloneDecoder
           decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(
@@ -86,11 +74,7 @@ module Omnizip
           result = decoder.decode_stream
 
           if output
-            if output.respond_to?(:write)
-              output.write(result)
-            else
-              File.binwrite(output, result)
-            end
+            Omnizip::IO::Sink.for(output).write(result)
           else
             result
           end
