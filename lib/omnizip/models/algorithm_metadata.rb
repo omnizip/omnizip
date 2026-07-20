@@ -35,7 +35,7 @@ module Omnizip
         @supports_multithreading = false
 
         kwargs.each do |key, value|
-          instance_variable_set("@#{key}", value)
+          public_send("#{key}=", value)
         end
       end
 

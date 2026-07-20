@@ -104,23 +104,32 @@ module Omnizip
       detect(file_path) == :rar4
     end
 
+    # Mapping of detected format symbols to (extension, constant-path)
+    # tuples. The constant path is resolved lazily so autoload fires
+    # only when a format is actually requested.
+    READER_FOR_FORMAT = {
+      xz: ["omnizip/formats/xz", "Omnizip::Formats::Xz"],
+      seven_zip: ["omnizip/formats/seven_zip", "Omnizip::Formats::SevenZip::Reader"],
+      rar5: ["omnizip/formats/rar5", "Omnizip::Formats::Rar5::Reader"],
+      rar4: ["omnizip/formats/rar3", "Omnizip::Formats::Rar3::Reader"],
+      zip: ["omnizip/formats/zip", "Omnizip::Formats::Zip::Reader"],
+      gzip: ["omnizip/formats/gzip", "Omnizip::Formats::Gzip"],
+      bzip2: ["omnizip/formats/bzip2_file", "Omnizip::Formats::Bzip2File"],
+    }.freeze
+
     # Get the appropriate reader class for the format
     #
     # @param file_path [String] Path to the archive file
     # @return [Class, nil] Reader class or nil if unknown format
     def self.reader_for(file_path)
-      case detect(file_path)
-      when :xz
-        Omnizip::Formats::Xz
-      when :seven_zip
-        Omnizip::Formats::SevenZip::Reader
-      when :rar5
-        Omnizip::Formats::Rar5::Reader
-      when :rar4
-        Omnizip::Formats::Rar3::Reader
-      when :zip
-        Omnizip::Formats::Zip::Reader
-      end
+      format = detect(file_path)
+      return nil unless format
+
+      mapping = READER_FOR_FORMAT[format]
+      return nil unless mapping
+
+      _path, const_path = mapping
+      Object.const_get(const_path)
     end
 
     # Detect LZMA_Alone format

@@ -160,7 +160,7 @@ module Omnizip
       def commit
         # Changes are already applied to entries
         # Just mark archive as modified
-        archive.instance_variable_set(:@modified, true) if modified?
+        archive.modified! if modified?
         @changes = []
         self
       end

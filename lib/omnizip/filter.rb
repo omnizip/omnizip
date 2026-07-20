@@ -57,7 +57,8 @@ module Omnizip
   #     end
   #   end
   class Filter
-    # @return [Symbol] Architecture identifier (:x86, :arm, :arm64, :powerpc, :ia64, :sparc)
+    # @return [Symbol, nil] Architecture identifier (:x86, :arm, :arm64,
+    #   :powerpc, :ia64, :sparc) or nil for architecture-agnostic filters
     attr_reader :architecture
 
     # @return [String] Human-readable filter name
@@ -65,9 +66,10 @@ module Omnizip
 
     # Initialize filter
     #
-    # @param architecture [Symbol] Target architecture
+    # @param architecture [Symbol, nil] Target architecture (optional;
+    #   filters that don't vary by architecture leave this as nil)
     # @param name [String] Human-readable name
-    def initialize(architecture:, name: "Unknown")
+    def initialize(architecture: nil, name: "Unknown")
       @architecture = architecture
       @name = name
     end

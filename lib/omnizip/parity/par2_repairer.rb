@@ -162,7 +162,7 @@ module Omnizip
         blocks = []
         block_size = @verifier.metadata[:block_size]
 
-        file_list = @verifier.instance_variable_get(:@file_list)
+        file_list = @verifier.file_list
 
         # Get list of damaged/missing files from verification
         damaged_files = verification.damaged_files
@@ -171,7 +171,7 @@ module Omnizip
         block_index = 0
 
         file_list.each_with_index do |file_info, _file_idx|
-          file_path = @verifier.send(:find_file_path, file_info[:filename])
+          file_path = @verifier.find_file_path(file_info[:filename])
           (file_info[:size].to_f / block_size).ceil
 
           # Treat damaged files same as missing files - don't read corrupted data
@@ -212,7 +212,7 @@ module Omnizip
       #
       # @return [Hash] Map of exponent => recovery_block_data
       def load_parity_blocks_by_exponent
-        recovery_blocks = @verifier.instance_variable_get(:@recovery_blocks)
+        recovery_blocks = @verifier.recovery_blocks
 
         # Group by exponent and take first block for each
         # (PAR2 can have multiple slices with same exponent for large data)
@@ -234,7 +234,7 @@ module Omnizip
 
         # Build file-to-blocks mapping using verifier's file list
         # Note: @verifier was populated by the verify() call in repair()
-        file_list = @verifier.instance_variable_get(:@file_list)
+        file_list = @verifier.file_list
         block_size = @verifier.metadata[:block_size]
 
         # Ensure metadata is loaded
@@ -281,7 +281,7 @@ module Omnizip
         output_dir ||= File.dirname(@par2_file)
         FileUtils.mkdir_p(output_dir)
 
-        @verifier.instance_variable_get(:@file_list).each do |file_info|
+        @verifier.file_list.each do |file_info|
           num_blocks = (file_info[:size].to_f / @verifier.metadata[:block_size]).ceil
           file_blocks_range = (block_idx...(block_idx + num_blocks)).to_a
 

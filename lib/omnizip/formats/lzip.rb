@@ -146,9 +146,9 @@ module Omnizip
 
           # Return metadata
           {
-            version: decoder.instance_variable_get(:@version),
-            dict_size: decoder.instance_variable_get(:@dict_size),
-            member_size: decoder.instance_variable_get(:@member_size),
+            version: decoder.version,
+            dict_size: decoder.dict_size,
+            member_size: decoder.member_size,
           }
         end
 

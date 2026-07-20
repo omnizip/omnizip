@@ -112,6 +112,79 @@ module Omnizip
           end
         end
 
+        # Add an entry whose payload is already compressed. Bypasses
+        # per-entry compression in +#write+, so +#write_precompressed+
+        # must be used instead of +#write+ to emit the archive.
+        #
+        # @param filename [String] Entry name in the archive
+        # @param uncompressed_size [Integer] Size before compression
+        # @param compressed_size [Integer] Size of +compressed_data+
+        # @param crc32 [Integer] CRC32 of the uncompressed data
+        # @param compressed_data [String] Pre-compressed payload
+        # @param stat [File::Stat, nil] Optional stat for the source file
+        def add_precompressed_entry(filename:, uncompressed_size:,
+                                    compressed_size:, crc32:,
+                                    compressed_data:, stat: nil)
+          entry = create_entry(
+            filename: filename,
+            uncompressed_data: "",
+            stat: stat,
+          )
+          entry[:compressed_size] = compressed_size
+          entry[:uncompressed_size] = uncompressed_size
+          entry[:crc32] = crc32
+          entry[:compressed_data] = compressed_data
+          @entries << entry
+          entry
+        end
+
+        # Write the archive using pre-compressed entry payloads (set
+        # via +#add_precompressed_entry+).
+        #
+        # @param compression_method [Integer] ZIP compression method
+        #   code recorded in the headers
+        def write_precompressed(compression_method: COMPRESSION_DEFLATE)
+          File.open(file_path, "wb") do |io|
+            write_precompressed_to_io(io, compression_method: compression_method)
+          end
+        end
+
+        def write_precompressed_to_io(io, compression_method: COMPRESSION_DEFLATE)
+          local_header_offsets = []
+
+          entries.each do |entry|
+            offset = io.pos
+            local_header_offsets << offset
+
+            local_header = create_local_header(entry, compression_method)
+            local_header.compressed_size = entry[:compressed_size]
+            local_header.uncompressed_size = entry[:uncompressed_size]
+            local_header.crc32 = entry[:crc32]
+            io.write(local_header.to_binary)
+            io.write(entry[:compressed_data]) unless entry[:directory]
+          end
+
+          central_directory_offset = io.pos
+
+          entries.each_with_index do |entry, index|
+            central_header = create_central_header(
+              entry,
+              compression_method,
+              local_header_offsets[index],
+            )
+            io.write(central_header.to_binary)
+          end
+
+          central_directory_size = io.pos - central_directory_offset
+
+          eocd = create_eocd(
+            total_entries: entries.size,
+            central_directory_size: central_directory_size,
+            central_directory_offset: central_directory_offset,
+          )
+          io.write(eocd.to_binary)
+        end
+
         # Write to an IO object
         def write_to_io(io, compression_method: COMPRESSION_DEFLATE, level: 6)
           local_header_offsets = []

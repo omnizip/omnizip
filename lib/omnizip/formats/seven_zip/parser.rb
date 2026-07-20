@@ -570,7 +570,7 @@ module Omnizip
             time_val = read_uint64
             # Convert Windows FILETIME to Ruby Time
             # (100-nanosecond intervals since 1601-01-01)
-            entry.send(:"#{attr}=", windows_time_to_unix(time_val))
+            entry.public_send(:"#{attr}=", windows_time_to_unix(time_val))
           end
         end
 

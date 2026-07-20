@@ -50,7 +50,6 @@ module Omnizip
         @modified = false
         @reader = nil
         @writer = nil
-
         # Load existing archive if it exists
         if ::File.exist?(file_path) && !create
           load_archive
@@ -188,6 +187,18 @@ module Omnizip
         entries.size
       end
       alias_method :length, :size
+
+      # Mark this archive as having unsaved changes. The next +#commit+
+      # or +#close+ will write the archive to disk.
+      def modified!
+        @modified = true
+        self
+      end
+
+      # True if there are unsaved changes.
+      def modified?
+        @modified
+      end
 
       # Check if archive contains an entry
       # @param entry_name [String] Entry name to check
@@ -374,8 +385,7 @@ module Omnizip
           extra_field: "",
           comment: "",
         ).tap do |header|
-          # Store original data in header for writing
-          header.instance_variable_set(:@_original_data, data)
+          header.cached_original_data = data
         end
       end
 
@@ -384,7 +394,7 @@ module Omnizip
         return "" if entry.directory?
 
         # Check if we have cached data (for new entries not yet written)
-        cached_data = entry.header.instance_variable_get(:@_original_data)
+        cached_data = entry.header.cached_original_data
         return cached_data if cached_data
 
         # Otherwise read from file
@@ -416,10 +426,11 @@ module Omnizip
           return "" unless compressed_data
 
           # Decompress
-          @reader.send(:decompress_data,
-                       compressed_data,
-                       reader_entry.compression_method,
-                       reader_entry.uncompressed_size)
+          @reader.decompress(
+            compressed_data,
+            reader_entry.compression_method,
+            reader_entry.uncompressed_size,
+          )
         end
       end
 
@@ -447,7 +458,7 @@ module Omnizip
           next if entry.directory?
 
           header = entry.header
-          cached = header.instance_variable_get(:@_original_data)
+          cached = header.cached_original_data
           entry_data[entry.name] = cached || read_entry_data(entry)
         end
 

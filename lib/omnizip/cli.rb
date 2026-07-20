@@ -17,22 +17,15 @@
 #
 
 require "thor"
-require "omnizip/commands/compress_command"
-require "omnizip/commands/decompress_command"
-require "omnizip/commands/list_command"
-require "omnizip/commands/archive_create_command"
-require "omnizip/commands/archive_extract_command"
-require "omnizip/commands/archive_list_command"
-require "omnizip/commands/profile_list_command"
-require "omnizip/commands/profile_show_command"
-require "omnizip/commands/metadata_command"
-require "omnizip/commands/archive_verify_command"
-require "omnizip/commands/archive_repair_command"
+require "omnizip/commands"
 require "omnizip/cli/output_formatter"
+require "omnizip/cli/shared"
 
 module Omnizip
   # Profile commands subcommand group
   class ProfileCommands < Thor
+    include Omnizip::Cli::Shared
+
     class << self
       def exit_on_failure?
         true
@@ -75,17 +68,12 @@ module Omnizip
     rescue StandardError => e
       handle_error(e)
     end
-
-    private
-
-    def handle_error(error)
-      warn Omnizip::CliOutputFormatter.format_error(error)
-      exit 1
-    end
   end
 
   # Archive commands subcommand group
   class ArchiveCommands < Thor
+    include Omnizip::Cli::Shared
+
     class << self
       def exit_on_failure?
         true
@@ -306,13 +294,6 @@ module Omnizip
     rescue StandardError => e
       handle_error(e)
     end
-
-    private
-
-    def handle_error(error)
-      warn Omnizip::CliOutputFormatter.format_error(error)
-      exit 1
-    end
   end
 
   # Command-line interface for Omnizip.
@@ -320,6 +301,8 @@ module Omnizip
   # Provides Thor-based CLI commands for compressing and decompressing
   # files using various compression algorithms.
   class Cli < Thor
+    include Omnizip::Cli::Shared
+
     class << self
       def exit_on_failure?
         true
@@ -552,21 +535,6 @@ module Omnizip
       warn "Decompression complete" if options[:verbose]
     ensure
       input_io.close if input_io && input != "-"
-    end
-
-    def handle_error(error)
-      warn CliOutputFormatter.format_error(error)
-      exit 1
-    end
-
-    def format_bytes(bytes)
-      return "0 B" if bytes.zero?
-
-      units = %w[B KB MB GB TB]
-      exp = (Math.log(bytes) / Math.log(1024)).to_i
-      exp = [exp, units.size - 1].min
-
-      "%.1f %s" % [bytes.to_f / (1024**exp), units[exp]]
     end
   end
 end

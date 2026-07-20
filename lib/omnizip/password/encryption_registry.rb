@@ -2,64 +2,25 @@
 
 module Omnizip
   module Password
-    # Registry for encryption strategies
-    class EncryptionRegistry
-      @strategies = {}
-
+    class EncryptionRegistry < Omnizip::Registry
       class << self
-        # Register an encryption strategy
-        # @param name [Symbol] Strategy name
-        # @param strategy_class [Class] Strategy class
-        def register(name, strategy_class)
-          @strategies[name] = strategy_class
+        def not_found_error_class
+          Omnizip::UnknownEncryptionStrategyError
         end
 
-        # Get a strategy by name
-        # @param name [Symbol] Strategy name
-        # @return [Class] Strategy class
-        # @raise [ArgumentError] If strategy not found
-        def get(name)
-          strategy = @strategies[name]
-          return strategy if strategy
-
-          raise ArgumentError, "Unknown encryption strategy: #{name}. " \
-                               "Available: #{@strategies.keys.join(', ')}"
+        def label
+          "Encryption strategy"
         end
 
-        # Check if strategy is registered
-        # @param name [Symbol] Strategy name
-        # @return [Boolean] True if registered
-        def registered?(name)
-          @strategies.key?(name)
-        end
-
-        # Get all registered strategy names
-        # @return [Array<Symbol>] Strategy names
-        def strategies
-          @strategies.keys
-        end
-
-        # Create a strategy instance
-        # @param name [Symbol] Strategy name
-        # @param password [String] Password
-        # @param options [Hash] Strategy options
-        # @return [EncryptionStrategy] Strategy instance
         def create(name, password, **options)
-          strategy_class = get(name)
-          strategy_class.new(password, **options)
-        end
-
-        # Reset registry (for testing)
-        def reset
-          @strategies = {}
+          get(name).new(password, **options)
         end
       end
     end
-
-    # Register built-in strategies
-    EncryptionRegistry.register(:traditional, ZipCryptoStrategy)
-    EncryptionRegistry.register(:zip_crypto, ZipCryptoStrategy)
-    EncryptionRegistry.register(:winzip_aes, WinzipAesStrategy)
-    EncryptionRegistry.register(:aes256, WinzipAesStrategy)
   end
 end
+
+Omnizip::Password::EncryptionRegistry.register(:traditional, Omnizip::Password::ZipCryptoStrategy)
+Omnizip::Password::EncryptionRegistry.register(:zip_crypto, Omnizip::Password::ZipCryptoStrategy)
+Omnizip::Password::EncryptionRegistry.register(:winzip_aes, Omnizip::Password::WinzipAesStrategy)
+Omnizip::Password::EncryptionRegistry.register(:aes256, Omnizip::Password::WinzipAesStrategy)

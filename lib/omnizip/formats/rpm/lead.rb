@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/rpm"
 module Omnizip
   module Formats
     module Rpm
@@ -39,6 +38,22 @@ module Omnizip
         # @return [Integer] Total length (always 96)
         attr_reader :length
 
+        # Initialize a parsed lead. All attributes are required; use
+        # +Lead.parse(io)+ for the typical read path.
+        def initialize(magic:, major_version:, minor_version:, type:,
+                       architecture:, name:, os:, signature_type:,
+                       length: LEAD_SIZE)
+          @magic = magic
+          @major_version = major_version
+          @minor_version = minor_version
+          @type = type
+          @architecture = architecture
+          @name = name
+          @os = os
+          @signature_type = signature_type
+          @length = length
+        end
+
         # Parse lead from IO
         #
         # @param io [IO] Input stream positioned at lead
@@ -49,31 +64,27 @@ module Omnizip
           raise ArgumentError, "Failed to read RPM lead" unless data
           raise ArgumentError, "Truncated RPM lead" if data.bytesize < LEAD_SIZE
 
-          new.tap do |lead|
-            lead.instance_variable_set(:@length, LEAD_SIZE)
+          # Unpack lead structure
+          # A4 = 4-byte string (magic)
+          # CC = 2 unsigned chars (major, minor)
+          # n = big-endian short (type)
+          # n = big-endian short (architecture)
+          # A66 = 66-byte string (name)
+          # n = big-endian short (os)
+          # n = big-endian short (signature_type)
+          # A16 = 16-byte reserved
+          magic, major, minor, type, arch, name, os, sig_type = data.unpack("A4 CC n n A66 n n A16")
 
-            # Unpack lead structure
-            # A4 = 4-byte string (magic)
-            # CC = 2 unsigned chars (major, minor)
-            # n = big-endian short (type)
-            # n = big-endian short (architecture)
-            # A66 = 66-byte string (name)
-            # n = big-endian short (os)
-            # n = big-endian short (signature_type)
-            # A16 = 16-byte reserved
-            fields = data.unpack("A4 CC n n A66 n n A16")
-
-            lead.instance_variable_set(:@magic, fields[0])
-            lead.instance_variable_set(:@major_version, fields[1])
-            lead.instance_variable_set(:@minor_version, fields[2])
-            lead.instance_variable_set(:@type, fields[3])
-            lead.instance_variable_set(:@architecture, fields[4])
-            lead.instance_variable_set(:@name, fields[5].strip)
-            lead.instance_variable_set(:@os, fields[6])
-            lead.instance_variable_set(:@signature_type, fields[7])
-
-            lead.validate!
-          end
+          new(
+            magic: magic,
+            major_version: major,
+            minor_version: minor,
+            type: type,
+            architecture: arch,
+            name: name.strip,
+            os: os,
+            signature_type: sig_type,
+          ).tap(&:validate!)
         end
 
         # Validate lead structure

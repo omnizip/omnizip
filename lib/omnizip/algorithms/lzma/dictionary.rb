@@ -7,6 +7,7 @@ module Omnizip
       # Ported from XZ Utils lzma_decoder.c
       class Dictionary
         attr_reader :size, :position, :buffer
+        attr_writer :buffer, :position
 
         def initialize(size)
           @size = size
@@ -59,8 +60,8 @@ module Omnizip
         # Clone dictionary
         def clone
           dict = Dictionary.new(@size)
-          dict.instance_variable_set(:@buffer, @buffer.dup)
-          dict.instance_variable_set(:@position, @position)
+          dict.buffer = @buffer.dup
+          dict.position = @position
           dict
         end
       end

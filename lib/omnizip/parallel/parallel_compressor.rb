@@ -131,11 +131,7 @@ level: 6)
                    when Omnizip::Models::ParallelOptions
                      options.dup
                    when Hash
-                     Omnizip::Models::ParallelOptions.new.tap do |opts|
-                       options.each do |k, v|
-                         opts.send(:"#{k}=", v) if opts.respond_to?(:"#{k}=")
-                       end
-                     end
+                     Omnizip::Models::ParallelOptions.new.apply(options)
                    else
                      Omnizip::Models::ParallelOptions.new
                    end
@@ -302,26 +298,20 @@ level: 6)
           result = work_result.result
           next unless result
 
-          # Add compressed entry to writer
-          entry = writer.send(:create_entry,
-                              filename: result[:archive_path],
-                              uncompressed_data: "",
-                              stat: result[:stat])
-
-          # Override with pre-compressed data
-          entry[:compressed_size] = result[:compressed_size]
-          entry[:uncompressed_size] = result[:uncompressed_size]
-          entry[:crc32] = result[:crc32]
-          entry[:compressed_data] = result[:compressed_data]
-
-          writer.instance_variable_get(:@entries) << entry
+          writer.add_precompressed_entry(
+            filename: result[:archive_path],
+            uncompressed_size: result[:uncompressed_size],
+            compressed_size: result[:compressed_size],
+            crc32: result[:crc32],
+            compressed_data: result[:compressed_data],
+            stat: result[:stat],
+          )
 
           @stats[:bytes_processed] += result[:uncompressed_size]
           @stats[:bytes_compressed] += result[:compressed_size]
         end
 
-        # Write with pre-compressed data
-        writer.send(:write_with_precompressed_data, compression)
+        writer.write_precompressed(compression_method: compression)
       end
 
       # Calculate compression ratio

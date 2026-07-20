@@ -62,7 +62,7 @@ module Omnizip
           entry.size = data_str.bytesize
           entry.mtime = Time.now
           entry.has_stream = true
-          entry.instance_variable_set(:@_data, data_str)
+          entry.inline_data = data_str
           # Store compression options for later use
           entry.compression_options = options if entry.respond_to?(:compression_options=)
           @entries << entry
@@ -175,7 +175,7 @@ module Omnizip
             total_size = 0
 
             files_with_data.each do |entry|
-              data = entry.instance_variable_get(:@_data) || File.binread(entry.source_path)
+              data = entry.inline_data || File.binread(entry.source_path)
               combined << data
               total_size += data.bytesize
 
@@ -193,7 +193,7 @@ module Omnizip
             total_size = 0
 
             files_with_data.each do |entry|
-              data = entry.instance_variable_get(:@_data) || File.binread(entry.source_path)
+              data = entry.inline_data || File.binread(entry.source_path)
 
               crc = Omnizip::Checksums::Crc32.new
               crc.update(data)

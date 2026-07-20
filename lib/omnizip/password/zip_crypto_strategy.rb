@@ -114,10 +114,7 @@ module Omnizip
       # @param byte [Integer] Byte to add
       # @return [Integer] Updated CRC
       def crc32_update(crc, byte)
-        crc32 = Omnizip::Checksums::Crc32.new
-        crc32.instance_variable_set(:@crc, crc)
-        crc32.update(byte.chr)
-        crc32.value
+        Omnizip::Checksums::Crc32.new.process_byte(crc, byte)
       end
 
       # Generate encryption header

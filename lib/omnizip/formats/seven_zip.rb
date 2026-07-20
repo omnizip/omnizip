@@ -177,12 +177,10 @@ module Omnizip
 
       # Auto-register .7z format when loaded
       def self.register!
-        require "omnizip/format_registry"
-        FormatRegistry.register(".7z", Reader)
+        FormatRegistry.register(".7z", "Omnizip::Formats::SevenZip::Reader")
       end
     end
   end
 end
 
-# Auto-register when file is loaded
 Omnizip::Formats::SevenZip.register!

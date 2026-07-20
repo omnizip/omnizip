@@ -201,7 +201,7 @@ RSpec.describe Omnizip::Password do
     it "raises for unknown strategies" do
       expect do
         described_class.get(:unknown)
-      end.to raise_error(ArgumentError, /Unknown encryption strategy/)
+      end.to raise_error(Omnizip::UnknownEncryptionStrategyError, /Encryption strategy not registered/)
     end
 
     it "creates strategy instances" do

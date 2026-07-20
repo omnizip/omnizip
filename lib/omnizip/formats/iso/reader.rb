@@ -158,7 +158,7 @@ module Omnizip
             unless record.current_directory? || record.parent_directory?
               # Set full path
               full_path = path_prefix.empty? ? record.name : "#{path_prefix}/#{record.name}"
-              record.instance_variable_set(:@full_path, full_path)
+              record.full_path = full_path
 
               @entries << record
 
@@ -177,7 +177,7 @@ module Omnizip
         def find_entry(path)
           # Normalize path
           path = path.gsub(%r{^/+}, "").gsub(%r{/+$}, "")
-          @entries.find { |e| e.instance_variable_get(:@full_path) == path }
+          @entries.find { |e| e.full_path == path }
         end
 
         # Read file data

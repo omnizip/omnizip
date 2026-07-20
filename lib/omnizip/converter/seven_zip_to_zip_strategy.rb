@@ -59,7 +59,7 @@ module Omnizip
           # Extract entry data
           unless entry.name.end_with?("/")
             File.open(source_path, "rb") do |io|
-              data[:content] = reader.send(:extract_entry_data, io, entry)
+              data[:content] = reader.extract_entry_data(io, entry)
             end
           end
 

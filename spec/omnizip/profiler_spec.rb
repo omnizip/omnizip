@@ -315,7 +315,7 @@ RSpec.describe Omnizip::OptimizationRegistry do
     it "raises error for unregistered strategy" do
       expect do
         described_class.get(:nonexistent)
-      end.to raise_error(Omnizip::OptimizationNotFound)
+      end.to raise_error(Omnizip::OptimizationNotFoundError)
     end
   end
 

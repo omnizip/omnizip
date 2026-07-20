@@ -200,7 +200,7 @@ module Omnizip
       # @param key [Symbol, String] The key to retrieve
       # @return [Object] The value for the key
       def [](key)
-        format.send(key)
+        format.public_send(key)
       end
 
       # Get magic bytes as an array of integers

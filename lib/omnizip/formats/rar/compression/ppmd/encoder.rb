@@ -52,7 +52,7 @@ module Omnizip
 
             # Accessor for memory size (for testing)
             def memory_size
-              @model.instance_variable_get(:@mem_size)
+              @model.mem_size
             end
 
             # Initialize the RAR PPMd encoder

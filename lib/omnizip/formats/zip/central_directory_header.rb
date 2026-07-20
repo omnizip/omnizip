@@ -14,7 +14,8 @@ module Omnizip
                       :crc32, :compressed_size, :uncompressed_size,
                       :filename_length, :extra_field_length, :comment_length,
                       :disk_number_start, :internal_attributes, :external_attributes,
-                      :local_header_offset, :filename, :extra_field, :comment
+                      :local_header_offset, :filename, :extra_field, :comment,
+                      :cached_original_data
 
         def initialize(
           signature: CENTRAL_DIRECTORY_SIGNATURE,
