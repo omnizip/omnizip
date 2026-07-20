@@ -70,6 +70,10 @@ module Omnizip
       end
 
       def filters_for_format(format)
+        # Ensure all lazy triggers have fired so the format filter list
+        # reflects every registered builtin.
+        lazy_triggers.keys.dup.each { |name| get(name) }
+
         storage.select { |_, info| info[:formats]&.include?(format) }.keys
       end
 

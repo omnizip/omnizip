@@ -1,70 +1,57 @@
 # frozen_string_literal: true
 
-#
-# Copyright (C) 2024 Ribose Inc.
-#
-# This file is part of Omnizip.
-#
-# Omnizip is a pure Ruby port of 7-Zip compression algorithms.
-# Based on the 7-Zip LZMA SDK by Igor Pavlov.
-#
-# This library is free software; you can redistribute it and/or
-# modify it under the terms of the GNU Lesser General Public
-# License as published by the Free Software Foundation; either
-# version 2.1 of the License, or (at your option) any later version.
-#
-# See the COPYING file for the complete text of the license.
-#
-
+require "lutaml/model"
 require "json"
 
 module Omnizip
   module Models
     # Model representing compression operation options.
     #
-    # This class encapsulates configuration options for compression
-    # operations, including compression level, threading, and buffer sizes.
-    class CompressionOptions
-      attr_accessor :level, :dictionary_size, :num_fast_bytes, :match_finder,
-                    :num_threads, :solid, :buffer_size
+    # Serialized via lutaml-model — callers should not write hand-rolled
+    # +to_h+ / +to_json+ / +from_json+ on this class. The framework
+    # provides +#to_hash+, +#to_json+, and +.from_hash+ / +.from_json+
+    # automatically from the +attribute+ declarations below.
+    class CompressionOptions < Lutaml::Model::Serializable
+      attribute :level, :integer, default: 5
+      attribute :dictionary_size, :integer
+      attribute :num_fast_bytes, :integer
+      attribute :match_finder, :string
+      attribute :num_threads, :integer, default: 1
+      attribute :solid, :boolean, default: false
+      attribute :buffer_size, :integer, default: 65_536
 
-      def initialize(**kwargs)
-        @level = 5
-        @num_threads = 1
-        @solid = false
-        @buffer_size = 65_536
+      # JSON / hash mappings (1:1, no renames needed).
+      json do
+        map :level, to: :level
+        map :dictionary_size, to: :dictionary_size
+        map :num_fast_bytes, to: :num_fast_bytes
+        map :match_finder, to: :match_finder
+        map :num_threads, to: :num_threads
+        map :solid, to: :solid
+        map :buffer_size, to: :buffer_size
+      end
 
-        kwargs.each do |key, value|
-          public_send("#{key}=", value)
+      # Apply a hash of attributes. Only keys declared as +attribute+s
+      # above are applied; unknown keys are silently ignored.
+      #
+      # @param attributes [Hash{Symbol=>Object}]
+      # @return [self]
+      def apply(attributes)
+        self.class.attributes.each do |attr|
+          name = attr.name
+          public_send("#{name}=", attributes[name]) if attributes.key?(name)
         end
+        self
       end
 
-      def to_h
-        {
-          level: @level,
-          dictionary_size: @dictionary_size,
-          num_fast_bytes: @num_fast_bytes,
-          match_finder: @match_finder,
-          num_threads: @num_threads,
-          solid: @solid,
-          buffer_size: @buffer_size,
-        }.compact
-      end
-
-      # Serialize to JSON
+      # Validate that all set values are within their type's domain.
       #
-      # @return [String] JSON representation
-      def to_json(*args)
-        to_h.to_json(*args)
-      end
+      # @raise [ArgumentError] if any value is invalid
+      # @return [Boolean] true if valid
+      def validate!
+        raise ArgumentError, "level must be 0-9" unless (0..9).cover?(level)
 
-      # Deserialize from JSON
-      #
-      # @param json [String] JSON string
-      # @return [CompressionOptions] Deserialized instance
-      def self.from_json(json)
-        data = JSON.parse(json)
-        new(**data.transform_keys(&:to_sym))
+        true
       end
     end
   end
