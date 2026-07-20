@@ -21,7 +21,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 require "zlib"
-require "omnizip/error"
 
 module Omnizip
   module Formats

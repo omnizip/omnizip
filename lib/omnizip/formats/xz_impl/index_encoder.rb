@@ -2,7 +2,6 @@
 
 require "stringio"
 require "zlib"
-require "omnizip/error"
 
 module Omnizip
   module Formats

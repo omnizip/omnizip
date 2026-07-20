@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/cli/output_formatter"
 
 module Omnizip
   module Commands

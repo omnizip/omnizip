@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/algorithms"
 
 module Omnizip
   module Algorithms

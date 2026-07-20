@@ -164,7 +164,6 @@ module Omnizip
 
         # Auto-register .rar format
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".rar", "Omnizip::Formats::Rar::Reader")
         end
       end

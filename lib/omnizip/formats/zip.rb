@@ -47,7 +47,6 @@ module Omnizip
 
         # Auto-register .zip format when loaded
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".zip", Omnizip::Formats::Zip)
         end
       end

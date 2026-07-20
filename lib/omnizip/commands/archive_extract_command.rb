@@ -16,9 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require "omnizip/cli/output_formatter"
-require "omnizip/formats/seven_zip/reader"
-require "omnizip/extraction"
 
 module Omnizip
   module Commands

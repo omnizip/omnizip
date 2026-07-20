@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/formats/ole"
-require "omnizip/formats/msi/constants"
 
 module Omnizip
   module Formats
@@ -15,6 +13,7 @@ module Omnizip
     # - String pool for interned strings
     # - Embedded cabinets (in _Streams or direct OLE streams)
     module Msi
+      autoload :Constants, "omnizip/formats/msi/constants"
       autoload :Entry, "omnizip/formats/msi/entry"
       autoload :StringPool, "omnizip/formats/msi/string_pool"
       autoload :TableParser, "omnizip/formats/msi/table_parser"
@@ -74,7 +73,6 @@ module Omnizip
         #
         # This overrides OLE's .msi registration.
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".msi", self)
           FormatRegistry.register(".msp", self)
         end

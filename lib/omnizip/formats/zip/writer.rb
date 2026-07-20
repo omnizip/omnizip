@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "omnizip/formats/zip"
 
 module Omnizip
   module Formats

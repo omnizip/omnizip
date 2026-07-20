@@ -161,7 +161,6 @@ module Omnizip
       # @param mime_type [String] MIME type string
       # @return [CompressionProfile] Best profile
       def select_best_profile_for_mime(profiles, mime_type)
-        require "omnizip/file_type/mime_classifier"
 
         # Determine category from MIME type
         category = FileType::MimeClassifier.profile_category(mime_type)

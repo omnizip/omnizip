@@ -73,7 +73,6 @@ module Omnizip
 
         # Register TAR format when loaded
         def register!
-          require "omnizip/format_registry"
           FormatRegistry.register(".tar", Omnizip::Formats::Tar)
         end
       end

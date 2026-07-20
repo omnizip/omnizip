@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require "omnizip/algorithms/lzma"
-require "omnizip/format_registry"
 
 module Omnizip
   module Formats

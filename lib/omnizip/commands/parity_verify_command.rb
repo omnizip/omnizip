@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "omnizip/parity"
 
 module Omnizip
   module Commands

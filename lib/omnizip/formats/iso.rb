@@ -130,7 +130,6 @@ module Omnizip
 
       # Auto-register ISO format when loaded
       def self.register!
-        require "omnizip/format_registry"
         FormatRegistry.register(".iso", Reader)
       end
     end

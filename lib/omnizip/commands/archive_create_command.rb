@@ -16,8 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-require "omnizip/cli/output_formatter"
-require "omnizip/formats/seven_zip/writer"
 
 module Omnizip
   module Commands
@@ -123,7 +121,6 @@ module Omnizip
 
         start_time = Time.now
 
-        require "omnizip/formats/rar"
 
         writer_opts = {
           version: version,
@@ -388,7 +385,6 @@ module Omnizip
       def parse_volume_size(size_str)
         return nil if size_str.nil? || size_str.empty?
 
-        require "omnizip/models/split_options"
         Omnizip::Models::SplitOptions.parse_volume_size(size_str)
       end
 

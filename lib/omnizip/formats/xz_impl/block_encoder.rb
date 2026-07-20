@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "stringio"
-require "omnizip/algorithms/xz_lzma2"
-require "omnizip/checksums/crc64"
 require "zlib"
 
 module Omnizip
