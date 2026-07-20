@@ -5,12 +5,12 @@ module Omnizip
     # Adapter that exposes the canonical +create+/+open+/+extract_to+
     # /+list+ interface for the ZIP format. Wraps +Omnizip::Zip::File+.
     class ZipHandler
-      def create(path)
-        Omnizip::Zip::File.create(path) { |zip| yield zip }
+      def create(path, &block)
+        Omnizip::Zip::File.create(path, &block)
       end
 
-      def open(path)
-        Omnizip::Zip::File.open(path) { |zip| yield zip }
+      def open(path, &block)
+        Omnizip::Zip::File.open(path, &block)
       end
 
       def extract_to(path, output_dir, overwrite: false, **_)
@@ -18,8 +18,11 @@ module Omnizip
         Omnizip::Zip::File.open(path) do |zip|
           zip.each do |entry|
             dest_path = ::File.join(output_dir, entry.name)
-            on_exists = overwrite ? proc { true }
-                                 : proc { |_e, p| raise "File exists: #{p}" }
+            on_exists = if overwrite
+                          proc { true }
+                        else
+                          proc { |_e, p| raise "File exists: #{p}" }
+                        end
             zip.extract(entry, dest_path, &on_exists)
             extracted << dest_path
           end

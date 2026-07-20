@@ -61,6 +61,7 @@ module Omnizip
       # bytes.
       class StringSource < Source
         def initialize(value)
+          super(nil)
           @value = value
         end
 
@@ -119,6 +120,7 @@ module Omnizip
       # closes after.
       class PathSink < Sink
         def initialize(path)
+          super(nil)
           @path = path
           @file = nil
         end
