@@ -15,6 +15,14 @@ on:
           Next release version. Possible values: x.y.z, major, minor, patch or pre|rc|etc
         required: true
         default: "skip"
+      acknowledge_breaking_in_patch:
+        description: |
+          Pass-through to the metanorma/ci guard override. Set to true ONLY
+          when the patch-release breaking-change heuristic trip is a known
+          false-positive (e.g. methods DRY'd into a base class via inheritance,
+          or a rename that preserves API via aliases). See metanorma/ci#278.
+        required: false
+        default: "false"
   repository_dispatch:
     types: [do-release]
 
@@ -23,6 +31,7 @@ jobs:
     uses: metanorma/ci/.github/workflows/rubygems-release.yml@main
     with:
       next_version: ${{ github.event.inputs.next_version }}
+      acknowledge_breaking_in_patch: ${{ github.event.inputs.acknowledge_breaking_in_patch == 'true' }}
     secrets:
       rubygems-api-key: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
       pat_token: ${{ secrets.GITHUB_TOKEN }}
