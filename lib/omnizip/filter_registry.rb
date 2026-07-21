@@ -5,15 +5,15 @@ module Omnizip
     DEFAULT_FORMATS = %i[xz seven_zip].freeze
 
     BUILTIN_FILTERS = {
-      :"bcj-x86" => "Omnizip::Filters::BcjX86",
-      :"bcj-arm" => "Omnizip::Filters::BcjArm",
-      :"bcj-arm64" => "Omnizip::Filters::BcjArm64",
-      :"bcj-ia64" => "Omnizip::Filters::BcjIa64",
-      :"bcj-ppc" => "Omnizip::Filters::BcjPpc",
-      :"bcj-sparc" => "Omnizip::Filters::BcjSparc",
-      :bcj => "Omnizip::Filters::BCJ",
-      :bcj2 => "Omnizip::Filters::Bcj2",
-      :delta => "Omnizip::Filters::Delta",
+      "bcj-x86": "Omnizip::Filters::BcjX86",
+      "bcj-arm": "Omnizip::Filters::BcjArm",
+      "bcj-arm64": "Omnizip::Filters::BcjArm64",
+      "bcj-ia64": "Omnizip::Filters::BcjIa64",
+      "bcj-ppc": "Omnizip::Filters::BcjPpc",
+      "bcj-sparc": "Omnizip::Filters::BcjSparc",
+      bcj: "Omnizip::Filters::BCJ",
+      bcj2: "Omnizip::Filters::Bcj2",
+      delta: "Omnizip::Filters::Delta",
     }.freeze
 
     class << self

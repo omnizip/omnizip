@@ -17,7 +17,6 @@ module Omnizip
       #
       # @param archive_path [String] Path to archive
       def run(archive_path)
-
         unless File.exist?(archive_path)
           raise "Archive not found: #{archive_path}"
         end

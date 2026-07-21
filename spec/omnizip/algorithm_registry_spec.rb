@@ -8,7 +8,6 @@ RSpec.describe Omnizip::AlgorithmRegistry do
     described_class.reset!
 
     example.run
-
   ensure
     described_class.reset!
     saved.each { |name, klass| described_class.register(name, klass) }

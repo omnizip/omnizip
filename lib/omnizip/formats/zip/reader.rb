@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Formats
     module Zip
@@ -128,7 +127,8 @@ dereference_links: false)
         end
 
         # List all entries in the archive
-        def list_entries(show_links: false)          entries.map do |entry|
+        def list_entries(show_links: false)
+          entries.map do |entry|
             info = {
               filename: entry.filename,
               compressed_size: entry.compressed_size,

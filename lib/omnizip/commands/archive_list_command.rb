@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Commands
     # Command to list contents of .7z archives.

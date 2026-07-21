@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Commands
     # Command to create PAR2 parity files

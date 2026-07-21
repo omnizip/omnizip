@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Algorithms
     # LZMA2 encoder - delegates to XzLZMA2Encoder

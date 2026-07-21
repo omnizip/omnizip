@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Commands
     # Command to list available compression profiles

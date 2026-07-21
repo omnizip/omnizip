@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Commands
     # Command to create .7z archives from files and directories.
@@ -120,7 +119,6 @@ module Omnizip
         end
 
         start_time = Time.now
-
 
         writer_opts = {
           version: version,

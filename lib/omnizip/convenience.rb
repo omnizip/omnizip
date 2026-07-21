@@ -79,8 +79,8 @@ module Omnizip
                         overwrite: false, **options)
       require_archive!(archive_path)
       Omnizip::ArchiveHandler.for(format)
-                             .extract_to(archive_path, output_dir,
-                                         overwrite: overwrite, **options)
+        .extract_to(archive_path, output_dir,
+                    overwrite: overwrite, **options)
     end
 
     # List contents of an archive.
@@ -94,7 +94,7 @@ module Omnizip
                      **options)
       require_archive!(archive_path)
       Omnizip::ArchiveHandler.for(format)
-                             .list(archive_path, details: details, **options)
+        .list(archive_path, details: details, **options)
     end
 
     # Read a single entry from an archive.

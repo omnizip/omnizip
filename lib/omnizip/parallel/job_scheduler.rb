@@ -84,7 +84,15 @@ bytes_per_second: 10_000_000)
       # @param job [Object]
       # @return [Integer]
       def job_size(job)
-        job.is_a?(::Numeric) ? job : (job.size rescue nil) || 1
+        if job.is_a?(::Numeric)
+          job
+        else
+          begin
+            job.size
+          rescue StandardError
+            nil
+          end || 1
+        end
       end
 
       # Validate scheduling strategy
@@ -126,7 +134,7 @@ bytes_per_second: 10_000_000)
 
         # Sort jobs by size (largest first) for better balance
         sorted_jobs = jobs.sort_by do |job|
-          -(job_size(job))
+          -job_size(job)
         end
 
         # Initialize worker assignments
@@ -185,7 +193,7 @@ bytes_per_second: 10_000_000)
 
         # Sort jobs by size (largest first)
         sorted_jobs = jobs.sort_by do |job|
-          -(job_size(job))
+          -job_size(job)
         end
 
         # First-fit decreasing bin packing

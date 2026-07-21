@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Commands
     # Command to compress files using specified algorithm.

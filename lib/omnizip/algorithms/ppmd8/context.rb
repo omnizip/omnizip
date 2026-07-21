@@ -2,7 +2,6 @@
 
 # Copyright (C) 2025 Ribose Inc.
 
-
 module Omnizip
   module Algorithms
     class PPMd8 < PPMdBase

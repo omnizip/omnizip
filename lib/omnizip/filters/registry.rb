@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Filters
     # Registry for auto-registering all preprocessing filters.

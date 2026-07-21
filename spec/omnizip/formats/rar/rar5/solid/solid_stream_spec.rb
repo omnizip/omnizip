@@ -38,7 +38,7 @@ RSpec.describe Omnizip::Formats::Rar::Rar5::Solid::SolidStream do
 
     it "stores file metadata" do
       mtime = Time.now
-      stat = Struct.new(:mtime, :size, :mode).new(mtime, 4, 0o644)
+      stat = Struct.new(:mtime, :size_bytes, :mode).new(mtime, 4, 0o644)
 
       stream.add_file("test.txt", "data", mtime: mtime, stat: stat)
 

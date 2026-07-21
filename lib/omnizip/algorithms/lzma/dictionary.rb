@@ -6,8 +6,8 @@ module Omnizip
       # Circular buffer dictionary for LZMA sliding window
       # Ported from XZ Utils lzma_decoder.c
       class Dictionary
-        attr_reader :size, :position, :buffer
-        attr_writer :buffer, :position
+        attr_accessor :position, :buffer
+        attr_reader :size
 
         def initialize(size)
           @size = size

@@ -452,7 +452,6 @@ module Omnizip
                      aliases: "-v",
                      desc: "Enable verbose output"
     def convert(source, target)
-
       puts "Converting #{source} to #{target}..." if options[:verbose]
 
       result = Omnizip::Converter.convert(

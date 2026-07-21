@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Commands
     # Metadata command implementation
@@ -15,7 +14,6 @@ module Omnizip
       # @param archive_path [String] Path to archive
       # @param pattern [String, nil] Optional pattern to match entries
       def run(archive_path, pattern = nil)
-
         unless File.exist?(archive_path)
           raise Errno::ENOENT, "Archive not found: #{archive_path}"
         end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Formats
     # MSI (Microsoft Installer) format support

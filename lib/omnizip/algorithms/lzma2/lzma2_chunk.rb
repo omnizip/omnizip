@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Algorithms
     class LZMA2 < Algorithm

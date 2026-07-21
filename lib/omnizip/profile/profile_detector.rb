@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Omnizip
   module Profile
     # Automatic profile detection based on file analysis

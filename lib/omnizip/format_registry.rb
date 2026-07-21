@@ -77,7 +77,7 @@ module Omnizip
 
       private
 
-      def resolve_handler(handler, original_extension)
+      def resolve_handler(handler, _original_extension)
         return nil if handler.nil?
         return handler if handler.is_a?(Class) || handler.is_a?(Module)
 

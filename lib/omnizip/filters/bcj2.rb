@@ -16,7 +16,6 @@
 # See the COPYING file for the complete text of the license.
 #
 
-
 module Omnizip
   module Filters
     # BCJ2 filter for x86/x64 executables (4-stream variant).
