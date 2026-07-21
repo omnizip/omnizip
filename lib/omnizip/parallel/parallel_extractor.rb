@@ -64,7 +64,7 @@ module Omnizip
               dest_path: dest_path,
               data: data,
               directory: entry.directory?,
-              unix_perms: entry.unix_perms rescue 0,
+              unix_perms: safe_unix_perms(entry),
             },
             work: work,
           )
@@ -179,7 +179,7 @@ module Omnizip
 
         # Schedule jobs
         entries.each do |entry|
-          file_size = (entry.size rescue 0)
+          file_size = safe_entry_size(entry)
 
           job_queue.push_with_size(
             file: entry.name,
@@ -252,6 +252,18 @@ module Omnizip
       end
 
       private
+
+      def safe_unix_perms(entry)
+        entry.unix_perms
+      rescue NoMethodError
+        0
+      end
+
+      def safe_entry_size(entry)
+        entry.size
+      rescue NoMethodError
+        0
+      end
 
       # Read archive entries
       #
