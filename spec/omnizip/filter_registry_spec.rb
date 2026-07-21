@@ -167,7 +167,9 @@ RSpec.describe Omnizip::FilterRegistry do
 
     it "returns empty array when no filters support format" do
       described_class.reset!
-      expect(described_class.filters_for_format(:xz)).to eq([])
+      # After reset!, the builtin lazy triggers still populate on query
+      # (by design), so request a format no builtin supports.
+      expect(described_class.filters_for_format(:nonexistent_format)).to eq([])
     end
   end
 

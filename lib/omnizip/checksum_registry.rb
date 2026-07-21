@@ -35,5 +35,7 @@ module Omnizip
 end
 
 Omnizip::ChecksumRegistry::BUILTIN_CHECKSUMS.each do |name, const_path|
-  Omnizip::ChecksumRegistry.register_lazy(name) { Object.const_get(const_path) }
+  Omnizip::ChecksumRegistry.register_lazy(name) do
+    Omnizip::ChecksumRegistry.register(name, Object.const_get(const_path))
+  end
 end

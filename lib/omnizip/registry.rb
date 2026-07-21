@@ -71,10 +71,10 @@ module Omnizip
       alias strategies available
 
       def reset!
-        synchronize do
-          storage.clear
-          lazy_triggers.clear
-        end
+        # Clear stored entries but keep lazy triggers — the builtin
+        # autoload list should survive a reset so subsequent +get+ calls
+        # for builtins still trigger the autoload (which re-registers).
+        synchronize { storage.clear }
       end
       alias clear reset!
       alias clear! reset!

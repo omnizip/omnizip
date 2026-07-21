@@ -98,8 +98,12 @@ module Omnizip
   end
 end
 
-# Lazy triggers — referencing the constant autoloads the file, which
-# self-registers via Filters::Registry.
-Omnizip::FilterRegistry::BUILTIN_FILTERS.each do |name, const_path|
-  Omnizip::FilterRegistry.register_lazy(name) { Object.const_get(const_path) }
+# Lazy triggers — calling the Filters::Registry.register_all re-runs
+# the registration of every builtin filter. Idempotent: register just
+# overwrites the storage entry. Survives reset! because the trigger
+# proc is held by FilterRegistry, not the storage.
+Omnizip::FilterRegistry::BUILTIN_FILTERS.each_key do |name|
+  Omnizip::FilterRegistry.register_lazy(name) do
+    Omnizip::Filters::Registry.register_all
+  end
 end

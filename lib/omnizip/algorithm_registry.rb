@@ -48,9 +48,11 @@ module Omnizip
   end
 end
 
-# Lazy triggers: when +AlgorithmRegistry.get(:lzma)+ is called before the
-# LZMA file has been autoloaded, the trigger references the constant
-# (which autoloads the file), and the file's body self-registers.
+# Lazy triggers — explicitly re-register on each miss so the entry
+# survives reset!. Object.const_get alone doesn't re-run the file body
+# once the constant is loaded.
 Omnizip::AlgorithmRegistry::BUILTIN_ALGORITHMS.each do |name, const_path|
-  Omnizip::AlgorithmRegistry.register_lazy(name) { Object.const_get(const_path) }
+  Omnizip::AlgorithmRegistry.register_lazy(name) do
+    Omnizip::AlgorithmRegistry.register(name, Object.const_get(const_path))
+  end
 end

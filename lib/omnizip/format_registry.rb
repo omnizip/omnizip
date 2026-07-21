@@ -87,8 +87,14 @@ module Omnizip
   end
 end
 
-# Lazy triggers — referencing the constant autoloads the file, which
-# self-registers with its extension(s).
+# Lazy triggers — explicitly re-register on each miss so the entry
+# survives reset!. Object.const_get alone doesn't re-run the file body
+# once the constant is loaded.
 Omnizip::FormatRegistry::BUILTIN_FORMATS.each do |ext, const_path|
-  Omnizip::FormatRegistry.register_lazy(ext) { Object.const_get(const_path) }
+  Omnizip::FormatRegistry.register_lazy(ext) do
+    handler = Object.const_get(const_path)
+    # Register under the original extension; some formats (e.g. Rar)
+    # store a string class path that needs resolve_constant on get.
+    Omnizip::FormatRegistry.register(ext, handler)
+  end
 end

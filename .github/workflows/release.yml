@@ -34,4 +34,4 @@ jobs:
       acknowledge_breaking_in_patch: ${{ github.event.inputs.acknowledge_breaking_in_patch == 'true' }}
     secrets:
       rubygems-api-key: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
-      pat_token: ${{ secrets.GITHUB_TOKEN }}
+      pat_token: ${{ secrets.OMNIZIP_CI_PAT_TOKEN }}
