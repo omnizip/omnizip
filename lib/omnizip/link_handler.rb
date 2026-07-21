@@ -11,14 +11,18 @@ module Omnizip
         !windows_platform?
       end
 
-      # Check if symbolic links are supported
+      # Check if symbolic links are supported on this platform.
+      # Delegates to Platform but also gates on LinkHandler#supported?
+      # (Windows is treated as unsupported here for historical
+      # compatibility — even if Windows Developer Mode would allow
+      # symlinks, callers should opt into that explicitly via Platform).
       def symlink_supported?
-        Omnizip::Platform.supports_symlinks?
+        supported? && Omnizip::Platform.supports_symlinks?
       end
 
       # Check if hard links are supported
       def hardlink_supported?
-        Omnizip::Platform.supports_hardlinks?
+        supported? && Omnizip::Platform.supports_hardlinks?
       end
 
       # Detect if a path is a symbolic link
