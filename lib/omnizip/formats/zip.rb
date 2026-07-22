@@ -54,5 +54,3 @@ module Omnizip
   end
 end
 
-# Auto-register on load
-Omnizip::Formats::Zip.register!

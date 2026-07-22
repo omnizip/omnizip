@@ -232,5 +232,3 @@ module Omnizip
   end
 end
 
-# Auto-register on load
-Omnizip::Formats::Gzip.register!

@@ -164,5 +164,3 @@ module Omnizip
   end
 end
 
-# Auto-register on load
-Omnizip::Formats::Bzip2File.register!
