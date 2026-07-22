@@ -80,5 +80,3 @@ module Omnizip
   end
 end
 
-# Auto-register MSI format (overrides OLE's .msi registration)
-Omnizip::Formats::Msi.register!

@@ -148,5 +148,3 @@ module Omnizip
   end
 end
 
-# Auto-register on load
-Omnizip::Formats::Ole.register!

@@ -171,6 +171,3 @@ module Omnizip
   end
 end
 
-# Auto-register when file is loaded
-# Note: Registration happens after all classes are loaded to avoid circular dependency
-Omnizip::Formats::Rar.register!

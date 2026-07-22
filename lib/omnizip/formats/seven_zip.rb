@@ -183,4 +183,3 @@ module Omnizip
   end
 end
 
-Omnizip::Formats::SevenZip.register!
