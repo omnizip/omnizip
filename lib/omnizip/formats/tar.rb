@@ -70,13 +70,7 @@ module Omnizip
           reader = read(file_path)
           reader.list_entries
         end
-
-        # Register TAR format when loaded
-        def register!
-          FormatRegistry.register(".tar", Omnizip::Formats::Tar)
-        end
       end
     end
   end
 end
-

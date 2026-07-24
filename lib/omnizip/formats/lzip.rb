@@ -132,12 +132,6 @@ module Omnizip
           }
         end
 
-        # Register LZIP format when loaded
-        def register!
-          FormatRegistry.register(".lz", Omnizip::Formats::Lzip)
-          FormatRegistry.register(".lzip", Omnizip::Formats::Lzip)
-        end
-
         # Detect if data is LZIP format
         #
         # @param data [String] Data to check
@@ -149,4 +143,3 @@ module Omnizip
     end
   end
 end
-

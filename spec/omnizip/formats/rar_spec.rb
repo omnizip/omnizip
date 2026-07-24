@@ -307,14 +307,4 @@ RSpec.describe Omnizip::Formats::Rar do
     end
   end
 
-  describe "format registration" do
-    it "registers RAR format" do
-      expect(Omnizip::FormatRegistry.supported?(".rar")).to eq(true)
-    end
-
-    it "returns RAR reader class" do
-      handler = Omnizip::FormatRegistry.get(".rar")
-      expect(handler).to eq(Omnizip::Formats::Rar::Reader)
-    end
-  end
 end

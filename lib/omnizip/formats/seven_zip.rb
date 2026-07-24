@@ -174,12 +174,6 @@ module Omnizip
       rescue StandardError
         false
       end
-
-      # Auto-register .7z format when loaded
-      def self.register!
-        FormatRegistry.register(".7z", "Omnizip::Formats::SevenZip::Reader")
-      end
     end
   end
 end
-

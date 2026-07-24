@@ -127,11 +127,6 @@ module Omnizip
 
         writer.write
       end
-
-      # Auto-register ISO format when loaded
-      def self.register!
-        FormatRegistry.register(".iso", Reader)
-      end
     end
   end
 end

@@ -43,7 +43,6 @@ module Omnizip
   autoload :Registry, "omnizip/registry"
   autoload :Algorithm, "omnizip/algorithm"
   autoload :AlgorithmRegistry, "omnizip/algorithm_registry"
-  autoload :FormatRegistry, "omnizip/format_registry"
   autoload :OptimizationRegistry, "omnizip/optimization_registry"
   autoload :ChecksumRegistry, "omnizip/checksum_registry"
   autoload :FilterRegistry, "omnizip/filter_registry"

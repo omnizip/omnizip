@@ -139,13 +139,7 @@ module Omnizip
         def info(path)
           open(path, &:info) # rubocop:disable Security/Open
         end
-
-        # Auto-register XAR format when loaded
-        def register!
-          FormatRegistry.register(".xar", Reader)
-        end
       end
     end
   end
 end
-

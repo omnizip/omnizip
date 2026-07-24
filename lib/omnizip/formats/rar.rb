@@ -161,13 +161,7 @@ module Omnizip
         def repair(archive_path, output_path)
           ArchiveRepairer.new.repair(archive_path, output_path)
         end
-
-        # Auto-register .rar format
-        def register!
-          FormatRegistry.register(".rar", "Omnizip::Formats::Rar::Reader")
-        end
       end
     end
   end
 end
-

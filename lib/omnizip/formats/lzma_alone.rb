@@ -138,13 +138,7 @@ module Omnizip
             uncompressed_size: decoder.uncompressed_size,
           }
         end
-
-        # Register LZMA_Alone format when loaded
-        def register!
-          FormatRegistry.register(".lzma", Omnizip::Formats::LzmaAlone)
-        end
       end
     end
   end
 end
-

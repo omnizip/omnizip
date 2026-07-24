@@ -67,16 +67,7 @@ module Omnizip
         def info(path)
           open(path, &:info)
         end
-
-        # Register MSI format with format registry
-        #
-        # This overrides OLE's .msi registration.
-        def register!
-          FormatRegistry.register(".msi", self)
-          FormatRegistry.register(".msp", self)
-        end
       end
     end
   end
 end
-

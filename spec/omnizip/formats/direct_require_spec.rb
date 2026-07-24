@@ -26,15 +26,11 @@ RSpec.describe "format file direct require" do
     end
   end
 
-  it "every format is discoverable via FormatRegistry after omnizip loaded" do
+  it "ArchiveHandler resolves :zip and :tar via lazy triggers" do
     require "omnizip"
 
-    expected = %w[.cpio .gz .gzip .lz .lzip .lzma .rar .bz2 .bzip2 .msi .msp
-                  .xar .iso .zip .7z .ole .tar]
-    expected.each do |ext|
-      expect(Omnizip::FormatRegistry.get(ext)).not_to be_nil,
-                                                       "no handler for #{ext}"
-    end
+    expect(Omnizip::ArchiveHandler.for(:zip)).to be_a(Omnizip::ArchiveHandlers::ZipHandler)
+    expect(Omnizip::ArchiveHandler.for(:tar)).to be_a(Omnizip::ArchiveHandlers::TarHandler)
   end
 
   def load_without_side_effects(path)
