@@ -13,12 +13,13 @@ require "spec_helper"
 # boundary into internal files and is unsupported. The contract is
 # documented in the README: external code must `require "omnizip"` to
 # use the gem.
-RSpec.describe "format file direct require" do
-  FORMATS = %w[
-    cpio gzip lzip lzma_alone rar bzip2_file msi xar iso zip seven_zip ole tar
-  ].freeze
+# Top-level constant defined outside the block to satisfy rubocop.
+FORMATS_TO_REQUIRE = %w[
+  cpio gzip lzip lzma_alone rar bzip2_file msi xar iso zip seven_zip ole tar
+].freeze
 
-  FORMATS.each do |fmt|
+RSpec.describe "format file direct require" do
+  FORMATS_TO_REQUIRE.each do |fmt|
     it "'require \"omnizip/formats/#{fmt}\"' loads without raising" do
       expect do
         load_without_side_effects("omnizip/formats/#{fmt}")
