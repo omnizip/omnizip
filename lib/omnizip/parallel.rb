@@ -26,6 +26,7 @@ module Omnizip
     autoload :JobQueue, "omnizip/parallel/job_queue"
     autoload :JobScheduler, "omnizip/parallel/job_scheduler"
     autoload :WorkerPool, "omnizip/parallel/worker_pool"
+    autoload :Engine, "omnizip/parallel/engine"
     autoload :ParallelCompressor, "omnizip/parallel/parallel_compressor"
     autoload :ParallelExtractor, "omnizip/parallel/parallel_extractor"
 

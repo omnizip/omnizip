@@ -212,20 +212,11 @@ level: 6)
           )
         end
 
-        # Create worker pool
-        pool = WorkerPool.new(
-          worker_class: CompressionWorker,
-          num_workers: @options.threads,
-          continuous: false,
-        )
-
-        pool.start
-        pool.submit_batch(work_items)
-        pool.run
-
-        # Collect results
-        results = pool.successful_results
-        errors = pool.failed_results
+        # Run the worker pool through the shared engine.
+        engine = Engine.new(worker_class: CompressionWorker,
+                            threads: @options.threads)
+        results = []
+        errors = engine.run(work_items) { |r| results << r }
 
         # Handle errors
         unless errors.empty?
@@ -237,8 +228,6 @@ level: 6)
 
         # Write archive sequentially (thread-safe)
         write_archive(output, results, compression: compression)
-
-        pool.shutdown
 
         @stats[:end_time] = Time.now
         @stats[:files_processed] = results.size
