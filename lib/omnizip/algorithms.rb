@@ -1,7 +1,20 @@
 # frozen_string_literal: true
 
 module Omnizip
-  # Compression algorithm implementations
+  # High-level compression algorithm facades.
+  #
+  # Each top-level constant in this namespace (Deflate, BZip2, LZMA,
+  # LZMA2, Zstandard, PPMd7, PPMd8) is a facade that exposes the
+  # streaming +.compress+/+.decompress+ contract from +Omnizip::Algorithm+.
+  # Format-specific readers/writers call these facades for the actual
+  # compression work; the facades themselves do not know about archive
+  # container structure.
+  #
+  # Bit-level SDK ports (state machines, range coders, match finders)
+  # live under +Omnizip::Implementations+, not here. This namespace
+  # owns the *streaming contract*; that namespace owns the *primitives*.
+  # The boundary is: +Algorithms+ calls +Implementations+, never the
+  # reverse.
   module Algorithms
     autoload :PPMdBase, "omnizip/algorithms/ppmd_base"
     autoload :LZMA2Const, "omnizip/algorithms/lzma2/constants"
