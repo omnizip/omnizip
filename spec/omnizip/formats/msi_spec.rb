@@ -171,5 +171,4 @@ RSpec.describe Omnizip::Formats::Msi do
       expect(entry.display_name).to eq("simple.txt")
     end
   end
-
 end

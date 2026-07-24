@@ -52,5 +52,4 @@ RSpec.describe Omnizip::Formats::SevenZip::Reader do
       expect(files).not_to be_empty
     end
   end
-
 end

@@ -7,15 +7,15 @@ module Omnizip
     # Single source of truth for builtin filters. Each entry binds the
     # filter name to its class and the formats that support it.
     BUILTIN_FILTERS = {
-      "bcj-x86":   { const: "Omnizip::Filters::BcjX86",   formats: %i[xz seven_zip] },
-      "bcj-arm":   { const: "Omnizip::Filters::BcjArm",   formats: %i[xz seven_zip] },
+      "bcj-x86": { const: "Omnizip::Filters::BcjX86",   formats: %i[xz seven_zip] },
+      "bcj-arm": { const: "Omnizip::Filters::BcjArm",   formats: %i[xz seven_zip] },
       "bcj-arm64": { const: "Omnizip::Filters::BcjArm64", formats: [:seven_zip] },
-      "bcj-ia64":  { const: "Omnizip::Filters::BcjIa64",  formats: %i[xz seven_zip] },
-      "bcj-ppc":   { const: "Omnizip::Filters::BcjPpc",   formats: %i[xz seven_zip] },
+      "bcj-ia64": { const: "Omnizip::Filters::BcjIa64", formats: %i[xz seven_zip] },
+      "bcj-ppc": { const: "Omnizip::Filters::BcjPpc", formats: %i[xz seven_zip] },
       "bcj-sparc": { const: "Omnizip::Filters::BcjSparc", formats: %i[xz seven_zip] },
-      bcj:         { const: "Omnizip::Filters::BCJ",      formats: [:seven_zip] },
-      bcj2:        { const: "Omnizip::Filters::Bcj2",     formats: [:seven_zip] },
-      delta:       { const: "Omnizip::Filters::Delta",    formats: %i[xz seven_zip] },
+      bcj: { const: "Omnizip::Filters::BCJ", formats: [:seven_zip] },
+      bcj2: { const: "Omnizip::Filters::Bcj2", formats: [:seven_zip] },
+      delta: { const: "Omnizip::Filters::Delta", formats: %i[xz seven_zip] },
     }.freeze
 
     class << self

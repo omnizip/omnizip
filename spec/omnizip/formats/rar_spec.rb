@@ -306,5 +306,4 @@ RSpec.describe Omnizip::Formats::Rar do
       expect(io.pos).to eq(10)
     end
   end
-
 end

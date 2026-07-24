@@ -15,7 +15,6 @@
 #   end
 #
 
-
 # Create Zip namespace as alias for Omnizip::Zip
 module Zip
   # Rubyzip-compatible File class
