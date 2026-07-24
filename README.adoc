@@ -607,6 +607,12 @@ gem 'omnizip'
 gem install omnizip
 ----
 
+External code must `require "omnizip"` to use the gem. Files under
+`lib/omnizip/**` are internal — requiring them directly (e.g.
+`require "omnizip/formats/cpio"`) bypasses the autoload chain that
+wires the namespace modules, and lookups for sibling constants may
+fail with `NameError`.
+
 See link:readme-docs/installation.adoc[Installation Guide] for complete instructions.
 
 === Command Line

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   # Metadata editing module
   # Provides in-place metadata modification without recompression

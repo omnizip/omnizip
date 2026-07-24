@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module FileType
     # Centralized MIME type classification for file type detection

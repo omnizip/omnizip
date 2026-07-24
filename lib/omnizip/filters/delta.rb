@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 #
 # Copyright (C) 2024-2025 Ribose Inc.
 #

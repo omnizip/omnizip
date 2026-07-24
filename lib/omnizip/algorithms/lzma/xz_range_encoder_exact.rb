@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 # Copyright (C) 2025 Ribose Inc.
 #
 # Direct port of XZ Utils range encoder to Ruby

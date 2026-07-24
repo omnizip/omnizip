@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 require "stringio"
 
 # Copyright (C) 2025 Ribose Inc.

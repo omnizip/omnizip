@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   # Detects archive format from file signature/magic bytes
   #

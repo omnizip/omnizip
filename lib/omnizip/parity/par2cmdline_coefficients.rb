@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 # Par2cmdline coefficient lookup table
 #
 # Discovered by reverse-engineering par2cmdline recovery blocks.

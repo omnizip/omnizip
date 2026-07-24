@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module Formats
     # ISO 9660 CD-ROM filesystem format support

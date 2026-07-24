@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   # Filter implementations for preprocessing data before compression
   module Filters

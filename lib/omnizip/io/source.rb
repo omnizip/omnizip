@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module IO
     # Polymorphic adapter for "things we can read bytes from".

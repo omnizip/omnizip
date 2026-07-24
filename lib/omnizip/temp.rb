@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   # Temporary file management with automatic cleanup
   # Provides safe, atomic operations with RAII pattern

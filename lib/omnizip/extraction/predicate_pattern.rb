@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module Extraction
     # Implements custom predicate pattern matching for archive entries

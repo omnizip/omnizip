@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module Parallel
     # Thread-safe job queue for parallel compression/extraction
