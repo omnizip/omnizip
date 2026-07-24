@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   module Extraction
     # Combines multiple pattern matchers with AND/OR logic

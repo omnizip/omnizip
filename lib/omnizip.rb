@@ -60,7 +60,6 @@ module Omnizip
   autoload :ETA, "omnizip/eta"
   autoload :Progress, "omnizip/progress"
   autoload :Metadata, "omnizip/metadata"
-  autoload :Password, "omnizip/password"
   autoload :Converter, "omnizip/converter"
   autoload :LinkHandler, "omnizip/link_handler"
   autoload :Parity, "omnizip/parity"
@@ -83,6 +82,7 @@ module Omnizip
   autoload :Implementations, "omnizip/implementations"
   autoload :ArchiveHandler, "omnizip/archive_handler"
   autoload :ArchiveHandlers, "omnizip/archive_handlers"
+  autoload :Password, "omnizip/password"
   autoload :Convenience, "omnizip/convenience"
 end
 

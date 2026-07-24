@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 require "open3"
 require "fileutils"
 

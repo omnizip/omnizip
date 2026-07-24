@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 require "English"
 require "tmpdir"
 module Omnizip

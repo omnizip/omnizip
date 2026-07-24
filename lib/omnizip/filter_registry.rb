@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   class FilterRegistry < Omnizip::Registry
     DEFAULT_FORMATS = %i[xz seven_zip].freeze

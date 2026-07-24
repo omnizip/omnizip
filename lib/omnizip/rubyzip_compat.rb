@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 #
 # Rubyzip Compatibility Layer
 #
@@ -17,7 +15,6 @@ require "omnizip"
 #   end
 #
 
-require "omnizip"
 
 # Create Zip namespace as alias for Omnizip::Zip
 module Zip

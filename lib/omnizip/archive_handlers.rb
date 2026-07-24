@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-
-require "omnizip"
 module Omnizip
   # Archive handler namespace. Each format ships a Handler class here
   # that adapts its format-specific API to the canonical contract
