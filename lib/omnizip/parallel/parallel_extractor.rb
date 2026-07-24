@@ -201,20 +201,11 @@ module Omnizip
           )
         end
 
-        # Create worker pool
-        pool = WorkerPool.new(
-          worker_class: ExtractionWorker,
-          num_workers: @options.threads,
-          continuous: false,
-        )
-
-        pool.start
-        pool.submit_batch(work_items)
-        pool.run
-
-        # Collect results
-        results = pool.successful_results
-        errors = pool.failed_results
+        # Run the worker pool through the shared engine.
+        engine = Engine.new(worker_class: ExtractionWorker,
+                            threads: @options.threads)
+        results = []
+        errors = engine.run(work_items) { |r| results << r }
 
         # Handle errors
         unless errors.empty?
@@ -226,8 +217,6 @@ module Omnizip
 
         # Write files to disk (thread-safe)
         extracted_paths = write_extracted_files(results, overwrite: overwrite)
-
-        pool.shutdown
 
         @stats[:end_time] = Time.now
         @stats[:files_extracted] = results.size
