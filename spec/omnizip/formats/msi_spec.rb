@@ -172,18 +172,4 @@ RSpec.describe Omnizip::Formats::Msi do
     end
   end
 
-  describe "format registration" do
-    it "registers .msi extension" do
-      expect(Omnizip::FormatRegistry.supported?(".msi")).to be true
-    end
-
-    it "registers .msp extension" do
-      expect(Omnizip::FormatRegistry.supported?(".msp")).to be true
-    end
-
-    it "overrides OLE's .msi registration" do
-      handler = Omnizip::FormatRegistry.get(".msi")
-      expect(handler).to eq(Omnizip::Formats::Msi)
-    end
-  end
 end

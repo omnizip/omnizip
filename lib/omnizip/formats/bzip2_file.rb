@@ -112,12 +112,6 @@ module Omnizip
           output_io.write(decompressed_io.read)
         end
 
-        # Register BZIP2 format when loaded
-        def register!
-          FormatRegistry.register(".bz2", Omnizip::Formats::Bzip2File)
-          FormatRegistry.register(".bzip2", Omnizip::Formats::Bzip2File)
-        end
-
         private
 
         # Write BZIP2 header
@@ -163,4 +157,3 @@ module Omnizip
     end
   end
 end
-

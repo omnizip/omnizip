@@ -44,13 +44,7 @@ module Omnizip
           reader = read(file_path)
           reader.list_entries
         end
-
-        # Auto-register .zip format when loaded
-        def register!
-          FormatRegistry.register(".zip", Omnizip::Formats::Zip)
-        end
       end
     end
   end
 end
-

@@ -127,12 +127,6 @@ module Omnizip
           metadata
         end
 
-        # Register GZIP format when loaded
-        def register!
-          FormatRegistry.register(".gz", Omnizip::Formats::Gzip)
-          FormatRegistry.register(".gzip", Omnizip::Formats::Gzip)
-        end
-
         private
 
         # Write GZIP header
@@ -231,4 +225,3 @@ module Omnizip
     end
   end
 end
-

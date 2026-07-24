@@ -117,14 +117,6 @@ module Omnizip
           end
         end
 
-        # Register OLE format in registry
-        def register!
-          FormatRegistry.register(".ole", Storage)
-          FormatRegistry.register(".doc", Storage)
-          FormatRegistry.register(".xls", Storage)
-          FormatRegistry.register(".ppt", Storage)
-        end
-
         private
 
         # Recursively extract dirent to directory
@@ -147,4 +139,3 @@ module Omnizip
     end
   end
 end
-

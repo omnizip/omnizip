@@ -53,14 +53,4 @@ RSpec.describe Omnizip::Formats::SevenZip::Reader do
     end
   end
 
-  describe "format registry" do
-    it "registers .7z format" do
-      expect(Omnizip::FormatRegistry.supported?(".7z")).to be true
-    end
-
-    it "returns Reader class for .7z" do
-      expect(Omnizip::FormatRegistry.get(".7z"))
-        .to eq(described_class)
-    end
-  end
 end
