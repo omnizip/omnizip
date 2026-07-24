@@ -73,8 +73,8 @@ module Omnizip
         return if compressed.nil? || compressed.empty?
 
         # Set output to binary mode if it's a StringIO
-        output.set_encoding(Encoding::BINARY) if output.respond_to?(:set_encoding)
-        output.binmode if output.respond_to?(:binmode)
+        output.set_encoding(Encoding::BINARY)
+        output.binmode
 
         # Use Zlib::Inflate with maximum window size
         inflater = Zlib::Inflate.new(Zlib::MAX_WBITS)
