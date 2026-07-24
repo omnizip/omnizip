@@ -136,7 +136,7 @@ module Omnizip
       # @return [IO] The output_stream (for chaining)
       def decompress(input_stream, output_stream, options = nil)
         # Set binary encoding on output stream for proper byte handling
-        output_stream.set_encoding(Encoding::BINARY) if output_stream.respond_to?(:set_encoding)
+        output_stream.set_encoding(Encoding::BINARY)
 
         # Build decoder options, merging with instance variables as fallbacks
         decoder_opts = build_decoder_options(options)

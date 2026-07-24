@@ -82,9 +82,7 @@ module Omnizip
       # @param options [Models::CompressionOptions] Decompression options
       # @return [void]
       def decompress(input_stream, output_stream, _options = nil)
-        if output_stream.respond_to?(:set_encoding)
-          output_stream.set_encoding(Encoding::BINARY)
-        end
+        output_stream.set_encoding(Encoding::BINARY)
         decoder = Decoder.new(input_stream)
         decompressed = decoder.decode_stream
         output_stream.write(decompressed)

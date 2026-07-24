@@ -23,6 +23,8 @@ module Omnizip
   # the required methods. Algorithms are automatically registered with the
   # AlgorithmRegistry when defined.
   class Algorithm
+    require "stringio"
+
     attr_reader :options, :filter
 
     # Initialize algorithm with options.
@@ -80,6 +82,39 @@ module Omnizip
       def metadata
         raise NotImplementedError,
               "#{self} must implement .metadata"
+      end
+
+      # Class-level convenience: compress `data` and return the
+      # compressed bytes. Carries the algorithm's streaming contract
+      # over a single StringIO so callers with the whole payload in
+      # memory (parallel compressors, small files) don't need to
+      # instantiate and wire streams themselves.
+      #
+      # @param data [String, IO] Input to compress
+      # @param options [Hash] Forwarded to the algorithm
+      # @return [String] Compressed bytes
+      def compress(data, **options)
+        instance = new(options)
+        input = data.is_a?(::IO) ? data : ::StringIO.new(data.to_s.b)
+        output = ::StringIO.new
+        output.set_encoding(Encoding::BINARY)
+        instance.compress(input, output, options)
+        output.string
+      end
+
+      # Class-level convenience: decompress `data` and return the
+      # uncompressed bytes. Mirror of +.compress+.
+      #
+      # @param data [String, IO] Input to decompress
+      # @param options [Hash] Forwarded to the algorithm
+      # @return [String] Decompressed bytes
+      def decompress(data, **options)
+        instance = new(options)
+        input = data.is_a?(::IO) ? data : ::StringIO.new(data.to_s.b)
+        output = ::StringIO.new
+        output.set_encoding(Encoding::BINARY)
+        instance.decompress(input, output, options)
+        output.string
       end
 
       # Automatically register algorithm when inherited.

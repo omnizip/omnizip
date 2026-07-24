@@ -83,23 +83,19 @@ module Omnizip
         )
 
         # Read input
-        input_data = input.respond_to?(:read) ? input.read : input
+        input_data = Omnizip::IO::Source.for(input).read
 
         # Encode with LZMA2
         compressed = encoder.encode(input_data)
 
         # Write to output
-        if output.respond_to?(:write)
-          output.write(compressed)
-        else
-          output.replace(compressed)
-        end
+        Omnizip::IO::Sink.for(output).write(compressed)
       end
 
       # Decompress LZMA2 data
       def decompress(input, output, options = {})
         # Read input data
-        input_data = input.respond_to?(:read) ? input.read : input
+        input_data = Omnizip::IO::Source.for(input).read
         input_stream = StringIO.new(input_data)
         input_stream.set_encoding(Encoding::BINARY)
 
@@ -120,11 +116,7 @@ module Omnizip
         decompressed = decoder.decode_stream
 
         # Write to output
-        if output.respond_to?(:write)
-          output.write(decompressed)
-        else
-          output.replace(decompressed)
-        end
+        Omnizip::IO::Sink.for(output).write(decompressed)
       end
 
       # Encode dictionary size as single byte for LZMA2 properties
