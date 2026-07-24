@@ -28,7 +28,7 @@ module Omnizip
     # The filter improves compression by making branch targets
     # position-independent. The offset in ARM BL instructions is stored
     # as word offset (divided by 4), and is relative to PC+8.
-    class BcjArm < FilterBase
+    class BcjArm < Omnizip::Filter
       # ARM BL (Branch and Link) opcode
       OPCODE_BL = 0xEB
 

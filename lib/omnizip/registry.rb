@@ -48,7 +48,6 @@ module Omnizip
 
         trigger = lazy_triggers[normalized]
         if trigger
-          synchronize { lazy_triggers.delete(normalized) }
           trigger.call
           value = storage[normalized]
           return value if value

@@ -34,7 +34,7 @@ module Omnizip
     # NOTE: Currently only decoding (decompression) is implemented.
     # Encoding is extremely complex and will be added in a future version.
     # For compression use cases, the simpler BCJ-x86 filter is recommended.
-    class Bcj2 < FilterBase
+    class Bcj2 < Omnizip::Filter
       # Encode is not currently supported for BCJ2.
       #
       # @param _data [String] Binary data to encode

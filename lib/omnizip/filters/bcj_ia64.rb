@@ -27,7 +27,7 @@ module Omnizip
     #
     # The filter improves compression by making branch targets
     # position-independent.
-    class BcjIa64 < FilterBase
+    class BcjIa64 < Omnizip::Filter
       # Size of IA-64 instruction bundle (16 bytes, little-endian)
       BUNDLE_SIZE = 16
 
