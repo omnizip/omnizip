@@ -27,7 +27,7 @@ module Omnizip
     #
     # The filter improves compression by making branch targets
     # position-independent.
-    class BcjPpc < FilterBase
+    class BcjPpc < Omnizip::Filter
       # PPC B/BL instruction base (0x48000000)
       OPCODE_BASE = 0x48000000
 

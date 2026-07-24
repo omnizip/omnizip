@@ -27,7 +27,7 @@ module Omnizip
     #
     # The filter improves compression by making branch targets
     # position-independent.
-    class BcjSparc < FilterBase
+    class BcjSparc < Omnizip::Filter
       # Size of SPARC instruction (4 bytes, big-endian)
       INSTRUCTION_SIZE = 4
 

@@ -36,7 +36,7 @@ module Omnizip
     # Filters are applied in the order they are added during encoding,
     # and in reverse order during decoding.
     #
-    # @param filter [Filters::FilterBase] Filter instance to add
+    # @param filter [Omnizip::Filter] Filter instance to add
     # @return [self] For method chaining
     def add_filter(filter)
       @filters << filter

@@ -17,11 +17,10 @@
 #
 
 require "spec_helper"
-require "omnizip/filters/filter_base"
 
 RSpec.describe Omnizip::FilterRegistry do
   # Test filter class for format-aware registration
-  class TestFilter < Omnizip::Filters::FilterBase
+  class TestFilter < Omnizip::Filter
     def encode(data, _position = 0)
       data
     end
@@ -36,7 +35,7 @@ RSpec.describe Omnizip::FilterRegistry do
   end
 
   # Another test filter class
-  class AnotherTestFilter < Omnizip::Filters::FilterBase
+  class AnotherTestFilter < Omnizip::Filter
     def encode(data, _position = 0)
       data
     end
@@ -187,6 +186,6 @@ RSpec.describe Omnizip::FilterRegistry do
 
   after(:all) do
     # Restore the registry state for other tests
-    Omnizip::Filters::Registry.register_all
+    Omnizip::FilterRegistry::BUILTIN_FILTERS.each_key { |n| Omnizip::FilterRegistry.get(n) }
   end
 end

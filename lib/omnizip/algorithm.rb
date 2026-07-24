@@ -38,7 +38,7 @@ module Omnizip
     # The filter will be applied before compression and reversed after
     # decompression. Returns self for method chaining.
     #
-    # @param filter [Filters::FilterBase, FilterPipeline] Filter or
+    # @param filter [Omnizip::Filter, FilterPipeline] Filter or
     #   pipeline to use
     # @return [self] For method chaining
     def with_filter(filter)

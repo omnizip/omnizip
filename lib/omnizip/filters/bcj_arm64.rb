@@ -27,7 +27,7 @@ module Omnizip
     #
     # The filter improves compression by making branch targets and
     # page-aligned addresses position-independent.
-    class BcjArm64 < FilterBase
+    class BcjArm64 < Omnizip::Filter
       # B/BL instruction base opcode
       OPCODE_B_BL = 0x94000000
 

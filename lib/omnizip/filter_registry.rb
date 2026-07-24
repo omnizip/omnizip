@@ -4,16 +4,18 @@ module Omnizip
   class FilterRegistry < Omnizip::Registry
     DEFAULT_FORMATS = %i[xz seven_zip].freeze
 
+    # Single source of truth for builtin filters. Each entry binds the
+    # filter name to its class and the formats that support it.
     BUILTIN_FILTERS = {
-      "bcj-x86": "Omnizip::Filters::BcjX86",
-      "bcj-arm": "Omnizip::Filters::BcjArm",
-      "bcj-arm64": "Omnizip::Filters::BcjArm64",
-      "bcj-ia64": "Omnizip::Filters::BcjIa64",
-      "bcj-ppc": "Omnizip::Filters::BcjPpc",
-      "bcj-sparc": "Omnizip::Filters::BcjSparc",
-      bcj: "Omnizip::Filters::BCJ",
-      bcj2: "Omnizip::Filters::Bcj2",
-      delta: "Omnizip::Filters::Delta",
+      "bcj-x86":   { const: "Omnizip::Filters::BcjX86",   formats: %i[xz seven_zip] },
+      "bcj-arm":   { const: "Omnizip::Filters::BcjArm",   formats: %i[xz seven_zip] },
+      "bcj-arm64": { const: "Omnizip::Filters::BcjArm64", formats: [:seven_zip] },
+      "bcj-ia64":  { const: "Omnizip::Filters::BcjIa64",  formats: %i[xz seven_zip] },
+      "bcj-ppc":   { const: "Omnizip::Filters::BcjPpc",   formats: %i[xz seven_zip] },
+      "bcj-sparc": { const: "Omnizip::Filters::BcjSparc", formats: %i[xz seven_zip] },
+      bcj:         { const: "Omnizip::Filters::BCJ",      formats: [:seven_zip] },
+      bcj2:        { const: "Omnizip::Filters::Bcj2",     formats: [:seven_zip] },
+      delta:       { const: "Omnizip::Filters::Delta",    formats: %i[xz seven_zip] },
     }.freeze
 
     class << self
@@ -86,7 +88,6 @@ module Omnizip
 
         trigger = lazy_triggers[normalized]
         if trigger
-          synchronize { lazy_triggers.delete(normalized) }
           trigger.call
           entry = storage[normalized]
           return entry if entry
@@ -98,12 +99,13 @@ module Omnizip
   end
 end
 
-# Lazy triggers — calling the Filters::Registry.register_all re-runs
-# the registration of every builtin filter. Idempotent: register just
-# overwrites the storage entry. Survives reset! because the trigger
-# proc is held by FilterRegistry, not the storage.
-Omnizip::FilterRegistry::BUILTIN_FILTERS.each_key do |name|
+# Lazy triggers — each trigger resolves the filter's class (firing
+# autoload) and registers it with its declared formats. Idempotent:
+# register overwrites the storage entry. Survives reset! because the
+# trigger proc is held by FilterRegistry, not the storage.
+Omnizip::FilterRegistry::BUILTIN_FILTERS.each do |name, spec|
   Omnizip::FilterRegistry.register_lazy(name) do
-    Omnizip::Filters::Registry.register_all
+    klass = Object.const_get(spec[:const])
+    Omnizip::FilterRegistry.register(name, klass, formats: spec[:formats])
   end
 end

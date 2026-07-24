@@ -3,7 +3,6 @@
 module Omnizip
   # Filter implementations for preprocessing data before compression
   module Filters
-    autoload :FilterBase, "omnizip/filters/filter_base"
     autoload :BCJ, "omnizip/filters/bcj"
     autoload :BcjX86, "omnizip/filters/bcj_x86"
     autoload :Bcj2, "omnizip/filters/bcj2"
@@ -17,6 +16,5 @@ module Omnizip
     autoload :BcjSparc, "omnizip/filters/bcj_sparc"
     autoload :BcjIa64, "omnizip/filters/bcj_ia64"
     autoload :Delta, "omnizip/filters/delta"
-    autoload :Registry, "omnizip/filters/registry"
   end
 end

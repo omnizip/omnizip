@@ -44,7 +44,6 @@ module Omnizip
 
         trigger = lazy_triggers[normalized]
         if trigger
-          synchronize { lazy_triggers.delete(normalized) }
           trigger.call
           handler = storage[normalized]
           return resolve_handler(handler, extension) if handler

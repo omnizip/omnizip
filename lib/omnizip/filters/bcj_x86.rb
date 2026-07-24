@@ -27,7 +27,7 @@ module Omnizip
     #
     # The filter is reversible and works on 5-byte boundaries (1-byte
     # opcode + 4-byte address).
-    class BcjX86 < FilterBase
+    class BcjX86 < Omnizip::Filter
       # x86 CALL opcode
       OPCODE_CALL = 0xE8
 
