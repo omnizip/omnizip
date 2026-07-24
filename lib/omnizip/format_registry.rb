@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   class FormatRegistry < Omnizip::Registry
     BUILTIN_FORMATS = {

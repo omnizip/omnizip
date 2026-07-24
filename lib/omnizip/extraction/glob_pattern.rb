@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Extraction
     # Implements glob pattern matching for file paths

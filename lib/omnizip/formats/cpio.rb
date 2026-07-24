@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Formats
     # CPIO archive format support

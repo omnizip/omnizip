@@ -38,6 +38,36 @@ RSpec.describe "format file direct require" do
     end
   end
 
+  # Regression for the v0.3.11 excavate/fontist breakage: when an
+  # external gem does `require "omnizip/formats/cpio"` BEFORE the user
+  # does `require "omnizip"`, the cpio file's `module Omnizip::Formats`
+  # would create the Formats module as empty. Subsequent `autoload
+  # :Formats, ...` in omnizip.rb would be silently ignored, breaking
+  # lookups for every other format. Fixed by adding `require "omnizip"`
+  # at the top of every internal file — the entry point load is
+  # idempotent and ensures the autoload chain is wired before any
+  # module is reopened.
+  #
+  # Must run in a subprocess because Ruby's autoload can't be reliably
+  # reset within a single process.
+  it "module chain is intact when a format file is required before omnizip.rb" do
+    skip "subprocess test only runs against local lib" unless File.directory?(File.expand_path("lib/omnizip", Dir.pwd))
+
+    script = <<~RUBY
+      require "omnizip/formats/cpio"
+      require "omnizip"
+      puts Omnizip::Formats::SevenZip
+      puts Omnizip::Formats::Tar
+      puts Omnizip::Formats::Zip
+    RUBY
+
+    output = `ruby -Ilib -e '#{script.gsub("'", "\\\\'")}' 2>&1`
+    expect($?).to be_success, "expected clean run, got: #{output}"
+    expect(output).to include("Omnizip::Formats::SevenZip")
+    expect(output).to include("Omnizip::Formats::Tar")
+    expect(output).to include("Omnizip::Formats::Zip")
+  end
+
   # Loads +path+ via Kernel#load wrapped in a clean module so the
   # file body executes without polluting the global namespace, then
   # restores autoloads that may have been clobbered.

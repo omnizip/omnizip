@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 begin
   require "lutaml/model"
 rescue LoadError, ArgumentError

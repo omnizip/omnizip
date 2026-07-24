@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Formats
     autoload :FormatSpecLoader, "omnizip/formats/format_spec_loader"

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 # Algorithm registration - triggers autoload and registers all algorithms
 # This file should be required after algorithms.rb which sets up autoloads
 

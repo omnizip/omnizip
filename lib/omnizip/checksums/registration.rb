@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 # Checksum registration - triggers autoload and registers all checksums
 # This file should be required after checksums.rb which sets up autoloads
 

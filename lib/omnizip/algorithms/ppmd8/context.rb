@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 # Copyright (C) 2025 Ribose Inc.
 
 module Omnizip

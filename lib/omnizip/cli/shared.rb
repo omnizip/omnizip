@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   class Cli
     # Shared helpers used by the Thor command groups defined in
