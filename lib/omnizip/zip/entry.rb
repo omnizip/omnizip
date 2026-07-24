@@ -5,7 +5,14 @@ module Omnizip
     # Rubyzip-compatible Entry class
     # Wraps CentralDirectoryHeader with rubyzip API
     class Entry
+      include Omnizip::Entry
+
       attr_reader :header, :ftype, :filepath
+
+      def entry_name = name
+      def entry_directory? = directory?
+      def entry_size = size
+      def entry_mtime = time
 
       # Create entry from CentralDirectoryHeader
       def initialize(header, filepath: nil)

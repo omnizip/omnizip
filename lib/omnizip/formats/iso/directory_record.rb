@@ -6,8 +6,15 @@ module Omnizip
       # ISO 9660 Directory Record
       # Represents a file or directory entry
       class DirectoryRecord
+        include Omnizip::Entry
+
         attr_accessor :full_path
         attr_reader :length, :extended_attr_length, :location, :data_length, :recording_date, :flags, :file_unit_size, :interleave_gap_size, :volume_sequence_number, :name, :system_use
+
+        def entry_name = full_path || name
+        def entry_directory? = directory?
+        def entry_size = data_length
+        def entry_mtime = recording_date
 
         # Set the full path for this record, used by Reader when walking
         # a directory tree. Allows callers to look up records by path

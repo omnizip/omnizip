@@ -184,18 +184,10 @@ module Omnizip
 
       # Get filename from entry
       #
-      # @param entry [Object] Entry
+      # @param entry [#entry_name] Entry (Omnizip::Entry or compatible)
       # @return [String] Filename
       def entry_filename(entry)
-        if entry.respond_to?(:name)
-          entry.name
-        elsif entry.respond_to?(:path)
-          entry.path
-        elsif entry.respond_to?(:filename)
-          entry.filename
-        else
-          entry.to_s
-        end
+        entry.entry_name || entry.to_s
       end
 
       # Update progress tracker

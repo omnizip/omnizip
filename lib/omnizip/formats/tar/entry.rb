@@ -7,11 +7,17 @@ module Omnizip
       #
       # Represents a single entry (file, directory, link) in a TAR archive
       class Entry
+        include Omnizip::Entry
         include Omnizip::Formats::Tar::Constants
 
         attr_accessor :name, :mode, :uid, :gid, :size, :mtime, :typeflag,
                       :linkname, :uname, :gname, :devmajor, :devminor, :prefix
         attr_reader :data
+
+        def entry_name = name
+        def entry_directory? = directory?
+        def entry_size = size
+        def entry_mtime = mtime
 
         # Initialize a new TAR entry
         #

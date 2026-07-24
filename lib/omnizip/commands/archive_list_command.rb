@@ -185,29 +185,31 @@ module Omnizip
         end
       end
 
-      # Helper methods to handle different entry types
+      # Helper methods to handle different entry types. Each delegates
+      # to the Omnizip::Entry contract; format-specific accessors stay
+      # on the format entry classes themselves.
       def entry_name(entry)
-        entry.respond_to?(:name) ? entry.name : entry.to_s
+        entry.entry_name || entry.to_s
       end
 
       def entry_directory?(entry)
-        entry.respond_to?(:directory?) && entry.directory?
+        entry.entry_directory?
       end
 
       def entry_size(entry)
-        entry.respond_to?(:size) ? entry.size : 0
+        entry.entry_size || 0
       end
 
       def entry_compressed_size(entry)
-        entry.respond_to?(:compressed_size) ? entry.compressed_size : nil
+        entry.compressed_size if entry.is_a?(Omnizip::Formats::SevenZip::Models::FileEntry)
       end
 
       def entry_has_stream?(entry)
-        entry.respond_to?(:has_stream?) ? entry.has_stream? : true
+        entry.has_stream? if entry.is_a?(Omnizip::Formats::SevenZip::Models::FileEntry)
       end
 
       def entry_mtime(entry)
-        entry.respond_to?(:mtime) ? entry.mtime : nil
+        entry.entry_mtime
       end
     end
   end

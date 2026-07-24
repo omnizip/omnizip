@@ -8,7 +8,13 @@ module Omnizip
       # Represents a file or directory entry in an OLE compound document.
       # Each dirent is 128 bytes and contains metadata about the entry.
       class Dirent
+        include Omnizip::Entry
         include Omnizip::Formats::Ole::Constants
+
+        def entry_name = name
+        def entry_directory? = dir?
+        def entry_size = nil
+        def entry_mtime = modify_time
 
         # Pack format for dirent structure
         PACK = "a64 v C C V3 a16 V a8 a8 V2 a4"
