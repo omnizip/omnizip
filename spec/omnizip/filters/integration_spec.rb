@@ -48,9 +48,9 @@ RSpec.describe "BCJ Filter Integration" do
 
   describe "FilterRegistry" do
     it "registers BCJ-x86 filter" do
-      # Trigger autoload of the BCJ filter implementations, which
-      # self-register via Filters::Registry.register_all on first load.
-      Omnizip::Filters::BcjX86
+      # The registry's lazy trigger resolves the constant on first
+      # lookup, firing autoload and registering the filter.
+      Omnizip::FilterRegistry.get(:"bcj-x86")
       expect(Omnizip::FilterRegistry.available).to include(:"bcj-x86")
     end
 

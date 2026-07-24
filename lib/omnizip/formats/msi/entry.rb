@@ -8,7 +8,13 @@ module Omnizip
       # Represents a single file within an MSI package.
       # File information is assembled from File, Component, and Directory tables.
       class Entry
+        include Omnizip::Entry
         include Omnizip::Formats::Msi::Constants
+
+        def entry_name = path
+        def entry_directory? = false
+        def entry_size = size
+        def entry_mtime = nil
 
         # @return [String] Full installation path
         attr_accessor :path

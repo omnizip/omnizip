@@ -17,6 +17,8 @@ RSpec.describe Omnizip::Extraction do
 
   # Mock archive entry class
   class MockEntry
+    include Omnizip::Entry
+
     attr_reader :name, :size
 
     def initialize(name, content = "test content", size = nil)
@@ -24,6 +26,11 @@ RSpec.describe Omnizip::Extraction do
       @content = content
       @size = size || content.bytesize
     end
+
+    def entry_name = name
+    def entry_directory? = false
+    def entry_size = size
+    def entry_mtime = nil
 
     def read
       @content

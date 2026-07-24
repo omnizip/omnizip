@@ -207,6 +207,8 @@ RSpec.describe "Filter Integration" do
     end
 
     it "returns list of available filters" do
+      # Force lazy triggers to fire so the registry reflects all builtins.
+      %i[bcj-x86 bcj-arm delta bcj2].each { |n| Omnizip::FilterRegistry.get(n) }
       available = Omnizip::FilterRegistry.available
       expect(available).to include(:"bcj-x86")
       expect(available).to include(:"bcj-arm")

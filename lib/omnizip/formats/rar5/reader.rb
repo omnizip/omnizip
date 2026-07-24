@@ -316,9 +316,16 @@ module Omnizip
 
       # RAR v5 archive entry model
       class Entry
+        include Omnizip::Entry
+
         attr_accessor :name, :compressed_size, :uncompressed_size, :crc32,
                       :compression_method, :modified_time, :attributes,
                       :encrypted, :data_offset, :host_os, :is_directory
+
+        def entry_name = name
+        def entry_directory? = is_directory
+        def entry_size = uncompressed_size
+        def entry_mtime = modified_time
 
         def initialize(name: nil, compressed_size: nil, uncompressed_size: nil,
                        crc32: nil, compression_method: nil, modified_time: nil,

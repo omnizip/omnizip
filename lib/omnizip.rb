@@ -60,6 +60,7 @@ module Omnizip
   autoload :ETA, "omnizip/eta"
   autoload :Progress, "omnizip/progress"
   autoload :Metadata, "omnizip/metadata"
+  autoload :Entry, "omnizip/entry"
   autoload :Converter, "omnizip/converter"
   autoload :LinkHandler, "omnizip/link_handler"
   autoload :Parity, "omnizip/parity"

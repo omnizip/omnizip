@@ -5,7 +5,14 @@ module Omnizip
     # Model for file entry metadata
     # Wraps CentralDirectoryHeader with a cleaner metadata API
     class EntryMetadata
+      include Omnizip::Entry
+
       attr_reader :entry
+
+      def entry_name = entry.name
+      def entry_directory? = entry.directory?
+      def entry_size = entry.size
+      def entry_mtime = entry.time
 
       # Initialize metadata for an entry
       # @param entry [Omnizip::Zip::Entry] The entry to manage metadata for

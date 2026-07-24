@@ -8,6 +8,7 @@ module Omnizip
       # Represents a file, directory, or special file in a CPIO archive.
       # Supports newc, CRC, and ODC formats.
       class Entry
+        include Omnizip::Entry
         include Omnizip::Formats::Cpio::Constants
 
         # @return [String] Magic number identifying format
@@ -57,6 +58,11 @@ module Omnizip
 
         # @return [String] File data
         attr_accessor :data
+
+        def entry_name = name
+        def entry_directory? = directory?
+        def entry_size = filesize
+        def entry_mtime = mtime
 
         # Initialize CPIO entry
         #

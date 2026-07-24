@@ -7,10 +7,17 @@ module Omnizip
         # Represents a file entry in .7z archive
         # Contains file metadata, attributes, and extraction information
         class FileEntry
+          include Omnizip::Entry
+
           attr_accessor :name, :size, :compressed_size, :crc, :is_dir,
                         :is_empty, :is_anti, :has_stream, :mtime, :atime,
                         :ctime, :attributes, :folder_index, :file_index,
                         :source_path, :inline_data, :compression_options
+
+          def entry_name = name
+          def entry_directory? = is_dir
+          def entry_size = size
+          def entry_mtime = mtime
 
           # Initialize file entry
           def initialize

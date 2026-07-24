@@ -8,7 +8,13 @@ module Omnizip
       # Represents a single file within an RPM package.
       # File information is assembled from multiple header tags.
       class Entry
+        include Omnizip::Entry
         include Omnizip::Formats::Rpm::Constants
+
+        def entry_name = path
+        def entry_directory? = mode && ::File.directory?(mode)
+        def entry_size = size
+        def entry_mtime = mtime
 
         # @return [String] File path
         attr_accessor :path

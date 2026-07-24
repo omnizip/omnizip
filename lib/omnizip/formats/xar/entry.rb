@@ -8,7 +8,13 @@ module Omnizip
       # Represents a single file/directory/link in a XAR archive.
       # Each entry has metadata and optional data.
       class Entry
+        include Omnizip::Entry
         include Omnizip::Formats::Xar::Constants
+
+        def entry_name = name
+        def entry_directory? = type == :directory
+        def entry_size = size
+        def entry_mtime = mtime
 
         attr_accessor :id, :name, :type, :mode, :uid, :gid, :user, :group,
                       :size, :ctime, :mtime, :atime,
