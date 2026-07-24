@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   # Password protection module
   # Provides encryption and password validation for archives

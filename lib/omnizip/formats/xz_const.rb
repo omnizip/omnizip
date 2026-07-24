@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Formats
     # XZ Format Constants (from XZ Utils specification)

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 require "fileutils"
 require "tmpdir"
 

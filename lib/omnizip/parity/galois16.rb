@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Parity
     # Pure implementation of Galois Field GF(2^16) arithmetic

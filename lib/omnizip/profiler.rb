@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   # Main profiler interface using Strategy pattern for different profiling approaches
   class Profiler

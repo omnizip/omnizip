@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Parity
     # Pure Reed-Solomon encoder for creating recovery blocks

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   # Chunked processing for memory-efficient large file handling
   module Chunked

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   # Platform detection and capabilities
   # Provides cross-platform compatibility checks

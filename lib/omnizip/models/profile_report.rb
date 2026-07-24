@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 module Omnizip
   module Models
     # Represents an aggregated profiling report with hot path analysis

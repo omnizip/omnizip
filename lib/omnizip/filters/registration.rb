@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+
+require "omnizip"
 # Filter registration - triggers autoload and registers all filters
 # This file should be required after filters.rb which sets up autoloads
 
