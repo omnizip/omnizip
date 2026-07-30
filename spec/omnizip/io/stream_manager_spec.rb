@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
+require "tempfile"
 
 RSpec.describe Omnizip::IO::StreamManager do
   describe "#initialize" do
@@ -57,6 +59,29 @@ RSpec.describe Omnizip::IO::StreamManager do
       manager.write("test")
 
       expect(io.string).to eq("test")
+    end
+  end
+
+  describe "#close" do
+    it "closes a source it opened from a file path" do
+      # Block form: the file is removed even if described_class.new raises.
+      Tempfile.create("stream-manager-spec") do |file|
+        file.write("on disk")
+        file.flush
+
+        manager = described_class.new(file.path)
+        manager.close
+
+        expect(manager.source).to be_closed
+      end
+    end
+
+    it "leaves a caller-supplied source open" do
+      io = StringIO.new("test")
+      manager = described_class.new(io)
+      manager.close
+
+      expect(io).not_to be_closed
     end
   end
 end

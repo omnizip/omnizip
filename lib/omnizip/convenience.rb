@@ -123,6 +123,7 @@ module Omnizip
       end
 
       handler = Omnizip::ArchiveHandler.for(format)
+      # allowed: handler is a registered duck; missing add_entry raises below
       if handler.respond_to?(:add_entry)
         handler.add_entry(archive_path, entry_name, source_path)
       else
@@ -142,6 +143,7 @@ module Omnizip
     def remove_from_archive(archive_path, entry_name, format: DEFAULT_FORMAT)
       require_archive!(archive_path)
       handler = Omnizip::ArchiveHandler.for(format)
+      # allowed: handler is a registered duck; missing remove_entry raises below
       unless handler.respond_to?(:remove_entry)
         raise Omnizip::UnsupportedFormatError,
               "Format #{format.inspect} does not support removing entries"

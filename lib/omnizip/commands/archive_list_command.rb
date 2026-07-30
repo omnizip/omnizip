@@ -69,7 +69,7 @@ module Omnizip
         entries = if patterns || excludes
                     filter_entries(archive, patterns, excludes)
                   else
-                    archive.respond_to?(:entries) ? archive.entries : archive.to_a
+                    archive.entries
                   end
 
         if count_only
@@ -102,8 +102,7 @@ module Omnizip
         # Add exclude patterns
         excludes&.each { |pattern| filter.exclude_pattern(pattern) }
 
-        entries = archive.respond_to?(:entries) ? archive.entries : archive.to_a
-        filter.filter(entries)
+        filter.filter(archive.entries)
       end
 
       def display_simple_listing_filtered(entries)

@@ -77,6 +77,7 @@ module Omnizip
           end
 
           def set_encoding(enc)
+            # allowed: caller-supplied IO; String streams lack set_encoding
             @stream.set_encoding(enc) if @stream.respond_to?(:set_encoding)
           end
         end
@@ -110,7 +111,9 @@ module Omnizip
 
           if ENV["XZ_BLOCK_DEBUG"]
             warn "DEBUG: decode - compressed_size=#{compressed_size.inspect}, check_type=#{@check_type}"
+            # allowed: debug output under XZ_BLOCK_DEBUG
             warn "DEBUG: @input.class=#{@input.class}, @input.respond_to?(:pos)=#{@input.respond_to?(:pos)}"
+            # allowed: debug output under XZ_BLOCK_DEBUG
             pos = @input.respond_to?(:pos) ? @input.pos : "N/A"
             warn "DEBUG: @input.pos=#{pos}"
           end

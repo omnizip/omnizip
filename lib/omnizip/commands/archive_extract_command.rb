@@ -222,7 +222,7 @@ module Omnizip
 
         extracted.size
       ensure
-        archive&.close if archive.respond_to?(:close)
+        archive.close if archive.is_a?(Omnizip::Zip::File)
       end
 
       def extract_gzip(archive_file, output_dir, verbose)

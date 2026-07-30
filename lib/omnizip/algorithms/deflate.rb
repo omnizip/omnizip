@@ -94,6 +94,7 @@ module Omnizip
 
         opts = {}
 
+        # allowed: options is a public parameter; any object with #level is honored
         if options.respond_to?(:level)
           opts[:level] = map_compression_level(options.level)
         end

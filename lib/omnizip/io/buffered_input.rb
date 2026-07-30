@@ -76,6 +76,7 @@ module Omnizip
       #
       # @return [void]
       def close
+        # allowed: caller-supplied source may not be closeable
         @source.close if @source.respond_to?(:close)
       end
 

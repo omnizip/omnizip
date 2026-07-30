@@ -155,6 +155,7 @@ module Omnizip
           decoder_opts[:uncompressed_size] =
             @uncompressed_size
         end
+        # allowed: options is a public parameter; the body needs #key? and #[]
         decoder_opts[:uncompressed_size] ||= options[:size] if options.respond_to?(:key?) && options.key?(:size)
 
         decoder = Decoder.new(input_stream, decoder_opts)
@@ -174,6 +175,7 @@ module Omnizip
         opts = {}
 
         # Handle Hash-like options
+        # allowed: options is a public parameter; the body needs #[] and #key?
         if options.respond_to?(:[])
           opts[:lc] = options[:lc] if options[:lc]
           opts[:lp] = options[:lp] if options[:lp]
@@ -192,13 +194,16 @@ module Omnizip
         end
 
         # Handle level from both Hash and CompressionOptions
+        # Models::CompressionOptions and SolidEncoder::LzmaOptions both expose
+        # #level and share no ancestor; converting needs them unified first.
+        # allowed: type check deferred, not feature detection
         level = if options.respond_to?(:level)
-                  options.level || 5
-                elsif options.respond_to?(:[]) && options[:level]
-                  options[:level] || 5
-                else
-                  5
+                  options.level
+                # allowed: reader-style options are handled above; this arm needs #[]
+                elsif options.respond_to?(:[])
+                  options[:level]
                 end
+        level ||= 5
 
         opts[:dict_size] ||= dictionary_size_for_level(level)
 
@@ -218,6 +223,7 @@ module Omnizip
         opts = {}
 
         # Handle Hash-like options - pass through all decoder-relevant options
+        # allowed: options is a public parameter; the body needs #key? and #[]
         if options.respond_to?(:key?)
           if options.key?(:sdk_compatible)
             opts[:sdk_compatible] =

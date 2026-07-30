@@ -84,6 +84,7 @@ module Omnizip
       # @return [void]
       def close
         flush
+        # allowed: caller-supplied destination may not be closeable
         @destination.close if @destination.respond_to?(:close)
       end
 

@@ -33,19 +33,6 @@ module Omnizip
         #
         # Ported from XZ Utils liblzma/lzma2_encoder.c
         #
-        # Compatibility helper for Ruby 3.0-3.1 where String#byteslice doesn't exist
-        module StringCompat
-          if "".respond_to?(:byteslice)
-            def self.byteslice(string, start, length)
-              string.byteslice(start, length)
-            end
-          else
-            def self.byteslice(string, start, length)
-              string.bytes[start, length]&.pack("C*") || ""
-            end
-          end
-        end
-
         # Constants
         UINT32_MAX = 0xFFFFFFFF
         REPS = 4
@@ -364,11 +351,9 @@ module Omnizip
 
             # Write to output stream
             if out_pos.value.positive?
-              # Use StringCompat.byteslice for Ruby 3.0-3.1 compatibility
               # Ruby's [] operator has a bug with null bytes that can return extra bytes
               # See: https://bugs.ruby-lang.org/issues/15985
-              output.write(StringCompat.byteslice(temp_buffer, 0,
-                                                  out_pos.value))
+              output.write(temp_buffer.byteslice(0, out_pos.value))
             end
 
             # Return the number of bytes written

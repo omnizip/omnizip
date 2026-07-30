@@ -31,6 +31,7 @@ module Omnizip
         when ::IO, ::StringIO, ::Tempfile then new(input)
         when String then StringSource.new(input)
         else
+          # allowed: boundary validation; duck-typing ends at this adapter
           unless input.respond_to?(:read)
             raise ArgumentError,
                   "Cannot adapt #{input.inspect} to Omnizip::IO::Source"
@@ -56,6 +57,7 @@ module Omnizip
       end
 
       def close
+        # allowed: wrapped object may be a read-only duck with no close
         @io.close if @io.respond_to?(:close)
       end
 
@@ -98,6 +100,7 @@ module Omnizip
         when ::IO, ::StringIO, ::Tempfile then new(output)
         when String then PathSink.new(output)
         else
+          # allowed: boundary validation; duck-typing ends at this adapter
           unless output.respond_to?(:write)
             raise ArgumentError,
                   "Cannot adapt #{output.inspect} to Omnizip::IO::Sink"
@@ -116,6 +119,7 @@ module Omnizip
       end
 
       def close
+        # allowed: wrapped object may be a write-only duck with no close
         @io.close if @io.respond_to?(:close)
       end
 

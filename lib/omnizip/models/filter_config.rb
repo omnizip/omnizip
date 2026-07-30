@@ -94,6 +94,8 @@ module Omnizip
       # @raise [NotImplementedError] If filter doesn't support id_for_format
       def id_for_format(format)
         filter = filter_instance
+        # FilterRegistry accepts any class, with no inheritance check.
+        # allowed: keeps NotImplementedError for filters without the method
         if filter.respond_to?(:id_for_format)
           filter.id_for_format(format)
         else

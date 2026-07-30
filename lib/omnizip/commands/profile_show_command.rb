@@ -33,6 +33,8 @@ module Omnizip
         puts "Solid:       #{profile.solid}"
         puts "Description: #{profile.description}"
 
+        # ProfileRegistry accepts any CompressionProfile subclass.
+        # allowed: a registered subclass may expose base_profile
         return unless profile.respond_to?(:base_profile) && profile.base_profile
 
         puts "Based on:    #{profile.base_profile.name}"
