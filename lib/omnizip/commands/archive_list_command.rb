@@ -91,6 +91,8 @@ module Omnizip
       rescue StandardError => e
         raise Omnizip::CompressionError,
               "Failed to list archive: #{e.message}"
+      ensure
+        archive.close if archive.is_a?(Omnizip::Zip::File)
       end
 
       def filter_entries(archive, patterns, excludes)
