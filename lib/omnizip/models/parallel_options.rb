@@ -55,13 +55,11 @@ module Omnizip
       # @raise [ArgumentError] if options are invalid
       # @return [Boolean] true if valid
       def validate!
-        raise ArgumentError, "threads must be > 0" if threads <= 0
-        raise ArgumentError, "queue_size must be > 0" if queue_size <= 0
-        raise ArgumentError, "chunk_size must be > 0" if chunk_size <= 0
-        raise ArgumentError, "strategy must be :dynamic or :static" unless %i[
-          dynamic static
-        ].include?(strategy)
-        raise ArgumentError, "batch_size must be > 0" if batch_size <= 0
+        validate_positive(:threads)
+        validate_positive(:queue_size)
+        validate_positive(:chunk_size)
+        validate_strategy
+        validate_positive(:batch_size)
 
         true
       end
@@ -82,6 +80,28 @@ module Omnizip
       end
 
       private
+
+      # Raise unless +name+ holds a positive Integer. A nil or non-Integer
+      # value fails with the same message as a zero or negative one, so
+      # callers get +ArgumentError+ rather than +NoMethodError+.
+      #
+      # @param name [Symbol] attribute to check
+      # @raise [ArgumentError] if the value is not a positive Integer
+      # @return [void]
+      def validate_positive(name)
+        value = public_send(name)
+        return if value.is_a?(Integer) && value.positive?
+
+        raise ArgumentError, "#{name} must be > 0"
+      end
+
+      # @raise [ArgumentError] unless +strategy+ is one of the known values
+      # @return [void]
+      def validate_strategy
+        return if %i[dynamic static].include?(strategy)
+
+        raise ArgumentError, "strategy must be :dynamic or :static"
+      end
 
       # Detect number of available CPU cores
       #

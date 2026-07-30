@@ -118,5 +118,16 @@ RSpec.describe Omnizip::Models::ParallelOptions do
       expect { options.validate! }
         .to raise_error(ArgumentError, "strategy must be :dynamic or :static")
     end
+
+    # An explicit nil used to reach `nil <= 0` and raise NoMethodError.
+    %i[threads queue_size chunk_size batch_size].each do |field|
+      it "rejects a nil #{field} with ArgumentError, not NoMethodError" do
+        options = described_class.new
+        options.public_send("#{field}=", nil)
+
+        expect { options.validate! }
+          .to raise_error(ArgumentError, "#{field} must be > 0")
+      end
+    end
   end
 end
