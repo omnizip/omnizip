@@ -159,10 +159,14 @@ module Omnizip
           entry
         else
           # Try common filename methods
+          # Narrowing this changes which files a filter matches.
+          # allowed: entries may be foreign objects
           if entry.respond_to?(:name)
             entry.name
+          # allowed: entries may be foreign objects
           elsif entry.respond_to?(:path)
             entry.path
+          # allowed: entries may be foreign objects
           elsif entry.respond_to?(:filename)
             entry.filename
           else

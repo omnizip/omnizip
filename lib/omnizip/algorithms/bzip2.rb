@@ -99,6 +99,7 @@ module Omnizip
 
         opts = {}
 
+        # allowed: options is a public parameter; any object with #level is honored
         if options.respond_to?(:level)
           level = options.level || 9
           opts[:block_size] = block_size_for_level(level)

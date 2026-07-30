@@ -26,7 +26,7 @@ as absolute rules:
 | 04 | `04-filter-base-consolidation.md` | medium | **DONE** |
 | 05 | `05-send-private-methods.md` | high | **DONE** |
 | 06 | `06-instance-variable-access.md` | high | **DONE** |
-| 07 | `07-respond-to-replacement.md` | medium | **PARTIAL** — IO::Source/Sink adapter built; type-check sites converted; ~76 IO capability checks remain in xz_impl/* and ole/* (legitimate duck-typing for ungetbyte / set_encoding etc.) |
+| 07 | `07-respond-to-replacement.md` | medium | **DONE** — 11 type checks converted; 45 feature-detection sites annotated `# allowed:` and enforced by a spec; 1 deferred type check in `algorithms/lzma.rb` pending `LzmaOptions` unification |
 | 08 | `08-spec-doubles.md` | low | **DONE** |
 | 09 | `09-cli-shared-module.md` | low | **DONE** |
 | 10 | `10-format-detector-ocp.md` | medium | **DONE** |
@@ -43,7 +43,7 @@ as absolute rules:
 | `.send` on private methods | 17 | **0** |
 | `instance_variable_set`/`get` | 54 | **0** |
 | `double()` in specs | 1 | **0** |
-| `respond_to?` | 111 | 76 (mostly IO capability detection) |
+| `respond_to?` | 60 at track 07 start (111 originally) | 49 — 46 annotated `# allowed:` (45 feature detection + 1 deferred type check) plus 3 doc comments |
 | Hand-rolled model `to_h` | 26 | 24 (2 migrated to lutaml-model) |
 
 ## Architecture summary

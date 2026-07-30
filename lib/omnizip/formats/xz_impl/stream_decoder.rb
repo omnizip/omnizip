@@ -46,6 +46,7 @@ module Omnizip
 
           # Store original input and file size for backward_size validation (if available)
           original_input = input
+          # allowed: caller-supplied IO; only sized streams get validated
           original_file_size = input.size if input.respond_to?(:size)
 
           output, block_count, final_input, block_sizes = decode_blocks(input,
@@ -57,6 +58,7 @@ module Omnizip
           # multiples of four bytes...If the stored value does not match the real size of
           # the Index field, the decoder MUST indicate an error."
           # Reference: /Users/mulgogi/src/external/xz/src/liblzma/common/stream_decoder.c
+          # allowed: caller-supplied IO; footer check needs seeking
           if original_input.respond_to?(:seek) && original_file_size&.positive?
             # Use original input and file size for validation
             validate_backward_size_from_footer(original_input,
@@ -138,6 +140,7 @@ module Omnizip
         # @param byte [Integer] Byte to restore
         # @raise [RuntimeError] If IO doesn't support ungetbyte
         def self.restore_byte(input, byte)
+          # allowed: caller-supplied IO; FormatError follows when unsupported
           return input.ungetbyte(byte) if input.respond_to?(:ungetbyte)
 
           raise FormatError,
@@ -227,6 +230,7 @@ module Omnizip
         # @param check_type [Symbol] Expected checksum type
         # @param index_size [Integer, nil] Actual index size for backward_size validation
         def self.verify_footer_if_seekable(input, check_type, index_size = nil)
+          # allowed: caller-supplied IO; skipped on non-seekable streams
           return unless input.respond_to?(:seek) && input.respond_to?(:size) && input.size
 
           original_pos = input.pos
@@ -290,6 +294,7 @@ module Omnizip
         # @param input [IO] Input stream
         # @raise [FormatError] If there's invalid trailing data
         def self.verify_no_trailing_data(input)
+          # allowed: caller-supplied IO; needs byte-level positioning
           return unless input.respond_to?(:pos) && input.respond_to?(:getbyte)
 
           # Skip stream padding (null bytes)
@@ -304,6 +309,7 @@ module Omnizip
             else
               # Non-zero byte found - this should be a new stream or it's invalid
               # Restore the byte and check if it's a valid stream header
+              # allowed: caller-supplied IO capability probe
               input.ungetbyte(byte) if input.respond_to?(:ungetbyte)
 
               # Stream padding must be a multiple of 4 bytes
@@ -345,6 +351,7 @@ module Omnizip
           end
 
           # Restore the bytes we read
+          # allowed: caller-supplied IO capability probe
           if input.respond_to?(:ungetbyte)
             potential_header.reverse_each do |b|
               input.ungetbyte(b)
@@ -381,6 +388,7 @@ module Omnizip
         # @raise [FormatError] If backward_size points to invalid position
         def self.validate_backward_size_from_footer(input, file_size,
 _index_size)
+          # allowed: caller-supplied IO; skipped on non-seekable streams
           return unless input.respond_to?(:seek)
           return if file_size.nil? || file_size.zero?
 

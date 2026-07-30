@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "english"
 require "rbconfig"
 
 # Entry points that reach a stdlib constant the library must have required
@@ -22,9 +23,12 @@ module CleanLoadCases
       'd = Object.new; def d.write(_); print "abc"; end; ' \
       'Omnizip::Formats::Xz.create("hello", d)',
 
+    # Output derives from the call's result. An unconditional `print "abc"`
+    # after the call would pass for any return value, including nil.
     "Algorithms::LZMA2XzEncoderAdapter#encode_chunk" =>
-      'Omnizip::Algorithms::LZMA2XzEncoderAdapter.new.encode_chunk("abc"); ' \
-      'print "abc"',
+      "out = Omnizip::Algorithms::LZMA2XzEncoderAdapter.new" \
+      '.encode_chunk("abc"); ' \
+      'print(out.is_a?(String) && !out.empty? ? "abc" : "bad: " + out.inspect)',
   }.freeze
 end
 
@@ -43,8 +47,14 @@ RSpec.describe "omnizip after a bare require" do
         err: %i[child out],
         &:read
       )
+      status = $CHILD_STATUS
 
-      expect(output).to eq("abc")
+      # Both assertions matter: a non-zero exit means the subprocess raised,
+      # and stdout proves the call actually produced what it should.
+      aggregate_failures do
+        expect(status).to be_success, "subprocess exited #{status.exitstatus}: #{output}"
+        expect(output).to eq("abc")
+      end
     end
   end
 end

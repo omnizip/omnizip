@@ -120,8 +120,10 @@ module Omnizip
       #
       # @return [Array] All entries
       def list_all
+        # allowed: public API takes any archive object, including foreign ones
         if @archive.respond_to?(:entries)
           @archive.entries
+        # allowed: public API takes any Enumerable archive
         elsif @archive.respond_to?(:each)
           @archive.to_a
         else
@@ -150,10 +152,13 @@ module Omnizip
       # @param entry [Object] Entry to read
       # @return [String] Entry content
       def read_entry_content(entry)
+        # allowed: entries come from a caller-supplied archive
         if entry.respond_to?(:read)
           entry.read
+        # allowed: rubyzip-style entries expose get_input_stream, not read
         elsif entry.respond_to?(:get_input_stream)
           entry.get_input_stream.read
+        # allowed: some archives read entry content from the archive
         elsif @archive.respond_to?(:read)
           @archive.read(entry)
         else

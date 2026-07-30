@@ -9,6 +9,8 @@ module Omnizip
       # @raise [ArgumentError] If metadata is invalid
       def validate_entry(metadata)
         validate_comment(metadata.comment) if metadata.comment
+        # validate_entry is public API.
+        # allowed: metadata need only expose what it validates
         validate_time(metadata.mtime) if metadata.respond_to?(:mtime)
         validate_permissions(metadata.unix_permissions) if metadata.unix_permissions
 

@@ -71,13 +71,14 @@ module Omnizip
       #
       # @return [void]
       def close
-        @source.close if @owned && @source.respond_to?(:close)
+        @source.close if @owned
       end
 
       # Check if source is at end.
       #
       # @return [Boolean] True if at EOF
       def eof?
+        # allowed: write-only sources have no eof?
         @source.eof? if @source.respond_to?(:eof?)
       end
 
@@ -103,6 +104,7 @@ module Omnizip
       end
 
       def validate_io_interface(source)
+        # allowed: boundary validation of a caller-supplied IO-like object
         if source.respond_to?(:read) || source.respond_to?(:write)
           source
         else

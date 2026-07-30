@@ -288,9 +288,7 @@ check_rc_finished: true)
         end
 
         # Read range decoder init bytes (must happen after set_input sets correct stream)
-        if @range_decoder.respond_to?(:read_init_bytes) && @range_decoder.init_bytes_remaining.positive?
-          @range_decoder.read_init_bytes
-        end
+        @range_decoder.read_init_bytes if @range_decoder.init_bytes_remaining.positive?
 
         # Main decoding loop
         # XZ Utils pattern (lzma_decoder.c:305-306):
@@ -439,6 +437,7 @@ check_rc_finished: true)
               next_byte = stream.getbyte
               if next_byte
                 # Put the byte back
+                # allowed: caller-supplied stream; peek-back is optional
                 stream.ungetbyte(next_byte) if stream.respond_to?(:ungetbyte)
                 raise Omnizip::DecompressionError,
                       "LZMA_Alone file has data after the end-of-payload marker. The file may be corrupted or contain concatenated streams."
@@ -452,6 +451,7 @@ check_rc_finished: true)
             begin
               next_byte = stream.getbyte
               if next_byte
+                # allowed: caller-supplied stream; peek-back is optional
                 stream.ungetbyte(next_byte) if stream.respond_to?(:ungetbyte)
                 raise Omnizip::DecompressionError,
                       "LZMA_Alone file has more compressed data than expected. The uncompressed size field (#{@uncompressed_size} bytes) appears to be too small."

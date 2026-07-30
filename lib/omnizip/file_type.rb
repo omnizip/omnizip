@@ -96,16 +96,19 @@ module Omnizip
         return nil unless io
 
         # Save current position
+        # allowed: caller-supplied IO; only saved when the stream tracks one
         original_pos = io.pos if io.respond_to?(:pos)
 
         mime_type = Marcel::MimeType.for(io, name: filename)
 
         # Restore position
+        # allowed: caller-supplied IO capability probe
         io.seek(original_pos) if original_pos && io.respond_to?(:seek)
 
         mime_type
       rescue StandardError
         # Attempt to restore position even on error
+        # allowed: caller-supplied IO capability probe
         io.seek(original_pos) if original_pos && io.respond_to?(:seek)
         nil
       end

@@ -121,6 +121,7 @@ module Omnizip
             # For raw mode, return actual decode bytes (excluding flush padding)
             if @raw_mode
               [@output.string, @range_encoder.bytes_for_decode]
+            # allowed: caller-supplied output; any #string sink buffers
             elsif @output.respond_to?(:string)
               # For File output, just return bytes written (don't try to read back)
               # For StringIO, return the string and its size
