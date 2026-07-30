@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
+require "lutaml/model"
+
 module Omnizip
   module Models
     # Model for parallel processing configuration
     #
     # Stores settings for parallel compression and extraction operations
     # including thread count, queue size, and load balancing strategy.
+    #
+    # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
     #
     # @example Create parallel options
     #   options = Omnizip::Models::ParallelOptions.new
@@ -15,33 +19,35 @@ module Omnizip
     #
     # @example Use with parallel compression
     #   Omnizip::Parallel.compress_directory('files/', 'backup.zip', options)
-    class ParallelOptions
+    class ParallelOptions < Lutaml::Model::Serializable
       # @return [Integer] Number of worker threads (default: auto-detect)
-      attr_accessor :threads
+      attribute :threads, :integer, default: -> { detect_cpu_count }
 
       # @return [Integer] Maximum size of job queue (default: 1000)
-      attr_accessor :queue_size
+      attribute :queue_size, :integer, default: 1000
 
       # @return [Integer] Chunk size for chunked operations in bytes
-      attr_accessor :chunk_size
+      attribute :chunk_size, :integer, default: 64 * 1024 * 1024 # 64MB default
 
       # @return [Symbol] Load balancing strategy (:dynamic or :static)
-      attr_accessor :strategy
+      attribute :strategy, :symbol, default: :dynamic
 
       # @return [Boolean] Enable verbose progress output
-      attr_accessor :verbose
+      attribute :verbose, :boolean, default: false
 
       # @return [Integer] Batch size for work queue polling
-      attr_accessor :batch_size
+      attribute :batch_size, :integer, default: 10
 
-      # Initialize parallel options with default values
-      def initialize
-        @threads = detect_cpu_count
-        @queue_size = 1000
-        @chunk_size = 64 * 1024 * 1024 # 64MB default
-        @strategy = :dynamic
-        @verbose = false
-        @batch_size = 10
+      key_value do
+        map "threads", to: :threads, render_default: true, render_nil: true
+        map "queue_size", to: :queue_size,
+                          render_default: true, render_nil: true
+        map "chunk_size", to: :chunk_size,
+                          render_default: true, render_nil: true
+        map "strategy", to: :strategy, render_default: true, render_nil: true
+        map "verbose", to: :verbose, render_default: true, render_nil: true
+        map "batch_size", to: :batch_size,
+                          render_default: true, render_nil: true
       end
 
       # Validate options
@@ -60,57 +66,19 @@ module Omnizip
         true
       end
 
-      # Apply a hash of attributes to this options object. Only keys
-      # that correspond to known writers (+threads=+, +queue_size=+,
-      # etc.) are applied; unknown keys are silently ignored.
+      # Apply a hash of attributes. Only keys declared as +attribute+s
+      # above are applied; unknown keys are silently ignored.
       #
-      # @param attributes [Hash{Symbol=>Object}] attributes to set
+      # Keys must be Symbols. String keys are ignored, so +#to_hash+ output
+      # cannot be fed back in directly — use +.from_hash+ for that.
+      #
+      # @param values [Hash{Symbol=>Object}] attributes to set
       # @return [self]
-      def apply(attributes)
-        SETTERS.each do |key, setter|
-          next unless attributes.key?(key)
-
-          public_send(setter, attributes[key])
+      def apply(values)
+        self.class.attributes.each_key do |name|
+          public_send("#{name}=", values[name]) if values.key?(name)
         end
         self
-      end
-
-      SETTERS = {
-        threads: :threads=,
-        queue_size: :queue_size=,
-        chunk_size: :chunk_size=,
-        strategy: :strategy=,
-        verbose: :verbose=,
-        batch_size: :batch_size=,
-      }.freeze
-      private_constant :SETTERS
-
-      # Create a copy of options
-      #
-      # @return [ParallelOptions] new instance with same values
-      def dup
-        copy = self.class.new
-        copy.threads = threads
-        copy.queue_size = queue_size
-        copy.chunk_size = chunk_size
-        copy.strategy = strategy
-        copy.verbose = verbose
-        copy.batch_size = batch_size
-        copy
-      end
-
-      # Convert to hash
-      #
-      # @return [Hash] options as hash
-      def to_h
-        {
-          threads: threads,
-          queue_size: queue_size,
-          chunk_size: chunk_size,
-          strategy: strategy,
-          verbose: verbose,
-          batch_size: batch_size,
-        }
       end
 
       private

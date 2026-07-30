@@ -110,8 +110,43 @@ RSpec.describe Omnizip::Converter do
     end
 
     it "converts to hash" do
-      hash = subject.to_h
-      expect(hash).to include(:target_format, :compression, :compression_level)
+      expect(subject.to_hash).to eq(
+        "source_format" => nil,
+        "target_format" => :seven_zip,
+        "compression" => nil,
+        "compression_level" => 5,
+        "filter" => nil,
+        "preserve_metadata" => true,
+        "temp_directory" => nil,
+        "solid" => true,
+        "delete_source" => false,
+      )
+    end
+
+    it "keeps every key when values are explicitly nil" do
+      options = described_class.new(
+        source_format: nil,
+        target_format: nil,
+        compression: nil,
+        compression_level: nil,
+        filter: nil,
+        preserve_metadata: nil,
+        temp_directory: nil,
+        solid: nil,
+        delete_source: nil,
+      )
+
+      expect(options.to_hash).to eq(
+        "source_format" => nil,
+        "target_format" => nil,
+        "compression" => nil,
+        "compression_level" => nil,
+        "filter" => nil,
+        "preserve_metadata" => nil,
+        "temp_directory" => nil,
+        "solid" => nil,
+        "delete_source" => nil,
+      )
     end
   end
 

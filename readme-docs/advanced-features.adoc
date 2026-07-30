@@ -175,8 +175,7 @@ end
 [source,ruby]
 ----
 parallel_opts = Omnizip::Models::ParallelOptions.new(
-  enabled: true,
-  max_threads: 4,
+  threads: 4,
   chunk_size: 1024 * 1024,  # 1MB chunks
   queue_size: 10
 )
