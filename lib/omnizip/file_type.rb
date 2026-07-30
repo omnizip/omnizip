@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "marcel"
+require "stringio"
 
 module Omnizip
   # File type detection module using Marcel for MIME type detection

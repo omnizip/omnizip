@@ -16,6 +16,8 @@
 # See the COPYING file for the complete text of the license.
 #
 
+require "stringio"
+
 module Omnizip
   # Abstract base class for compression algorithms.
   #
@@ -23,8 +25,6 @@ module Omnizip
   # the required methods. Algorithms are automatically registered with the
   # AlgorithmRegistry when defined.
   class Algorithm
-    require "stringio"
-
     attr_reader :options, :filter
 
     # Initialize algorithm with options.

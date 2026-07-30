@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "stringio"
+
 module Omnizip
   module Zip
     # Rubyzip-compatible InputStream class
@@ -88,7 +90,6 @@ module Omnizip
             @current_entry.compression_method,
             @current_entry.size,
           )
-          require "stringio"
           @current_entry_io = StringIO.new(decompressed, "rb")
         end
 

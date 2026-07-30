@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "stringio"
 
 module Omnizip
   module Zip
@@ -102,7 +103,6 @@ module Omnizip
         content = read_entry_data(entry)
 
         if block
-          require "stringio"
           StringIO.open(content, "rb", &block)
         else
           content

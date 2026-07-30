@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "stringio"
+
 module Omnizip
   module Algorithms
     # LZMA2 encoder - delegates to XzLZMA2Encoder

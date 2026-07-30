@@ -2,6 +2,7 @@
 
 require "zlib"
 require "digest"
+require "stringio"
 
 module Omnizip
   module Formats

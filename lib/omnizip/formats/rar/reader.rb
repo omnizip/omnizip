@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "stringio"
 
 module Omnizip
   module Formats
@@ -287,8 +288,6 @@ module Omnizip
         # @param entry [Models::RarEntry] File entry
         # @return [StringIO] Compressed data stream
         def read_compressed_data(entry)
-          require "stringio"
-
           # Find the entry's data offset in the archive
           File.open(@file_path, "rb") do |io|
             # Skip signature and headers

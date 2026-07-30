@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "stringio"
+
 module Omnizip
   module Formats
     # XZ compression format
