@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "english"
+require "English"
 require "rbconfig"
 
 # Entry points that reach a stdlib constant the library must have required
