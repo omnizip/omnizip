@@ -33,12 +33,16 @@ files, 2 `def to_json`". Both were wrong; the numbers above are real.
 
 This document previously held `ConversionOptions` back pending "lutaml
 symbol-type support". There is nothing to wait for. `:symbol` is a
-built-in type: it is registered in `TYPE_CODES` in
+built-in type from 0.8.0 on: it is registered in `TYPE_CODES` in
 `lib/lutaml/model/type.rb` and implemented in
-`lib/lutaml/model/type/symbol.rb`, in the 0.8 line the gemspec's
-`~> 0.7` already resolves to. It casts symbols, strings, and nil
+`lib/lutaml/model/type/symbol.rb`. It casts symbols, strings, and nil
 correctly and round-trips through JSON. `ConversionOptions` uses it for
 `source_format`, `target_format`, `compression`, and `filter`.
+
+The gemspec asks for `~> 0.8` because of this. `~> 0.7` also resolved to
+0.8 on a fresh install, but it still admitted 0.7.1 through 0.7.7, where
+`:symbol` is unregistered and `default: -> { detect_cpu_count }` is
+evaluated against the class. Pin a build to 0.7.7 and 25 examples fail.
 
 ## Recipe
 

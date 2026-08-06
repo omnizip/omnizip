@@ -31,7 +31,7 @@ ruby --version
 
 Omnizip has minimal dependencies:
 
-* `lutaml-model` (~> 0.7) - Model serialization
+* `lutaml-model` (~> 0.8) - Model serialization
 * `marcel` (~> 1.0) - MIME type detection
 
 These are automatically installed with the gem.

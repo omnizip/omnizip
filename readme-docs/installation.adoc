@@ -95,7 +95,7 @@ puts Omnizip::VERSION
 Omnizip has minimal dependencies:
 
 **Runtime Dependencies:**
-* `lutaml-model` (~> 0.7) - Model serialization
+* `lutaml-model` (~> 0.8) - Model serialization
 * `marcel` (~> 1.1) - MIME type detection
 * `thor` - CLI framework
 
