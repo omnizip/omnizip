@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 module Omnizip
   module Extraction
     # Coordinates selective extraction from archives

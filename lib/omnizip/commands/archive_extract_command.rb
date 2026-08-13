@@ -16,6 +16,8 @@
 # See the COPYING file for the complete text of the license.
 #
 
+require "fileutils"
+
 module Omnizip
   module Commands
     # Command to extract .7z archives to a directory.

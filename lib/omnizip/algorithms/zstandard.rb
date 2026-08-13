@@ -116,8 +116,7 @@ module Omnizip
         level = case options
                 when nil then nil
                 when Hash then options[:level]
-                # allowed: options is a public parameter; any object
-                # with #level is honored
+                # allowed: options is a public parameter; any object with #level is honored
                 else options.level if options.respond_to?(:level)
                 end
 

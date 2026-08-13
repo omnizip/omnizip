@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 module Omnizip
   module Formats
     # OLE compound document format support
