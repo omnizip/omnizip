@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 module Omnizip
   # Handles symbolic and hard link operations with platform detection
   module LinkHandler

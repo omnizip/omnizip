@@ -29,9 +29,29 @@ module RespondToAnnotationCheck
 
   # Lines carrying a real comment token with a non-empty reason.
   def annotated_lines(tokens)
-    tokens
-      .select { |_pos, type, tok, _state| type == :on_comment && tok.match?(ALLOWED) }
+    reason_comments(tokens).to_set { |(line, _col), _type, _tok, _state| line }
+  end
+
+  # Lines whose reason comment stands on its own, so it can also speak for the
+  # line below it. A trailing comment speaks only for the code it sits on:
+  # without this split, annotating one call would silently exempt an unrelated
+  # respond_to? on the next line.
+  #
+  # Ripper reports the column as a BYTE offset, so the prefix is sliced in
+  # bytes. Slicing it as characters would cut in the wrong place on any line
+  # holding multibyte text.
+  def standalone_annotated_lines(tokens, lines)
+    reason_comments(tokens)
+      .select { |(line, col), _type, _tok, _state| standalone?(lines[line - 1], col) }
       .to_set { |(line, _col), _type, _tok, _state| line }
+  end
+
+  def standalone?(line, column)
+    line.to_s.b.byteslice(0, column).strip.empty?
+  end
+
+  def reason_comments(tokens)
+    tokens.select { |_pos, type, tok, _state| type == :on_comment && tok.match?(ALLOWED) }
   end
 end
 
@@ -57,13 +77,15 @@ RSpec.describe "respond_to? annotations in lib/" do
     offenses = paths.flat_map do |path|
       source = File.read(path)
       tokens = Ripper.lex(source)
-      annotated = RespondToAnnotationCheck.annotated_lines(tokens)
       lines = source.lines
+      annotated = RespondToAnnotationCheck.annotated_lines(tokens)
+      standalone = RespondToAnnotationCheck
+        .standalone_annotated_lines(tokens, lines)
       relative = path.delete_prefix(prefix)
 
       RespondToAnnotationCheck
         .code_lines(tokens)
-        .reject { |n| annotated.include?(n) || annotated.include?(n - 1) }
+        .reject { |n| annotated.include?(n) || standalone.include?(n - 1) }
         .map { |n| "#{relative}:#{n}: #{lines[n - 1].strip}" }
     end
 

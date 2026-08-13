@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "English"
+require "fileutils"
 require "tmpdir"
 module Omnizip
   module Formats

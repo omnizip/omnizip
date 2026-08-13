@@ -8,7 +8,11 @@ require "ripper"
 # Kept outside the example group so RuboCop does not see constants defined
 # inside a block.
 module ConstantRequireCheck
-  GUARDED = { "StringIO" => "stringio", "Tempfile" => "tempfile" }.freeze
+  GUARDED = {
+    "FileUtils" => "fileutils",
+    "StringIO" => "stringio",
+    "Tempfile" => "tempfile",
+  }.freeze
   DECLARATIONS = %i[class module].freeze
 
   module_function
