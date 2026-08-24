@@ -100,13 +100,14 @@ module Omnizip
 
           # We didn't find a long enough repeated match.
           # Encode it as a normal match if the match length is at least nice_len
-          # AND the match distance is within the dictionary buffer.
+          # AND the match distance stays within the data decoded so far.
+          # A match may reference anything before `position`: bytes already
+          # committed to the dictionary *and* bytes decoded earlier within
+          # the chunk currently being encoded.
           best_normal = matches.max_by { |m| [m.length, m.distance] }
 
           if best_normal && best_normal.length >= nice_len &&
-              best_normal.distance <= match_finder.dictionary.buffer.bytesize
-            # CRITICAL: Only use normal match if distance is within actual dictionary buffer
-            # This prevents invalid matches that reference bytes not yet written to dictionary
+              best_normal.distance <= position
             # Use normal match
             return [best_normal.distance + REPS, best_normal.length]
           end
@@ -116,10 +117,8 @@ module Omnizip
           if rep_len >= 2 && rep_len >= (best_normal&.length || 0)
             # Use repeated match
             [rep_index, rep_len]
-          elsif best_normal && best_normal.distance <= match_finder.dictionary.buffer.bytesize
-            # CRITICAL: Only use normal match if distance is within actual dictionary buffer
-            # Use dictionary.buffer.bytesize (actual data), NOT dictionary.size (max capacity)
-            # This prevents invalid matches that reference bytes not yet written to dictionary
+          elsif best_normal && best_normal.distance <= position
+            # Use normal match (any length beats encoding literals)
             [best_normal.distance + REPS, best_normal.length]
           else
             # Use literal - return UINT32_MAX to indicate literal (not 0!)

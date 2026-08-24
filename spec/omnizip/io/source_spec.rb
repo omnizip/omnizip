@@ -28,6 +28,19 @@ RSpec.describe Omnizip::IO::Source do
       expect(described_class.for("raw bytes").read).to eq("raw bytes")
     end
 
+    it "resolves ::Tempfile even when tempfile was not yet required (issue #26)" do
+      # The `when ::Tempfile` clause triggers a NameError in a clean process
+      # unless io/source requires the tempfile stdlib itself.
+      lib = File.expand_path("../../../../lib", __dir__)
+      code = 'require "omnizip"; print Omnizip::IO::Source.for("abc").read'
+      out = IO.popen(
+        [RbConfig.ruby, "-I", lib, "-e", code],
+        err: %i[child out], &:read
+      )
+      expect($?).to be_success
+      expect(out).to eq("abc")
+    end
+
     it "raises ArgumentError for unsupported types" do
       expect { described_class.for(42) }.to raise_error(ArgumentError)
     end

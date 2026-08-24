@@ -152,7 +152,11 @@ module Omnizip
             comp_size & 0xFF,            # Compressed size low byte (BIG-ENDIAN)
           ].pack("CCCCC")
 
-          prop_bytes = @properties ? [@properties].pack("C") : ""
+          # The properties byte is only present when the control byte
+          # announces it (reset level >= 2, i.e. 0xC0/0xE0). Writing it for
+          # plain continuation chunks (0x80) desynchronizes the decoder,
+          # which does not expect a byte there.
+          prop_bytes = @need_props && @properties ? [@properties].pack("C") : ""
           header + prop_bytes + @compressed_data
         end
       end

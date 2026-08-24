@@ -326,7 +326,9 @@ _input_data)
             prob_is_rep = @models.is_rep[@state.value]
             encoder.queue_bit(prob_is_rep, 0)
 
-            @state.update_match!(distance)
+            # Reps are stored 0-based (distance - 1), matching the decoder's
+            # rep0 convention.
+            @state.update_match!(distance - 1)
 
             encode_match_length(length, pos_state, encoder)
             encode_distance(distance, length, encoder)
@@ -362,39 +364,36 @@ _input_data)
 
                 prob_is_rep2 = @models.is_rep2[@state.value]
                 encoder.queue_bit(prob_is_rep2, rep - 2)
-
-                if rep == 3
-                  @state.reps[3] = @state.reps[2]
-                end
-
-                @state.reps[2] = @state.reps[1]
               end
 
-              @state.reps[1] = @state.reps[0]
-
+              # XZ Utils rep_match: capture the selected distance BEFORE
+              # rotating, then shift reps down.
               distance = @state.reps[rep]
-
-              if distance.nil?
-                raise "Distance is nil for rep #{rep}, reps=#{@state.reps.inspect}"
-              end
-
+              rep.downto(1) { |i| @state.reps[i] = @state.reps[i - 1] }
               @state.reps[0] = distance
             end
 
             if length == 1
               @state.update_short_rep!
             else
-              encode_match_length(length, pos_state, encoder)
+              # Rep matches use their own length models (decoder's
+              # rep_length_coder).
+              encode_match_length(length, pos_state, encoder,
+                                  @models.rep_len_encoder)
               @state.update_long_rep!
             end
 
-            last_byte_pos = match_pos - @state.reps[0] + length - 1
+            # Last byte of the match region in the stream
+            last_byte_pos = match_pos + length - 1
             @prev_byte = @match_finder.buffer.getbyte(last_byte_pos) if last_byte_pos >= 0 && last_byte_pos < @match_finder.buffer.bytesize
           end
 
           def get_literal_state(pos, prev_byte)
             literal_mask = (0x100 << @lp) - (0x100 >> @lc)
-            ((((pos << 8) + prev_byte) & literal_mask) << @lc)
+            # Factor of 3: each literal context owns a 0x300-sized subcoder
+            # (XZ Utils literal_subcoder macro); must match the decoder's
+            # base_offset = 3 * (lit_state << lc).
+            3 * ((((pos << 8) + prev_byte) & literal_mask) << @lc)
           end
 
           def encode_normal_literal(literal_offset, symbol, encoder)
@@ -426,28 +425,31 @@ encoder)
             end
           end
 
-          def encode_match_length(length, pos_state, encoder)
+          # len_encoder selects the length model set: match_len_encoder for
+          # normal matches, rep_len_encoder for repeated matches.
+          def encode_match_length(length, pos_state, encoder,
+                                  len_encoder = @models.match_len_encoder)
             len = length - 2
 
             if len < 8
-              encoder.queue_bit(@models.match_len_encoder.choice, 0)
-              encode_bittree(@models.match_len_encoder.low[pos_state], 3, len,
-                             encoder)
+              encoder.queue_bit(len_encoder.choice, 0)
+              encode_bittree(len_encoder.low[pos_state], 3, len, encoder)
             elsif len < 16
-              encoder.queue_bit(@models.match_len_encoder.choice, 1)
-              encoder.queue_bit(@models.match_len_encoder.choice2, 0)
-              encode_bittree(@models.match_len_encoder.mid[pos_state], 3,
-                             len - 8, encoder)
+              encoder.queue_bit(len_encoder.choice, 1)
+              encoder.queue_bit(len_encoder.choice2, 0)
+              encode_bittree(len_encoder.mid[pos_state], 3, len - 8, encoder)
             else
-              encoder.queue_bit(@models.match_len_encoder.choice, 1)
-              encoder.queue_bit(@models.match_len_encoder.choice2, 1)
-              encode_bittree(@models.match_len_encoder.high, 8, len - 16,
-                             encoder)
+              encoder.queue_bit(len_encoder.choice, 1)
+              encoder.queue_bit(len_encoder.choice2, 1)
+              encode_bittree(len_encoder.high, 8, len - 16, encoder)
             end
           end
 
           def encode_distance(distance, length, encoder)
-            dist_slot = get_dist_slot(distance)
+            # get_dist_slot expects a 0-based distance (xz fastpos.h:
+            # dist 4 -> slot 4, dist 5 -> slot 4).
+            dist0 = distance - 1
+            dist_slot = get_dist_slot(dist0)
             len_state = [length - 2, 3].min
 
             encode_bittree(@models.dist_slot[len_state], 6, dist_slot, encoder)
@@ -455,7 +457,7 @@ encoder)
             if dist_slot >= 4
               footer_bits = (dist_slot >> 1) - 1
               base = (2 | (dist_slot & 1)) << footer_bits
-              dist_reduced = distance - base
+              dist_reduced = dist0 - base
 
               if dist_slot < 14
                 encode_bittree_reverse(@models.dist_special, dist_reduced,
