@@ -24,240 +24,162 @@ module Omnizip
   module Algorithms
     class Zstandard
       module FSE
-        # FSE state entry for decoding table
-        #
-        # Each entry contains:
-        # - symbol: The symbol this state decodes to
-        # - num_bits: Number of bits to read for next state
-        # - baseline: Value to add to next state's value
-        State = Struct.new(:symbol, :num_bits, :baseline)
+        # One FSE table entry: the symbol decoded in this state and the
+        # transition rule (bits to read, baseline to add). base_val /
+        # nb_add_bits carry the sequence-code meaning of the symbol
+        # (LL/ML baseline + extra bits, or OF base + offset code width)
+        # and are attached by the sequences decoder.
+        State = Struct.new(:symbol, :num_bits, :baseline, :base_val,
+                           :nb_add_bits)
 
-        # FSE decoding table (RFC 8878 Section 4.1)
-        #
-        # Builds a decoding table from a probability distribution
-        # according to RFC 8878.
+        # FSE decoding table built from a normalized distribution
+        # (RFC 8878 §4.1, "From normalized distribution to decoding
+        # tables"; mirrors the C reference FSE_buildDTable).
         class Table
           include Constants
 
-          # @return [Array<State>] Decoding table entries
+          # @return [Array<State>]
           attr_reader :states
 
-          # @return [Integer] Accuracy log (table size = 2^accuracy_log)
+          # @return [Integer] log2 of the table size
           attr_reader :accuracy_log
 
-          # @return [Integer] Number of symbols in the table
+          # @return [Integer] number of symbols in the source alphabet
           attr_reader :symbol_count
 
-          # Build FSE table from normalized distribution
+          # Build a table from a distribution.
           #
-          # @param distribution [Array<Integer>] Normalized symbol frequencies
-          # @param accuracy_log [Integer] Log2 of table size
-          # @return [Table] Built FSE table
+          # @param distribution [Array<Integer>] normalized counts;
+          #   positive = cell count, -1 = "less than 1" low-probability
+          #   symbol (one cell at the top of the table), 0 = absent
+          # @param accuracy_log [Integer]
+          # @return [Table]
           def self.build(distribution, accuracy_log)
             table_size = 1 << accuracy_log
+            step = (table_size >> 1) + (table_size >> 3) + 3
+            mask = table_size - 1
 
-            # Allocate cells using spread pattern
-            cells = allocate_cells(distribution, table_size)
+            # Phase 1a: low-probability (-1) symbols occupy single cells
+            # from the top of the table downward.
+            table_symbol = Array.new(table_size, 0xFFFF)
+            high_threshold = table_size - 1
+            distribution.each_with_index do |freq, symbol|
+              next unless freq == -1
 
-            # Calculate num_bits and baseline for each state
-            states = calculate_state_values(cells, distribution, table_size)
+              table_symbol[high_threshold] = symbol
+              if high_threshold.zero?
+                raise Omnizip::DecompressionError,
+                      "FSE table overflow placing low-probability symbol"
+              end
+
+              high_threshold -= 1
+            end
+
+            # Phase 1b: spread positive-count symbols from position 0,
+            # skipping the reserved low-probability area.
+            position = 0
+            distribution.each_with_index do |freq, symbol|
+              next unless freq.positive?
+
+              freq.times do
+                table_symbol[position] = symbol
+                position = (position + step) & mask
+                position = (position + step) & mask while position > high_threshold
+              end
+            end
+
+            # Phase 2: symbolNext starts at 1 for -1/1 counts, at the
+            # count itself otherwise.
+            symbol_next = Array.new(distribution.length, 0)
+            singular = [-1, 1].freeze
+            distribution.each_with_index do |freq, symbol|
+              next if freq.zero?
+
+              symbol_next[symbol] = singular.include?(freq) ? 1 : freq
+            end
+
+            # Phase 3: per-cell transition rules.
+            states = table_symbol.map do |symbol|
+              next_state = symbol_next[symbol]
+              symbol_next[symbol] += 1
+              nb_bits = accuracy_log - Constants.highbit32(next_state)
+              baseline = (next_state << nb_bits) - table_size
+              State.new(symbol, nb_bits, baseline)
+            end
 
             new(states, accuracy_log, distribution.length)
           end
 
-          # Build from predefined distribution
+          # Build from an RFC 8878 §4.1.3 predefined distribution.
           #
-          # @param distribution [Array<Integer>] Predefined distribution
-          # @param accuracy_log [Integer] Accuracy log
+          # @param distribution [Array<Integer>]
+          # @param accuracy_log [Integer]
           # @return [Table]
           def self.build_predefined(distribution, accuracy_log)
             build(distribution, accuracy_log)
           end
 
-          # Initialize with pre-built table
+          # Single-symbol RLE table: every state decodes `symbol` with a
+          # full state reset.
           #
-          # @param states [Array<State>] Decoding states
-          # @param accuracy_log [Integer]
-          # @param symbol_count [Integer]
+          # @return [Table]
+          def self.build_rle(symbol, accuracy_log)
+            new(Array.new(1 << accuracy_log) { State.new(symbol, 0, 0) },
+                accuracy_log, 1)
+          end
+
           def initialize(states, accuracy_log, symbol_count)
             @states = states
             @accuracy_log = accuracy_log
             @symbol_count = symbol_count
           end
 
-          # Get state at index
-          #
-          # @param index [Integer] State index
-          # @return [State] State at index
+          # @return [State]
           def [](index)
             @states[index]
           end
 
-          # Get table size
-          #
-          # @return [Integer] Number of entries in table
+          # @return [Integer]
           def size
             @states.length
           end
-
-          # Allocate cells using FSE spread pattern
-          #
-          # The spread pattern distributes symbols across the table
-          # using a step that ensures good distribution.
-          def self.allocate_cells(distribution, table_size)
-            cells = Array.new(table_size, nil)
-
-            # Validate distribution sum
-            total = distribution.compact.sum
-            if total > table_size
-              raise ArgumentError,
-                    "Distribution sum (#{total}) exceeds table size (#{table_size})"
-            end
-
-            # Step = (table_size >> 1) + (table_size >> 3) + 3
-            step = (table_size >> 1) + (table_size >> 3) + 3
-            mask = table_size - 1
-
-            position = 0
-
-            distribution.each_with_index do |prob, symbol|
-              next if prob.nil? || prob <= 0
-
-              prob.times do
-                # Find empty position (with safety limit)
-                attempts = 0
-                while cells[position]
-                  position = (position + step) & mask
-                  attempts += 1
-                  if attempts > table_size
-                    raise "FSE table allocation failed: no empty cell found"
-                  end
-                end
-
-                cells[position] = symbol
-                position = (position + step) & mask
-              end
-            end
-
-            cells
-          end
-
-          # Calculate num_bits and baseline for each state
-          def self.calculate_state_values(cells, distribution, table_size)
-            states = Array.new(table_size)
-
-            # Group positions by symbol
-            symbol_positions = {}
-            cells.each_with_index do |symbol, pos|
-              next if symbol.nil?
-
-              symbol_positions[symbol] ||= []
-              symbol_positions[symbol] << pos
-            end
-
-            # Calculate state values for each symbol
-            symbol_positions.each do |symbol, positions|
-              prob = distribution[symbol]
-              next if prob.nil? || prob <= 0
-
-              positions.each_with_index do |pos, idx|
-                # Calculate num_bits: -log2(prob/table_size)
-                num_bits = calculate_num_bits(prob, table_size)
-
-                # Calculate baseline
-                baseline = idx
-
-                states[pos] = State.new(symbol, num_bits, baseline)
-              end
-            end
-
-            states
-          end
-
-          # Calculate number of bits needed for a symbol with given probability
-          def self.calculate_num_bits(prob, table_size)
-            return 0 if prob <= 0
-
-            # num_bits = accuracy_log - log2(prob)
-            # This is the number of extra bits needed
-            log_prob = 0
-            temp = prob
-            while temp > 1
-              log_prob += 1
-              temp >>= 1
-            end
-
-            log_table = 0
-            temp = table_size
-            while temp > 1
-              log_table += 1
-              temp >>= 1
-            end
-
-            [0, log_table - log_prob].max
-          end
         end
 
-        # FSE Decoder (RFC 8878 Section 4.1)
-        #
-        # Decodes symbols from FSE-encoded bitstreams.
+        # Stateful single-stream FSE decoder.
         class Decoder
-          # @return [Table] FSE decoding table
-          attr_reader :table
-
-          # @return [Integer] Current state
+          # @return [Integer] current state index
           attr_reader :state
 
-          # Initialize decoder with FSE table
-          #
-          # @param table [Table] FSE decoding table
+          # @param table [Table]
           def initialize(table)
             @table = table
             @state = 0
           end
 
-          # Initialize state from bitstream
-          #
-          # @param bitstream [BitStream] The bitstream to read from
+          # Initialize the state by reading accuracy_log bits.
           def init_state(bitstream)
             @state = bitstream.read_bits(@table.accuracy_log)
           end
 
-          # Decode next symbol from bitstream
+          # Decode one symbol: read it from the current state, then
+          # transition.
           #
-          # @param bitstream [BitStream] The bitstream to read from
-          # @return [Integer] Decoded symbol
+          # @return [Integer] symbol
           def decode(bitstream)
             entry = @table[@state]
-            return 0 if entry.nil?
-
-            symbol = entry.symbol
-
-            # Read extra bits for next state
-            if entry.num_bits.positive?
-              extra = bitstream.read_bits(entry.num_bits)
-              @state = entry.baseline + extra
-            else
-              @state = entry.baseline
-            end
-
-            # Mask state to table size
-            @state &= (@table.size - 1)
-
-            symbol
+            @state = if entry.num_bits.positive?
+                       entry.baseline + bitstream.read_bits(entry.num_bits)
+                     else
+                       entry.baseline
+                     end
+            entry.symbol
           end
 
-          # Decode multiple symbols
+          # The symbol the current state decodes, without transitioning.
           #
-          # @param bitstream [BitStream] The bitstream to read from
-          # @param count [Integer] Number of symbols to decode
-          # @return [Array<Integer>] Decoded symbols
-          def decode_symbols(bitstream, count)
-            symbols = []
-            count.times do
-              symbols << decode(bitstream)
-            end
-            symbols
+          # @return [Integer]
+          def current_symbol
+            @table[@state].symbol
           end
         end
       end

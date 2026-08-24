@@ -48,22 +48,17 @@ module Omnizip
       autoload :Encoder, "omnizip/algorithms/zstandard/encoder"
       autoload :Decoder, "omnizip/algorithms/zstandard/decoder"
       autoload :Huffman, "omnizip/algorithms/zstandard/huffman"
+      autoload :HuffmanTableReader, "omnizip/algorithms/zstandard/huffman"
       autoload :HuffmanEncoder, "omnizip/algorithms/zstandard/huffman_encoder"
-      autoload :Literals, "omnizip/algorithms/zstandard/literals"
+      autoload :LiteralsDecoder, "omnizip/algorithms/zstandard/literals"
       autoload :LiteralsEncoder, "omnizip/algorithms/zstandard/literals_encoder"
-      autoload :Sequences, "omnizip/algorithms/zstandard/sequences"
+      autoload :SequencesDecoder, "omnizip/algorithms/zstandard/sequences"
+      autoload :SequenceExecutor, "omnizip/algorithms/zstandard/sequences"
+      autoload :XXHash64, "omnizip/algorithms/zstandard/xxhash"
 
-      # Frame module
+      # Frame and FSE modules
       autoload :Frame, "omnizip/algorithms/zstandard/frame"
-
-      # Nested Frame module classes
-      autoload :FrameHeader, "omnizip/algorithms/zstandard/frame/header"
-      autoload :FrameBlock, "omnizip/algorithms/zstandard/frame/block"
-
-      # Nested FSE module classes
-      autoload :FseEncoder, "omnizip/algorithms/zstandard/fse/encoder"
-      autoload :FseTable, "omnizip/algorithms/zstandard/fse/table"
-      autoload :FseBitstream, "omnizip/algorithms/zstandard/fse/bitstream"
+      autoload :FSE, "omnizip/algorithms/zstandard/fse"
 
       # Get algorithm metadata
       #
@@ -106,18 +101,21 @@ module Omnizip
 
       # Build encoder options from compression options
       #
-      # @param options [Models::CompressionOptions, nil] Compression opts
+      # Always sets :level, defaulting to the zstd default (3) so that
+      # `compress(data)` never silently degrades to stored frames
+      # (issue #27). Accepts a Hash (as forwarded by Algorithm.compress)
+      # or a Models::CompressionOptions.
+      #
+      # @param options [Models::CompressionOptions, Hash, nil]
       # @return [Hash] Encoder options
       def build_encoder_options(options)
-        return {} if options.nil?
+        level = case options
+                when nil then nil
+                when Hash then options[:level]
+                else options.level if options.respond_to?(:level)
+                end
 
-        opts = {}
-
-        if options.respond_to?(:level)
-          opts[:level] = map_compression_level(options.level)
-        end
-
-        opts
+        { level: map_compression_level(level) }
       end
 
       # Map generic compression level (0-9) to Zstd level (1-22)

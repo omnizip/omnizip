@@ -23,10 +23,12 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # Pure Ruby Zstandard encoder (RFC 8878)
+      # Pure Ruby Zstandard encoder (RFC 8878).
       #
-      # Encodes data using Zstandard format.
-      # Supports raw blocks and Huffman-compressed literals.
+      # Emits a single-segment frame. Each 128 KiB chunk of input
+      # becomes one block, choosing whichever is smallest: RLE, a
+      # Compressed_Block (Huffman-coded literals + an empty sequences
+      # section), or a Raw_Block fallback for incompressible data.
       class Encoder
         include Constants
 
@@ -34,177 +36,125 @@ module Omnizip
 
         # Initialize encoder
         #
-        # @param output_stream [IO] Output stream for compressed data
-        # @param options [Hash] Encoder options
-        # @option options [Integer] :level Compression level (1-22)
-        # @option options [Boolean] :use_compression Use Huffman compression (default: true)
+        # @param output_stream [IO] output for compressed data
+        # @param options [Hash]
+        # @option options [Integer] :level compression level (1-22)
+        # @option options [Boolean] :checksum write the frame checksum
         def initialize(output_stream, options = {})
           @output_stream = output_stream
           @options = options
           @level = options[:level] || DEFAULT_LEVEL
-          @use_compression = options.fetch(:use_compression, true)
+          @checksum = options.fetch(:checksum, false)
         end
 
-        # Encode data stream
+        # Encode a data stream
         #
-        # @param data [String] Data to compress
-        # @return [void]
+        # @param data [String]
         def encode_stream(data)
-          # Write Zstandard frame
+          data = data.dup.force_encoding(Encoding::BINARY)
           write_frame(data)
         end
 
         private
 
-        # Write a complete Zstandard frame
         def write_frame(data)
-          # Write magic number
           write_u32le(MAGIC_NUMBER)
-
-          # Write frame header descriptor
-          # Single segment, no checksum, no dictionary
-          if data.bytesize < 256
-            # Single segment, 1-byte FCS (FCS flag = 0)
-            descriptor = 0x20 # Single segment flag (bit 5)
-            @output_stream.putc(descriptor)
-            @output_stream.putc(data.bytesize)
-          else
-            # Single segment, 4-byte FCS (FCS flag = 2)
-            # Bits 6-7 = 10 binary = 0x80
-            # Bit 5 = 1 (single segment) = 0x20
-            descriptor = 0x80 | 0x20 # 0xA0
-            @output_stream.putc(descriptor)
-            write_u32le(data.bytesize)
-          end
-
-          # Write blocks
+          write_frame_header(data)
           write_blocks(data)
-
-          # Write content checksum (optional, disabled for now)
-          # write_u32le(xxhash32(data))
+          write_u32le(XXHash64.frame_checksum(data)) if @checksum
         end
 
-        # Write blocks containing the data
+        # Single-segment frame header: no window descriptor, no
+        # dictionary; Frame_Content_Size in 1, 2, 4 or 8 bytes.
+        def write_frame_header(data)
+          size = data.bytesize
+          if size < 256
+            @output_stream.putc(0x20) # single segment, FCS 1 byte
+            @output_stream.putc(size)
+          elsif size <= 65_791
+            @output_stream.putc(0x60) # single segment, FCS 2 bytes (+256)
+            write_u16le(size - 256)
+          elsif size <= 0xFFFFFFFF
+            @output_stream.putc(0xA0) # single segment, FCS 4 bytes
+            write_u32le(size)
+          else
+            @output_stream.putc(0xE0) # single segment, FCS 8 bytes
+            write_u64le(size)
+          end
+        end
+
         def write_blocks(data)
-          return if data.empty?
+          return write_empty_last_block if data.empty?
 
           offset = 0
-          max_block_size = BLOCK_MAX_SIZE
-
           while offset < data.bytesize
-            chunk = data.byteslice(offset, max_block_size)
+            chunk = data.byteslice(offset, BLOCK_MAX_SIZE)
             offset += chunk.bytesize
-
             is_last = offset >= data.bytesize
-
-            # Use RLE for repetitive data, otherwise raw blocks
-            # Compressed blocks are deferred until decoder fully supports them
-            if rle_efficient?(chunk)
-              write_rle_block(chunk, is_last)
-            else
-              write_raw_block(chunk, is_last)
-            end
+            write_chunk(chunk, is_last)
           end
         end
 
-        # Check if RLE encoding would be efficient for a chunk
-        def rle_efficient?(chunk)
-          return false if chunk.bytesize < 3
-
-          first_byte = chunk.getbyte(0)
-          chunk.bytes.all?(first_byte)
+        def write_empty_last_block
+          write_block_header(1, BLOCK_TYPE_RAW, 0)
         end
 
-        # Write an RLE (run-length encoded) block
-        def write_rle_block(data, is_last)
-          byte = data.getbyte(0)
-          size = data.bytesize
-
-          # Block header (3 bytes, little-endian)
-          # Bit 0: Last_Block (1 = last)
-          # Bits 1-2: Block_Type (1 = RLE)
-          # Bits 3-23: Block_Size
-
-          header = size << 3 # Block size in bits 3-23
-          header |= BLOCK_TYPE_RLE << 1 # Block type = 1 (RLE)
-          header |= 1 if is_last # Last block flag in bit 0
-
-          # Write 3 bytes little-endian
-          @output_stream.putc(header & 0xFF)
-          @output_stream.putc((header >> 8) & 0xFF)
-          @output_stream.putc((header >> 16) & 0xFF)
-
-          # Write single byte to repeat
-          @output_stream.putc(byte)
-        end
-
-        # Write a raw (uncompressed) block
-        def write_raw_block(data, is_last)
-          # Block header (3 bytes, little-endian)
-          # Bit 0: Last_Block (1 = last)
-          # Bits 1-2: Block_Type (0 = raw)
-          # Bits 3-23: Block_Size
-
-          header = data.bytesize << 3 # Block size in bits 3-23
-          header |= BLOCK_TYPE_RAW << 1 # Block type in bits 1-2
-          header |= 1 if is_last # Last block flag in bit 0
-
-          # Write 3 bytes little-endian
-          @output_stream.putc(header & 0xFF)
-          @output_stream.putc((header >> 8) & 0xFF)
-          @output_stream.putc((header >> 16) & 0xFF)
-
-          # Write block content
-          @output_stream.write(data)
-        end
-
-        # Write a compressed block with Huffman literals
-        #
-        # @param data [String] Block data
-        # @param is_last [Boolean] Whether this is the last block
-        # @return [Boolean] True if compression succeeded, false otherwise
-        def write_compressed_block(data, is_last)
-          # Encode literals section
-          literals_section = LiteralsEncoder.encode(data, use_compression: true)
-
-          # Check if compression is beneficial
-          # Compressed block has overhead: block header (3) + literals header + sequences
-          # For now, we need sequences section too (even if empty)
-          sequences_section = encode_empty_sequences
-
-          block_content = literals_section + sequences_section
-          compressed_size = block_content.bytesize
-
-          # Only use compressed if it's smaller
-          if compressed_size >= data.bytesize
-            return false
+        def write_chunk(chunk, is_last)
+          if chunk.bytesize >= 4 && rle_chunk?(chunk)
+            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RLE, chunk.bytesize)
+            @output_stream.putc(chunk.getbyte(0))
+            return
           end
 
-          # Write block header for compressed block
-          header = compressed_size << 3 # Block size in bits 3-23
-          header |= BLOCK_TYPE_COMPRESSED << 1 # Block type = 2 (compressed)
-          header |= 1 if is_last # Last block flag in bit 0
+          content = try_compressed(chunk)
+          if content.nil?
+            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RAW,
+                               chunk.bytesize)
+            @output_stream.write(chunk)
+          else
+            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_COMPRESSED,
+                               content.bytesize)
+            @output_stream.write(content)
+          end
+        end
 
-          # Write 3 bytes little-endian
-          @output_stream.putc(header & 0xFF)
-          @output_stream.putc((header >> 8) & 0xFF)
-          @output_stream.putc((header >> 16) & 0xFF)
+        # Build a Compressed_Block content: literals section plus an
+        # empty sequences section (nbSeq = 0). Returns nil when the
+        # result is not smaller than the raw chunk.
+        def try_compressed(chunk)
+          literals_section = LiteralsEncoder.encode(chunk)
+          # A single 0x00 byte: Number_of_Sequences = 0.
+          content = literals_section + "\x00".b
+          return nil if content.bytesize >= chunk.bytesize
 
-          # Write block content
-          @output_stream.write(block_content)
+          content
+        rescue Omnizip::CompressionError
+          nil
+        end
 
+        def rle_chunk?(chunk)
+          first = chunk.getbyte(0)
+          idx = 1
+          while idx < chunk.bytesize
+            return false if chunk.getbyte(idx) != first
+
+            idx += 1
+          end
           true
         end
 
-        # Encode empty sequences section
-        #
-        # For blocks with only literals (no matches), we need an empty sequences section.
-        def encode_empty_sequences
-          # Number of sequences = 0 (single byte 0x00)
-          "\x00"
+        def write_block_header(last, type, size)
+          header = (last & 1) | (type << 1) | (size << 3)
+          @output_stream.putc(header & 0xFF)
+          @output_stream.putc((header >> 8) & 0xFF)
+          @output_stream.putc((header >> 16) & 0xFF)
         end
 
-        # Write unsigned 32-bit little-endian
+        def write_u16le(value)
+          @output_stream.putc(value & 0xFF)
+          @output_stream.putc((value >> 8) & 0xFF)
+        end
+
         def write_u32le(value)
           @output_stream.putc(value & 0xFF)
           @output_stream.putc((value >> 8) & 0xFF)
@@ -212,15 +162,8 @@ module Omnizip
           @output_stream.putc((value >> 24) & 0xFF)
         end
 
-        # Calculate XXHash32 checksum (simplified)
-        def xxhash32(data, seed = 0)
-          hash = seed
-
-          data.each_byte do |byte|
-            hash = ((hash << 5) + hash + byte) & 0xFFFFFFFF
-          end
-
-          hash
+        def write_u64le(value)
+          8.times { |i| @output_stream.putc((value >> (8 * i)) & 0xFF) }
         end
       end
     end

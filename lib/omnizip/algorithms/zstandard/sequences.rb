@@ -23,318 +23,326 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # Sequences section decoder (RFC 8878 Section 3.1.1.3.2)
+      # Sequences section decoder (RFC 8878 §3.1.1.3.2) and the LZ77
+      # executor (§3.1.2).
       #
-      # Decodes sequences of (literals_length, match_length, offset)
-      # which are then executed to produce the decompressed output.
+      # Decoding follows the C reference ZSTD_decodeSequence:
+      #
+      # - State initialization order: LL, OF, ML.
+      # - Per sequence: resolve the offset first (reading its extra
+      #   bits and updating the repeat-offset slots), then read the ML
+      #   extra bits, then the LL extra bits.
+      # - State updates (non-last sequences) in order LL, ML, OF.
       class SequencesDecoder
         include Constants
 
-        # @return [Array<Hash>] Decoded sequences
+        Sequence = Struct.new(:literal_length, :match_length, :offset)
+
+        # @return [Array<Sequence>]
         attr_reader :sequences
 
-        # Parse and decode sequences section
+        # @return [Hash] FSE tables for the next block's Repeat mode
+        attr_reader :fse_tables
+
+        # Decode the sequences section at the head of `input`.
         #
-        # @param input [IO] Input stream positioned at sequences section
-        # @param literals_size [Integer] Size of decoded literals
-        # @param previous_tables [Hash] Previous FSE tables for REPEAT mode
-        # @return [SequencesDecoder] Decoder with decoded sequences
-        def self.decode(input, literals_size, previous_tables = {})
-          decoder = new(input, literals_size, previous_tables)
-          decoder.decode_section
-          decoder
+        # @param input [String]
+        # @param previous_tables [Hash] tables carried from the previous
+        #   compressed block (:ll, :ml, :of entries)
+        # @param executor [SequenceExecutor] repeat-offset state,
+        #   updated in place while decoding
+        # @return [SequencesDecoder]
+        def self.decode(input, previous_tables = {}, executor = nil)
+          new(input, previous_tables, executor || SequenceExecutor.new).decode_section
         end
 
-        # Initialize decoder
-        #
-        # @param input [IO] Input stream
-        # @param literals_size [Integer] Size of decoded literals
-        # @param previous_tables [Hash] Previous FSE tables
-        def initialize(input, literals_size, previous_tables = {})
+        def initialize(input, previous_tables, executor)
           @input = input
-          @literals_size = literals_size
           @previous_tables = previous_tables
+          @executor = executor
           @sequences = []
           @fse_tables = {}
         end
 
-        # Decode the sequences section
-        #
-        # @return [void]
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable Metrics/AbcSize
         def decode_section
-          # Read number of sequences
-          num_sequences = read_sequence_count
+          num_sequences, offset = read_sequence_count
+          return self if num_sequences.zero?
 
-          return if num_sequences.zero?
+          if @input.bytesize <= offset
+            raise Omnizip::DecompressionError,
+                  "truncated sequences section: missing modes byte"
+          end
+          # rubocop:enable Metrics/AbcSize
 
-          # Read symbol compression modes
-          modes = read_symbol_modes
+          modes = @input.getbyte(offset)
+          ll_mode = (modes >> 6) & 0x03
+          of_mode = (modes >> 4) & 0x03
+          ml_mode = (modes >> 2) & 0x03
 
-          # Build FSE tables based on modes
-          build_fse_tables(modes)
+          cursor = offset + 1
+          @ll_table, cursor = build_table(ll_mode, :ll,
+                                          PREDEFINED_LL_DISTRIBUTION,
+                                          LITERALS_LENGTH_ACCURACY_LOG, cursor)
+          @of_table, cursor = build_table(of_mode, :of,
+                                          PREDEFINED_OFFSET_DISTRIBUTION,
+                                          OFFSET_ACCURACY_LOG, cursor)
+          @ml_table, cursor = build_table(ml_mode, :ml,
+                                          PREDEFINED_ML_DISTRIBUTION,
+                                          MATCH_LENGTH_ACCURACY_LOG, cursor)
 
-          # Decode sequences
-          decode_sequences_internal(num_sequences)
+          decode_sequences(num_sequences, @input.byteslice(cursor..))
+          self
         end
+        # rubocop:enable Metrics/AbcSize
+        # rubocop:enable Metrics/MethodLength
 
         private
 
-        # Read sequence count (1-3 bytes)
+        # Sequence count: 1-3 bytes (RFC 8878 §3.1.1.3.2.1).
+        # rubocop:disable Metrics/AbcSize
         def read_sequence_count
-          byte1 = @input.read(1).ord
+          b0 = @input.getbyte(0)
+          if b0 < 0x80
+            [b0, 1]
+          elsif b0 == 0xFF
+            if @input.bytesize < 3
+              raise Omnizip::DecompressionError,
+                    "truncated 3-byte sequence count"
+            end
+            # rubocop:enable Metrics/AbcSize
 
-          if byte1.zero?
-            0
-          elsif byte1 < 128
-            byte1
+            [@input.byteslice(1, 2).unpack1("v") + 0x7F00, 3]
           else
-            byte2 = @input.read(1).ord
-            ((byte1 - 0x80) << 8) + byte2 + 0x80
+            if @input.bytesize < 2
+              raise Omnizip::DecompressionError,
+                    "truncated 2-byte sequence count"
+            end
+
+            [((b0 - 0x80) << 8) + @input.getbyte(1), 2]
           end
         end
 
-        # Read symbol compression modes for LL, ML, OF
-        def read_symbol_modes
-          modes_byte = @input.read(1).ord
+        # Build the table for one symbol type. Returns [table, new_cursor].
+        # rubocop:disable Metrics/AbcSize
+        def build_table(mode, type, predef_distribution, predef_log, cursor)
+          table = case mode
+                  when MODE_PREDEFINED
+                    FSE::Table.build_predefined(predef_distribution.to_a,
+                                                predef_log)
+                  when MODE_RLE
+                    if cursor >= @input.bytesize
+                      raise Omnizip::DecompressionError,
+                            "RLE mode: missing symbol byte"
+                    end
+                    # rubocop:enable Metrics/AbcSize
 
-          {
-            ll: (modes_byte >> 6) & 0x03,  # Literals length mode
-            of: (modes_byte >> 4) & 0x03,  # Offset mode
-            ml: (modes_byte >> 2) & 0x03, # Match length mode
-          }
+                    symbol = @input.getbyte(cursor)
+                    limit = { ll: LITERAL_LENGTH_TABLE.length,
+                              ml: MATCH_LENGTH_TABLE.length,
+                              of: OF_BASE.length }[type]
+                    if symbol >= limit
+                      raise Omnizip::DecompressionError,
+                            "RLE symbol #{symbol} out of range for #{type}"
+                    end
+
+                    FSE::Table.build_rle(symbol, 0)
+                  when MODE_FSE
+                    tbl, consumed = FSE.read_table(@input.byteslice(cursor..))
+                    attach_code_values(tbl, type)
+                    @fse_tables[type] = tbl
+                    return [tbl, cursor + consumed]
+                  when MODE_REPEAT
+                    prev = @previous_tables[type]
+                    if prev.nil?
+                      raise Omnizip::DecompressionError,
+                            "repeat mode for #{type} without a previous table"
+                    end
+
+                    return [prev, cursor]
+                  else
+                    raise Omnizip::DecompressionError,
+                          "invalid sequence mode #{mode}"
+                  end
+
+          attach_code_values(table, type)
+          @fse_tables[type] = table
+          cursor2 = mode == MODE_RLE ? cursor + 1 : cursor
+          [table, cursor2]
         end
 
-        # Build FSE tables based on compression modes
-        def build_fse_tables(modes)
-          @fse_tables[:ll] = build_fse_table(modes[:ll], :ll)
-          @fse_tables[:ml] = build_fse_table(modes[:ml], :ml)
-          @fse_tables[:of] = build_fse_table(modes[:of], :of)
-        end
-
-        # Build a single FSE table
-        def build_fse_table(mode, type)
-          case mode
-          when MODE_PREDEFINED
-            build_predefined_table(type)
-          when MODE_RLE
-            build_rle_table(type)
-          when MODE_FSE
-            build_fse_table_from_stream(type)
-          when MODE_REPEAT
-            @previous_tables[type] || build_predefined_table(type)
-          end
-        end
-
-        # Build predefined FSE table
-        def build_predefined_table(type)
+        # Annotate each FSE state with the (base, extra_bits) of the LL /
+        # ML / OF code its symbol maps to, following the C reference's
+        # precomputed seqSymbol layout.
+        # rubocop:disable Metrics/AbcSize
+        def attach_code_values(table, type)
           case type
           when :ll
-            FSE::Table.build_predefined(PREDEFINED_LL_DISTRIBUTION.to_a,
-                                        LITERALS_LENGTH_ACCURACY_LOG)
+            table.states.each do |st|
+              base, bits = LITERAL_LENGTH_TABLE[st.symbol] || [0, 0]
+              st.base_val = base
+              st.nb_add_bits = bits
+            end
+            # rubocop:enable Metrics/AbcSize
           when :ml
-            FSE::Table.build_predefined(PREDEFINED_ML_DISTRIBUTION.to_a,
-                                        MATCH_LENGTH_ACCURACY_LOG)
+            table.states.each do |st|
+              base, bits = MATCH_LENGTH_TABLE[st.symbol] || [0, 0]
+              st.base_val = base
+              st.nb_add_bits = bits
+            end
           when :of
-            FSE::Table.build_predefined(PREDEFINED_OFFSET_DISTRIBUTION.to_a,
-                                        OFFSET_ACCURACY_LOG)
+            table.states.each do |st|
+              st.base_val = OF_BASE[st.symbol] || 0
+              st.nb_add_bits = OF_BITS[st.symbol] || 0
+            end
           end
         end
 
-        # Build RLE FSE table (single symbol repeated)
-        def build_rle_table(type)
-          # Read the repeated symbol
-          symbol = @input.read(1).ord
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable Metrics/AbcSize
+        def decode_sequences(count, bitstream_bytes)
+          bs = FSE::BitStream.new(bitstream_bytes)
 
-          # Create a simple distribution with just this symbol
-          distribution = Array.new(symbol_count_for_type(type), 0)
-          distribution[symbol] = 1 << accuracy_log_for_type(type)
+          ll_tbl = @ll_table
+          of_tbl = @of_table
+          ml_tbl = @ml_table
+          ll_state = bs.read_bits(ll_tbl.accuracy_log)
+          bs.reload
+          of_state = bs.read_bits(of_tbl.accuracy_log)
+          bs.reload
+          ml_state = bs.read_bits(ml_tbl.accuracy_log)
+          bs.reload
 
-          FSE::Table.build(distribution, accuracy_log_for_type(type))
-        end
+          count.times do |seq_idx|
+            is_last = seq_idx == count - 1
 
-        # Build FSE table from compressed stream
-        def build_fse_table_from_stream(type)
-          # Read accuracy log
-          @input.read(1).ord
+            ll_e = ll_tbl[ll_state]
+            of_e = of_tbl[of_state]
+            ml_e = ml_tbl[ml_state]
 
-          # For simplicity, return predefined table
-          # Full implementation would read compressed distribution
-          build_predefined_table(type)
-        end
+            ll0 = ll_e.base_val.zero?
+            offset = @executor.resolve_offset(of_e, ll0, bs)
+            match_length = ml_e.base_val + bs.read_bits(ml_e.nb_add_bits)
+            literal_length = ll_e.base_val + bs.read_bits(ll_e.nb_add_bits)
 
-        # Decode sequences using FSE tables
-        def decode_sequences_internal(count)
-          return if count.zero?
+            unless is_last
+              ll_state = ll_e.baseline + bs.read_bits(ll_e.num_bits)
+              ml_state = ml_e.baseline + bs.read_bits(ml_e.num_bits)
+              of_state = of_e.baseline + bs.read_bits(of_e.num_bits)
+              bs.reload
+            end
+            # rubocop:enable Metrics/AbcSize
 
-          # Read the bitstream (remaining data in block)
-          bitstream_data = @input.read # Read remaining data
-          bitstream = FSE::BitStream.new(bitstream_data)
-
-          # Initialize FSE decoders
-          ll_decoder = FSE::Decoder.new(@fse_tables[:ll]) if @fse_tables[:ll]
-          ml_decoder = FSE::Decoder.new(@fse_tables[:ml]) if @fse_tables[:ml]
-          of_decoder = FSE::Decoder.new(@fse_tables[:of]) if @fse_tables[:of]
-
-          # Initialize states
-          ll_decoder&.init_state(bitstream)
-          ml_decoder&.init_state(bitstream)
-          of_decoder&.init_state(bitstream)
-
-          # Decode each sequence
-          count.times do
-            ll_symbol = ll_decoder ? ll_decoder.decode(bitstream) : 0
-            ml_symbol = ml_decoder ? ml_decoder.decode(bitstream) : 0
-            of_symbol = of_decoder ? of_decoder.decode(bitstream) : 0
-
-            # Convert symbols to actual values
-            ll_value = decode_literal_length(ll_symbol, bitstream)
-            ml_value = decode_match_length(ml_symbol, bitstream)
-            of_value = decode_offset(of_symbol, bitstream)
-
-            @sequences << {
-              literals_length: ll_value,
-              match_length: ml_value,
-              offset: of_value,
-            }
+            @sequences << Sequence.new(literal_length, match_length, offset)
           end
         end
-
-        # Decode literal length value from symbol
-        def decode_literal_length(symbol, bitstream)
-          return 0 if symbol.nil? || symbol.negative? || symbol >= LITERAL_LENGTH_TABLE.length
-
-          baseline, extra_bits = LITERAL_LENGTH_TABLE[symbol]
-          return baseline if extra_bits.zero?
-
-          extra = bitstream.read_bits(extra_bits)
-          baseline + extra
-        end
-
-        # Decode match length value from symbol
-        def decode_match_length(symbol, bitstream)
-          return 3 if symbol.nil? || symbol.negative? || symbol >= MATCH_LENGTH_TABLE.length
-
-          baseline, extra_bits = MATCH_LENGTH_TABLE[symbol]
-          return baseline if extra_bits.zero?
-
-          extra = bitstream.read_bits(extra_bits)
-          baseline + extra
-        end
-
-        # Decode offset value from symbol
-        def decode_offset(symbol, _bitstream)
-          # Offsets 1-3 are repeat offsets
-          return symbol if symbol <= 3
-
-          # For offsets > 3, read extra bits
-          # The offset is symbol - 3 plus extra bits
-          symbol - 3
-        end
-
-        # Get symbol count for type
-        def symbol_count_for_type(type)
-          case type
-          when :ll then LITERAL_LENGTH_TABLE.length
-          when :ml then MATCH_LENGTH_TABLE.length
-          when :of then 32
-          end
-        end
-
-        # Get accuracy log for type
-        def accuracy_log_for_type(type)
-          case type
-          when :ll then LITERALS_LENGTH_ACCURACY_LOG
-          when :ml then MATCH_LENGTH_ACCURACY_LOG
-          when :of then OFFSET_ACCURACY_LOG
-          end
-        end
+        # rubocop:enable Metrics/MethodLength
       end
 
-      # Sequence executor (RFC 8878 Section 3.1.2.2.3)
-      #
-      # Executes decoded sequences to produce output.
+      # Stateful LZ77 sequence executor (RFC 8878 §3.1.2). Tracks the
+      # three repeat-offset slots across the frame; the slots are
+      # updated while decoding each sequence's offset.
       class SequenceExecutor
         include Constants
 
-        # Execute sequences to produce decompressed output
-        #
-        # @param literals [String] Decoded literals
-        # @param sequences [Array<Hash>] Decoded sequences
-        # @return [String] Decompressed output
-        def self.execute(literals, sequences)
-          executor = new
-          executor.execute(literals, sequences)
-        end
+        # @return [Array<Integer>] repeat offsets, most recent first
+        attr_reader :repeat_offsets
 
-        # Initialize with default repeat offsets
         def initialize
           @repeat_offsets = DEFAULT_REPEAT_OFFSETS.dup
         end
 
-        # Execute sequences
-        #
-        # @param literals [String] Decoded literals
-        # @param sequences [Array<Hash>] Decoded sequences
-        # @return [String] Decompressed output
-        def execute(literals, sequences)
-          output = String.new(encoding: Encoding::BINARY)
-          lit_pos = 0
-
-          sequences.each do |seq|
-            ll = seq[:literals_length] || 0
-            ml = seq[:match_length] || 0
-            offset_code = seq[:offset] || 0
-
-            # Copy literals
-            if ll.positive? && lit_pos < literals.length
-              copy_len = [ll, literals.length - lit_pos].min
-              output << literals.slice(lit_pos, copy_len)
-              lit_pos += copy_len
-            end
-
-            # Handle match
-            if ml.positive?
-              offset = resolve_offset(offset_code)
-
-              if offset.positive? && offset <= output.length
-                # Copy match from output history
-                match_str = output.slice(-offset, [ml, offset].min) || ""
-                # If match is longer than offset, we need to copy byte by byte
-                while match_str.length < ml && output.length.positive?
-                  match_str << match_str[-offset] if offset <= match_str.length
-                end
-                output << match_str.slice(0, ml)
-              end
-            end
-          end
-
-          # Copy remaining literals (last sequence has no match)
-          if lit_pos < literals.length
-            output << literals.slice(lit_pos..-1)
-          end
-
-          output
+        # Reset to the frame defaults [1, 4, 8].
+        def reset
+          @repeat_offsets = DEFAULT_REPEAT_OFFSETS.dup
         end
 
-        private
+        # Resolve a sequence offset (C reference semantics).
+        #
+        # Offset codes 0 and 1 address the repeat slots; the exact
+        # behaviour depends on ll0 (whether the sequence emits no
+        # literals). Codes >= 2 carry a real distance:
+        # distance = OF_BASE[code] + read(code bits).
+        #
+        # @param of_e [FSE::State] offset table entry for this sequence
+        # @param ll0 [Boolean] literal length is zero
+        # @param bs [FSE::BitStream]
+        # @return [Integer] resolved byte distance
+        # rubocop:disable Metrics/AbcSize
+        def resolve_offset(of_e, ll0, bs)
+          of_bits = of_e.nb_add_bits
+          prev = @repeat_offsets
 
-        # Resolve offset code to actual offset
-        def resolve_offset(code)
-          case code
-          when 1
-            @repeat_offsets[0]
-          when 2
-            @repeat_offsets[1]
-          when 3
-            @repeat_offsets[2]
+          if of_bits > 1
+            offset = of_e.base_val + bs.read_bits(of_bits)
+            prev[2] = prev[1]
+            prev[1] = prev[0]
+            prev[0] = offset
+            offset
+          elsif of_bits.zero?
+            offset = prev[ll0 ? 1 : 0]
+            if ll0
+              prev[1] = prev[0]
+              prev[0] = offset
+            end
+            # rubocop:enable Metrics/AbcSize
+            offset
           else
-            # New offset - update repeat offsets
-            actual_offset = code - 3
-            @repeat_offsets[2] = @repeat_offsets[1]
-            @repeat_offsets[1] = @repeat_offsets[0]
-            @repeat_offsets[0] = actual_offset
-            actual_offset
+            # of_bits == 1: the "rep3-1" special family.
+            selector = of_e.base_val + (ll0 ? 1 : 0) + bs.read_bits(1)
+            temp = case selector
+                   when 1 then prev[1]
+                   when 3 then prev[0] - 1
+                   else prev[2]
+                   end
+            if temp.zero?
+              raise Omnizip::DecompressionError,
+                    "repeat offset 1 - 1 evaluated to 0 (corrupt stream)"
+            end
+
+            prev[2] = prev[1] unless selector == 1
+            prev[1] = prev[0]
+            prev[0] = temp
+            temp
           end
+        end
+
+        # Execute decoded sequences against the literal buffer,
+        # appending to output and returning the produced bytes.
+        #
+        # @param literals [String]
+        # @param sequences [Array<SequencesDecoder::Sequence>]
+        # @param output [String] accumulator (frame output so far)
+        # @return [String] the block's output
+        # rubocop:disable Metrics/AbcSize
+        def execute(literals, sequences, output)
+          lit_pos = 0
+          block_start = output.bytesize
+
+          sequences.each do |seq|
+            ll = seq.literal_length
+            if ll.positive?
+              take = [ll, literals.bytesize - lit_pos].min
+              output << literals.byteslice(lit_pos, take)
+              lit_pos += take
+            end
+            # rubocop:enable Metrics/AbcSize
+
+            distance = seq.offset
+            if distance.zero? || distance > output.bytesize
+              raise Omnizip::DecompressionError,
+                    "match distance #{distance} exceeds decoded output " \
+                    "length #{output.bytesize}"
+            end
+
+            ml = seq.match_length
+            src_start = output.bytesize - distance
+            ml.times { |i| output << output.getbyte(src_start + (i % distance)) }
+          end
+
+          output << literals.byteslice(lit_pos..) if lit_pos < literals.bytesize
+          output.byteslice(block_start..)
         end
       end
     end

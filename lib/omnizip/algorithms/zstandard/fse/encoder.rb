@@ -24,296 +24,512 @@ module Omnizip
   module Algorithms
     class Zstandard
       module FSE
-        # FSE Encoder (RFC 8878 Section 4.1)
-        #
-        # Encodes symbols using Finite State Entropy coding.
-        # FSE is a variant of arithmetic coding that uses table-based state transitions.
+        # FSE encoder (RFC 8878 §4.1): count normalization, NCount
+        # writing, CTable construction, and 2-state interleaved
+        # bitstream encoding. Mirrors the C reference FSE library.
         class Encoder
           include Constants
 
-          # @return [Array<Integer>] Symbol distribution (normalized frequencies)
+          RTB_TABLE = [0, 473_195, 504_333, 520_860, 550_000, 700_000,
+                       750_000, 830_000].freeze
+          NOT_YET_ASSIGNED = -2
+
+          SymbolTT = Struct.new(:delta_nb_bits, :delta_find_state)
+
+          # @return [Array<Integer>] normalized distribution
           attr_reader :distribution
 
-          # @return [Integer] Accuracy log (table size = 2^accuracy_log)
-          attr_reader :accuracy_log
+          # @return [Integer]
+          attr_reader :table_log
 
-          # @return [Integer] Table size
-          attr_reader :table_size
+          # @return [Integer]
+          attr_reader :max_symbol_value
 
-          # Build FSE encoder from symbol frequencies
+          # Normalize a raw histogram to sum to (1 << table_log).
           #
-          # @param frequencies [Array<Integer>] Raw symbol frequencies
-          # @param max_accuracy_log [Integer] Maximum accuracy log (default 9)
-          # @return [Encoder] FSE encoder
-          def self.build_from_frequencies(frequencies,
-max_accuracy_log = FSE_MAX_ACCURACY_LOG)
-            return nil if frequencies.nil? || frequencies.empty?
+          # @param table_log [Integer]
+          # @param count [Array<Integer>] raw frequencies
+          # @param total [Integer] sum(count)
+          # @param max_symbol_value [Integer] highest symbol index
+          # @param use_low_prob [Boolean] emit -1 sentinels for rare
+          #   symbols (the zstd default)
+          # @return [Array<Integer>] normalized distribution, or [] for
+          #   an RLE stream
+          def self.normalize_count(table_log, count, total, max_symbol_value,
+                                   use_low_prob: true)
+            table_log = FSE_DEFAULT_TABLELOG if table_log.zero?
 
-            # Normalize frequencies to table size
-            distribution, accuracy_log = normalize_distribution(frequencies,
-                                                                max_accuracy_log)
+            norm = Array.new(max_symbol_value + 1, 0)
 
-            new(distribution, accuracy_log)
-          end
-
-          # Normalize frequency distribution
-          #
-          # Converts raw frequencies to normalized distribution that sums to 2^accuracy_log.
-          #
-          # @param frequencies [Array<Integer>] Raw frequencies
-          # @param max_accuracy_log [Integer] Maximum accuracy log
-          # @return [Array<Array<Integer>, Integer>] Normalized distribution and accuracy log
-          def self.normalize_distribution(frequencies, max_accuracy_log)
-            # Count non-zero symbols
-            total_freq = frequencies.sum
-            return [[], 0] if total_freq.zero?
-
-            # Find minimum accuracy log that fits the distribution
-            num_symbols = frequencies.count { |f| f&.positive? }
-            accuracy_log = [calculate_min_accuracy_log(num_symbols),
-                            FSE_MIN_ACCURACY_LOG].max
-            accuracy_log = [accuracy_log, max_accuracy_log].min
-
-            table_size = 1 << accuracy_log
-
-            # Normalize frequencies to table size
-            distribution = normalize_frequencies(frequencies, table_size)
-
-            # Verify distribution sums to table size
-            sum = distribution.sum
-            if sum != table_size
-              # Adjust to make it sum correctly
-              adjust_distribution(distribution, table_size - sum)
+            # RLE: a single symbol accounts for everything.
+            (0..max_symbol_value).each do |s|
+              return [] if count[s] == total
             end
 
-            [distribution, accuracy_log]
-          end
+            low_prob_count = use_low_prob ? -1 : 1
+            scale = 62 - table_log
+            step = (1 << 62) / total
+            v_step = 1 << (scale - 20)
+            still_to_distribute = 1 << table_log
+            low_threshold = total >> table_log
+            largest = 0
+            largest_p = 0
 
-          # Calculate minimum accuracy log for given number of symbols
-          def self.calculate_min_accuracy_log(num_symbols)
-            return 0 if num_symbols <= 1
-
-            log = 0
-            temp = num_symbols - 1
-            while temp.positive?
-              log += 1
-              temp >>= 1
-            end
-            log
-          end
-
-          # Normalize frequencies to fit table size
-          def self.normalize_frequencies(frequencies, table_size)
-            total = frequencies.sum
-            return Array.new(frequencies.length, 0) if total.zero?
-
-            # Scale frequencies
-            frequencies.map do |freq|
-              next 0 if freq.nil? || freq <= 0
-
-              normalized = ((freq * table_size) + (total / 2)) / total
-              [normalized, 1].max # Minimum 1 for non-zero symbols
-            end
-          end
-
-          # Adjust distribution to sum to exactly table_size
-          def self.adjust_distribution(distribution, delta)
-            return if delta.zero?
-
-            if delta.positive?
-              # Need to add: increment largest probabilities
-              delta.times do
-                max_idx = distribution.each_with_index.max_by { |v, _| v }&.last
-                distribution[max_idx] += 1 if max_idx
+            (0..max_symbol_value).each do |s|
+              if count[s].zero?
+                norm[s] = 0
+                next
               end
+
+              c64 = count[s]
+              if c64 <= low_threshold
+                norm[s] = low_prob_count
+                still_to_distribute -= 1
+              else
+                proba = (c64 * step) >> scale
+                if proba < 8
+                  rest_to_beat = v_step * RTB_TABLE[proba]
+                  diff = (c64 * step) - (proba << scale)
+                  proba += 1 if diff > rest_to_beat
+                end
+                if proba > largest_p
+                  largest_p = proba
+                  largest = s
+                end
+                norm[s] = proba
+                still_to_distribute -= proba
+              end
+            end
+
+            if -still_to_distribute >= norm[largest] / 2
+              normalize_m2(norm, table_log, count, total, max_symbol_value,
+                           low_prob_count)
             else
-              # Need to subtract: decrement smallest non-zero probabilities
-              (-delta).times do
-                min_idx = distribution.each_with_index.select do |v, _|
-                  v > 1
-                end.min_by { |v, _| v }&.last
-                distribution[min_idx] -= 1 if min_idx
-              end
+              norm[largest] += still_to_distribute
             end
+
+            norm
           end
 
-          # Initialize FSE encoder
-          #
-          # @param distribution [Array<Integer>] Normalized symbol distribution
-          # @param accuracy_log [Integer] Accuracy log
-          def initialize(distribution, accuracy_log)
-            @distribution = distribution
-            @accuracy_log = accuracy_log
-            @table_size = 1 << accuracy_log
+          # Secondary normalization (C FSE_normalizeM2), used when the
+          # primary method's largest-symbol correction would be too big.
+          # rubocop:disable Metrics/MethodLength
+          # rubocop:disable Metrics/AbcSize
+          def self.normalize_m2(norm, table_log, count, total, max_symbol_value,
+                                low_prob_count)
+            table_size = 1 << table_log
+            low_threshold = total >> table_log
+            low_one = (total * 3) >> (table_log + 1)
+            distributed = 0
+            remaining = total
 
-            # Build encoding tables
+            (0..max_symbol_value).each do |s|
+              if count[s].zero?
+                norm[s] = 0
+              elsif count[s] <= low_threshold
+                norm[s] = low_prob_count
+                distributed += 1
+                remaining -= count[s]
+              elsif count[s] <= low_one
+                norm[s] = 1
+                distributed += 1
+                remaining -= count[s]
+              else
+                norm[s] = NOT_YET_ASSIGNED
+              end
+            end
+
+            to_distribute = table_size - distributed
+            return if to_distribute.zero?
+
+            if remaining / to_distribute > low_one
+              low_one = (remaining * 3) / (to_distribute * 2)
+              (0..max_symbol_value).each do |s|
+                if norm[s] == NOT_YET_ASSIGNED && count[s] <= low_one
+                  norm[s] = 1
+                  distributed += 1
+                  remaining -= count[s]
+                end
+              end
+              to_distribute = table_size - distributed
+            end
+
+            if distributed == max_symbol_value + 1
+              max_v = 0
+              max_c = 0
+              (0..max_symbol_value).each do |s|
+                if count[s] > max_c
+                  max_v = s
+                  max_c = count[s]
+                end
+              end
+              norm[max_v] += to_distribute
+              return
+            end
+
+            if remaining.zero?
+              idx = 0
+              while to_distribute.positive? && idx <= max_symbol_value
+                if norm[idx]&.positive?
+                  norm[idx] += 1
+                  to_distribute -= 1
+                end
+                idx = (idx + 1) % (max_symbol_value + 1)
+              end
+              return
+            end
+
+            v_step_log = 62 - table_log
+            mid = (1 << (v_step_log - 1)) - 1
+            r_step = (((1 << v_step_log) * to_distribute) + mid) / remaining
+            tmp_total = mid
+            (0..max_symbol_value).each do |s|
+              next unless norm[s] == NOT_YET_ASSIGNED
+
+              end_v = tmp_total + (count[s] * r_step)
+              weight = (end_v >> v_step_log) - (tmp_total >> v_step_log)
+              norm[s] = weight
+              tmp_total = end_v
+            end
+          end
+          # rubocop:enable Metrics/AbcSize
+          # rubocop:enable Metrics/MethodLength
+
+          # Choose an accuracy log for the given source size and alphabet.
+          #
+          # Direct port of C FSE_optimalTableLog; the branch ladder is
+          # inherent to the algorithm.
+          # rubocop:disable Metrics/AbcSize
+          def self.optimal_table_log(max_table_log, src_size, max_symbol_value)
+            return FSE_MIN_ACCURACY_LOG if src_size <= 1
+
+            max_bits_src = (src_size - 1).bit_length - 1 - 2
+            max_bits_src = 0 if max_bits_src.negative?
+            min_bits_src = src_size.bit_length + 1
+            min_bits_sym = [max_symbol_value, 1].max.bit_length + 2
+            min_bits = [min_bits_src, min_bits_sym].min
+
+            table_log = max_table_log
+            table_log = FSE_DEFAULT_TABLELOG if table_log.zero?
+            table_log = max_bits_src if max_bits_src < table_log
+            table_log = min_bits if min_bits > table_log
+            table_log.clamp(FSE_MIN_ACCURACY_LOG, FSE_MAX_ACCURACY_LOG)
+          end
+          # rubocop:enable Metrics/AbcSize
+
+          # Build from raw symbols: normalize + store.
+          #
+          # @param symbols [Array<Integer>]
+          # @param max_symbol_value [Integer]
+          # @param max_table_log [Integer]
+          # @return [Encoder, nil] nil for an RLE stream (single symbol)
+          def self.build_from_symbols(symbols, max_symbol_value,
+                                      max_table_log = FSE_DEFAULT_TABLELOG)
+            counts = Array.new(max_symbol_value + 1, 0)
+            symbols.each { |s| counts[s] += 1 }
+            total = symbols.length
+
+            actual_max = max_symbol_value
+            actual_max -= 1 while actual_max.positive? && counts[actual_max].zero?
+
+            table_log = optimal_table_log(max_table_log, total, actual_max)
+            norm = normalize_count(table_log, counts, total, actual_max,
+                                   use_low_prob: true)
+            return nil if norm.empty?
+
+            new(norm, table_log, actual_max)
+          end
+
+          def initialize(distribution, table_log, max_symbol_value)
+            @distribution = distribution
+            @table_log = table_log
+            @max_symbol_value = max_symbol_value
             build_encoding_tables
           end
 
-          # Encode symbols to bitstream
+          # Serialize the table description (NCount) per RFC 8878 §4.1.1.
           #
-          # @param symbols [Array<Integer>] Symbols to encode
-          # @return [String] Encoded bitstream
-          def encode(symbols)
-            return "" if symbols.nil? || symbols.empty?
+          # @return [String]
+          # rubocop:disable Metrics/MethodLength
+          # rubocop:disable Metrics/AbcSize
+          def write_ncount
+            out = []
+            table_size = 1 << @table_log
+            bit_stream = 0
+            bit_count = 0
+            symbol = 0
+            alphabet_size = @max_symbol_value + 1
+            previous_is_zero = false
+            remaining = table_size + 1
+            threshold = table_size
+            nb_bits = @table_log + 1
 
-            # Initialize state from last symbol (reverse order encoding)
-            bitstream = []
+            bit_stream |= (@table_log - FSE_MIN_ACCURACY_LOG) << bit_count
+            bit_count += 4
 
-            # Encode in reverse order
-            state = @table_size - 1 # Initial state
+            while symbol < alphabet_size && remaining > 1
+              if previous_is_zero
+                start = symbol
+                symbol += 1 while symbol < alphabet_size &&
+                    @distribution[symbol].zero?
+                if symbol == alphabet_size
+                  raise Omnizip::CompressionError, "bad FSE distribution"
+                end
 
-            symbols.reverse_each.with_index do |symbol, _idx|
-              entry = @symbol_to_state[symbol]
-              next unless entry
+                while symbol >= start + 24
+                  start += 24
+                  bit_stream |= 0xFFFF << bit_count
+                  out.push(bit_stream & 0xFF, (bit_stream >> 8) & 0xFF)
+                  bit_stream >>= 16
+                end
+                while symbol >= start + 3
+                  start += 3
+                  bit_stream |= 3 << bit_count
+                  bit_count += 2
+                end
+                bit_stream |= (symbol - start) << bit_count
+                bit_count += 2
+                if bit_count > 16
+                  out.push(bit_stream & 0xFF, (bit_stream >> 8) & 0xFF)
+                  bit_stream >>= 16
+                  bit_count -= 16
+                end
+              end
 
-              # Find state for this symbol
-              state = find_state_for_symbol(symbol, state)
+              count = @distribution[symbol]
+              symbol += 1
+              max = ((2 * threshold) - 1) - remaining
+              remaining -= count.negative? ? -count : count
+              count_val = count + 1
+              count_val += max if count_val >= threshold
 
-              # Output bits for state transition
-              num_bits = entry[:num_bits]
-              if num_bits.positive?
-                # Write lower num_bits of state
-                mask = (1 << num_bits) - 1
-                bits_to_write = state & mask
-                write_bits(bitstream, bits_to_write, num_bits)
-                state >>= num_bits
+              bit_stream |= count_val << bit_count
+              bit_count += nb_bits
+              bit_count -= 1 if count_val < max
+
+              previous_is_zero = count_val == 1
+              raise Omnizip::CompressionError, "FSE NCount remaining < 1" if remaining < 1
+
+              while remaining < threshold
+                nb_bits -= 1
+                threshold >>= 1
+              end
+
+              if bit_count > 16
+                out.push(bit_stream & 0xFF, (bit_stream >> 8) & 0xFF)
+                bit_stream >>= 16
+                bit_count -= 16
               end
             end
 
-            # Write final state
-            write_bits(bitstream, state, @accuracy_log)
+            unless remaining == 1
+              raise Omnizip::CompressionError,
+                    "FSE NCount remaining != 1 (#{remaining})"
+            end
 
-            # Convert bit array to bytes (in reverse for FSE)
-            bits_to_bytes(bitstream.reverse)
+            if bit_count.positive?
+              n_bytes = (bit_count + 7) / 8
+              out.push(*Array.new(n_bytes) { |i| (bit_stream >> (8 * i)) & 0xFF })
+            end
+
+            out.pack("C*")
           end
+          # rubocop:enable Metrics/AbcSize
+          # rubocop:enable Metrics/MethodLength
 
-          # Get number of symbols in distribution
+          # Encode `symbols` into a 2-state interleaved reverse
+          # bitstream (C FSE_compress_usingCTable).
           #
-          # @return [Integer]
-          def symbol_count
-            @distribution.length
+          # @param symbols [Array<Integer>]
+          # @return [String] bitstream bytes ending with the 1-bit mark
+          # Direct port of C FSE_compress_usingCTable.
+          # rubocop:disable Metrics/AbcSize
+          def compress_symbols(symbols)
+            return "" if symbols.length <= 2
+
+            bitc = BitCStream.new
+            ip = symbols.length
+
+            ip -= 1
+            if symbols.length.odd?
+              s1 = CState.init2(self, symbols[ip])
+              ip -= 1
+              s2 = CState.init2(self, symbols[ip])
+              ip -= 1
+              s1.encode(bitc, self, symbols[ip])
+              bitc.flush
+            else
+              s2 = CState.init2(self, symbols[ip])
+              ip -= 1
+              s1 = CState.init2(self, symbols[ip])
+            end
+            # rubocop:enable Metrics/AbcSize
+
+            while ip.positive?
+              ip -= 1
+              s2.encode(bitc, self, symbols[ip])
+              break if ip.zero?
+
+              ip -= 1
+              s1.encode(bitc, self, symbols[ip])
+              bitc.flush
+            end
+
+            s2.flush(bitc)
+            s1.flush(bitc)
+            bitc.close
           end
+
+          # Serialize table description + bitstream for `symbols`.
+          #
+          # @return [String]
+          def compress(symbols)
+            write_ncount + compress_symbols(symbols)
+          end
+
+          # @return [Array<Integer>] state transition table
+          attr_reader :state_table
+
+          # @return [Array<SymbolTT>]
+          attr_reader :symbol_tt
 
           private
 
-          # Build encoding tables from distribution
+          # Direct port of C FSE_buildCTable.
+          # rubocop:disable Metrics/AbcSize
           def build_encoding_tables
-            @symbol_to_state = {}
-            @state_to_symbol = Array.new(@table_size)
+            table_size = 1 << @table_log
+            step = (table_size >> 1) + (table_size >> 3) + 3
+            mask = table_size - 1
+            max_sv1 = @max_symbol_value + 1
 
-            # Allocate states to symbols based on distribution
+            table_symbol = Array.new(table_size, 0xFFFF)
+            high_threshold = table_size - 1
+
+            cumul = Array.new(max_sv1 + 1, 0)
+            (1..max_sv1).each do |u|
+              if @distribution[u - 1] == -1
+                cumul[u] = cumul[u - 1] + 1
+                table_symbol[high_threshold] = u - 1
+                high_threshold -= 1
+              else
+                cumul[u] = cumul[u - 1] + @distribution[u - 1]
+              end
+              # rubocop:enable Metrics/AbcSize
+            end
+            cumul[max_sv1] = table_size + 1
+
             position = 0
-            step = (@table_size >> 1) + (@table_size >> 3) + 3
-            mask = @table_size - 1
+            @distribution.each_with_index do |freq, symbol|
+              next unless freq.positive?
 
-            @distribution.each_with_index do |prob, symbol|
-              next if prob.nil? || prob <= 0
-
-              # Calculate number of bits for this symbol
-              num_bits = [@accuracy_log - log2_int(prob), 0].max
-
-              # Allocate states
-              prob.times do
-                # Find empty position using spread
-                while @state_to_symbol[position]
-                  position = (position + step) & mask
-                end
-
-                @state_to_symbol[position] = {
-                  symbol: symbol,
-                  num_bits: num_bits,
-                  baseline: 0, # Will be calculated
-                }
-
+              freq.times do
+                table_symbol[position] = symbol
                 position = (position + step) & mask
-              end
-
-              @symbol_to_state[symbol] = {
-                num_bits: num_bits,
-                baseline: 0,
-              }
-            end
-
-            # Calculate baselines
-            calculate_baselines
-          end
-
-          # Calculate baseline values for each state
-          def calculate_baselines
-            # Group states by symbol
-            symbol_states = {}
-            @state_to_symbol.each_with_index do |entry, state|
-              next unless entry
-
-              symbol = entry[:symbol]
-              symbol_states[symbol] ||= []
-              symbol_states[symbol] << { state: state, entry: entry }
-            end
-
-            # Sort states within each symbol and assign baselines
-            symbol_states.each_value do |states|
-              states.sort_by! { |s| s[:state] }
-              states.each_with_index do |s, idx|
-                s[:entry][:baseline] = idx
+                position = (position + step) & mask while position > high_threshold
               end
             end
-          end
 
-          # Find state for encoding a symbol
-          def find_state_for_symbol(symbol, current_state)
-            entry = @symbol_to_state[symbol]
-            return 0 unless entry
-
-            # Find the appropriate state based on current state
-            num_bits = entry[:num_bits]
-            if num_bits.positive?
-              # Use lower bits of current state to select state
-              ((current_state & ((1 << num_bits) - 1)) << (@accuracy_log - num_bits)) |
-                (entry[:baseline] >> num_bits)
-            else
-              entry[:baseline]
-            end
-          end
-
-          # Write bits to bitstream array
-          def write_bits(bitstream, value, count)
-            count.times do |i|
-              bitstream << ((value >> i) & 1)
-            end
-          end
-
-          # Convert bit array to bytes
-          def bits_to_bytes(bits)
-            # Pad to byte boundary
-            bits = bits.dup
-            while bits.length % 8 != 0
-              bits << 0
+            @state_table = Array.new(table_size, 0)
+            table_size.times do |u|
+              s = table_symbol[u]
+              @state_table[cumul[s]] = table_size + u
+              cumul[s] += 1
             end
 
-            bytes = []
-            bits.each_slice(8) do |byte_bits|
-              byte = 0
-              byte_bits.each_with_index do |bit, i|
-                byte |= (bit << i)
+            @symbol_tt = Array.new(max_sv1) { SymbolTT.new(0, 0) }
+            total = 0
+            max_sv1.times do |s|
+              case @distribution[s]
+              when 0
+                @symbol_tt[s].delta_nb_bits = ((@table_log + 1) << 16) -
+                  (1 << @table_log)
+              when -1, 1
+                @symbol_tt[s].delta_nb_bits = (@table_log << 16) -
+                  (1 << @table_log)
+                @symbol_tt[s].delta_find_state = total - 1
+                total += 1
+              else
+                n = @distribution[s]
+                max_bits_out = @table_log - Constants.highbit32(n - 1)
+                min_state_plus = n << max_bits_out
+                @symbol_tt[s].delta_nb_bits = (max_bits_out << 16) - min_state_plus
+                @symbol_tt[s].delta_find_state = total - n
+                total += n
               end
-              bytes << byte
             end
-
-            bytes.pack("C*")
           end
 
-          # Integer log2
-          def log2_int(value)
-            return 0 if value <= 1
-
-            log = 0
-            temp = value
-            while temp > 1
-              log += 1
-              temp >>= 1
+          # Forward bit writer (C BIT_CStream): accumulates at the low
+          # end and flushes whole bytes.
+          class BitCStream
+            def initialize
+              @container = 0
+              @bit_pos = 0
             end
-            log
+
+            # @param value [Integer] bits in the low end
+            # @param nb_bits [Integer] 0..31
+            def add_bits(value, nb_bits)
+              mask = (1 << nb_bits) - 1
+              @container |= (value & mask) << @bit_pos
+              @bit_pos += nb_bits
+            end
+
+            def flush
+              nb_bytes = @bit_pos >> 3
+              @bytes ||= []
+              nb_bytes.times do |i|
+                @bytes << ((@container >> (8 * i)) & 0xFF)
+              end
+              @container >>= nb_bytes * 8
+              @bit_pos &= 7
+            end
+
+            # Add the 1 end-mark bit and flush everything.
+            #
+            # @return [String]
+            def close
+              add_bits(1, 1)
+              flush
+              @bytes << (@container & 0xFF) if @bit_pos.positive?
+              @bytes.pack("C*")
+            end
+          end
+
+          # FSE encoder state (value in [table_size, 2*table_size)).
+          class CState
+            attr_reader :value
+
+            def initialize(value, state_log)
+              @value = value
+              @state_log = state_log
+            end
+
+            # Initialize to the baseline for the first symbol to encode
+            # (the last to decode); C FSE_initCState2.
+            # rubocop:disable Metrics/AbcSize
+            def self.init2(table, symbol)
+              s_tt = table.symbol_tt[symbol]
+              nb_bits_out = (s_tt.delta_nb_bits + (1 << 15)) >> 16
+              value = (nb_bits_out << 16) - s_tt.delta_nb_bits
+              idx = (value >> nb_bits_out) + s_tt.delta_find_state
+              new(table.state_table[idx], table.table_log)
+            end
+            # rubocop:enable Metrics/AbcSize
+
+            def encode(bitc, table, symbol)
+              s_tt = table.symbol_tt[symbol]
+              nb_bits_out = (@value + s_tt.delta_nb_bits) >> 16
+              bitc.add_bits(@value, nb_bits_out)
+              idx = (@value >> nb_bits_out) + s_tt.delta_find_state
+              @value = table.state_table[idx]
+            end
+
+            def flush(bitc)
+              bitc.add_bits(@value, @state_log)
+              bitc.flush
+            end
           end
         end
       end
