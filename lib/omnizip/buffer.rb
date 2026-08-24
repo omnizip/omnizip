@@ -46,7 +46,7 @@ module Omnizip
       #     archive.add('dir/file2.txt', 'more content')
       #   end
       #   File.binwrite('output.zip', buffer.string)
-      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
+      # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def create(format = :zip, **options, &block)
         buffer = StringIO.new(String.new(encoding: Encoding::BINARY))
 
@@ -61,7 +61,6 @@ module Omnizip
 
         buffer.tap(&:rewind)
       end
-      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Open archive from memory
       #

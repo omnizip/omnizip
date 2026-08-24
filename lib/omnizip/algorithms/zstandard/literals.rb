@@ -99,7 +99,7 @@ module Omnizip
         end
 
         # rubocop:disable Metrics/AbcSize
-        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable-next Metrics/MethodLength
         def self.decode_compressed(input, previous_table, is_repeat)
           if is_repeat && previous_table.nil?
             raise Omnizip::DecompressionError,
@@ -153,10 +153,9 @@ module Omnizip
 
           new(literals, is_repeat ? nil : table, needed)
         end
-        # rubocop:enable Metrics/MethodLength
         # rubocop:enable Metrics/AbcSize
 
-        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable-next Metrics/AbcSize
         def self.size_format_raw_rle(input)
           lhl_code = (input.getbyte(0) >> 2) & 0x03
           header_size = [1, 2, 1, 3][lhl_code]
@@ -176,7 +175,6 @@ module Omnizip
             [lhc >> 4, 3]
           end
         end
-        # rubocop:enable Metrics/AbcSize
 
         # One reverse bitstream decoded into lit_size symbols.
         def self.decode_single_stream(table, src, lit_size)

@@ -152,12 +152,11 @@ module Omnizip
     end
 
     # Create a RAR archive (requires RAR license — see NotLicensedError).
-    # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
+    # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
     def create_rar(archive_path, **options, &block)
       options[:version] ||= 5
       Omnizip::Formats::Rar.create(archive_path, options, &block)
     end
-    # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
     private
 

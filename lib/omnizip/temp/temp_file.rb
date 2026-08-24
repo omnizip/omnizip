@@ -108,7 +108,7 @@ module Omnizip
         ObjectSpace.define_finalizer(self, self.class.finalizer(@tempfile))
       end
 
-      # rubocop:disable Lint/IneffectiveAccessModifier
+      # rubocop:disable-next Lint/IneffectiveAccessModifier
       def self.finalizer(tempfile)
         proc do
           tempfile.close unless tempfile.closed?
@@ -118,7 +118,6 @@ module Omnizip
           nil
         end
       end
-      # rubocop:enable Lint/IneffectiveAccessModifier
     end
   end
 end

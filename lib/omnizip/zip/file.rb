@@ -94,7 +94,7 @@ module Omnizip
       # @param entry [Entry, String] Entry object or name
       # @yield [stream] Block to read from the stream
       # @return [String] Entry content (if no block given)
-      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
+      # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
       def get_input_stream(entry, &block)
         entry = get_entry(entry) if entry.is_a?(String)
         raise Errno::ENOENT, "Entry not found: #{entry}" unless entry
@@ -108,16 +108,14 @@ module Omnizip
           content
         end
       end
-      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters
       alias_method :read, :get_input_stream
 
       # Iterate over all entries
       # @yield [entry] Block to execute for each entry
-      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
+      # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def each(&block)
         entries.each(&block)
       end
-      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Extract an entry to a destination path
       # @param entry [Entry, String] Entry object or name
@@ -164,12 +162,11 @@ module Omnizip
       # Replace entry content
       # @param entry_name [String] Entry name
       # @param src_path [String, nil] Source file path
-      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
+      # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
       def replace(entry_name, src_path = nil, &block)
         remove(entry_name)
         add(entry_name, src_path, &block)
       end
-      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding
 
       # Get archive comment
       def comment
@@ -216,7 +213,7 @@ module Omnizip
       # Glob entries by pattern
       # @param pattern [String] Glob pattern
       # @return [Array<Entry>] Matching entries
-      # rubocop:disable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
+      # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters -- Ruby 3.0 compatibility
       def glob(pattern, &block)
         matching = entries.select { |e| ::File.fnmatch(pattern, e.name) }
 
@@ -226,7 +223,6 @@ module Omnizip
           matching
         end
       end
-      # rubocop:enable Naming/BlockForwarding, Style/ArgumentsForwarding, Style/BlockDelimiters
 
       # Extract files matching a pattern
       # @param pattern [String, Regexp, Array] Pattern(s) to match
