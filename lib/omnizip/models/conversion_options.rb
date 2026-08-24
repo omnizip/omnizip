@@ -46,9 +46,12 @@ module Omnizip
 
       # Validate that formats and compression level are in range.
       #
+      # Named +validate_options!+ rather than +validate+ so it does not
+      # shadow Lutaml::Model::Validation#validate(register:).
+      #
       # @raise [ArgumentError] if any value is invalid
       # @return [Boolean] true if valid
-      def validate
+      def validate_options!
         validate_format(target_format, "target")
         validate_format(source_format, "source") if source_format
         validate_compression_level

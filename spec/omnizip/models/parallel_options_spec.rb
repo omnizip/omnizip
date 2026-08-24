@@ -103,11 +103,19 @@ RSpec.describe Omnizip::Models::ParallelOptions do
   end
 
   describe "#validate!" do
+    it "keeps the inherited lutaml validate! callable on a valid instance" do
+      options = described_class.new
+
+      expect { options.validate! }.not_to raise_error
+    end
+  end
+
+  describe "#validate_options!" do
     it "rejects a non-positive thread count" do
       options = described_class.new
       options.threads = 0
 
-      expect { options.validate! }
+      expect { options.validate_options! }
         .to raise_error(ArgumentError, "threads must be > 0")
     end
 
@@ -115,7 +123,7 @@ RSpec.describe Omnizip::Models::ParallelOptions do
       options = described_class.new
       options.strategy = :bogus
 
-      expect { options.validate! }
+      expect { options.validate_options! }
         .to raise_error(ArgumentError, "strategy must be :dynamic or :static")
     end
 
@@ -125,7 +133,7 @@ RSpec.describe Omnizip::Models::ParallelOptions do
         options = described_class.new
         options.public_send("#{field}=", nil)
 
-        expect { options.validate! }
+        expect { options.validate_options! }
           .to raise_error(ArgumentError, "#{field} must be > 0")
       end
     end

@@ -137,7 +137,7 @@ level: 6)
                    end
 
         @options.threads = threads if threads
-        @options.validate!
+        @options.validate_options!
 
         @stats = {
           files_processed: 0,

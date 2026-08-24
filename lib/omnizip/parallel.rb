@@ -49,7 +49,7 @@ module Omnizip
       def configure
         @config ||= Omnizip::Models::ParallelOptions.new
         yield @config if block_given?
-        @config.validate!
+        @config.validate_options!
         @config
       end
 

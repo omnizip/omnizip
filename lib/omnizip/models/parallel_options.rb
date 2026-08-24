@@ -52,9 +52,12 @@ module Omnizip
 
       # Validate options
       #
+      # Named +validate_options!+ rather than +validate!+ so it does not
+      # shadow Lutaml::Model::Validation#validate!(register:).
+      #
       # @raise [ArgumentError] if options are invalid
       # @return [Boolean] true if valid
-      def validate!
+      def validate_options!
         validate_positive(:threads)
         validate_positive(:queue_size)
         validate_positive(:chunk_size)

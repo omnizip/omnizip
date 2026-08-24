@@ -34,7 +34,7 @@ module Omnizip
 
         # Create options object
         opts = options.is_a?(Models::ConversionOptions) ? options : create_options(**options)
-        opts.validate
+        opts.validate_options!
 
         # Perform conversion
         strategy = strategy_class.new(source_path, target_path, opts)
@@ -91,7 +91,23 @@ module Omnizip
 
       private
 
+      # Build a ConversionOptions model from caller-supplied keywords.
+      #
+      # lutaml-model silently discards unknown constructor keys, so a
+      # mistyped option (e.g. +level:+ instead of +compression_level:+)
+      # would fall back to defaults without warning. Reject unknown keys
+      # up front instead.
+      #
+      # @raise [ArgumentError] if any key is not a declared attribute
       def create_options(**options)
+        known = Models::ConversionOptions.attributes.keys.map(&:to_sym)
+        unknown = options.keys.map(&:to_sym) - known
+        unless unknown.empty?
+          raise ArgumentError,
+                "Unknown option(s): #{unknown.join(', ')}. " \
+                "Valid options: #{known.join(', ')}"
+        end
+
         Models::ConversionOptions.new(**options)
       end
 
