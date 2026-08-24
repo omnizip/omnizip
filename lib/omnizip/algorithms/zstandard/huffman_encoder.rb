@@ -105,61 +105,75 @@ module Omnizip
           lengths
         end
 
-        # Cap code lengths at max_len while preserving the Kraft
-        # inequality: shorten the longest codes and lengthen the
-        # shortest until the sum of 2^-len is <= 1.
+        # Cap code lengths at max_len and repair the Kraft sum to be
+        # EXACTLY 2^max_len, in integer arithmetic. An exact sum is
+        # what lets the decoder re-derive the dropped last weight as a
+        # clean power of two — a float-tolerance repair can leave the
+        # remainder non-power-of-two and the frame undecodable.
         #
         # @param lengths [Array<Integer>] mutated in place
         # @param max_len [Integer]
         # @param freqs [Array<Integer>]
         # @return [Array<Integer>]
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable-next Metrics/AbcSize
         def limit_lengths(lengths, max_len, freqs)
-          loop do
-            cur_max = lengths.max || 0
-            break if cur_max <= max_len
+          lengths.map! { |l| [l, max_len].min }
 
-            longest = nil
-            lengths.each_with_index do |l, i|
-              next unless l == cur_max
-              next if longest && freqs[i] >= freqs[longest]
+          target = 1 << max_len
+          kraft = lengths.sum { |l| l.positive? ? 1 << (max_len - l) : 0 }
 
-              longest = i
+          # Over-subscribed: lengthen the least-frequent shortest
+          # codes until the sum fits.
+          while kraft > target
+            idx = kraft_adjust_index(lengths, freqs) do |l|
+              l.positive? && l < max_len
             end
-
-            shortest = nil
-            lengths.each_with_index do |l, i|
-              next unless l.positive? && l < max_len
-              next if shortest && freqs[i] <= freqs[shortest]
-
-              shortest = i
-            end
-
-            if longest && shortest
-              lengths[longest] -= 1
-              lengths[shortest] += 1
-            else
-              lengths.map! { |l| [l, max_len].min }
-              break
-            end
+            lengths[idx] += 1
+            kraft -= 1 << (max_len - lengths[idx])
           end
 
-          loop do
-            kraft = lengths.sum { |l| l.positive? ? 2.0**-l : 0.0 }
-            break if kraft <= 1.0 + 1e-10
-
-            min_idx = nil
+          # Under-subscribed: shorten the most-frequent code that fits
+          # without overshooting; if none fits, lengthen one and let
+          # the first loop re-fit.
+          while kraft < target
+            best = nil
             lengths.each_with_index do |l, i|
-              next unless l.positive? && l < max_len
-              next if min_idx && lengths[i] >= lengths[min_idx]
+              next unless l > 1
 
-              min_idx = i
+              contribution = 1 << (max_len - l)
+              next if kraft + contribution > target
+              next if best && freqs[i] <= freqs[best]
+
+              best = i
             end
-            break if min_idx.nil?
-
-            lengths[min_idx] += 1
+            if best.nil?
+              idx = kraft_adjust_index(lengths, freqs) do |l|
+                l.positive? && l < max_len
+              end
+              lengths[idx] += 1
+              kraft -= 1 << (max_len - lengths[idx])
+            else
+              delta = 1 << (max_len - lengths[best])
+              lengths[best] -= 1
+              kraft += delta
+            end
           end
 
           lengths
+        end
+        # rubocop:enable Metrics/MethodLength
+
+        # Index of the least-frequent symbol matching the block.
+        def kraft_adjust_index(lengths, freqs)
+          best = nil
+          lengths.each_with_index do |l, i|
+            next unless yield(l)
+            next if best && freqs[i] >= freqs[best]
+
+            best = i
+          end
+          best
         end
 
         # Serialize the weight table. Direct 4-bit weights when the

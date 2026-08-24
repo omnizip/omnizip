@@ -262,6 +262,81 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
     end
   end
 
+  describe "sequence encoding (match finder + FSE sequences)" do
+    let(:text) do
+      rng = Random.new(7)
+      words = %w[lorem ipsum dolor sit amet consectetur adipiscing elit]
+      Array.new(20_000) { words[rng.rand(words.size)] }.join(" ")
+    end
+
+    it "beats Huffman-only ratios on text (matches are encoded)" do
+      compressed = described_class.compress(text)
+      # Huffman literals alone bottom out near 0.49 on this corpus;
+      # sequence encoding brings it below 0.30.
+      expect(compressed.bytesize.to_f / text.bytesize).to be < 0.30
+    end
+
+    it "round-trips across levels through our decoder" do
+      [1, 3, 9, 19].each do |level|
+        compressed = described_class.compress(text, level: level)
+        expect(described_class.decompress(compressed)).to eq(text)
+      end
+    end
+
+    it "round-trips alternating structured and random regions" do
+      rng = Random.new(7)
+      data = ("abc" * 100) + rng.bytes(500) + ("abc" * 200)
+      compressed = described_class.compress(data)
+      expect(described_class.decompress(compressed)).to eq(data)
+    end
+
+    it "round-trips long single-pattern runs" do
+      data = "abcabcabcabcabcabc " * 20
+      compressed = described_class.compress(data)
+      expect(described_class.decompress(compressed)).to eq(data)
+    end
+
+    it "round-trips skewed binary literals with wide alphabets" do
+      rng = Random.new(5)
+      data = Array.new(30_000) do |i|
+        i % 10 < 7 ? 0 : rng.rand(255) + 1
+      end.pack("C*")
+      compressed = described_class.compress(data)
+      expect(described_class.decompress(compressed)).to eq(data)
+    end
+
+    it "carries wire repeat-offset state correctly between blocks" do
+      # Two blocks: the second reuses matches from the first across
+      # the 128 KiB boundary; a corrupted rep hand-off garbles it.
+      data = text * 8
+      compressed = described_class.compress(data)
+      expect(described_class.decompress(compressed)).to eq(data)
+    end
+  end
+
+  describe "encoder interop with the zstd CLI" do
+    before { skip "zstd CLI not available" unless has_zstd_cli }
+
+    let(:text) do
+      rng = Random.new(7)
+      words = %w[lorem ipsum dolor sit amet consectetur adipiscing elit]
+      Array.new(20_000) { words[rng.rand(words.size)] }.join(" ")
+    end
+
+    it "produces frames the system decoder accepts at several levels" do
+      [1, 3, 9, 19].each do |level|
+        compressed = described_class.compress(text, level: level)
+        path = "/tmp/omnizip_zenc_interop.zst"
+        File.binwrite(path, compressed)
+        system("zstd -d -q -f #{path} -o #{path}.out")
+        expect(File.binread("#{path}.out")).to eq(text)
+      end
+    ensure
+      FileUtils.rm_f("/tmp/omnizip_zenc_interop.zst")
+      FileUtils.rm_f("/tmp/omnizip_zenc_interop.zst.out")
+    end
+  end
+
   describe "decoder interop with the zstd CLI" do
     before { skip "zstd CLI not available" unless has_zstd_cli }
 
