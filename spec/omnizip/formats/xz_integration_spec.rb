@@ -101,4 +101,52 @@ RSpec.describe "XZ Format Integration" do
       end
     end
   end
+
+  describe "multi-chunk streams (issue #26)" do
+    # LZMA2 stores at most 2 MiB uncompressed and 64 KiB compressed per
+    # chunk; inputs beyond those limits exercise chunk continuation.
+    let(:word_text) do
+      rng = Random.new(7)
+      words = %w[lorem ipsum dolor sit amet consectetur adipiscing elit sed
+                 do eiusmod tempor incididunt ut labore]
+      Array.new(60_000) { words[rng.rand(words.size)] }.join(" ")
+    end
+
+    it "round-trips data spanning the 2 MiB uncompressed chunk limit" do
+      data = "a" * 2_100_000
+      compressed = Omnizip::Formats::Xz.create(data)
+      expect(Omnizip::Formats::Xz.decode(compressed)).to eq(data)
+    end
+
+    it "round-trips data whose compressed chunk exceeds the 64 KiB cap" do
+      compressed = Omnizip::Formats::Xz.create(word_text)
+      expect(compressed.bytesize).to be > 65_536
+      expect(Omnizip::Formats::Xz.decode(compressed)).to eq(word_text)
+    end
+
+    it "does not overflow the range encoder symbol buffer on far matches" do
+      # Two literals leave the queue at 18 symbols; a 2 MiB-distance match
+      # with a high distance slot queues ~37 more, exceeding the
+      # XzRangeEncoder's 53-symbol buffer unless it is drained per item.
+      rng = Random.new(42)
+      unit = Array.new(3000) { (65 + rng.rand(26)).chr }.join
+      data = "#{'a' * 600_000}#{unit}#{'a' * 2_000_022}QZ#{unit}"
+
+      compressed = Omnizip::Formats::Xz.create(data)
+      expect(Omnizip::Formats::Xz.decode(compressed)).to eq(data)
+    end
+
+    it "emits streams the system xz accepts for multi-chunk data" do
+      Tempfile.create(["omnizip_multichunk", ".xz"]) do |xz_file|
+        Omnizip::Formats::Xz.create(word_text, xz_file.path)
+
+        Tempfile.create(["decoded_multichunk", ".txt"]) do |output_file|
+          result = system("xz", "-dc", xz_file.path, out: output_file.path,
+                                                     err: File::NULL)
+          expect(result).to be_truthy
+          expect(File.binread(output_file.path)).to eq(word_text)
+        end
+      end
+    end
+  end
 end

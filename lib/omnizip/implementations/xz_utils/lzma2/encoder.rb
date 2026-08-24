@@ -59,6 +59,9 @@ module Omnizip
           UNCOMPRESSED_MAX = 1 << 21 # 2,097,152 bytes
           # Maximum COMPRESSED size per chunk: 64KB
           COMPRESSED_MAX = 1 << 16 # 65,536 bytes
+          # Uncompressed chunks store their size in a 16-bit field,
+          # so each uncompressed chunk is also limited to 64KB.
+          UNCOMPRESSED_CHUNK_MAX = 1 << 16
 
           # Initialize the encoder
           # @param options [Hash] Encoding options
@@ -96,7 +99,6 @@ module Omnizip
             # CRITICAL: For XZ Utils compatibility, first chunk MUST reset the dictionary
             # (matches XZ Utils behavior - see lzma2_encoder.c:334-336)
             # need_dictionary_reset is set to true for the first compressed chunk
-            @need_properties = false # Properties will be written in first compressed chunk
             @need_state_reset = false
             @need_dictionary_reset = true # Always reset dictionary for first chunk (XZ Utils compatibility)
           end
@@ -111,10 +113,8 @@ module Omnizip
 
             # Write property byte if standalone mode (for .lz2 files)
             # The property byte encodes dictionary size
-            # Formula: For power-of-2 sizes, d = 2 * (log2_size - 12)
             if @standalone
-              prop_byte = encode_dict_size(@dict_size)
-              output.putc(prop_byte)
+              output.putc(encode_dict_size(@dict_size))
             end
 
             input = StringIO.new(input_data)
@@ -125,12 +125,7 @@ module Omnizip
               chunk_data = input.read(UNCOMPRESSED_MAX)
               break if chunk_data.nil? || chunk_data.empty?
 
-              chunk = encode_chunk(chunk_data)
-              output.write(chunk.to_bytes)
-
-              @need_properties = false
-              @need_state_reset = false
-              @need_dictionary_reset = false
+              consume_chunk(chunk_data, output)
             end
 
             # End marker (0x00) is REQUIRED for all LZMA2 streams
@@ -151,60 +146,128 @@ module Omnizip
 
           private
 
-          def encode_chunk(uncompressed_data)
-            compressed = try_compress(uncompressed_data)
+          # Encode chunk_data (<= UNCOMPRESSED_MAX bytes), emitting one or
+          # more LZMA2 chunks.
+          #
+          # Multiple chunks are required when the compressed output reaches
+          # COMPRESSED_MAX (the compressed size is stored in a 16-bit field)
+          # or when compression is not beneficial and the data must be
+          # stored as uncompressed chunks (each capped at 64KB).
+          def consume_chunk(chunk_data, output)
+            @match_finder.feed(chunk_data)
+            @match_finder.skip(@match_finder.buffer.bytesize)
 
-            # XZ Utils chunk type selection:
-            # Use uncompressed chunk if: compressed_size >= uncompressed_size
-            # Use compressed chunk if: compressed_size < uncompressed_size
-            # NOTE: Compare only DATA sizes, NOT including headers!
-            # This matches XZ Utils implementation exactly (lzma2_encoder.c line 205)
+            offset = 0
+            while offset < chunk_data.bytesize
+              slice = chunk_data.byteslice(offset, chunk_data.bytesize - offset)
 
-            if compressed.bytesize >= uncompressed_data.bytesize
-              # Use uncompressed chunk (compression didn't help)
+              # A state reset must apply BEFORE encoding the chunk that
+              # announces it (0xC0/0xE0 control byte), so that the encoder's
+              # models match the decoder's from the chunk's first bit.
+              reset_lzma_state! if @need_state_reset || @need_dictionary_reset
+
+              compressed, consumed = try_compress(slice)
+
+              use_compressed =
+                consumed.positive? &&
+                compressed.bytesize <= COMPRESSED_MAX &&
+                compressed.bytesize < (consumed == slice.bytesize ? slice.bytesize : consumed)
+
+              if use_compressed
+                uncompressed = chunk_data.byteslice(offset, consumed)
+                emit_compressed_chunk(output, uncompressed, compressed)
+
+                offset += consumed
+                @need_state_reset = false
+              else
+                # Compression didn't help (or hit the cap immediately):
+                # store the whole slice as uncompressed chunks.
+                emit_uncompressed_chunks(output, slice)
+
+                offset += slice.bytesize
+                # After an uncompressed chunk the LZMA state is lost, so the
+                # next compressed chunk must reset it (XZ Utils behavior,
+                # lzma2_encoder.c).
+                @need_state_reset = true
+              end
+              @need_dictionary_reset = false
+            end
+
+            # Update prev_byte for next chunk
+            if chunk_data.bytesize.positive?
+              @prev_byte = chunk_data.getbyte(chunk_data.bytesize - 1)
+            end
+          end
+
+          # Reset the LZMA state machine and probability models.
+          #
+          # MUST be called before encoding any chunk whose control byte
+          # announces a state reset (0xC0/0xE0), because the decoder will
+          # reinitialize its models on seeing that byte.
+          def reset_lzma_state!
+            @state = Omnizip::Algorithms::LZMA::LZMAState.new(0)
+            @models = Omnizip::Algorithms::LZMA::XzProbabilityModels.new(@lc,
+                                                                         @lp,
+                                                                         @pb)
+            @prev_byte = 0
+          end
+
+          # Emit a compressed LZMA2 chunk.
+          def emit_compressed_chunk(output, uncompressed, compressed)
+            # For compressed chunks, properties encode lc/lp/pb:
+            # (pb * 5 + lp) * 9 + lc
+            chunk_properties = (((@pb * 5) + @lp) * 9) + @lc
+
+            # A dictionary reset implies a state reset; props accompany
+            # every state reset (control 0xE0 or 0xC0).
+            state_reset = @need_state_reset || @need_dictionary_reset
+
+            chunk = Omnizip::Algorithms::LZMA2::LZMA2Chunk.new(
+              chunk_type: :compressed,
+              uncompressed_data: uncompressed,
+              compressed_data: compressed,
+              compressed_size: compressed.bytesize,
+              properties: chunk_properties,
+              need_dict_reset: @need_dictionary_reset,
+              need_state_reset: state_reset,
+              need_props: state_reset,
+            )
+            output.write(chunk.to_bytes)
+
+            # Update dictionary with the chunk data
+            @dictionary.append(uncompressed)
+          end
+
+          # Emit uncompressed LZMA2 chunks for data (splitting at the
+          # 64KB per-chunk limit imposed by the 16-bit size field).
+          def emit_uncompressed_chunks(output, data)
+            offset = 0
+            while offset < data.bytesize
+              slice = data.byteslice(offset, UNCOMPRESSED_CHUNK_MAX)
               chunk = Omnizip::Algorithms::LZMA2::LZMA2Chunk.new(
                 chunk_type: :uncompressed,
-                uncompressed_data: uncompressed_data,
+                uncompressed_data: slice,
                 compressed_data: "",
                 need_dict_reset: @need_dictionary_reset,
                 need_state_reset: false,
                 need_props: false,
               )
-              # After uncompressed chunk, next chunk needs state reset
-              # (XZ Utils does this - see lzma2_encoder.c line 211)
-              @need_state_reset = true
-            else
-              # Use compressed chunk (compression helped)
-              # For compressed chunks, properties encode lc/lp/pb:
-              # (pb * 5 + lp) * 9 + lc
-              chunk_properties = (((@pb * 5) + @lp) * 9) + @lc
-              # CRITICAL: need_props must be TRUE when we're providing properties!
-              # This tells the chunk to encode properties in the control byte
-              # CRITICAL: compressed_size includes ALL bytes (LZMA data + flush bytes)
-              # The flush bytes are part of the range encoder output and must be included
-              chunk = Omnizip::Algorithms::LZMA2::LZMA2Chunk.new(
-                chunk_type: :compressed,
-                uncompressed_data: uncompressed_data,
-                compressed_data: compressed,
-                compressed_size: compressed.bytesize, # Full size including flush bytes
-                properties: chunk_properties,
-                need_dict_reset: @need_dictionary_reset,
-                need_state_reset: @need_state_reset,
-                need_props: true, # Always true for compressed chunks with properties
-              )
+              output.write(chunk.to_bytes)
+              @need_dictionary_reset = false
+
+              offset += slice.bytesize
+              @dictionary.append(slice)
             end
-
-            # Update dictionary with the chunk data (done once per chunk)
-            @dictionary.append(uncompressed_data)
-
-            # Update prev_byte for next chunk
-            if uncompressed_data.bytesize.positive?
-              @prev_byte = uncompressed_data.getbyte(uncompressed_data.bytesize - 1)
-            end
-
-            chunk
           end
 
+          # Compress data starting at the current dictionary position.
+          #
+          # Stops early (returning fewer bytes than data.bytesize) when the
+          # compressed output is about to exceed COMPRESSED_MAX, leaving the
+          # range encoder at a clean item boundary.
+          #
+          # @return [Array<String, Integer>] compressed bytes and number of
+          #   input bytes consumed
           def try_compress(data)
             # Create output buffer to capture compressed data
             output_buffer = StringIO.new
@@ -213,39 +276,26 @@ module Omnizip
             # Create range encoder (direct XZ Utils port)
             encoder = Omnizip::Algorithms::LZMA::XzRangeEncoder.new(output_buffer)
 
-            # Feed all data to match finder first
-            # This ensures all bytes are available for finding matches
-            @match_finder.feed(data)
-
-            # CRITICAL: Initialize hash table for positions BEFORE encoding starts
-            # This ensures that matches can be found for repeated data patterns
-            # Matches XZ Utils lzma_encoder.c: mf_skip() behavior
-            # We skip to position (start_pos + data.bytesize - MATCH_LEN_MAX),
-            # but ensure we don't go negative for small inputs
-            match_len_max = 2 # Minimum match length in LZMA2
-            end_pos = [
-              @dictionary.buffer.bytesize + data.bytesize - match_len_max, 0
-            ].max
-            @match_finder.skip(end_pos)
-
-            # Position in match finder's buffer for encoding
-            # Start after the data we just fed
+            # The whole chunk has already been fed to the match finder by
+            # consume_chunk; positions map from the dictionary position.
             start_pos = @dictionary.buffer.bytesize
 
-            # Store current start position for matched literal encoding
-            @current_start_pos = start_pos
+            # Headroom for pending symbols plus the final flush
+            size_cap = COMPRESSED_MAX - 64
 
             pos = 0
             while pos < data.bytesize
-              # Encode queued symbols if buffer getting full
-              # Keep headroom for largest operation
-              # (~30 symbols for match+distance)
-              if encoder.count > 20
-                encode_queued_symbols(encoder, output_buffer)
-              end
+              # Drain before every item: a single worst-case match (long
+              # length + dist slot >= 14 with up to 30 footer bits) queues
+              # ~48 symbols, and RC_SYMBOLS_MAX is 53, so the queue MUST be
+              # empty when an item starts or `bit` raises "Symbol buffer
+              # overflow" (issue #26).
+              encode_queued_symbols(encoder, output_buffer)
+
+              # Enforce the 64KB compressed-chunk cap at an item boundary
+              break if pos.positive? && output_buffer.size >= size_cap
 
               # Position in match finder's buffer for encoding
-              # Start after the data we just fed
               match_pos = start_pos + pos
 
               # Get optimal encoding choice
@@ -265,21 +315,21 @@ module Omnizip
               # CRITICAL: Use UINT32_MAX to check for literal (not distance.zero?)
               # because distance=0 means repeated match rep0, not literal!
               if distance == UINT32_MAX || length == 1
-                # Encode literal
-                # puts "[DEBUG] -> LITERAL 0x#{'%02x' % data.getbyte(pos)}" if ENV['DEBUG']
-                encode_literal(data.getbyte(pos), encoder, pos)
+                # Encode literal. The position argument must be GLOBAL
+                # (dictionary position), because the decoder keeps counting
+                # bytes across chunk boundaries for pos_state.
+                encode_literal(data.getbyte(pos), encoder, match_pos)
                 pos += 1
               elsif distance < REPS
                 # Encode repeated match (distance is 0-3 for rep0-rep3)
-                # puts "[DEBUG] -> REPEATED MATCH rep#{distance} len=#{length}" if ENV['DEBUG']
-                encode_repeated_match(distance, length, encoder, pos, match_pos)
+                encode_repeated_match(distance, length, encoder, match_pos,
+                                      match_pos)
                 pos += length
               else
                 # Encode normal match (distance is actual_distance + REPS)
                 actual_distance = distance - REPS
-                # puts "[DEBUG] -> NORMAL MATCH distance=#{actual_distance} len=#{length}" if ENV['DEBUG']
-                encode_match(actual_distance, length, encoder, pos, match_pos,
-                             data)
+                encode_match(actual_distance, length, encoder, match_pos,
+                             match_pos, data)
                 pos += length
               end
             end
@@ -295,46 +345,12 @@ module Omnizip
             # This will write additional bytes to output_buffer
             encode_queued_symbols(encoder, output_buffer)
 
-            # Full output includes all bytes (LZMA data + flush bytes)
-            full_output = output_buffer.string
-
-            puts "[DEBUG] try_compress: full_output.size=#{full_output.bytesize}, encoder.out_total=#{encoder.out_total}" if ENV["DEBUG_FLUSH"]
-
-            # Return all bytes (flush bytes are part of the LZMA data)
-            full_output
+            [output_buffer.string, pos]
           end
 
           # Encode queued symbols to output
-          # rubocop:disable Style/CollectionQuerying
           def encode_queued_symbols(encoder, output)
-            return if encoder.count.zero?
-
-            # Encode symbols to buffer
-            encoder.encode_symbols(temp_buffer, out_pos, 10000)
-
-            # Track size before encoding
-            size_before = output.size
-
-            # Encode symbols to buffer
-            encoder.encode_symbols(temp_buffer, out_pos, 10000)
-
-            # Write to output stream
-            if out_pos.value.positive?
-              # Use StringCompat.byteslice for Ruby 3.0-3.1 compatibility
-              # Ruby's [] operator has a bug with null bytes that can return extra bytes
-              # See: https://bugs.ruby-lang.org/issues/15985
-              output.write(StringCompat.byteslice(temp_buffer, 0,
-                                                  out_pos.value))
-            end
-
-            # Return the number of bytes written
-            output.size - size_before
-          end
-
-          # Encode queued symbols to output
-          # rubocop:disable Style/CollectionQuerying
-          def encode_queued_symbols(encoder, output)
-            return if encoder.count.zero?
+            return if encoder.none?
 
             # Create temporary buffer for encoding
             temp_buffer = "\0" * 10000
@@ -360,6 +376,8 @@ module Omnizip
           end
 
           # Encode literal byte
+          # pos is the GLOBAL position (dictionary position) because the
+          # decoder counts bytes continuously across chunks.
           def encode_literal(symbol, encoder, pos)
             pos_state = pos & ((1 << @pb) - 1)
 
@@ -382,8 +400,7 @@ module Omnizip
               # Matched literal (compare with match byte at rep0)
               # XZ Utils: mf->buffer[mf->read_pos - coder->reps[0] - 1 - mf->read_ahead]
               # We don't use read_ahead, so it's 0
-              match_pos = @current_start_pos + pos
-              match_byte_pos = match_pos - @state.reps[0] - 1
+              match_byte_pos = pos - @state.reps[0] - 1
               match_byte = @match_finder.buffer.getbyte(match_byte_pos) if match_byte_pos >= 0 && match_byte_pos < @match_finder.buffer.bytesize
 
               # If match_byte is nil (shouldn't happen in normal operation),
@@ -417,8 +434,9 @@ _input_data)
             encoder.queue_bit(prob_is_rep, 0)
 
             # CRITICAL: Update state BEFORE encoding length/distance (XZ Utils order)
-            # This also updates reps
-            @state.update_match!(distance)
+            # This also updates reps. Reps are stored 0-based (distance - 1),
+            # matching XZ Utils and the decoder's rep0 convention.
+            @state.update_match!(distance - 1)
 
             # Encode length - uses NEW state value
             encode_match_length(length, pos_state, encoder)
@@ -466,27 +484,15 @@ _input_data)
 
                 prob_is_rep2 = @models.is_rep2[@state.value]
                 encoder.queue_bit(prob_is_rep2, rep - 2)
-
-                if rep == 3
-                  # Update reps[3] = reps[2] before updating reps[2]
-                  @state.reps[3] = @state.reps[2]
-                end
-
-                # Update reps[2] = reps[1]
-                @state.reps[2] = @state.reps[1]
               end
 
-              # Update reps[1] = reps[0]
-              @state.reps[1] = @state.reps[0]
-
-              # Update reps[0] = distance from reps[rep]
+              # XZ Utils rep_match: capture the selected distance BEFORE
+              # rotating, then shift reps down (lzma_encoder.c):
+              #   distance = reps[rep];
+              #   for (i = rep; i > 0; --i) reps[i] = reps[i-1];
+              #   reps[0] = distance;
               distance = @state.reps[rep]
-
-              # Defensive check: distance should never be nil
-              if distance.nil?
-                raise "Distance is nil for rep #{rep}, reps=#{@state.reps.inspect}"
-              end
-
+              rep.downto(1) { |i| @state.reps[i] = @state.reps[i - 1] }
               @state.reps[0] = distance
             end
 
@@ -494,15 +500,15 @@ _input_data)
             if length == 1
               @state.update_short_rep!
             else
-              # Encode length
-              encode_match_length(length, pos_state, encoder)
+              # Encode length using the REP length coder (rep matches have
+              # their own length models, decoder's @rep_length_coder)
+              encode_match_length(length, pos_state, encoder,
+                                  @models.rep_len_encoder)
               @state.update_long_rep!
             end
 
-            # Update prev_byte (last byte of match)
-            # For rep match: match_pos - reps[rep] - 1 + length - 1 = match_pos - reps[rep] + length - 2
-            # But after updating reps above, reps[0] now contains the distance
-            last_byte_pos = match_pos - @state.reps[0] + length - 1
+            # Update prev_byte (last byte of the match region in the stream)
+            last_byte_pos = match_pos + length - 1
             @prev_byte = @match_finder.buffer.getbyte(last_byte_pos) if last_byte_pos >= 0 && last_byte_pos < @match_finder.buffer.bytesize
           end
 
@@ -513,12 +519,13 @@ _input_data)
           #     (((((pos) << 8) + (prev_byte)) & (literal_mask)) << (lc)))
           # where literal_mask = (0x100 << lp) - (0x100 >> lc)
           #
+          # The factor of 3 gives each context a 0x300-sized subcoder and
+          # MUST match the decoder's base_offset = 3 * (lit_state << lc).
+          #
           # Returns the flat index into the literal probability array.
-          # The literal array is now a flat array (matching XZ Utils) with
-          # size 0x300 << (lc + lp), not a 2D array.
           def get_literal_state(pos, prev_byte)
             literal_mask = (0x100 << @lp) - (0x100 >> @lc)
-            ((((pos << 8) + prev_byte) & literal_mask) << @lc)
+            3 * ((((pos << 8) + prev_byte) & literal_mask) << @lc)
           end
 
           # Get byte from dictionary at distance back
@@ -570,35 +577,38 @@ encoder)
           end
 
           # Encode match length
-          def encode_match_length(length, pos_state, encoder)
+          # len_encoder is the length model set to use: match_len_encoder for
+          # normal matches, rep_len_encoder for repeated matches.
+          def encode_match_length(length, pos_state, encoder,
+                                  len_encoder = @models.match_len_encoder)
             len = length - MATCH_LEN_MIN
 
             if len < LEN_LOW_SYMBOLS
               # Low: 0-7
-              encoder.queue_bit(@models.match_len_encoder.choice, 0)
+              encoder.queue_bit(len_encoder.choice, 0)
               encode_bittree(
-                @models.match_len_encoder.low[pos_state],
+                len_encoder.low[pos_state],
                 NUM_LEN_LOW_BITS,
                 len,
                 encoder,
               )
             elsif len < LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS
               # Mid: 8-15
-              encoder.queue_bit(@models.match_len_encoder.choice, 1)
-              encoder.queue_bit(@models.match_len_encoder.choice2, 0)
+              encoder.queue_bit(len_encoder.choice, 1)
+              encoder.queue_bit(len_encoder.choice2, 0)
               encode_bittree(
-                @models.match_len_encoder.mid[pos_state],
+                len_encoder.mid[pos_state],
                 NUM_LEN_MID_BITS,
                 len - LEN_LOW_SYMBOLS,
                 encoder,
               )
             else
               # High: 16-271
-              encoder.queue_bit(@models.match_len_encoder.choice, 1)
-              encoder.queue_bit(@models.match_len_encoder.choice2, 1)
+              encoder.queue_bit(len_encoder.choice, 1)
+              encoder.queue_bit(len_encoder.choice2, 1)
               high_len = len - LEN_LOW_SYMBOLS - LEN_MID_SYMBOLS
               encode_bittree(
-                @models.match_len_encoder.high,
+                len_encoder.high,
                 NUM_LEN_HIGH_BITS,
                 high_len,
                 encoder,
@@ -608,7 +618,11 @@ encoder)
 
           # Encode distance using slot encoding
           def encode_distance(distance, length, encoder)
-            dist_slot = get_dist_slot(distance)
+            # get_dist_slot expects a 0-based distance (xz fastpos.h:
+            # dist 4 -> slot 4, dist 5 -> slot 4). The decoder computes
+            # rep0 = base + footer the same 0-based way.
+            dist0 = distance - 1
+            dist_slot = get_dist_slot(dist0)
             len_state = get_len_to_pos_state(length)
 
             # Encode distance slot
@@ -624,7 +638,7 @@ encoder)
             if dist_slot >= START_POS_MODEL_INDEX
               footer_bits = (dist_slot >> 1) - 1
               base = (2 | (dist_slot & 1)) << footer_bits
-              dist_reduced = distance - base
+              dist_reduced = dist0 - base
 
               if dist_slot < END_POS_MODEL_INDEX
                 # Use probability models
