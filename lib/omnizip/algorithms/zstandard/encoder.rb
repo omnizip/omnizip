@@ -25,10 +25,13 @@ module Omnizip
     class Zstandard
       # Pure Ruby Zstandard encoder (RFC 8878).
       #
-      # Emits a single-segment frame. Each 128 KiB chunk of input
-      # becomes one block, choosing whichever is smallest: RLE, a
-      # Compressed_Block (Huffman-coded literals + an empty sequences
-      # section), or a Raw_Block fallback for incompressible data.
+      # Emits a single-segment frame. Each 128 KiB chunk becomes one
+      # block, choosing whichever is smallest: RLE, a Compressed_Block
+      # (LZ77 match finding + Huffman literals + FSE-coded sequences),
+      # or a Raw_Block fallback for incompressible data. The match
+      # finder works over absolute positions, so blocks can reference
+      # earlier blocks; repeat-offset state is carried between blocks
+      # exactly as the decoder tracks it.
       class Encoder
         include Constants
 
@@ -83,53 +86,78 @@ module Omnizip
           end
         end
 
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable-next Metrics/AbcSize
         def write_blocks(data)
           return write_empty_last_block if data.empty?
 
+          params = MatchFinder.params_for_level(@level, data.bytesize)
+          ms = MatchFinder::MatchState.new(params[:hash_log])
+          ms.enable_chain(params[:chain]) if params[:chain].positive?
+
+          # Wire repeat-offset state carried across blocks; matches the
+          # decoder's executor state. Raw and RLE blocks leave it
+          # untouched.
+          reps = [1, 4, 8]
+
           offset = 0
           while offset < data.bytesize
-            chunk = data.byteslice(offset, BLOCK_MAX_SIZE)
-            offset += chunk.bytesize
-            is_last = offset >= data.bytesize
-            write_chunk(chunk, is_last)
+            block_end = [offset + BLOCK_MAX_SIZE, data.bytesize].min
+            is_last = block_end == data.bytesize
+            chunk = data.byteslice(offset, block_end - offset)
+
+            if chunk.bytesize >= 4 && rle_chunk?(chunk)
+              write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RLE,
+                                 chunk.bytesize)
+              @output_stream.putc(chunk.getbyte(0))
+            else
+              seq_store = MatchFinder::SeqStore.new(reps.dup)
+              MatchFinder.compress_range(data, offset, block_end, seq_store,
+                                         ms, params[:min_match],
+                                         params[:lazy])
+              content, new_reps = try_compressed(seq_store, reps)
+              if content.nil?
+                write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RAW,
+                                   chunk.bytesize)
+                @output_stream.write(chunk)
+              else
+                write_block_header(is_last ? 1 : 0, BLOCK_TYPE_COMPRESSED,
+                                   content.bytesize)
+                @output_stream.write(content)
+                reps = new_reps
+              end
+            end
+
+            offset = block_end
           end
         end
+        # rubocop:enable Metrics/MethodLength
 
         def write_empty_last_block
           write_block_header(1, BLOCK_TYPE_RAW, 0)
         end
 
-        def write_chunk(chunk, is_last)
-          if chunk.bytesize >= 4 && rle_chunk?(chunk)
-            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RLE, chunk.bytesize)
-            @output_stream.putc(chunk.getbyte(0))
-            return
-          end
+        # Build a Compressed_Block content: literals section plus the
+        # sequences section. Returns [content, wire_reps], or [nil,
+        # nil] when the result is not smaller than the raw chunk.
+        #
+        # The chunk's decompressed size is the literal bytes plus every
+        # sequence's match length.
+        #
+        # @param initial_reps [Array<Integer>] wire rep state the
+        #   decoder holds before this block
+        def try_compressed(seq_store, initial_reps)
+          literals_section = LiteralsEncoder.encode(seq_store.literals)
+          sequences_section, wire_reps =
+            SequencesEncoder.encode_section(seq_store, initial_reps)
+          content = literals_section + sequences_section
+          chunk_size = seq_store.literals.bytesize +
+            seq_store.sequences.sum(&:match_length)
+          return [nil, nil] if content.bytesize >= chunk_size
 
-          content = try_compressed(chunk)
-          if content.nil?
-            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RAW,
-                               chunk.bytesize)
-            @output_stream.write(chunk)
-          else
-            write_block_header(is_last ? 1 : 0, BLOCK_TYPE_COMPRESSED,
-                               content.bytesize)
-            @output_stream.write(content)
-          end
-        end
-
-        # Build a Compressed_Block content: literals section plus an
-        # empty sequences section (nbSeq = 0). Returns nil when the
-        # result is not smaller than the raw chunk.
-        def try_compressed(chunk)
-          literals_section = LiteralsEncoder.encode(chunk)
-          # A single 0x00 byte: Number_of_Sequences = 0.
-          content = literals_section + "\x00".b
-          return nil if content.bytesize >= chunk.bytesize
-
-          content
+          [content, wire_reps]
         rescue Omnizip::CompressionError
-          nil
+          [nil, nil]
         end
 
         def rle_chunk?(chunk)
