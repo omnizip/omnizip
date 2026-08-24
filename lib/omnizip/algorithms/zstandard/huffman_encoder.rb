@@ -23,312 +23,290 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # Huffman Encoder for Zstandard (RFC 8878 Section 4.2)
+      # Huffman encoder for Zstandard literals (RFC 8878 §4.2).
       #
-      # Encodes literals using Huffman coding with FSE-compressed weights.
-      class HuffmanEncoder
+      # Builds a length-limited Huffman code from per-byte frequencies,
+      # emits the weight table (direct or FSE-compressed), and codes
+      # the literals into 1 or 4 reverse bitstreams.
+      module HuffmanEncoder
         include Constants
 
-        # @return [Array<Integer>] Code lengths for each symbol
-        attr_reader :code_lengths
+        module_function
 
-        # @return [Hash<Integer, Integer>] Symbol to code mapping
-        attr_reader :codes
-
-        # @return [Integer] Maximum code length
-        attr_reader :max_bits
-
-        # Build Huffman encoder from symbol frequencies
+        # Build 256 weights (0 for absent symbols) from the literal
+        # bytes, with code lengths capped at HUFFMAN_MAX_BITS.
         #
-        # @param frequencies [Array<Integer>] Symbol frequencies
-        # @param max_bits [Integer] Maximum code length (default 11)
-        # @return [HuffmanEncoder] Huffman encoder
-        def self.build_from_frequencies(frequencies,
-max_bits = HUFFMAN_MAX_BITS)
-          return nil if frequencies.nil? || frequencies.empty?
+        # @param literals [String]
+        # @return [Array<Integer>]
+        def build_weights(literals)
+          counts = Array.new(256, 0)
+          literals.each_byte { |b| counts[b] += 1 }
 
-          # Build Huffman tree and get code lengths
-          code_lengths = build_huffman_lengths(frequencies, max_bits)
-
-          # Limit code lengths to max_bits
-          code_lengths = limit_code_lengths(code_lengths, max_bits)
-
-          # Build canonical codes
-          codes = build_canonical_codes(code_lengths)
-
-          new(code_lengths, codes, max_bits)
-        end
-
-        # Build Huffman code lengths using package-merge algorithm
-        #
-        # @param frequencies [Array<Integer>] Symbol frequencies
-        # @param max_bits [Integer] Maximum code length
-        # @return [Array<Integer>] Code lengths
-        def self.build_huffman_lengths(frequencies, max_bits)
-          return [] if frequencies.nil? || frequencies.empty?
-
-          # Create list of (frequency, symbol) pairs
-          symbols_with_freq = frequencies.each_with_index
-            .select { |freq, _| freq&.positive? }
-            .map { |freq, sym| [freq, sym] }
-
-          return Array.new(frequencies.length, 0) if symbols_with_freq.empty?
-
-          # Sort by frequency
-          symbols_with_freq.sort_by! { |freq, _| freq }
-
-          # Build Huffman tree
-          code_lengths = Array.new(frequencies.length, 0)
-
-          # Simple Huffman tree building
-          # Using a priority queue approach
-          build_tree_lengths(symbols_with_freq, code_lengths, max_bits)
-
-          code_lengths
-        end
-
-        # Build code lengths using tree approach
-        def self.build_tree_lengths(symbols_with_freq, code_lengths, max_bits)
-          return if symbols_with_freq.empty?
-
-          # Create leaf nodes
-          nodes = symbols_with_freq.map do |freq, sym|
-            { freq: freq, symbol: sym, left: nil, right: nil, depth: 0 }
+          present = (0..255).select { |b| counts[b].positive? }
+          if present.length < 2
+            # A Huffman table needs at least 2 symbols; pad with
+            # symbol 0 (or 1) so the real symbol keeps a real code.
+            weights = Array.new(256, 0)
+            sym = present.first || 0
+            weights[sym] = 1
+            other = sym.zero? ? 1 : 0
+            weights[other] = 1
+            return weights
           end
 
-          # Build tree by combining nodes
-          while nodes.length > 1
-            # Sort by frequency
-            nodes.sort_by! { |n| n[:freq] }
+          freqs = present.map { |b| counts[b] }
+          lengths = huffman_lengths(freqs)
+          lengths = limit_lengths(lengths, HUFFMAN_MAX_BITS, freqs)
 
-            # Combine two smallest
-            left = nodes.shift
-            right = nodes.shift
-
-            combined = {
-              freq: left[:freq] + right[:freq],
-              symbol: nil,
-              left: left,
-              right: right,
-              depth: [left[:depth], right[:depth]].max + 1,
-            }
-
-            nodes << combined
+          max_len = lengths.max
+          weights = Array.new(256, 0)
+          present.each_with_index do |byte, i|
+            weights[byte] = max_len - lengths[i] + 1
           end
-
-          # Extract code lengths from tree
-          if nodes.length == 1
-            assign_lengths(nodes[0], 0, code_lengths, max_bits)
-          elsif symbols_with_freq.length == 1
-            # Single symbol
-            code_lengths[symbols_with_freq[0][1]] = 1
-          end
+          weights
         end
 
-        # Recursively assign code lengths to symbols
-        def self.assign_lengths(node, depth, code_lengths, max_bits)
-          return unless node
+        # Standard Huffman code lengths via smallest-pair merging.
+        #
+        # @param freqs [Array<Integer>]
+        # @return [Array<Integer>] code length per symbol
+        def huffman_lengths(freqs)
+          nodes = freqs.map { |f| { freq: f, parent: -1 } }
 
-          depth = [depth, max_bits].min
+          while nodes.count { |n| n[:parent] == -1 } > 1
+            a = -1
+            b = -1
+            nodes.each_with_index do |n, i|
+              next unless n[:parent] == -1
 
-          if node[:symbol]
-            # Leaf node
-            code_lengths[node[:symbol]] = depth.positive? ? depth : 1
-          else
-            # Internal node
-            assign_lengths(node[:left], depth + 1, code_lengths, max_bits)
-            assign_lengths(node[:right], depth + 1, code_lengths, max_bits)
+              if a == -1 || n[:freq] < nodes[a][:freq]
+                b = a
+                a = i
+              elsif b == -1 || n[:freq] < nodes[b][:freq]
+                b = i
+              end
+            end
+
+            nodes[a][:parent] = nodes.length
+            nodes[b][:parent] = nodes.length
+            nodes << { freq: nodes[a][:freq] + nodes[b][:freq], parent: -1 }
           end
+
+          lengths = Array.new(freqs.length, 0)
+          freqs.each_index do |i|
+            len = 0
+            cur = i
+            while nodes[cur][:parent] != -1
+              cur = nodes[cur][:parent]
+              len += 1
+            end
+            lengths[i] = [len, 255].min
+          end
+          lengths
         end
 
-        # Limit code lengths to maximum
+        # Cap code lengths at max_len while preserving the Kraft
+        # inequality: shorten the longest codes and lengthen the
+        # shortest until the sum of 2^-len is <= 1.
         #
-        # Uses the package-merge algorithm concept to limit lengths.
-        #
-        # @param code_lengths [Array<Integer>] Original code lengths
-        # @param max_bits [Integer] Maximum code length
-        # @return [Array<Integer>] Limited code lengths
-        def self.limit_code_lengths(code_lengths, max_bits)
-          return code_lengths if code_lengths.nil? || code_lengths.empty?
+        # @param lengths [Array<Integer>] mutated in place
+        # @param max_len [Integer]
+        # @param freqs [Array<Integer>]
+        # @return [Array<Integer>]
+        def limit_lengths(lengths, max_len, freqs)
+          loop do
+            cur_max = lengths.max || 0
+            break if cur_max <= max_len
 
-          # Check if any length exceeds max
-          max_length = code_lengths.max || 0
-          return code_lengths if max_length <= max_bits
+            longest = nil
+            lengths.each_with_index do |l, i|
+              next unless l == cur_max
+              next if longest && freqs[i] >= freqs[longest]
 
-          # Limit using a simple approach: cap at max_bits and adjust
-          # This is a simplified implementation
-          lengths = code_lengths.map { |l| [l, max_bits].min }
+              longest = i
+            end
 
-          # Ensure Kraft inequality is satisfied
-          # Sum of 2^(-length) must be <= 1
-          kraft_sum = lengths.sum { |l| l.positive? ? 1 << (max_bits - l) : 0 }
-          max_kraft = 1 << max_bits
+            shortest = nil
+            lengths.each_with_index do |l, i|
+              next unless l.positive? && l < max_len
+              next if shortest && freqs[i] <= freqs[shortest]
 
-          if kraft_sum > max_kraft
-            # Need to increase some lengths
-            # This is simplified - a proper implementation would use package-merge
-            lengths = redistribute_lengths(lengths, max_bits)
+              shortest = i
+            end
+
+            if longest && shortest
+              lengths[longest] -= 1
+              lengths[shortest] += 1
+            else
+              lengths.map! { |l| [l, max_len].min }
+              break
+            end
+          end
+
+          loop do
+            kraft = lengths.sum { |l| l.positive? ? 2.0**-l : 0.0 }
+            break if kraft <= 1.0 + 1e-10
+
+            min_idx = nil
+            lengths.each_with_index do |l, i|
+              next unless l.positive? && l < max_len
+              next if min_idx && lengths[i] >= lengths[min_idx]
+
+              min_idx = i
+            end
+            break if min_idx.nil?
+
+            lengths[min_idx] += 1
           end
 
           lengths
         end
 
-        # Redistribute lengths to satisfy Kraft inequality
-        def self.redistribute_lengths(lengths, max_bits)
-          # Simplified: just cap at max_bits
-          lengths.map { |l| [l, max_bits].min }
-        end
-
-        # Build canonical Huffman codes from lengths
+        # Serialize the weight table. Direct 4-bit weights when the
+        # alphabet fits, FSE-compressed otherwise.
         #
-        # @param code_lengths [Array<Integer>] Code lengths for each symbol
-        # @return [Hash<Integer, Integer>] Symbol to code mapping
-        def self.build_canonical_codes(code_lengths)
-          codes = {}
-          return codes if code_lengths.nil? || code_lengths.empty?
+        # @param weights [Array<Integer>]
+        # @return [String]
+        def encode_weights(weights)
+          max_symbol = weights.rindex(&:positive?)
+          raise Omnizip::CompressionError, "no present Huffman weights" if max_symbol.nil?
 
-          max_length = code_lengths.compact.max || 0
-          return codes if max_length.zero?
-
-          # Count symbols at each length
-          bl_count = Array.new(max_length + 1, 0)
-          code_lengths.each do |length|
-            bl_count[length] += 1 if length&.positive?
-          end
-
-          # Calculate starting code for each length
-          code = 0
-          next_code = Array.new(max_length + 1, 0)
-          (1..max_length).each do |bits|
-            code = ((code + bl_count[bits - 1]) << 1)
-            next_code[bits] = code
-          end
-
-          # Assign codes to symbols
-          code_lengths.each_with_index do |length, symbol|
-            next if length.nil? || length.zero?
-
-            codes[symbol] = next_code[length]
-            next_code[length] += 1
-          end
-
-          codes
-        end
-
-        # Initialize Huffman encoder
-        #
-        # @param code_lengths [Array<Integer>] Code lengths
-        # @param codes [Hash<Integer, Integer>] Symbol to code mapping
-        # @param max_bits [Integer] Maximum code length
-        def initialize(code_lengths, codes, max_bits)
-          @code_lengths = code_lengths
-          @codes = codes
-          @max_bits = max_bits
-
-          # Build reverse lookup for encoding
-          @symbol_code = {}
-          @symbol_length = {}
-
-          codes.each do |symbol, code|
-            @symbol_code[symbol] = code
-            @symbol_length[symbol] = code_lengths[symbol]
-          end
-        end
-
-        # Encode data using Huffman codes
-        #
-        # @param data [String] Data to encode
-        # @return [String] Encoded bitstream
-        def encode(data)
-          return "" if data.nil? || data.empty?
-
-          bits = []
-
-          data.each_byte do |byte|
-            code = @symbol_code[byte]
-            length = @symbol_length[byte]
-
-            next unless code && length
-
-            # Write bits MSB first
-            length.times do |i|
-              bit = (code >> (length - 1 - i)) & 1
-              bits << bit
-            end
-          end
-
-          # Convert bit array to bytes
-          bits_to_bytes(bits)
-        end
-
-        # Encode Huffman table description for Zstandard
-        #
-        # Zstandard compresses Huffman weights using FSE.
-        #
-        # @return [String] Encoded Huffman table description
-        def encode_table_description
-          # Convert code lengths to weights
-          # Weight = max_bits - code_length + 1 (for non-zero lengths)
-          weights = @code_lengths.map do |length|
-            next 0 if length.nil? || length.zero?
-
-            @max_bits - length + 1
-          end
-
-          encode_weights_fse(weights)
-        end
-
-        private
-
-        # Encode weights using FSE compression
-        def encode_weights_fse(weights)
-          # Count non-zero weights
-          num_weights = weights.count(&:positive?)
-
-          if num_weights.zero?
-            # No symbols - empty table
-            return "\x00"
-          end
-
-          # Build header byte
-          # Bit 7: FSE compressed (1)
-          # Bits 0-6: depends on format
-
-          if num_weights <= 127
-            # Simple format: just the count
-            header = 0x80 | num_weights
-            header_bytes = [header].pack("C")
-
-            # Encode weights as FSE (simplified: just raw bytes for now)
-
+          if max_symbol <= 128
+            encode_weights_direct(weights, max_symbol)
           else
-            # Extended format
-            header = 0x80 | 127
-            header_bytes = [header, num_weights].pack("CC")
-
+            encode_weights_fse(weights, max_symbol)
           end
-          weight_bytes = weights.select(&:positive?).pack("C*")
-          header_bytes + weight_bytes
         end
 
-        # Convert bit array to bytes
-        def bits_to_bytes(bits)
-          # Pad to byte boundary
-          bits = bits.dup
-          while bits.length % 8 != 0
-            bits << 0
+        # Direct encoding: header byte 127 + o_size, then two 4-bit
+        # weights per byte. The last present weight is implied on
+        # decode and is dropped here.
+        def encode_weights_direct(weights, max_symbol)
+          o_size = max_symbol
+          i_size = 127 + o_size
+          out = [i_size].pack("C")
+
+          (0...o_size).step(2) do |n|
+            high = weights[n] & 0x0F
+            low = n + 1 < o_size ? weights[n + 1] & 0x0F : 0
+            out << ((high << 4) | low).chr
           end
 
-          bytes = []
-          bits.each_slice(8) do |byte_bits|
-            byte = 0
-            byte_bits.each_with_index do |bit, i|
-              byte |= (bit << (7 - i)) # MSB first for Huffman
+          out
+        end
+
+        # FSE-compressed weights (RFC 8878 §4.2.1.2): payload-size
+        # header byte, NCount, then the 2-state bitstream.
+        def encode_weights_fse(weights, max_symbol)
+          o_size = max_symbol
+          symbols = weights.first(o_size)
+
+          distinct = symbols.uniq.length
+          if distinct <= 1
+            raise Omnizip::CompressionError,
+                  "uniform Huffman weights give no compression"
+          end
+
+          encoder = FSE::Encoder.build_from_symbols(symbols, 11, 6)
+          if encoder.nil?
+            raise Omnizip::CompressionError,
+                  "uniform Huffman weights give no compression"
+          end
+
+          payload = encoder.compress(symbols)
+          if payload.bytesize >= 128
+            raise Omnizip::CompressionError,
+                  "FSE weight payload exceeds the 127-byte header limit"
+          end
+
+          [payload.bytesize].pack("C") + payload
+        end
+
+        # Encode literals as a Compressed_Literals_Block section:
+        # header + weights + coded stream(s).
+        #
+        # @param literals [String]
+        # @return [String]
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable Metrics/AbcSize
+        def encode_literals(literals)
+          weights = build_weights(literals)
+          # The wire format drops the last present weight (it is implied
+          # by the Kraft inequality on decode), so the coding table must
+          # be rebuilt exactly the way the decoder rebuilds it.
+          max_symbol = weights.rindex(&:positive?)
+          wire_weights = weights.first(max_symbol)
+          full_weights = wire_weights +
+            [HuffmanTableReader.implied_last_weight(wire_weights)]
+          table = Huffman.from_weights(full_weights)
+          encode_table = table.encode_table
+
+          weights_wire = encode_weights(weights)
+          lit_size = literals.bytesize
+
+          # Single stream (3-byte header) when both sizes fit 10 bits.
+          if lit_size < 1024
+            coded = encode_huffman_stream(encode_table, literals)
+            lit_c_size = weights_wire.bytesize + coded.bytesize
+            if lit_c_size < 1024
+              header = LITERALS_BLOCK_COMPRESSED |
+                (lit_size << 4) | (lit_c_size << 14)
+              return [header].pack("V")[0, 3] + weights_wire + coded
             end
-            bytes << byte
           end
 
-          bytes.pack("C*")
+          # 4 streams with a jump table.
+          segment_size = (lit_size + 3) / 4
+          segments = Array.new(4) do |i|
+            encode_huffman_stream(
+              encode_table,
+              literals.byteslice(segment_size * i, segment_size),
+            )
+          end
+
+          lit_c_size = weights_wire.bytesize + 6 + segments.sum(&:bytesize)
+
+          out = if lit_size < 1024 && lit_c_size < 1024
+                  header = LITERALS_BLOCK_COMPRESSED | (0b01 << 2) |
+                    (lit_size << 4) | (lit_c_size << 14)
+                  [header].pack("V")[0, 3]
+                elsif lit_size < 16_384 && lit_c_size < 16_384
+                  header = LITERALS_BLOCK_COMPRESSED | (0b10 << 2) |
+                    (lit_size << 4) | (lit_c_size << 18)
+                  [header].pack("V")[0, 4]
+                elsif lit_size < 262_144 && lit_c_size < 262_144
+                  low = LITERALS_BLOCK_COMPRESSED | (0b11 << 2) |
+                    (lit_size << 4) | ((lit_c_size & 0x3FF) << 22)
+                  [low].pack("V") + [(lit_c_size >> 10) & 0xFF].pack("C")
+                else
+                  raise Omnizip::CompressionError,
+                        "literals section exceeds the 18-bit header limits"
+                end
+
+          out + weights_wire +
+            segments.first(3).map { |s| [s.bytesize].pack("v") }.join +
+            segments.join
+        end
+        # rubocop:enable Metrics/AbcSize
+        # rubocop:enable Metrics/MethodLength
+
+        # Code literals into one reverse bitstream (C BIT_CStream
+        # direction): the encoder writes the last symbol first so the
+        # reverse reader recovers symbols in order.
+        #
+        # @param encode_table [Array<Array(Integer, Integer)>]
+        # @param literals [String]
+        # @return [String]
+        def encode_huffman_stream(encode_table, literals)
+          bitc = FSE::Encoder::BitCStream.new
+          (literals.bytesize - 1).downto(0) do |i|
+            code, len = encode_table[literals.getbyte(i)]
+            next if len.zero?
+
+            bitc.add_bits(code, len)
+            bitc.flush
+          end
+          bitc.close
         end
       end
     end

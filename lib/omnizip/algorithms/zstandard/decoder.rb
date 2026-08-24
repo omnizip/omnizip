@@ -23,61 +23,57 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # Pure Ruby Zstandard decoder (RFC 8878)
+      # Pure Ruby Zstandard decoder (RFC 8878).
       #
-      # Decodes Zstandard-compressed data according to RFC 8878.
+      # Pipeline:
       #
-      # Decoder pipeline:
-      # 1. Parse frame header
-      # 2. For each block:
-      #    a. Parse block header
-      #    b. Decode literals section
-      #    c. Decode sequences section
-      #    d. Execute sequences (LZ77 copy operations)
-      # 3. Verify content checksum if present
+      # 1. For each frame: parse the frame header and reset per-frame
+      #    state (repeat offsets, previous Huffman table, previous FSE
+      #    tables).
+      # 2. For each block: parse the 3-byte block header and dispatch on
+      #    the block type (raw copy, RLE expansion, or compressed =
+      #    literals + sequences).
+      # 3. Verify the optional content checksum: the low 32 bits of
+      #    XXHash64 over the decoded frame content.
       class Decoder
         include Constants
 
-        # @return [IO] Input stream
+        # @return [IO] input stream
         attr_reader :input_stream
 
-        # Initialize decoder
-        #
-        # @param input_stream [IO] Input stream of compressed data
         def initialize(input_stream)
           @input_stream = input_stream
-          @repeat_offsets = DEFAULT_REPEAT_OFFSETS.dup
+          @executor = SequenceExecutor.new
           @previous_huffman_table = nil
           @previous_fse_tables = {}
         end
 
-        # Decode compressed data stream
+        # Decode a complete stream (one or more concatenated frames).
         #
-        # @return [String] Decompressed data
+        # @return [String] decompressed data (binary)
         def decode_stream
+          data = read_all
           output = String.new(encoding: Encoding::BINARY)
+          pos = 0
 
           loop do
-            # Read magic number
-            magic = read_u32le
+            remaining = data.bytesize - pos
+            break if remaining.zero?
+            raise Omnizip::DecompressionError, "trailing bytes are not a frame" if remaining < 4
 
-            # Check for skippable frame
-            if skippable_frame?(magic)
-              skip_frame
+            magic = data.byteslice(pos, 4).unpack1("V")
+
+            if (magic & SKIPPABLE_MAGIC_MASK) == SKIPPABLE_MAGIC_BASE
+              pos = skip_skippable_frame(data, pos)
               next
             end
-
-            # Validate magic number
             unless magic == MAGIC_NUMBER
-              raise "Invalid Zstandard magic: 0x#{magic.to_s(16)}"
+              raise Omnizip::DecompressionError,
+                    "invalid Zstandard magic: 0x#{magic.to_s(16)}"
             end
 
-            # Parse frame
-            frame_output = decode_frame
+            frame_output, pos = decode_frame(data, pos + 4)
             output << frame_output
-
-            # Check for more frames
-            break if @input_stream.eof?
           end
 
           output
@@ -85,139 +81,108 @@ module Omnizip
 
         private
 
-        # Check if frame is skippable
-        def skippable_frame?(magic)
-          (magic & SKIPPABLE_MAGIC_MASK) == SKIPPABLE_MAGIC_BASE
+        def read_all
+          data = @input_stream.read
+          data ||= ""
+          data.dup.force_encoding(Encoding::BINARY)
         end
 
-        # Skip skippable frame
-        def skip_frame
-          # Read frame size (4 bytes)
-          size = read_u32le
-          @input_stream.seek(size, IO::SEEK_CUR)
+        def skip_skippable_frame(data, pos)
+          raise Omnizip::DecompressionError, "truncated skippable frame" if data.bytesize < pos + 8
+
+          size = data.byteslice(pos + 4, 4).unpack1("V")
+          end_pos = pos + 8 + size
+          if data.bytesize < end_pos
+            raise Omnizip::DecompressionError, "truncated skippable frame body"
+          end
+
+          end_pos
         end
 
-        # Read unsigned 32-bit little-endian
-        def read_u32le
-          bytes = @input_stream.read(4)
-          return 0 if bytes.nil? || bytes.length < 4
+        # Decode one frame (input positioned after the magic).
+        # Returns [frame_output, pos_after_frame].
+        def decode_frame(data, pos)
+          header, pos = Frame::Header.parse_from(data, pos)
 
-          bytes.unpack1("V")
-        end
+          # Reset per-frame state: repeat offsets, previous Huffman
+          # table, previous FSE tables.
+          @executor = SequenceExecutor.new
+          @previous_huffman_table = nil
+          @previous_fse_tables = {}
 
-        # Decode a single frame
-        def decode_frame
-          # Parse frame header
-          header = Frame::Header.parse(@input_stream)
-
-          # Calculate window size
-          calculate_window_size(header)
-
-          # Decode blocks
           output = String.new(encoding: Encoding::BINARY)
-
           loop do
-            block = Frame::Block.parse(@input_stream)
+            block, pos = Frame::Block.parse_from(data, pos)
+            if block.reserved?
+              raise Omnizip::DecompressionError,
+                    "reserved block type in frame"
+            end
 
-            # Decode block content
-            block_output = decode_block(block, header)
-            output << block_output
-
+            pos = decode_block(block, data, pos, output)
             break if block.last_block
           end
 
-          # Verify checksum if present
           if header.content_checksum?
-            verify_checksum(output)
+            if data.bytesize < pos + 4
+              raise Omnizip::DecompressionError, "truncated frame checksum"
+            end
+
+            expected = data.byteslice(pos, 4).unpack1("V")
+            actual = XXHash64.frame_checksum(output)
+            if expected != actual
+              raise Omnizip::DecompressionError,
+                    "frame checksum mismatch: stored 0x#{expected.to_s(16)}, " \
+                    "computed 0x#{actual.to_s(16)}"
+            end
+            pos += 4
           end
 
-          output
+          [output, pos]
         end
 
-        # Calculate window size from header
-        def calculate_window_size(header)
-          return BLOCK_MAX_SIZE if header.single_segment
-          return nil unless header.window_log
-
-          header.window_size || BLOCK_MAX_SIZE
-        end
-
-        # Decode a single block
-        def decode_block(block, _header)
+        def decode_block(block, data, pos, output)
           case block.block_type
           when BLOCK_TYPE_RAW
-            decode_raw_block(block)
+            if data.bytesize < pos + block.block_size
+              raise Omnizip::DecompressionError, "truncated raw block"
+            end
+
+            output << data.byteslice(pos, block.block_size)
+            pos + block.block_size
           when BLOCK_TYPE_RLE
-            decode_rle_block(block)
+            raise Omnizip::DecompressionError, "truncated RLE block" if data.bytesize < pos + 1
+
+            output << (data.getbyte(pos).chr * block.block_size)
+            pos + 1
           when BLOCK_TYPE_COMPRESSED
-            decode_compressed_block(block)
-          else
-            raise "Reserved block type: #{block.block_type}"
+            block_end = pos + block.block_size
+            if data.bytesize < block_end
+              raise Omnizip::DecompressionError, "truncated compressed block"
+            end
+
+            decode_compressed_block(data.byteslice(pos...block_end), output)
+            block_end
           end
         end
 
-        # Decode raw (uncompressed) block
-        def decode_raw_block(block)
-          @input_stream.read(block.block_size)
-        end
-
-        # Decode RLE block
-        def decode_rle_block(block)
-          byte = @input_stream.read(1)
-          byte * block.block_size
-        end
-
-        # Decode compressed block
-        def decode_compressed_block(_block)
-          # Record start position for calculating remaining bytes
-          @input_stream.pos
-
-          # Decode literals section
-          literals_decoder = LiteralsDecoder.decode(@input_stream,
+        def decode_compressed_block(block_input, output)
+          literals_decoder = LiteralsDecoder.decode(block_input,
                                                     @previous_huffman_table)
-          literals = literals_decoder.literals
-          @previous_huffman_table = literals_decoder.huffman_table
+          @previous_huffman_table = literals_decoder.huffman_table ||
+            @previous_huffman_table
 
-          # Decode sequences section
-          sequences_decoder = SequencesDecoder.decode(@input_stream,
-                                                      literals.bytesize,
-                                                      @previous_fse_tables)
-          sequences = sequences_decoder.sequences
+          sequences_decoder = SequencesDecoder.decode(
+            block_input.byteslice(literals_decoder.consumed..),
+            @previous_fse_tables,
+            @executor,
+          )
+          # Merge: Repeat-mode tables are not re-emitted, so the entries
+          # carried from earlier blocks must survive.
+          @previous_fse_tables =
+            @previous_fse_tables.merge(sequences_decoder.fse_tables)
 
-          # Execute sequences to produce output
-          if sequences.empty?
-            # No sequences - literals are the output
-            literals
-          else
-            SequenceExecutor.execute(literals, sequences)
-          end
-        end
-
-        # Verify content checksum
-        def verify_checksum(output)
-          # Read checksum (4 bytes)
-          checksum_bytes = @input_stream.read(4)
-          return unless checksum_bytes && checksum_bytes.length == 4
-
-          expected = checksum_bytes.unpack1("V")
-          calculated = xxhash32(output)
-
-          if calculated != expected
-            warn "Zstandard checksum mismatch (expected #{expected}, got #{calculated})"
-          end
-        end
-
-        # Calculate XXHash32 checksum (simplified)
-        def xxhash32(data, seed = 0)
-          # Simplified XXHash32 - for checksum verification only
-          # Full implementation would use proper XXHash32 algorithm
-          hash = seed
-
-          data.each_byte do |byte|
-            hash = ((hash << 5) + hash + byte) & 0xFFFFFFFF
-          end
-
-          hash
+          @executor.execute(literals_decoder.literals,
+                            sequences_decoder.sequences, output)
         end
       end
     end

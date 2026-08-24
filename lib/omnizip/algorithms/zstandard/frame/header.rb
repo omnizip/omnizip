@@ -63,24 +63,41 @@ module Omnizip
           # @param input [IO] Input stream positioned at frame header
           # @return [Header] Parsed header
           def self.parse(input)
-            descriptor = input.read(1).ord
+            parse_from(input.read, 0).first
+          end
+
+          # Parse frame header from a byte string.
+          #
+          # @param data [String]
+          # @param pos [Integer] offset of the descriptor byte
+          # @return [Array(Header, Integer)] header and position after
+          #   the header
+          def self.parse_from(data, pos)
+            descriptor = data.getbyte(pos)
 
             header = new(descriptor)
+            offset = pos + 1
 
-            # Parse optional fields based on descriptor bits
             if header.window_descriptor?
-              header.parse_window_descriptor(input)
+              header.parse_window_descriptor_byte(data.getbyte(offset))
+              offset += 1
             end
 
             if header.dictionary_id?
-              header.parse_dictionary_id(input)
+              size = header.dictionary_id_size
+              bytes = data.byteslice(offset, size)
+              offset += size
+              header.assign_dictionary_id(bytes)
             end
 
             if header.content_size?
-              header.parse_content_size(input)
+              size = header.content_size_size
+              bytes = data.byteslice(offset, size)
+              offset += size
+              header.assign_content_size(bytes)
             end
 
-            header
+            [header, offset]
           end
 
           # Initialize with descriptor byte
@@ -96,6 +113,7 @@ module Omnizip
             @dictionary_id_flag = descriptor & 0x03
 
             @window_log = nil
+            @window_mantissa = 0
             @dictionary_id = nil
             @content_size = nil
             @header_size = 1
@@ -165,53 +183,48 @@ module Omnizip
 
           # Get window size
           #
+          # windowAdd = (windowBase / 8) * Mantissa (RFC 8878
+          # §3.1.1.1.2); the mantissa occupies descriptor bits 0-2 and
+          # the exponent bits 3-7.
+          #
           # @return [Integer, nil] Window size or nil if not applicable
           def window_size
             return nil unless @window_log
 
-            @window_log - 10
-            mantissa = @window_log < 22 ? (@window_log - 10) : (@window_log - 11)
-            (1 << @window_log) + (mantissa << (@window_log - 4))
+            window_base = 1 << @window_log
+            window_base + ((window_base / 8) * @window_mantissa)
           end
 
           # Parse window descriptor byte
-          def parse_window_descriptor(input)
-            byte = input.read(1).ord
-            exponent = (byte >> 3) & 0x1F
-            byte & 0x07
-            @window_log = 10 + exponent
+          def parse_window_descriptor_byte(byte)
+            @window_mantissa = byte & 0x07
+            @window_log = 10 + ((byte >> 3) & 0x1F)
             @header_size += 1
           end
 
-          # Parse dictionary ID (variable size)
-          def parse_dictionary_id(input)
-            size = dictionary_id_size
-            bytes = input.read(size)
-
-            @dictionary_id = case size
+          # Assign the dictionary ID from its wire bytes.
+          def assign_dictionary_id(bytes)
+            @dictionary_id = case bytes.bytesize
                              when 1 then bytes.ord
                              when 2 then bytes.unpack1("v")
                              when 4 then bytes.unpack1("V")
                              end
 
-            @header_size += size
+            @header_size += bytes.bytesize
           end
 
-          # Parse content size (variable size)
-          def parse_content_size(input)
-            size = content_size_size
-            bytes = input.read(size)
-
-            @content_size = case size
+          # Assign the content size from its wire bytes.
+          def assign_content_size(bytes)
+            @content_size = case bytes.bytesize
                             when 1 then bytes.ord
-                            when 2 then bytes.unpack1("v")
+                            when 2 then bytes.unpack1("v") + 256
                             when 4 then bytes.unpack1("V")
                             when 8
                               low, high = bytes.unpack("VV")
                               low + (high << 32)
                             end
 
-            @header_size += size
+            @header_size += bytes.bytesize
           end
         end
       end

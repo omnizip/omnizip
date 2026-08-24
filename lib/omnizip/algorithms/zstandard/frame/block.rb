@@ -60,6 +60,23 @@ module Omnizip
             new(last_block, block_type, block_size, raw)
           end
 
+          # Parse block header from a byte string.
+          #
+          # @param data [String]
+          # @param pos [Integer] offset of the 3-byte header
+          # @return [Array(Block, Integer)] block and position after the
+          #   header
+          def self.parse_from(data, pos)
+            raw = data.getbyte(pos) |
+              (data.getbyte(pos + 1) << 8) |
+              (data.getbyte(pos + 2) << 16)
+            last_block = raw.allbits?(0x01)
+            block_type = (raw >> 1) & 0x03
+            block_size = (raw >> 3) & 0x1FFFFF
+
+            [new(last_block, block_type, block_size, raw), pos + 3]
+          end
+
           # Initialize with parsed values
           #
           # @param last_block [Boolean]

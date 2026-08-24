@@ -23,11 +23,30 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # FSE (Finite State Entropy) module namespace
+      # FSE (Finite State Entropy) namespace (RFC 8878 §4.1).
       module FSE
         autoload :BitStream, "omnizip/algorithms/zstandard/fse/bitstream"
-        autoload :Encoder, "omnizip/algorithms/zstandard/fse/encoder"
         autoload :Table, "omnizip/algorithms/zstandard/fse/table"
+        autoload :TableDescription,
+                 "omnizip/algorithms/zstandard/fse/table_description"
+        autoload :Interleaved, "omnizip/algorithms/zstandard/fse/interleaved"
+        autoload :Encoder, "omnizip/algorithms/zstandard/fse/encoder"
+
+        module_function
+
+        # Read an FSE table description from the head of `src`.
+        #
+        # @return [Array(Table, Integer)] table and bytes consumed
+        def read_table(src)
+          TableDescription.read(src)
+        end
+
+        # Decode a 2-state interleaved FSE stream.
+        #
+        # @return [Array<Integer>]
+        def decode_stream(table, bitstream_bytes, max_output)
+          Interleaved.decode_stream(table, bitstream_bytes, max_output)
+        end
       end
     end
   end

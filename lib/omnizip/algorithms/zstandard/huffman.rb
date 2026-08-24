@@ -23,245 +23,252 @@
 module Omnizip
   module Algorithms
     class Zstandard
-      # Huffman decoding for Zstandard (RFC 8878 Section 4.2)
+      # Huffman coding for Zstandard literals (RFC 8878 §4.2).
       #
-      # Zstandard uses FSE-compressed Huffman weights followed by
-      # canonical Huffman decoding.
+      # Zstandard does NOT use symbol-ordered canonical Huffman. The
+      # decode table groups symbols by weight: all weight-1 symbols
+      # occupy the first DTable entries, then weight-2, and so on, with
+      # ascending symbol order inside each group. A symbol with weight
+      # w has code length (tableLog + 1 - w) and occupies (1 << w) >> 1
+      # consecutive DTable entries.
       class Huffman
         include Constants
 
-        # @return [Hash<Integer, Array<Integer>>] Code to symbol mapping
-        attr_reader :decode_table
+        DecodeEntry = Struct.new(:symbol, :nb_bits)
 
-        # @return [Integer] Maximum code length
-        attr_reader :max_bits
+        # @return [Array<Integer>] per-symbol weights (0 = absent)
+        attr_reader :weights
 
-        # Build Huffman table from weights
+        # @return [Integer] table log (max code length in this tree)
+        attr_reader :table_log
+
+        # Build a decode table from per-symbol weights.
         #
-        # @param weights [Array<Integer>] Symbol weights (0 means not present)
-        # @param max_bits [Integer] Maximum code length
-        # @return [Huffman] Built Huffman decoder
-        def self.build_from_weights(weights, max_bits = HUFFMAN_MAX_BITS)
-          # Convert weights to code lengths
-          code_lengths = calculate_code_lengths(weights, max_bits)
-
-          # Build canonical Huffman codes
-          codes = build_canonical_codes(code_lengths)
-
-          # Build decode table: code -> [symbol, length]
-          decode_table = {}
-          code_lengths.each_with_index do |length, symbol|
-            next if length.nil? || length.zero?
-
-            code = codes[symbol]
-            decode_table[code] = [symbol, length]
-          end
-
-          new(decode_table, max_bits)
+        # @param weights [Array<Integer>] one entry per symbol
+        # @return [Huffman]
+        def self.from_weights(weights)
+          table_log = compute_table_log(weights)
+          new(weights, table_log)
         end
 
-        # Calculate code lengths from weights
-        #
-        # Weight 0 means symbol is not present.
-        # Higher weights mean shorter codes.
-        #
-        # @param weights [Array<Integer>] Symbol weights
-        # @param max_bits [Integer] Maximum code length
-        # @return [Array<Integer>] Code lengths
-        def self.calculate_code_lengths(weights, max_bits)
-          return [] if weights.nil? || weights.empty?
-
-          # Find max weight
-          max_weight = weights.max || 0
-          return Array.new(weights.length, 0) if max_weight.zero?
-
-          # Convert weights to code lengths
-          # Higher weight = shorter code length
-          weights.map do |weight|
-            next 0 if weight.nil? || weight.zero?
-
-            # Code length = max_weight - weight + 1
-            [max_weight - weight + 1, max_bits].min
-          end
+        def initialize(weights, table_log)
+          @weights = weights
+          @table_log = table_log
+          @lookup = nil
         end
 
-        # Build canonical Huffman codes from lengths
+        # Decode one symbol from a reverse bitstream (peek max_bits,
+        # look up, consume the code's length).
         #
-        # @param code_lengths [Array<Integer>] Code lengths for each symbol
-        # @return [Hash<Integer, Integer>] Symbol to code mapping
-        def self.build_canonical_codes(code_lengths)
-          codes = {}
-          return codes if code_lengths.nil? || code_lengths.empty?
-
-          max_length = code_lengths.compact.max || 0
-
-          # Count symbols at each length
-          bl_count = Array.new(max_length + 1, 0)
-          code_lengths.each do |length|
-            bl_count[length] += 1 if length&.positive?
-          end
-
-          # Calculate starting code for each length
-          code = 0
-          next_code = Array.new(max_length + 1, 0)
-          (1..max_length).each do |bits|
-            code = ((code + bl_count[bits - 1]) << 1)
-            next_code[bits] = code
-          end
-
-          # Assign codes to symbols
-          code_lengths.each_with_index do |length, symbol|
-            next if length.nil? || length.zero?
-
-            codes[symbol] = next_code[length]
-            next_code[length] += 1
-          end
-
-          codes
-        end
-
-        # Initialize Huffman decoder
-        #
-        # @param decode_table [Hash] Code to [symbol, length] mapping
-        # @param max_bits [Integer] Maximum code length
-        def initialize(decode_table, max_bits)
-          @decode_table = decode_table
-          @max_bits = max_bits
-
-          # Build lookup table for faster decoding
-          build_lookup_table
-        end
-
-        # Decode a symbol from bitstream
-        #
-        # @param bitstream [FSE::ForwardBitStream] The bitstream to read from
-        # @return [Integer] Decoded symbol
+        # @param bitstream [FSE::BitStream]
+        # @return [Integer] decoded symbol byte
         def decode(bitstream)
-          return 0 if @lookup_table.nil? || @lookup_table.empty?
+          entry = lookup[bitstream.peek_bits(HUFFMAN_MAX_BITS)]
+          if entry.nil? || entry.nb_bits.zero?
+            raise Omnizip::DecompressionError,
+                  "Huffman lookup miss: no code for the next bits"
+          end
 
-          # Peek max_bits bits
-          code = 0
-          bits_read = 0
+          bitstream.read_bits(entry.nb_bits)
+          entry.symbol
+        end
 
-          (@max_bits || 1).times do
-            bit = read_single_bit_forward(bitstream)
-            code = (code << 1) | bit
-            bits_read += 1
+        # Build the flat 1 << HUFFMAN_MAX_BITS lookup table.
+        #
+        # @return [Array<DecodeEntry>]
+        def lookup
+          @lookup ||= begin
+            table_size = 1 << @table_log
+            dtable = Array.new(table_size) { DecodeEntry.new(0, 0) }
+            max_weight = @weights.max || 0
 
-            # Check if this code exists in our table
-            if @decode_table.key?(code)
-              expected_length = @decode_table[code][1]
-              if bits_read == expected_length
-                return @decode_table[code][0]
+            pos = 0
+            (1..max_weight).each do |w|
+              length = @table_log + 1 - w
+              entries_per_symbol = (1 << w) >> 1
+              @weights.each_with_index do |sw, sym|
+                next unless sw == w
+
+                entry = DecodeEntry.new(sym, length)
+                entries_per_symbol.times do
+                  if pos < table_size
+                    dtable[pos] = entry
+                    pos += 1
+                  end
+                end
               end
             end
-          end
 
-          # Fallback: try lookup table
-          symbol = @lookup_table[code]
-          return symbol if symbol
-
-          0
-        end
-
-        private
-
-        # Build lookup table for fast decoding
-        def build_lookup_table
-          @lookup_table = {}
-
-          return if @decode_table.nil? || @decode_table.empty?
-
-          @decode_table.each do |code, (symbol, length)|
-            # For codes shorter than max_bits, fill all variations
-            padding_bits = (@max_bits || 1) - length
-            next if padding_bits.negative?
-
-            (1 << padding_bits).times do |padding|
-              full_code = (code << padding_bits) | padding
-              @lookup_table[full_code] = symbol
+            expand = 1 << (HUFFMAN_MAX_BITS - @table_log)
+            lookup = []
+            table_size.times do |i|
+              expand.times { lookup << dtable[i] }
             end
+            while lookup.length < (1 << HUFFMAN_MAX_BITS)
+              lookup << DecodeEntry.new(0, 0)
+            end
+            lookup
           end
         end
 
-        # Read a single bit in forward order (MSB first)
-        def read_single_bit_forward(bitstream)
-          bitstream.read_bits(1)
+        # Per-symbol (code, length) table for encoding, indexed by
+        # symbol value. Absent symbols map to (0, 0).
+        #
+        # @return [Array<Array(Integer, Integer)>]
+        def encode_table
+          @encode_table ||= begin
+            codes = Array.new(@weights.length) { [0, 0] }
+            max_weight = @weights.max || 0
+            dtable_pos = 0
+            (1..max_weight).each do |w|
+              length = @table_log + 1 - w
+              entries_per_symbol = (1 << w) >> 1
+              @weights.each_with_index do |sw, sym|
+                next unless sw == w
+
+                code = dtable_pos >> (@table_log - length)
+                codes[sym] = [code, length]
+                dtable_pos += entries_per_symbol
+              end
+            end
+            codes.fill([0, 0], codes.length..255)
+            codes
+          end
+        end
+
+        # Derive tableLog from the Kraft sum of the weights
+        # (C reference HUF_readStats).
+        #
+        # @return [Integer]
+        def self.compute_table_log(weights)
+          if weights.empty? || weights.all?(0)
+            raise Omnizip::DecompressionError,
+                  "Huffman weights: no present symbols"
+          end
+
+          weight_total = weights.sum { |w| w.positive? ? (1 << w) >> 1 : 0 }
+          if weight_total.zero?
+            raise Omnizip::DecompressionError, "Huffman weight total is 0"
+          end
+
+          table_log = if weight_total.nobits?(weight_total - 1)
+                        Constants.highbit32(weight_total)
+                      else
+                        Constants.highbit32(weight_total) + 1
+                      end
+          if table_log > HUFFMAN_MAX_BITS
+            raise Omnizip::DecompressionError,
+                  "Huffman tableLog #{table_log} exceeds max #{HUFFMAN_MAX_BITS}"
+          end
+
+          table_log
         end
       end
 
-      # Huffman table reader (RFC 8878 Section 4.2.1)
-      #
-      # Reads compressed Huffman table description from input.
+      # Reads a Huffman tree description from the wire (RFC 8878
+      # §4.2.1) and builds a Huffman decode table.
       class HuffmanTableReader
         include Constants
 
-        # Read Huffman table from input
+        # Read the table from the head of `src`.
         #
-        # @param input [IO] Input stream positioned at Huffman description
-        # @return [Huffman] Huffman decoder
-        def self.read(input)
-          reader = new(input)
-          reader.read_table
+        # @param src [String]
+        # @return [Array(Huffman, Integer)] table and bytes consumed
+        def self.read(src)
+          raise Omnizip::DecompressionError, "empty Huffman header" if src.empty?
+
+          i_size = src.getbyte(0)
+          weights, consumed =
+            if i_size >= 128
+              read_direct_weights(src)
+            else
+              read_fse_compressed_weights(src)
+            end
+
+          [Huffman.from_weights(weights), consumed]
         end
 
-        def initialize(input)
-          @input = input
-        end
-
-        # Read and build Huffman table
-        #
-        # @return [Huffman] Huffman decoder
-        def read_table
-          # Read header
-          header = @input.read(1).ord
-
-          # FSE compressed or raw weights?
-          fse_compressed = header.anybits?(0x80)
-
-          if fse_compressed
-            read_fse_compressed_weights(header)
-          else
-            read_raw_weights(header)
+        # Direct 4-bit weights: byte 0 is 127 + o_size, then
+        # (o_size + 1) / 2 bytes holding two nibbles each.
+        def self.read_direct_weights(src)
+          i_size = src.getbyte(0)
+          o_size = i_size - 127
+          packed_bytes = (o_size + 1) / 2
+          needed = 1 + packed_bytes
+          if src.bytesize < needed
+            raise Omnizip::DecompressionError,
+                  "truncated direct Huffman weights: need #{needed} bytes"
           end
-        end
-
-        private
-
-        # Read FSE-compressed weights
-        def read_fse_compressed_weights(header)
-          # Read accuracy log (4 bits)
-          (header & 0x1F) + 5
-
-          # Read number of symbols (if header bit 6 is set)
-          # For simplicity, assume 256 symbols
-          num_symbols = 256
-
-          # Read compressed weights using FSE
-          # This is a simplified implementation
-          weights = Array.new(num_symbols, 0)
-
-          # For now, use uniform weights as fallback
-          Huffman.build_from_weights(weights, HUFFMAN_MAX_BITS)
-        end
-
-        # Read raw (uncompressed) weights
-        def read_raw_weights(header)
-          # Header byte: 0b0RHHHHH
-          # R = repeat flag (not used in basic implementation)
-          # HHHHH = header byte
-
-          # Read number of weights
-          num_weights = header & 0x3F
-          num_weights = 256 if num_weights.zero?
 
           weights = []
-          num_weights.times do
-            byte = @input.read(1)&.ord || 0
-            weights << byte
+          (0...o_size).step(2) do |n|
+            byte = src.getbyte(1 + (n / 2))
+            weights << (byte >> 4)
+            weights << (byte & 0x0F) if n + 1 < o_size
           end
 
-          Huffman.build_from_weights(weights, HUFFMAN_MAX_BITS)
+          weights << implied_last_weight(weights)
+          [weights, needed]
+        end
+
+        # FSE-compressed weights: byte 0 is the payload size, followed
+        # by an FSE table description and a 2-state interleaved
+        # bitstream (RFC 8878 §4.2.1.2).
+        def self.read_fse_compressed_weights(src)
+          i_size = src.getbyte(0)
+          if 1 + i_size > src.bytesize
+            raise Omnizip::DecompressionError,
+                  "truncated FSE Huffman weights: need #{1 + i_size} bytes"
+          end
+
+          payload = src.byteslice(1, i_size)
+          table, consumed = FSE.read_table(payload)
+          bitstream = payload.byteslice(consumed..)
+
+          weights = FSE.decode_stream(table, bitstream, HUF_SYMBOLVALUE_MAX)
+          weights << implied_last_weight(weights)
+          [weights, 1 + i_size]
+        end
+
+        # Compute the implied last weight via the Kraft inequality:
+        # sum(2^(w-1)) over all symbols equals 1 << tableLog.
+        def self.implied_last_weight(weights)
+          weight_total = 0
+          weights.each do |w|
+            if w > HUFFMAN_MAX_LOG
+              raise Omnizip::DecompressionError,
+                    "Huffman weight #{w} exceeds tableLog max"
+            end
+
+            weight_total += (1 << w) >> 1
+          end
+          if weight_total.zero?
+            raise Omnizip::DecompressionError, "Huffman weights sum to 0"
+          end
+
+          table_log = Constants.highbit32(weight_total) + 1
+          if table_log > HUFFMAN_MAX_LOG
+            raise Omnizip::DecompressionError,
+                  "Huffman tableLog #{table_log} exceeds max"
+          end
+
+          rest = (1 << table_log) - weight_total
+          if rest.zero?
+            raise Omnizip::DecompressionError,
+                  "Huffman weights already complete; no implied weight"
+          end
+          unless rest.nobits?(rest - 1)
+            raise Omnizip::DecompressionError,
+                  "Huffman implied weight remainder #{rest} is not a power of 2"
+          end
+
+          last_weight = Constants.highbit32(rest) + 1
+          if last_weight > HUFFMAN_MAX_LOG
+            raise Omnizip::DecompressionError,
+                  "Huffman implied weight #{last_weight} exceeds max"
+          end
+
+          last_weight
         end
       end
     end
