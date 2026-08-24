@@ -114,7 +114,7 @@ module Omnizip
           # Secondary normalization (C FSE_normalizeM2), used when the
           # primary method's largest-symbol correction would be too big.
           # rubocop:disable Metrics/MethodLength
-          # rubocop:disable Metrics/AbcSize
+          # rubocop:disable-next Metrics/AbcSize
           def self.normalize_m2(norm, table_log, count, total, max_symbol_value,
                                 low_prob_count)
             table_size = 1 << table_log
@@ -192,14 +192,13 @@ module Omnizip
               tmp_total = end_v
             end
           end
-          # rubocop:enable Metrics/AbcSize
           # rubocop:enable Metrics/MethodLength
 
           # Choose an accuracy log for the given source size and alphabet.
           #
           # Direct port of C FSE_optimalTableLog; the branch ladder is
           # inherent to the algorithm.
-          # rubocop:disable Metrics/AbcSize
+          # rubocop:disable-next Metrics/AbcSize
           def self.optimal_table_log(max_table_log, src_size, max_symbol_value)
             return FSE_MIN_ACCURACY_LOG if src_size <= 1
 
@@ -215,7 +214,6 @@ module Omnizip
             table_log = min_bits if min_bits > table_log
             table_log.clamp(FSE_MIN_ACCURACY_LOG, FSE_MAX_ACCURACY_LOG)
           end
-          # rubocop:enable Metrics/AbcSize
 
           # Build from raw symbols: normalize + store.
           #
@@ -251,7 +249,7 @@ module Omnizip
           #
           # @return [String]
           # rubocop:disable Metrics/MethodLength
-          # rubocop:disable Metrics/AbcSize
+          # rubocop:disable-next Metrics/AbcSize
           def write_ncount
             out = []
             table_size = 1 << @table_log
@@ -334,7 +332,6 @@ module Omnizip
 
             out.pack("C*")
           end
-          # rubocop:enable Metrics/AbcSize
           # rubocop:enable Metrics/MethodLength
 
           # Encode `symbols` into a 2-state interleaved reverse
@@ -508,7 +505,7 @@ module Omnizip
 
             # Initialize to the baseline for the first symbol to encode
             # (the last to decode); C FSE_initCState2.
-            # rubocop:disable Metrics/AbcSize
+            # rubocop:disable-next Metrics/AbcSize
             def self.init2(table, symbol)
               s_tt = table.symbol_tt[symbol]
               nb_bits_out = (s_tt.delta_nb_bits + (1 << 15)) >> 16
@@ -516,7 +513,6 @@ module Omnizip
               idx = (value >> nb_bits_out) + s_tt.delta_find_state
               new(table.state_table[idx], table.table_log)
             end
-            # rubocop:enable Metrics/AbcSize
 
             def encode(bitc, table, symbol)
               s_tt = table.symbol_tt[symbol]

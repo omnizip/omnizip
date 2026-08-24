@@ -228,7 +228,7 @@ module Omnizip
         # @param literals [String]
         # @return [String]
         # rubocop:disable Metrics/MethodLength
-        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable-next Metrics/AbcSize
         def encode_literals(literals)
           weights = build_weights(literals)
           # The wire format drops the last present weight (it is implied
@@ -287,7 +287,6 @@ module Omnizip
             segments.first(3).map { |s| [s.bytesize].pack("v") }.join +
             segments.join
         end
-        # rubocop:enable Metrics/AbcSize
         # rubocop:enable Metrics/MethodLength
 
         # Code literals into one reverse bitstream (C BIT_CStream
