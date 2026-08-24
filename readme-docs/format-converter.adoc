@@ -48,19 +48,14 @@ Omnizip::Converter.convert('archive.7z', 'archive.zip')
 ----
 # Convert with compression settings
 Omnizip::Converter.convert('source.zip', 'target.7z',
-  algorithm: :lzma2,
-  level: 9,
+  compression: :lzma2,
+  compression_level: 9,
   solid: true
 )
 
 # Convert and delete source
 Omnizip::Converter.convert('source.zip', 'target.7z',
   delete_source: true
-)
-
-# Convert with progress tracking
-Omnizip::Converter.convert('large.zip', 'large.7z',
-  progress: ->(pct) { puts "Progress: #{pct}%" }
 )
 ----
 
@@ -76,7 +71,7 @@ sources = Dir.glob('backups/*.zip')
 Omnizip::Converter.batch_convert(
   sources,
   target_format: :seven_zip,
-  level: 9
+  compression_level: 9
 ) do |result|
   puts "Converted: #{result.source} -> #{result.target}"
   puts "  Time: #{result.duration}s"
@@ -130,20 +125,16 @@ result = strategy.convert
 ----
 options = Omnizip::Models::ConversionOptions.new(
   # Target compression settings
-  algorithm: :lzma2,          # Compression algorithm
-  level: 9,                   # Compression level (1-9)
+  compression: :lzma2,        # Compression algorithm
+  compression_level: 9,       # Compression level (1-9)
   solid: true,                # Solid compression (7z only)
-  
+
   # Filters
-  filter: :bcj_x86,          # Preprocessing filter
-  
+  filter: :bcj_x86,           # Preprocessing filter
+
   # Behavior options
   delete_source: false,       # Delete source after conversion
-  overwrite: false,           # Overwrite existing target
-  preserve_timestamps: true,  # Keep original timestamps
-  
-  # Progress tracking
-  progress: nil              # Progress callback
+  preserve_metadata: true     # Carry Unix permissions across
 )
 
 Omnizip::Converter.convert_with_options('source.zip', 'target.7z', options)
@@ -193,8 +184,8 @@ def optimize_backups(backup_dir)
     sevenz_file = zip_file.sub('.zip', '.7z')
     
     result = Omnizip::Converter.convert(zip_file, sevenz_file,
-      algorithm: :lzma2,
-      level: 9,
+      compression: :lzma2,
+      compression_level: 9,
       solid: true,
       delete_source: true
     )
@@ -225,8 +216,8 @@ def convert_for_compatibility(source_dir, target_dir)
     
     puts "Converting: #{basename}"
     result = Omnizip::Converter.convert(sevenz_file, zip_file,
-      algorithm: :deflate,
-      level: 6
+      compression: :deflate,
+      compression_level: 6
     )
     
     if result.success?
@@ -250,8 +241,8 @@ def smart_convert(source_file)
   
   # Try conversion with maximum compression
   result = Omnizip::Converter.convert(source_file, target_file,
-    algorithm: :lzma2,
-    level: 9,
+    compression: :lzma2,
+    compression_level: 9,
     solid: true
   )
   

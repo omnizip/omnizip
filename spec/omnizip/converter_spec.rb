@@ -61,6 +61,12 @@ RSpec.describe Omnizip::Converter do
 
       expect(result).to be_a(Omnizip::Models::ConversionResult)
     end
+
+    it "raises for a mistyped option key instead of ignoring it" do
+      expect do
+        described_class.convert(test_zip.path, output_7z.path, level: 9)
+      end.to raise_error(ArgumentError, /Unknown option\(s\): level/)
+    end
   end
 
   describe ".supported?" do
@@ -92,26 +98,65 @@ RSpec.describe Omnizip::Converter do
     end
 
     it "validates options" do
-      expect { subject.validate }.not_to raise_error
+      expect { subject.validate_options! }.not_to raise_error
+    end
+
+    it "keeps the inherited lutaml validate! callable on a valid instance" do
+      expect { subject.validate! }.not_to raise_error
     end
 
     it "rejects invalid formats" do
       subject.target_format = :invalid
       expect do
-        subject.validate
+        subject.validate_options!
       end.to raise_error(ArgumentError, /Invalid target format/)
     end
 
     it "rejects invalid compression levels" do
       subject.compression_level = 10
       expect do
-        subject.validate
+        subject.validate_options!
       end.to raise_error(ArgumentError, /Invalid compression level/)
     end
 
     it "converts to hash" do
-      hash = subject.to_h
-      expect(hash).to include(:target_format, :compression, :compression_level)
+      expect(subject.to_hash).to eq(
+        "source_format" => nil,
+        "target_format" => :seven_zip,
+        "compression" => nil,
+        "compression_level" => 5,
+        "filter" => nil,
+        "preserve_metadata" => true,
+        "temp_directory" => nil,
+        "solid" => true,
+        "delete_source" => false,
+      )
+    end
+
+    it "keeps every key when values are explicitly nil" do
+      options = described_class.new(
+        source_format: nil,
+        target_format: nil,
+        compression: nil,
+        compression_level: nil,
+        filter: nil,
+        preserve_metadata: nil,
+        temp_directory: nil,
+        solid: nil,
+        delete_source: nil,
+      )
+
+      expect(options.to_hash).to eq(
+        "source_format" => nil,
+        "target_format" => nil,
+        "compression" => nil,
+        "compression_level" => nil,
+        "filter" => nil,
+        "preserve_metadata" => nil,
+        "temp_directory" => nil,
+        "solid" => nil,
+        "delete_source" => nil,
+      )
     end
   end
 

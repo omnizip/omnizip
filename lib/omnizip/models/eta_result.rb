@@ -4,15 +4,23 @@
 # Copyright (C) 2025 Ribose Inc.
 #
 
+require "lutaml/model"
+
 module Omnizip
   module Models
     # Model representing an ETA (Estimated Time to Arrival) calculation result.
     #
     # This class encapsulates the result of ETA calculations, including
     # seconds remaining, formatted time string, and confidence interval.
-    class ETAResult
-      attr_accessor :seconds_remaining, :formatted, :confidence_lower,
-                    :confidence_upper
+    #
+    # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
+    class ETAResult < Lutaml::Model::Serializable
+      # No mapping block: the default mapping already omits unassigned
+      # attributes, which is what the previous +to_h+ did with +.compact+.
+      attribute :seconds_remaining, :float
+      attribute :formatted, :string
+      attribute :confidence_lower, :float
+      attribute :confidence_upper, :float
 
       # Get confidence interval as array
       #
@@ -31,15 +39,6 @@ module Omnizip
 
         range = confidence_upper - confidence_lower
         range < (seconds_remaining * 0.5)
-      end
-
-      def to_h
-        {
-          seconds_remaining: @seconds_remaining,
-          formatted: @formatted,
-          confidence_lower: @confidence_lower,
-          confidence_upper: @confidence_upper,
-        }.compact
       end
     end
   end

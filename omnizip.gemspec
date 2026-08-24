@@ -41,7 +41,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "base64", "~> 0.2"
   spec.add_dependency "bindata", "~> 2.4"
   spec.add_dependency "cabriolet", "~> 0.2", ">= 0.2.4"
-  spec.add_dependency "lutaml-model", "~> 0.7"
+  # 0.8 is the floor, not a preference. Before it, the :symbol attribute type
+  # is unregistered and `default:` lambdas are evaluated against the class,
+  # so ConversionOptions and ParallelOptions both fail to build.
+  spec.add_dependency "lutaml-model", "~> 0.8"
   spec.add_dependency "marcel", "~> 1.0"
   spec.add_dependency "rexml", "~> 3.3"
 end
