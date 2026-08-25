@@ -490,7 +490,15 @@ num_files)
 
         def compress_with_lzma2(data)
           # Use 7-Zip SDK LZMA2 encoder for 7-Zip format
+          #
+          # The encoder dictionary is sized to the data but never
+          # exceeds the size announced in the coder properties
+          # (options default 8MB): the decoder allocates its window
+          # from the announced size, so a larger encoder dictionary
+          # could emit matches reading outside the decoder window.
+          announced = @options[:dict_size] || (8 * 1024 * 1024)
           dict_size = [4096, data.bytesize].max
+          dict_size = announced if announced < dict_size
 
           encoder = Omnizip::Implementations::SevenZip::LZMA2::Encoder.new(
             dict_size: dict_size,
