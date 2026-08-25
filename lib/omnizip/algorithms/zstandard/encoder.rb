@@ -121,26 +121,49 @@ module Omnizip
             is_last = block_end == data.bytesize
             chunk = data.byteslice(offset, block_end - offset)
 
-            if chunk.bytesize >= 4 && rle_chunk?(chunk)
-              write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RLE,
-                                 chunk.bytesize)
-              @output_stream.putc(chunk.getbyte(0))
-            else
-              seq_store = MatchFinder::SeqStore.new(reps.dup)
-              MatchFinder.compress_range(data, offset, block_end, seq_store,
-                                         ms, params[:min_match],
-                                         params[:lazy], ldm, max_distance)
-              content, new_reps = try_compressed(seq_store, reps)
-              if content.nil?
-                write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RAW,
-                                   chunk.bytesize)
-                @output_stream.write(chunk)
+            # Adaptive splitting (port of the Rust reference): a
+            # heterogeneous chunk — first and second halves' byte
+            # distributions diverge — is split into 16 KiB sub-blocks
+            # so each Huffman/FSE table fits its region; homogeneous
+            # chunks keep the single block and its minimal header
+            # overhead.
+            step = if chunk.bytesize >= 32 * 1024 &&
+                halves_diverge(chunk)
+                     16 * 1024
+                   else
+                     chunk.bytesize
+                   end
+
+            sub = offset
+            while sub < block_end
+              sub_end = [sub + step, block_end].min
+              sub_last = is_last && sub_end == block_end
+              sub_chunk = data.byteslice(sub, sub_end - sub)
+
+              if sub_chunk.bytesize >= 4 && rle_chunk?(sub_chunk)
+                write_block_header(sub_last ? 1 : 0, BLOCK_TYPE_RLE,
+                                   sub_chunk.bytesize)
+                @output_stream.putc(sub_chunk.getbyte(0))
               else
-                write_block_header(is_last ? 1 : 0, BLOCK_TYPE_COMPRESSED,
-                                   content.bytesize)
-                @output_stream.write(content)
-                reps = new_reps
+                seq_store = MatchFinder::SeqStore.new(reps.dup)
+                MatchFinder.compress_range(data, sub, sub_end, seq_store,
+                                           ms, params[:min_match],
+                                           params[:lazy], ldm, max_distance)
+                content, new_reps = try_compressed(seq_store, reps)
+                if content.nil?
+                  write_block_header(sub_last ? 1 : 0, BLOCK_TYPE_RAW,
+                                     sub_chunk.bytesize)
+                  @output_stream.write(sub_chunk)
+                else
+                  write_block_header(sub_last ? 1 : 0,
+                                     BLOCK_TYPE_COMPRESSED,
+                                     content.bytesize)
+                  @output_stream.write(content)
+                  reps = new_reps
+                end
               end
+
+              sub = sub_end
             end
 
             offset = block_end
@@ -150,6 +173,22 @@ module Omnizip
 
         def write_empty_last_block
           write_block_header(1, BLOCK_TYPE_RAW, 0)
+        end
+
+        # Whether the byte distributions of a chunk's halves diverge
+        # (total-variation sum above 0.5 = "different content
+        # regimes", per the Rust reference).
+        def halves_diverge(chunk)
+          mid = chunk.bytesize / 2
+          ha = Array.new(256, 0)
+          hb = Array.new(256, 0)
+          chunk.byteslice(0, mid).each_byte { |b| ha[b] += 1 }
+          chunk.byteslice(mid, chunk.bytesize - mid).each_byte { |b| hb[b] += 1 }
+          la = mid.to_f
+          lb = (chunk.bytesize - mid).to_f
+          tvd = 0.0
+          256.times { |i| tvd += ((ha[i] / la) - (hb[i] / lb)).abs }
+          tvd > 0.5
         end
 
         # Build a Compressed_Block content: literals section plus the
