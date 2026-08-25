@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "stringio"
+
 # Copyright (C) 2025 Ribose Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -58,6 +60,7 @@ module Omnizip
                "omnizip/algorithms/zstandard/sequences_encoder"
       autoload :MatchFinder, "omnizip/algorithms/zstandard/match_finder"
       autoload :LdmHashTable, "omnizip/algorithms/zstandard/ldm"
+      autoload :Dictionary, "omnizip/algorithms/zstandard/dictionary"
       autoload :XXHash64, "omnizip/algorithms/zstandard/xxhash"
 
       # Frame and FSE modules
@@ -99,6 +102,54 @@ module Omnizip
         decoder = Decoder.new(input_stream)
         decompressed = decoder.decode_stream
         output_stream.write(decompressed)
+      end
+
+      # Compress data primed with a dictionary prefix: the dictionary
+      # content acts as shared history the match finder can reference,
+      # dramatically improving ratios on small inputs. The resulting
+      # frame carries the dictionary's ID and requires
+      # decompress_with_dict to decode.
+      #
+      # @param input_stream [IO] plaintext
+      # @param output_stream [IO] compressed frame
+      # @param dict [Dictionary]
+      # @param options [Hash] :level, :checksum
+      # @return [void]
+      def compress_with_dict(input_stream, output_stream, dict, options = {})
+        encoder = Encoder.new(output_stream, build_encoder_options(options))
+        encoder.encode_stream_with_dict(input_stream.read, dict)
+      end
+
+      # Decompress a frame produced by compress_with_dict. The frame's
+      # dictionary ID is verified against `dict` before decoding.
+      #
+      # @param input_stream [IO] compressed frame
+      # @param output_stream [IO] plaintext
+      # @param dict [Dictionary]
+      # @return [void]
+      def decompress_with_dict(input_stream, output_stream, dict)
+        output_stream.set_encoding(Encoding::BINARY)
+        decoder = Decoder.new(input_stream)
+        output_stream.write(decoder.decode_stream_with_dict(dict))
+      end
+
+      # Class-level convenience mirrors of the dictionary API.
+      #
+      # @return [String] compressed frame / decompressed plaintext
+      def self.compress_with_dict(data, dict, **options)
+        output = StringIO.new
+        output.set_encoding(Encoding::BINARY)
+        new(options).compress_with_dict(
+          StringIO.new(data.to_s.b), output, dict, options
+        )
+        output.string
+      end
+
+      def self.decompress_with_dict(data, dict)
+        output = StringIO.new
+        output.set_encoding(Encoding::BINARY)
+        new.decompress_with_dict(StringIO.new(data.to_s.b), output, dict)
+        output.string
       end
 
       private

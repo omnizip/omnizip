@@ -88,6 +88,18 @@ module Omnizip
           def disable_chain
             @max_chain = 0
           end
+
+          # Seed the hash table with a prefix's positions (dictionary
+          # content prepended to the plaintext): the most recent
+          # position per hash wins, matching insert order.
+          def seed_prefix(src, prefix_len)
+            return if prefix_len < MIN_MATCH
+
+            limit = prefix_len - MIN_MATCH + 1
+            (0...limit).each do |pos|
+              @hash_table[MatchFinder.hash4(src, pos, @hash_log)] = pos
+            end
+          end
         end
 
         module_function

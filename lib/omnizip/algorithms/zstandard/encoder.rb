@@ -58,42 +58,83 @@ module Omnizip
           write_frame(data)
         end
 
+        # Encode a data stream primed with a dictionary prefix (port
+        # of the Rust encode_frame_with_dict): the dictionary content
+        # is prepended as virtual history, the match finder is seeded
+        # with its positions, and only the plaintext is emitted.
+        # Frame_Content_Size and the checksum cover the plaintext
+        # only; the frame header carries the dictionary's ID and
+        # requires the dict-aware decoder.
+        #
+        # @param data [String]
+        # @param dict [Dictionary]
+        def encode_stream_with_dict(data, dict)
+          data = data.dup.force_encoding(Encoding::BINARY)
+          virtual = dict.content + data
+          prefix_len = dict.content.bytesize
+
+          write_u32le(MAGIC_NUMBER)
+          write_frame_header(data, dict.id)
+          write_blocks(virtual, prefix_len)
+          write_u32le(XXHash64.frame_checksum(data)) if @checksum
+        end
+
         private
 
-        def write_frame(data)
+        def write_frame(data, dict = nil)
           write_u32le(MAGIC_NUMBER)
-          write_frame_header(data)
+          write_frame_header(data, dict && dict.id)
           write_blocks(data)
           write_u32le(XXHash64.frame_checksum(data)) if @checksum
         end
 
-        # Single-segment frame header: no window descriptor, no
-        # dictionary; Frame_Content_Size in 1, 2, 4 or 8 bytes.
-        def write_frame_header(data)
+        # Single-segment frame header: no window descriptor;
+        # optional Dictionary_ID, then Frame_Content_Size in 1, 2, 4
+        # or 8 bytes.
+        def write_frame_header(data, dict_id = nil)
+          did_flag, did_bytes = dict_id_encoding(dict_id)
+
           size = data.bytesize
           if size < 256
-            @output_stream.putc(0x20) # single segment, FCS 1 byte
+            @output_stream.putc(0x20 | did_flag) # single segment, FCS 1 byte
+            write_dict_id_bytes(did_bytes)
             @output_stream.putc(size)
           elsif size <= 65_791
-            @output_stream.putc(0x60) # single segment, FCS 2 bytes (+256)
+            @output_stream.putc(0x60 | did_flag) # single segment, FCS 2 bytes
+            write_dict_id_bytes(did_bytes)
             write_u16le(size - 256)
           elsif size <= 0xFFFFFFFF
-            @output_stream.putc(0xA0) # single segment, FCS 4 bytes
+            @output_stream.putc(0xA0 | did_flag) # single segment, FCS 4 bytes
+            write_dict_id_bytes(did_bytes)
             write_u32le(size)
           else
-            @output_stream.putc(0xE0) # single segment, FCS 8 bytes
+            @output_stream.putc(0xE0 | did_flag) # single segment, FCS 8 bytes
+            write_dict_id_bytes(did_bytes)
             write_u64le(size)
           end
         end
 
+        def dict_id_encoding(dict_id)
+          return [0, "".b] if dict_id.nil? || dict_id.zero?
+          return [1, [dict_id].pack("C")] if dict_id <= 0xFF
+          return [2, [dict_id].pack("v")] if dict_id <= 0xFFFF
+
+          [3, [dict_id].pack("V")]
+        end
+
+        def write_dict_id_bytes(bytes)
+          @output_stream.write(bytes)
+        end
+
         # rubocop:disable Metrics/MethodLength
         # rubocop:disable-next Metrics/AbcSize
-        def write_blocks(data)
-          return write_empty_last_block if data.empty?
+        def write_blocks(data, start = 0)
+          return write_empty_last_block if data.bytesize <= start
 
           params = MatchFinder.params_for_level(@level, data.bytesize)
           ms = MatchFinder::MatchState.new(params[:hash_log])
           ms.enable_chain(params[:chain]) if params[:chain].positive?
+          ms.seed_prefix(data, start) if start.positive?
 
           # LDM (long-distance matching) at high levels on multi-block
           # inputs: a sparse table over the whole frame finds matches
@@ -115,7 +156,7 @@ module Omnizip
           # untouched.
           reps = [1, 4, 8]
 
-          offset = 0
+          offset = start
           while offset < data.bytesize
             block_end = [offset + BLOCK_MAX_SIZE, data.bytesize].min
             is_last = block_end == data.bytesize

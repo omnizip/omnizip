@@ -79,6 +79,35 @@ module Omnizip
           output
         end
 
+        # Decode a stream produced by a dictionary-primed encoder: the
+        # dictionary's content primes the reconstruction window of
+        # frames carrying its ID (verified; mismatch raises).
+        #
+        # @param dict [Dictionary]
+        # @return [String] decompressed data (binary)
+        def decode_stream_with_dict(dict)
+          data = read_all
+          output = String.new(encoding: Encoding::BINARY)
+          pos = 0
+
+          loop do
+            remaining = data.bytesize - pos
+            break if remaining.zero?
+            raise Omnizip::DecompressionError, "trailing bytes are not a frame" if remaining < 4
+
+            magic = data.byteslice(pos, 4).unpack1("V")
+            unless magic == MAGIC_NUMBER
+              raise Omnizip::DecompressionError,
+                    "invalid Zstandard magic: 0x#{magic.to_s(16)}"
+            end
+
+            frame_output, pos = decode_frame(data, pos + 4, dict)
+            output << frame_output
+          end
+
+          output
+        end
+
         private
 
         def read_all
@@ -101,8 +130,15 @@ module Omnizip
 
         # Decode one frame (input positioned after the magic).
         # Returns [frame_output, pos_after_frame].
-        def decode_frame(data, pos)
+        #
+        # With a dictionary prefix, the reconstruction window is
+        # primed with the dictionary content so sequences can
+        # back-reference it; the prefix is verified (checksum) and
+        # stripped from the returned output.
+        def decode_frame(data, pos, dict = nil)
           header, pos = Frame::Header.parse_from(data, pos)
+          verify_dictionary_id(header, dict)
+          prefix = dict&.content
 
           # Reset per-frame state: repeat offsets, previous Huffman
           # table, previous FSE tables.
@@ -111,6 +147,7 @@ module Omnizip
           @previous_fse_tables = {}
 
           output = String.new(encoding: Encoding::BINARY)
+          output << prefix if prefix
           loop do
             block, pos = Frame::Block.parse_from(data, pos)
             if block.reserved?
@@ -128,7 +165,9 @@ module Omnizip
             end
 
             expected = data.byteslice(pos, 4).unpack1("V")
-            actual = XXHash64.frame_checksum(output)
+            actual = XXHash64.frame_checksum(
+              prefix ? output.byteslice(prefix.bytesize..) : output,
+            )
             if expected != actual
               raise Omnizip::DecompressionError,
                     "frame checksum mismatch: stored 0x#{expected.to_s(16)}, " \
@@ -137,9 +176,29 @@ module Omnizip
             pos += 4
           end
 
-          [output, pos]
+          frame_output = prefix ? output.byteslice(prefix.bytesize..) : output
+          [frame_output, pos]
         end
 
+        # A frame that carries a Dictionary_ID must be decoded with a
+        # dictionary of the same ID; a mismatched or missing
+        # dictionary would silently garble every back-reference.
+        def verify_dictionary_id(header, dict)
+          return unless header.dictionary_id?
+
+          frame_id = header.dictionary_id
+          if dict.nil?
+            raise Omnizip::DecompressionError,
+                  "frame requires dictionary #{frame_id}, none supplied"
+          end
+          return if dict.id == frame_id
+
+          raise Omnizip::DecompressionError,
+                "frame requires dictionary #{frame_id}, got #{dict.id}"
+        end
+
+        # Decode one block into `output`. Returns the position after
+        # the block's payload.
         def decode_block(block, data, pos, output)
           case block.block_type
           when BLOCK_TYPE_RAW
