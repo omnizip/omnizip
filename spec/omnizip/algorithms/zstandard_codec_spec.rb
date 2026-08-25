@@ -316,6 +316,58 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
     end
   end
 
+  describe "LDM (long-distance matching)" do
+    it "finds a match at a 50 KB distance through the sparse table" do
+      data = "\0" * 100_000
+      pattern = (0...256).map { |i| i % 251 }.pack("C*")
+      data[0, 256] = pattern
+      data[50_000, 256] = pattern
+
+      ldm = described_class::LdmHashTable.new(100_000, 20, 64)
+      (0...data.bytesize).each { |pos| ldm.insert(data, pos) }
+
+      match = ldm.find_match(data, 50_000, 0xFFFFFFFF, 4, 100_000)
+      expect(match).not_to be_nil
+      expect(match[0]).to eq(50_000)
+      expect(match[1]).to be >= 200
+    end
+
+    it "rarely matches pseudo-random data" do
+      data = (0...10_000).map { |i| ((i * 2_654_435_761) >> 16) & 0xFF }
+        .pack("C*")
+      ldm = described_class::LdmHashTable.new(10_000, 16, 64)
+      (0...data.bytesize).each { |pos| ldm.insert(data, pos) }
+
+      matches = (0...data.bytesize).count do |pos|
+        !ldm.find_match(data, pos, 0xFFFFFFFF, 4, 10_000).nil?
+      end
+      expect(matches).to be < data.bytesize / 10
+    end
+
+    it "round-trips multi-block data at LDM levels" do
+      # Over one block: LDM is engaged at levels >= 19 and must
+      # still produce decodable frames (cross-block long matches).
+      data = ("lorem ipsum dolor sit amet " * 6_000) +
+        ("x" * 5_000) + ("lorem ipsum dolor sit amet " * 6_000)
+      [19, 22].each do |level|
+        compressed = described_class.compress(data, level: level)
+        expect(described_class.decompress(compressed)).to eq(data)
+      end
+    end
+
+    it "beats the non-LDM ratio on repeated far-apart content" do
+      # The same paragraph repeated with a block of random noise in
+      # between: only long-distance matching can tie the copies
+      # together across the 128 KiB block boundary.
+      rng = Random.new(11)
+      paragraph = ("sed do eiusmod tempor incididunt " * 2_500)
+      data = paragraph + rng.bytes(70_000) + paragraph
+      low = described_class.compress(data, level: 3)
+      high = described_class.compress(data, level: 19)
+      expect(high.bytesize).to be < low.bytesize
+    end
+  end
+
   describe "encoder interop with the zstd CLI" do
     before { skip "zstd CLI not available" unless has_zstd_cli }
 

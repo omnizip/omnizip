@@ -57,6 +57,7 @@ module Omnizip
       autoload :SequencesEncoder,
                "omnizip/algorithms/zstandard/sequences_encoder"
       autoload :MatchFinder, "omnizip/algorithms/zstandard/match_finder"
+      autoload :LdmHashTable, "omnizip/algorithms/zstandard/ldm"
       autoload :XXHash64, "omnizip/algorithms/zstandard/xxhash"
 
       # Frame and FSE modules

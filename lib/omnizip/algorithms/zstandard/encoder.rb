@@ -95,6 +95,21 @@ module Omnizip
           ms = MatchFinder::MatchState.new(params[:hash_log])
           ms.enable_chain(params[:chain]) if params[:chain].positive?
 
+          # LDM (long-distance matching) at high levels on multi-block
+          # inputs: a sparse table over the whole frame finds matches
+          # beyond the 128 KiB block window. Chains are disabled —
+          # the chain table is block-sized and LDM provides the
+          # long-distance coverage instead (Rust reference behavior).
+          ldm = nil
+          max_distance = BLOCK_MAX_SIZE
+          if @level >= LDM_MIN_LEVEL && data.bytesize > BLOCK_MAX_SIZE
+            window_log = data.bytesize.bit_length.clamp(10, 31)
+            ldm = LdmHashTable.new(data.bytesize, window_log)
+            (0...data.bytesize).each { |pos| ldm.insert(data, pos) }
+            ms.disable_chain
+            max_distance = data.bytesize
+          end
+
           # Wire repeat-offset state carried across blocks; matches the
           # decoder's executor state. Raw and RLE blocks leave it
           # untouched.
@@ -114,7 +129,7 @@ module Omnizip
               seq_store = MatchFinder::SeqStore.new(reps.dup)
               MatchFinder.compress_range(data, offset, block_end, seq_store,
                                          ms, params[:min_match],
-                                         params[:lazy])
+                                         params[:lazy], ldm, max_distance)
               content, new_reps = try_compressed(seq_store, reps)
               if content.nil?
                 write_block_header(is_last ? 1 : 0, BLOCK_TYPE_RAW,
