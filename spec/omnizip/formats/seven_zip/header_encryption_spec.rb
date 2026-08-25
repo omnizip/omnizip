@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "omnizip/formats/seven_zip"
+require "openssl"
 require "tempfile"
 require "fileutils"
 
