@@ -316,6 +316,67 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
     end
   end
 
+  describe "dictionary compression" do
+    let(:dict) do
+      rng = Random.new(11)
+      words = %w[user id name email address phone created updated]
+      corpus = Array.new(2_000) do
+        "#{words.sample(rng.rand(3) + 3).join(':')}\n"
+      end.join
+      described_class::Dictionary.from_raw(0x2A, corpus)
+    end
+
+    it "round-trips dictionary serialization" do
+      d2 = described_class::Dictionary.deserialize(dict.serialize)
+      expect(d2.id).to eq(0x2A)
+      expect(d2.content).to eq(dict.content)
+    end
+
+    it "rejects bad dictionary magic and short blobs" do
+      expect do
+        described_class::Dictionary.deserialize("junk")
+      end.to raise_error(Omnizip::DecompressionError)
+    end
+
+    it "round-trips small inputs through the dictionary path" do
+      rng = Random.new(12)
+      words = %w[user id name email address phone created updated]
+      samples = [
+        "user:name:email\nuser:id:phone\n",
+        Array.new(200) { "#{words.sample(3 + rng.rand(3)).join(':')}\n" }.join,
+        "token:session:created\n" * 40,
+        "",
+        "x",
+      ]
+      samples.each do |sample|
+        compressed = described_class
+          .compress_with_dict(sample, dict, checksum: true)
+        expect(described_class.decompress_with_dict(compressed, dict))
+          .to eq(sample)
+      end
+    end
+
+    it "beats plain compression on dictionary-like input" do
+      sample = ("user:name:email\n" * 50) + ("address:phone:created\n" * 50)
+      plain = described_class.compress(sample)
+      with_dict = described_class.compress_with_dict(sample, dict)
+      expect(with_dict.bytesize).to be < plain.bytesize
+    end
+
+    it "rejects a mismatched or missing dictionary" do
+      compressed = described_class
+        .compress_with_dict("user:name\n", dict)
+      expect do
+        described_class.decompress_with_dict(
+          compressed, described_class::Dictionary.from_raw(0x99, "x")
+        )
+      end.to raise_error(Omnizip::DecompressionError)
+      expect do
+        described_class.decompress(compressed)
+      end.to raise_error(Omnizip::DecompressionError)
+    end
+  end
+
   describe "LDM (long-distance matching)" do
     it "finds a match at a 50 KB distance through the sparse table" do
       data = "\0" * 100_000
