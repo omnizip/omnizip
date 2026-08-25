@@ -85,6 +85,10 @@ module Omnizip
         MAX_LEVEL = 22
         DEFAULT_LEVEL = 3
 
+        # Long-distance matching kicks in at this level for inputs
+        # larger than one block (Btultra2 in the C strategy table).
+        LDM_MIN_LEVEL = 19
+
         # Buffer size for streaming operations
         BUFFER_SIZE = 128 * 1024 # 128KB
 

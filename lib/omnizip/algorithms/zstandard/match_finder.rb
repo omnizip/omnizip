@@ -163,7 +163,8 @@ module Omnizip
         # rubocop:disable Metrics/CyclomaticComplexity
         # rubocop:disable-next Metrics/PerceivedComplexity
         def compress_range(src, block_start, block_end, seq_store, ms,
-                           min_match, lazy)
+                           min_match, lazy, ldm = nil,
+                           max_distance = BLOCK_MAX_SIZE)
           mm = [min_match, MIN_MATCH_ECONOMICAL].max
           span = block_end - block_start
           if span < mm + 1
@@ -177,7 +178,11 @@ module Omnizip
           limit = block_end - mm
 
           while ip < limit
-            match = if lazy.zero?
+            match = if ldm
+                      find_match_ldm(src, ip, ms, mm, limit, anchor,
+                                     seq_store.rep_offsets[0], ldm,
+                                     max_distance)
+                    elsif lazy.zero?
                       find_greedy_match(src, ip, ms, mm, limit, anchor,
                                         seq_store.rep_offsets[0])
                     else
@@ -190,7 +195,12 @@ module Omnizip
                 (1..lazy).each do |k|
                   next unless ip + k < limit
 
-                  m2 = probe_match(src, ip + k, ms, mm, limit)
+                  m2 = if ldm
+                         probe_match(src, ip + k, ms, mm, limit, ldm,
+                                     max_distance)
+                       else
+                         probe_match(src, ip + k, ms, mm, limit)
+                       end
                   if m2 && m2[1] > len + k
                     defer = true
                     break
@@ -223,6 +233,22 @@ module Omnizip
         # rubocop:enable Metrics/CyclomaticComplexity
         # rubocop:enable Metrics/AbcSize
         # rubocop:enable Metrics/MethodLength
+
+        # LDM-mode match search (port of the Rust
+        # compress_block_lazy2_with_ldm loop body): rep0 fast-path
+        # first, then the normal hash probe merged with the LDM
+        # table. Returns [offset, length, start] or nil.
+        def find_match_ldm(src, ip, ms, min_match, limit, anchor, rep0,
+                           ldm, max_distance)
+          m = rep0_match(src, ip, rep0, min_match, limit, anchor)
+          return m if m
+
+          dist, len = find_best_match(src, ip, ms, min_match, limit,
+                                      ldm, max_distance)
+          return nil unless dist
+
+          [dist, len, ip]
+        end
 
         # Greedy-path match search (port of the Rust
         # compress_block_with_min_match): the rep0 fast-path first
@@ -280,7 +306,8 @@ module Omnizip
         # rubocop:disable Metrics/MethodLength
         # rubocop:disable Metrics/AbcSize
         # rubocop:disable Metrics/CyclomaticComplexity
-        def find_best_match(src, ip, ms, min_match, limit)
+        def find_best_match(src, ip, ms, min_match, limit, ldm = nil,
+                            max_distance = BLOCK_MAX_SIZE)
           size = src.bytesize
           return nil if ip + MIN_MATCH > size
 
@@ -300,7 +327,7 @@ module Omnizip
             break if candidate.zero? || candidate >= ip
 
             dist = ip - candidate
-            break if dist >= BLOCK_MAX_SIZE
+            break if dist >= max_distance
             break if candidate + MIN_MATCH > size
 
             if src.byteslice(ip, MIN_MATCH) == src.byteslice(candidate, MIN_MATCH)
@@ -319,6 +346,15 @@ module Omnizip
             candidate = ms.chain[candidate]
           end
 
+          if ldm
+            lm = ldm.find_match(src, ip, max_distance, min_match,
+                                limit + min_match)
+            if lm && lm[1] > best_len
+              best_len = lm[1]
+              best_dist = lm[0]
+            end
+          end
+
           return nil if best_len < min_match
 
           [best_dist, best_len]
@@ -333,23 +369,39 @@ module Omnizip
         #
         # rubocop:disable Metrics/AbcSize
         # rubocop:disable Metrics/CyclomaticComplexity
-        def probe_match(src, ip, ms, min_match, limit)
+        def probe_match(src, ip, ms, min_match, limit, ldm = nil,
+                        max_distance = BLOCK_MAX_SIZE)
           size = src.bytesize
           return nil if ip + MIN_MATCH > size
 
           candidate = ms.hash_table[hash4(src, ip, ms.hash_log)]
-          return nil if candidate.zero? || candidate >= ip
 
-          dist = ip - candidate
-          return nil if dist >= BLOCK_MAX_SIZE
-          return nil if candidate + MIN_MATCH > size
-          return nil if src.byteslice(ip, MIN_MATCH) !=
-            src.byteslice(candidate, MIN_MATCH)
+          best_len = 0
+          best_dist = 0
+          if candidate.positive? && candidate < ip
+            dist = ip - candidate
+            if dist < max_distance && candidate + MIN_MATCH <= size &&
+                src.byteslice(ip, MIN_MATCH) == src.byteslice(candidate, MIN_MATCH)
+              best_len = MIN_MATCH + count_match(
+                src, ip + MIN_MATCH, src, candidate + MIN_MATCH,
+                [limit + MIN_MATCH_ECONOMICAL - ip - MIN_MATCH, 0].max
+              )
+              best_dist = dist
+            end
+          end
 
-          m_len = MIN_MATCH + count_match(src, ip + MIN_MATCH,
-                                          src, candidate + MIN_MATCH,
-                                          [limit + MIN_MATCH_ECONOMICAL - ip - MIN_MATCH, 0].max)
-          m_len >= min_match ? [dist, m_len] : nil
+          if ldm
+            lm = ldm.find_match(src, ip, max_distance, min_match,
+                                limit + min_match)
+            if lm && lm[1] > best_len
+              best_len = lm[1]
+              best_dist = lm[0]
+            end
+          end
+
+          return nil if best_len < min_match
+
+          [best_dist, best_len]
         end
         # rubocop:enable Metrics/AbcSize
         # rubocop:enable Metrics/CyclomaticComplexity
