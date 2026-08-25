@@ -178,15 +178,18 @@ module Omnizip
           limit = block_end - mm
 
           while ip < limit
-            match = if ldm
+            match = if ldm || lazy.positive?
+                      # Lazy levels share the LDM loop's rep0 fast-path
+                      # (with backward extension): without it, levels
+                      # 6+ measured worse than the greedy default level
+                      # because every rep-offset match paid full offset
+                      # coding.
                       find_match_ldm(src, ip, ms, mm, limit, anchor,
                                      seq_store.rep_offsets[0], ldm,
                                      max_distance)
-                    elsif lazy.zero?
+                    else
                       find_greedy_match(src, ip, ms, mm, limit, anchor,
                                         seq_store.rep_offsets[0])
-                    else
-                      find_best_match(src, ip, ms, mm, limit)
                     end
             if match
               dist, len = match
@@ -247,7 +250,8 @@ module Omnizip
                                       ldm, max_distance)
           return nil unless dist
 
-          [dist, len, ip]
+          back = backward_extension(src, ip, anchor, ip - dist)
+          [dist, len + back, ip - back]
         end
 
         # Greedy-path match search (port of the Rust
