@@ -177,7 +177,12 @@ module Omnizip
           limit = block_end - mm
 
           while ip < limit
-            match = find_best_match(src, ip, ms, mm, limit)
+            match = if lazy.zero?
+                      find_greedy_match(src, ip, ms, mm, limit, anchor,
+                                        seq_store.rep_offsets[0])
+                    else
+                      find_best_match(src, ip, ms, mm, limit)
+                    end
             if match
               dist, len = match
               defer = false
@@ -198,6 +203,7 @@ module Omnizip
                 next
               end
 
+              ip = match[2] if match.length == 3
               seq_store.literals << src.byteslice(anchor, ip - anchor)
               seq_store.sequences <<
                 RawSequence.new(ip - anchor, len, dist)
@@ -217,6 +223,55 @@ module Omnizip
         # rubocop:enable Metrics/CyclomaticComplexity
         # rubocop:enable Metrics/AbcSize
         # rubocop:enable Metrics/MethodLength
+
+        # Greedy-path match search (port of the Rust
+        # compress_block_with_min_match): the rep0 fast-path first
+        # (cheapest offset to encode), then the hash table — both
+        # with backward extension into the pending literals. Returns
+        # [offset, length, start] or nil.
+        def find_greedy_match(src, ip, ms, min_match, limit, anchor, rep0)
+          m = rep0_match(src, ip, rep0, min_match, limit, anchor)
+          return m if m
+
+          dist, len = find_best_match(src, ip, ms, min_match, limit)
+          return nil unless dist
+
+          back = backward_extension(src, ip, anchor, ip - dist)
+          [dist, len + back, ip - back]
+        end
+
+        # Match at distance rep0 (the decoder's most recent offset)
+        # with forward and backward extension. [rep0, length, start]
+        # or nil.
+        #
+        # rubocop:disable-next Metrics/AbcSize
+        def rep0_match(src, ip, rep0, min_match, limit, anchor)
+          return nil if rep0 <= 0 || ip <= rep0
+          return nil if src.byteslice(ip, MIN_MATCH) !=
+            src.byteslice(ip - rep0, MIN_MATCH)
+
+          m_len = MIN_MATCH + count_match(
+            src, ip + MIN_MATCH, src, ip + MIN_MATCH - rep0,
+            [limit + MIN_MATCH_ECONOMICAL - ip - MIN_MATCH, 0].max
+          )
+          back = backward_extension(src, ip, anchor, ip - rep0)
+          m_len += back
+          return nil if m_len < min_match
+
+          [rep0, m_len, ip - back]
+        end
+
+        # Bytes before `ip` (and before the match candidate) that
+        # extend the match backward, bounded by the pending literal
+        # run so the previous sequence is never overlapped.
+        def backward_extension(src, ip, anchor, candidate)
+          back = 0
+          while ip > anchor + back && candidate > back &&
+              src.getbyte(ip - 1 - back) == src.getbyte(candidate - 1 - back)
+            back += 1
+          end
+          back
+        end
 
         # Find the best match at `ip` (single probe, or a chain walk
         # when enabled). Updates the hash table. Returns

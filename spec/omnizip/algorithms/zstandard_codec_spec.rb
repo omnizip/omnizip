@@ -272,8 +272,10 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
     it "beats Huffman-only ratios on text (matches are encoded)" do
       compressed = described_class.compress(text)
       # Huffman literals alone bottom out near 0.49 on this corpus;
-      # sequence encoding brings it below 0.30.
-      expect(compressed.bytesize.to_f / text.bytesize).to be < 0.30
+      # sequence encoding brings it below 0.30, and the greedy path's
+      # rep0 fast-path + backward extension bring it under 0.17
+      # (reference zstd -3: 0.136).
+      expect(compressed.bytesize.to_f / text.bytesize).to be < 0.17
     end
 
     it "round-trips across levels through our decoder" do
