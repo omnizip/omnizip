@@ -131,11 +131,29 @@ module Omnizip
             min_match: MIN_MATCH_ECONOMICAL }
         end
 
-        def hash4(src, pos, h_bits)
-          v = src.getbyte(pos) |
+        # Allocation-free little-endian reads; the hot loops call
+        # these millions of times, and String#byteslice + unpack1
+        # showed up as half the encoder's time via GC pressure.
+        def read4(src, pos)
+          src.getbyte(pos) |
             (src.getbyte(pos + 1) << 8) |
             (src.getbyte(pos + 2) << 16) |
             (src.getbyte(pos + 3) << 24)
+        end
+
+        def read8(src, pos)
+          src.getbyte(pos) |
+            (src.getbyte(pos + 1) << 8) |
+            (src.getbyte(pos + 2) << 16) |
+            (src.getbyte(pos + 3) << 24) |
+            (src.getbyte(pos + 4) << 32) |
+            (src.getbyte(pos + 5) << 40) |
+            (src.getbyte(pos + 6) << 48) |
+            (src.getbyte(pos + 7) << 56)
+        end
+
+        def hash4(src, pos, h_bits)
+          v = read4(src, pos)
           # 32-bit wrapping multiply (C/uint32_t), then the high bits.
           ((v * PRIME4_BYTES) & 0xFFFFFFFF) >> (32 - h_bits)
         end
@@ -148,8 +166,8 @@ module Omnizip
           b_size = b.bytesize
           while len + 8 <= limit && a_pos + len + 8 <= a_size &&
               b_pos + len + 8 <= b_size
-            wa = a.byteslice(a_pos + len, 8).unpack1("Q<")
-            wb = b.byteslice(b_pos + len, 8).unpack1("Q<")
+            wa = read8(a, a_pos + len)
+            wb = read8(b, b_pos + len)
             if wa == wb
               len += 8
             else
@@ -289,8 +307,7 @@ module Omnizip
         # rubocop:disable-next Metrics/AbcSize
         def rep0_match(src, ip, rep0, min_match, limit, anchor)
           return nil if rep0 <= 0 || ip <= rep0
-          return nil if src.byteslice(ip, MIN_MATCH) !=
-            src.byteslice(ip - rep0, MIN_MATCH)
+          return nil if read4(src, ip) != read4(src, ip - rep0)
 
           m_len = MIN_MATCH + count_match(
             src, ip + MIN_MATCH, src, ip + MIN_MATCH - rep0,
@@ -346,7 +363,7 @@ module Omnizip
             break if dist >= max_distance
             break if candidate + MIN_MATCH > size
 
-            if src.byteslice(ip, MIN_MATCH) == src.byteslice(candidate, MIN_MATCH)
+            if read4(src, ip) == read4(src, candidate)
               m_len = MIN_MATCH + count_match(src, ip + MIN_MATCH,
                                               src, candidate + MIN_MATCH,
                                               [max_extend - MIN_MATCH, 0].max)
@@ -397,7 +414,7 @@ module Omnizip
           if candidate.positive? && candidate < ip
             dist = ip - candidate
             if dist < max_distance && candidate + MIN_MATCH <= size &&
-                src.byteslice(ip, MIN_MATCH) == src.byteslice(candidate, MIN_MATCH)
+                read4(src, ip) == read4(src, candidate)
               best_len = MIN_MATCH + count_match(
                 src, ip + MIN_MATCH, src, candidate + MIN_MATCH,
                 [limit + MIN_MATCH_ECONOMICAL - ip - MIN_MATCH, 0].max

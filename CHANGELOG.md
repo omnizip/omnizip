@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.23] - 2026-08-26
+
+### Changed
+- Zstd encoder hot paths use allocation-free integer reads instead of
+  `String#byteslice` + `unpack1` comparisons (profiling showed GC at
+  52% of encoder time): default-level compression is ~3.4x faster and
+  level 22 ~1.9x on the benchmark corpus, with byte-identical output.
+
+## [0.3.22] - 2026-08-25
+
+### Added
+- Zstandard dictionary compression (`Dictionary.from_raw` /
+  `serialize` / `deserialize`, `compress_with_dict`,
+  `decompress_with_dict`): the dictionary content primes the match
+  finder as shared history and the frame header carries the
+  Dictionary_ID, which the decoder verifies (Phase-1 scope, as in the
+  Rust reference; entropy-table preloading is future work).
+
+## [0.3.21] - 2026-08-25
+
+### Fixed
+- 7-Zip encoder dictionary is now capped at the size announced in the
+  coder properties (prevents matches reading outside the decoder
+  window for inputs above the announced size).
+
+### Changed
+- Zstd lazy levels (6+) gained the rep0 fast-path and backward
+  extension: levels 6-12 improve 0.180 -> 0.154 and levels 19-22
+  0.146 -> 0.126 on the benchmark corpus; the level scale is now
+  monotonic.
+- Zstd adaptive block splitting: heterogeneous chunks of 32 KiB or
+  more split into 16 KiB sub-blocks so entropy tables fit each
+  content regime.
+
+## [0.3.20] - 2026-08-25
+
+### Removed
+- Dead `SevenZipLZMA2`/`XZLZMA2` algorithm wrappers (never
+  autoloaded; one referenced a nonexistent decoder constant).
+
 ## [0.3.19] - 2026-08-25
 
 ### Fixed
