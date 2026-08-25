@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.3.19] - 2026-08-25
+
+### Fixed
+- 7-Zip LZMA2 encoder corrupted every chunk after the first: pos_state was
+  computed from the chunk-relative position while decoders count positions
+  continuously across chunk boundaries. The stale duplicated encoder is now a
+  thin subclass of the fixed XZ Utils encoder (also picking up its state-reset,
+  64 KiB chunk-cap and symbol-queue fixes).
+
+## [0.3.18] - 2026-08-25
+
+### Added
+- Zstandard long-distance matching (LDM): a sparse hash table over the whole
+  frame finds matches beyond the 128 KiB block window at levels >= 19 for
+  multi-block inputs, bringing zstd-22 output to reference parity
+  (0.146 vs omnizip-rs 0.1456 on the benchmark corpus).
+
+## [0.3.17] - 2026-08-25
+
+### Changed
+- Zstandard greedy parser: rep0 fast-path and backward match extension into
+  the pending literals (default-level text ratio 0.177 -> 0.167).
+
+## [0.3.16] - 2026-08-24
+
+### Added
+- Zstandard Compressed_Blocks now carry a sequences section: LZ77 match
+  finder (greedy/lazy/lazy2) and LL/OF/ML FSE sequence encoding with
+  Predefined/FSE_Compressed table selection. Text ratio 0.49 -> ~0.17.
+
+### Changed
+- Migrated ConversionOptions, ParallelOptions, ProgressOptions and EtaResult
+  models to lutaml-model (breaking change for hand-rolled hash access).
+
+## [0.3.15] - 2026-08-24
+
+### Fixed
+- Zstandard codec rebuilt per RFC 8878: FSE tables from stream, FSE Huffman
+  weights, treeless literals, repeat mode, XXH64 frame checksums, window
+  descriptor; `compress` with default options now really compresses instead
+  of emitting stored frames (issues #27, BUGREPORT 01-10).
+- XZ LZMA2 encoder: chunking, repeat-offset state and wire format repaired
+  (issue #26; missing `tempfile` require, symbol-buffer overflow at ~10 MB).
+
+## [0.3.14] - 2026-07-25
+
+### Changed
+- Documented the Algorithms vs Implementations boundary; deepened the
+  Algorithm base class with a class-level facade and IO::Source/Sink.
+- Extracted `Omnizip::Parallel::Engine`.
+
+## [0.3.13] - 2026-07-24
+
+### Changed
+- Reverted the v0.3.12 require-omnizip-everywhere band-aid in favor of
+  per-file entry-point requires.
+
+## [0.3.12] - 2026-07-24
+
+### Fixed
+- Circular dependency at gemspec load (`version.rb` no longer requires
+  omnizip); missing entry-point requires at the top of internal files.
+
+## [0.3.11] - 2026-07-22
+
+### Fixed
+- Format files broke when required directly by external code; LinkHandler
+  symlink gating; BCJ filter autoload.
+
+## [0.3.10] - 2026-07-21
+
+### Changed
+- Migrated CompressionOptions and AlgorithmMetadata to lutaml-model;
+  decoupled Convenience from ZIP via ArchiveHandler; replaced `respond_to?`
+  type checks with `is_a?`.
+
+## [0.3.9] - 2026-03-24
+
+### Fixed
+- Windows unrar detection; 7-Zip SDK version validation (major version only).
+
+## [0.3.8] - 2026-02-24
+
+### Fixed
+- Formats now auto-register when their files are loaded directly.
+
+## [0.3.7] - 2026-02-23
+
+### Fixed
+- XZ dictionary-size bounds checking (OOM prevention); block header parser
+  autoload.
+
 ## [0.3.6] - 2026-02-23
 
 ### Changed
@@ -17,8 +111,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed syntax error in `lib/omnizip/parallel.rb` (duplicate module declaration)
 - Fixed RAR format `verify` and `repair` convenience methods
 - Fixed library loading to ensure convenience methods are available at startup
-
-## [Unreleased]
 
 ### Added
 - **XAR Format Support**: Full read/write support for XAR (eXtensible ARchive) format
