@@ -112,5 +112,34 @@ RSpec.describe "7-Zip Reference Files" do
       FileUtils.rm_rf(File.dirname(archive_path))
       FileUtils.rm_rf(extract_dir)
     end
+
+    it "creates multi-chunk LZMA2 archives that 7z can extract" do
+      skip "7zz not available" unless system("which 7zz > /dev/null 2>&1")
+
+      # Large enough to span several LZMA2 chunks: chunk-relative
+      # pos_state encoding corrupts every chunk after the first (the
+      # decoder counts positions continuously across chunks).
+      rng = Random.new(3)
+      words = %w[alpha beta gamma delta epsilon zeta eta theta]
+      test_content = Array.new(60_000) { words[rng.rand(words.size)] }
+        .join(" ")
+      test_file = File.join(Dir.mktmpdir, "multichunk_test.txt")
+      File.binwrite(test_file, test_content)
+
+      archive_path = File.join(Dir.mktmpdir, "omnizip_multichunk.7z")
+      writer = Omnizip::Formats::SevenZip::Writer.new(archive_path)
+      writer.add_file(test_file)
+      writer.write
+
+      extract_dir = Dir.mktmpdir
+      system("7zz x -o#{extract_dir} -y #{archive_path} > /dev/null 2>&1")
+
+      extracted_file = File.join(extract_dir, File.basename(test_file))
+      expect(File.binread(extracted_file)).to eq(test_content)
+
+      FileUtils.rm_rf(File.dirname(test_file))
+      FileUtils.rm_rf(File.dirname(archive_path))
+      FileUtils.rm_rf(extract_dir)
+    end
   end
 end
