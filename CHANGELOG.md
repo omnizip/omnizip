@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.29] - 2026-08-26
+## [0.3.28] - 2026-08-26
 
 ### Added
 - LZIP encoding (`Formats::Lzip.compress_stream`): version-1 member
@@ -23,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LzmaAlone.decompress_stream` raised NoMethodError reading
   `decoder.lc/lp/pb/dict_size/uncompressed_size`; the header fields
   are exposed now. Both format decoders binary-tag their output.
-
-## [0.3.28] - 2026-08-26
-
-### Fixed
 - `Models::CompressionOptions#apply` and `Models::AlgorithmMetadata#apply`
   raised NoMethodError (lutaml `attributes` is a Hash; the loop read
   `attr.name` off Array pairs). Both now share a tested
