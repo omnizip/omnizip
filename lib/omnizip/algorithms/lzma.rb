@@ -78,6 +78,7 @@ module Omnizip
       autoload :Decoder, "omnizip/algorithms/lzma/decoder"
       autoload :LzmaAloneDecoder, "omnizip/algorithms/lzma/lzma_alone_decoder"
       autoload :LzipDecoder, "omnizip/algorithms/lzma/lzip_decoder"
+      autoload :Lzma1Encoder, "omnizip/algorithms/lzma/lzma1_encoder"
 
       # Cross-namespace dependencies - autoloaded
       autoload :Crc32, "omnizip/checksums/crc32"

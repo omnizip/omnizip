@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.29] - 2026-08-26
+
+### Added
+- LZIP encoding (`Formats::Lzip.compress_stream`): version-1 member
+  with the lzip dictionary byte and CRC32/data-size/member-size
+  trailer, verified against the in-repo LzipDecoder.
+- Legacy `.lzma` encoding (`Formats::LzmaAlone.compress_stream`):
+  props/dict/size header plus the raw LZMA1 body.
+- `Algorithms::LZMA::Lzma1Encoder`: one continuous range-coded
+  LZMA1 stream with the end-of-stream marker, reusing the XZ Utils
+  symbol coders.
+
+### Fixed
+- `LzmaAlone.decompress_stream` raised NoMethodError reading
+  `decoder.lc/lp/pb/dict_size/uncompressed_size`; the header fields
+  are exposed now. Both format decoders binary-tag their output.
+
 ## [0.3.28] - 2026-08-26
 
 ### Fixed
