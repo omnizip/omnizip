@@ -307,7 +307,12 @@ module Omnizip
             if @encryption_manager
               encryption_result = @encryption_manager.encrypt_file_data(compressed_data)
               final_data = encryption_result[:encrypted_data]
-              # TODO: Store encryption_result[:header] for decryption
+              # The generated EncryptionHeader (salt/IV) is not
+              # persisted into the archive here, so archives this
+              # path writes cannot be decrypted afterwards; the RAR5
+              # CRYPT extra record has no write-side reference to
+              # port (omnizip-rar implements reading only).
+              # Encryption remains read-verified only.
             else
               final_data = compressed_data
             end

@@ -2,6 +2,8 @@
 
 require "spec_helper"
 require "stringio"
+require "tempfile"
+require "English"
 
 RSpec.describe Omnizip::Formats::Lzip do
   def round_trip(data)
@@ -33,5 +35,35 @@ RSpec.describe Omnizip::Formats::Lzip do
     described_class.compress_stream(StringIO.new("x"), out)
 
     expect(out.string.byteslice(0, 6)).to eq("LZIP".b + [1, 22].pack("CC"))
+  end
+
+  context "with the system lzip CLI" do
+    before { skip "lzip CLI not available" unless system("which lzip > /dev/null 2>&1") }
+
+    it "round-trips both directions through files" do
+      data = ("lzip interop check " * 500)
+
+      Tempfile.create("omnizip-lz") do |f|
+        f.binmode
+        f.write(data)
+        f.flush
+
+        # Our encoder -> CLI decoder.
+        ours = StringIO.new
+        ours.set_encoding(Encoding::BINARY)
+        described_class.compress_stream(StringIO.new(data), ours)
+        File.binwrite("#{f.path}.ours.lz", ours.string)
+        decoded_by_cli = `lzip -dc -q #{f.path}.ours.lz`
+        expect($CHILD_STATUS).to be_success
+        expect(decoded_by_cli).to eq(data)
+
+        # CLI encoder -> our decoder.
+        `lzip -9 -k -q #{f.path}`
+        expect($CHILD_STATUS).to be_success
+        decoded = StringIO.new
+        described_class.decompress_stream(File.open("#{f.path}.lz"), decoded)
+        expect(decoded.string).to eq(data)
+      end
+    end
   end
 end

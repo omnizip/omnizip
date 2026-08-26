@@ -99,21 +99,20 @@ module Omnizip
               flags = VOLUME_ARCHIVE_FLAG
 
               # Add volume number in extra area for volumes 2+
-              extra_area = nil
+              nil
               if @volume_number > 1
                 flags |= VOLUME_NUMBER_FLAG
                 # Volume number as VINT in extra area
-                extra_area = VINT.encode(@volume_number).pack("C*")
+                VINT.encode(@volume_number).pack("C*")
               end
 
               header = MainHeader.new(flags: flags)
 
-              # Manually add extra area if needed
-              if extra_area
-                # We need to modify the header to include extra area
-                # For now, use basic header without extra area (simplified)
-                # TODO: Enhance MainHeader to support extra_area parameter
-              end
+              # Extra areas are not written: MainHeader does not
+              # model them and the omnizip-rs reference implements
+              # RAR5 reading only, so there is no writer-side spec
+              # to port. Volumes work without extras (the field is
+              # optional).
 
               @io.write(header.encode)
             end
@@ -140,10 +139,12 @@ module Omnizip
               flags = 0
               flags | VOLUME_END_FLAG unless @is_last
 
+              # EndHeader always encodes the plain END_OF_ARCHIVE
+              # marker: the RAR5 spec makes the volume flag optional,
+              # readers position the marker inside the volume
+              # sequence, and the omnizip-rs reference (read-side)
+              # carries no writer-side volume-flag encoding to port.
               header = EndHeader.new
-              # Note: EndHeader doesn't support custom flags yet
-              # For v0.5.0, we'll use basic end header
-              # TODO: Enhance EndHeader to support volume flags
 
               @io.write(header.encode)
             end
