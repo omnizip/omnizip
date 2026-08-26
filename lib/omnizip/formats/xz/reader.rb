@@ -75,8 +75,10 @@ module Omnizip
         # @yield [String] Chunks of decompressed data
         # @return [String] Full decompressed data
         def each_chunk(chunk_size = 64 * 1024)
-          # For now, just read everything and yield chunks
-          # TODO: Implement true streaming for memory efficiency
+          # Yields slices of the fully decoded output; the whole
+          # frame is decoded first. True incremental decode is
+          # deferred (omnizip-rs streaming.rs defers its encoder the
+          # same way), so peak memory is the uncompressed size.
           data = read
           offset = 0
           while offset < data.bytesize

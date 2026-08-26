@@ -56,9 +56,11 @@ module Omnizip
           # The stream will consist of just: Stream Header + Index + Stream Footer
           return if data.empty? || data.nil?
 
-          # For now, encode entire data as single block
-          # TODO: Support multi-block encoding for large files
-
+          # One block for the whole input: single-block streams are
+          # valid xz at any size, match the omnizip-rs reference
+          # (xz_container Phase-A, single block), and keep the index
+          # trivial. Multi-block would only matter for parallel
+          # encode of very large inputs.
           # Include block sizes for XZ Utils compatibility
           # This ensures that XZ Utils can properly decode the files
           block_encoder = BlockEncoder.new(

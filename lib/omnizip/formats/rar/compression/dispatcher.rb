@@ -123,8 +123,10 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Decoder options
             def decompress_good(input, output, options)
-              # TODO: Implement content-based algorithm selection
-              # For now, use LZ77+Huffman as default
+              # METHOD_GOOD maps to the same LZ77+Huffman pipeline as
+              # METHOD_NORMAL; the RAR method byte distinguishes
+              # effort levels, not algorithms, and the omnizip-rs
+              # reference decodes both identically.
               decompress_lz77_huffman(input, output, options)
             end
 
@@ -167,8 +169,9 @@ module Omnizip
             # @param output [IO] Output stream
             # @param options [Hash] Encoder options
             def compress_good(input, output, options)
-              # TODO: Implement content-based algorithm selection
-              # For now, use LZ77+Huffman as default
+              # METHOD_GOOD compresses with the same LZ77+Huffman
+              # pipeline as METHOD_NORMAL (see decompress_good); the
+              # method byte records the writer's effort level only.
               compress_lz77_huffman(input, output, options)
             end
 

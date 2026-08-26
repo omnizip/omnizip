@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.30] - 2026-08-27
+
+### Verified
+- LZIP interop with the real `lzip` CLI (1.26): our members pass
+  `lzip -t`/`-dc` and the CLI's members decode through
+  `Formats::Lzip` (spec skips where the CLI is absent).
+
+### Changed
+- The remaining lib/ TODO markers are resolved as documented design
+  decisions rather than dangling work: RAR5 volume extras and
+  EndHeader volume flags (no write-side reference exists;
+  omnizip-rar implements reading only), RAR METHOD_GOOD mapping
+  (same LZ77+Huffman pipeline as NORMAL — the method byte records
+  effort, not algorithm), xz `each_chunk` (slices of the decoded
+  output; incremental decode deferred as in the reference's own
+  streaming.rs), and xz single-block encoding (valid at any size,
+  matches the reference's Phase-A scope). One real gap surfaced by
+  the review is now stated plainly: RAR5 encrypted writing discards
+  the salt/IV header, so archives it writes cannot be decrypted;
+  encryption stays read-verified only.
+
 ## [0.3.28] - 2026-08-26
 
 ### Added
