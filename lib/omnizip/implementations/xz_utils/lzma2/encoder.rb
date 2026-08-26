@@ -339,8 +339,11 @@ module Omnizip
           def encode_queued_symbols(encoder, output)
             return if encoder.none?
 
-            # Create temporary buffer for encoding
-            temp_buffer = "\0" * 10000
+            # Reused scratch buffer: allocating a fresh 10 KB String
+            # per drain showed up as half the encoder's runtime via
+            # GC (String#* in profiles).
+            @symbol_buffer ||= "\0".b * 10_000
+            temp_buffer = @symbol_buffer
             out_pos = Omnizip::Algorithms::LZMA::IntRef.new(0)
 
             # Track size before encoding

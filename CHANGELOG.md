@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.24] - 2026-08-26
+
+### Changed
+- LZMA2 encoder hot paths avoid per-call allocations: the
+  range-encoder symbol drain reuses its 10 KB scratch buffer
+  (profiles showed String#* at ~half of encoder CPU), and the optimal
+  parser compares 8-byte windows and selects best matches without
+  intermediate strings/arrays. ~180k fewer object allocations and
+  ~94 MB less churn per 138 KB compressed, with byte-identical
+  output; covers both the xz and 7-Zip paths.
+
 ## [0.3.23] - 2026-08-26
 
 ### Changed
