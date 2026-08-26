@@ -56,6 +56,9 @@ module Omnizip
         # From lzma_decoder.c:1218
         MAX_PROPERTY_BYTE = (((4 * 5) + 4) * 9) + 8 # = 233
 
+        # Header fields exposed to container callers.
+        attr_reader :lc, :lp, :pb, :dict_size, :uncompressed_size
+
         # Initialize the decoder with .lzma format input
         #
         # @param input [IO] Input stream of .lzma compressed data

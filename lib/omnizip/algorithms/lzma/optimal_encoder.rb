@@ -24,8 +24,9 @@ module Omnizip
 
         private
 
-        # TODO: position, state, reps, and models parameters will be used
-        # when implementing normal mode for more optimal encoding decisions
+        # Fast mode: repeated-match scan plus first normal match. The
+        # unused state/models parameters keep the signature shared with
+        # a future normal (optimal-parse) mode.
         def optimum_fast(position, match_finder, _state, reps, _models)
           buf = match_finder.buffer # CRITICAL: Use match_finder.buffer, NOT dictionary.buffer!
           buf_pos = position

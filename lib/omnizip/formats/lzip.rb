@@ -103,12 +103,27 @@ module Omnizip
         # @param input_io [IO] Input stream
         # @param output_io [IO] Output stream
         # @param options [Hash] Compression options
-        def compress_stream(input_io, _output_io, _options = {})
-          input_io.read
+        def compress_stream(input_io, output_io, options = {})
+          input = input_io.read
 
-          # TODO: Implement LZIP encoder
-          raise NotImplementedError,
-                "LZIP encoding not yet implemented. Use decompression only."
+          # Version-1 member: magic + version + dict-size byte, LZMA1
+          # body (EOPM-terminated), 20-byte trailer (CRC32 + data
+          # size + member size). The dictionary byte uses lzip's
+          # 5-bit exponent / 3-bit fraction encoding; 4 MiB is the
+          # typical default.
+          output_io.write(MAGIC)
+          output_io.write([1].pack("C"))
+          output_io.write([22].pack("C")) # 2^22 = 4 MiB, no fraction
+
+          dict_size = options.fetch(:dict_size, 8 * 1024 * 1024)
+          body = Algorithms::LZMA::Lzma1Encoder
+            .new(dict_size: dict_size).encode(input)
+
+          member_size = 6 + body.bytesize + 20
+          output_io.write(body)
+          output_io.write([Checksums::Crc32.calculate(input)].pack("V"))
+          output_io.write([input.bytesize].pack("Q<"))
+          output_io.write([member_size].pack("Q<"))
         end
 
         # Decompress LZIP stream
@@ -118,6 +133,7 @@ module Omnizip
         # @param options [Hash] Options
         # @return [Hash] Metadata (version, dict_size, member_size)
         def decompress_stream(input_io, output_io, options = {})
+          output_io.set_encoding(Encoding::BINARY)
           decoder = Omnizip::Algorithms::LZMA::LzipDecoder.new(input_io,
                                                                options)
           result = decoder.decode_stream

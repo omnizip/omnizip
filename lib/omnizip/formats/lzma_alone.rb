@@ -111,9 +111,13 @@ module Omnizip
           output_io.write([dict_size].pack("V"))
           output_io.write([uncompressed_size].pack("Q<"))
 
-          # TODO: Implement LZMA1 encoder
-          raise NotImplementedError,
-                "LZMA_Alone encoding not yet implemented. Use decompression only."
+          # Raw LZMA1 body. The header carries the uncompressed size,
+          # but the EOPM is still emitted: the format permits it with
+          # a known size and it lets size-agnostic decoders stop too.
+          body = Algorithms::LZMA::Lzma1Encoder
+            .new(dict_size: dict_size, lc: lc, lp: lp, pb: pb)
+            .encode(input_data)
+          output_io.write(body)
         end
 
         # Decompress LZMA_Alone stream
@@ -123,6 +127,7 @@ module Omnizip
         # @param options [Hash] Options
         # @return [Hash] Metadata (lc, lp, pb, dict_size, uncompressed_size)
         def decompress_stream(input_io, output_io, options = {})
+          output_io.set_encoding(Encoding::BINARY)
           decoder = Omnizip::Algorithms::LZMA::LzmaAloneDecoder.new(input_io,
                                                                     options)
           result = decoder.decode_stream
