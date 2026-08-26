@@ -101,6 +101,8 @@ module Omnizip
 
         # rubocop:disable Metrics/MethodLength
         # rubocop:disable-next Metrics/AbcSize
+        # rubocop:disable Metrics/MethodLength
+        # rubocop:disable-next Metrics/AbcSize
         def encode_block(block, block_crc, writer)
           rle1 = Rle.new.encode(block)
           bwt_data, primary_index = Bwt.new.encode(rle1)
@@ -108,6 +110,7 @@ module Omnizip
           n_in_use = sequence.length
           mtf = mtf_encode_seeded(bwt_data, sequence)
           symbols = mtf_to_symbols(mtf, n_in_use)
+          alphabet_size = n_in_use + 2
 
           writer.write48(BLOCK_MAGIC)
           writer.write_bits(block_crc, 32)
@@ -118,25 +121,55 @@ module Omnizip
           writer.write_bits(groups_used, 16)
           group_maps.each { |g| writer.write_bits(g, 16) }
 
-          n_selectors = [(symbols.length.to_f / GROUP_SIZE).ceil, 1].max
+          # Assign every GROUP_SIZE-symbol chunk to the lowest-
+          # frequency table (classic bzip2 selector algorithm).
+          chunks = symbols.each_slice(GROUP_SIZE).to_a
+          table_freqs = Array.new(N_GROUPS) { Array.new(alphabet_size, 0) }
+          selectors = []
+          chunks.each do |chunk|
+            chunk_freq = Array.new(alphabet_size, 0)
+            chunk.each { |s| chunk_freq[s] += 1 }
+            best = (0...N_GROUPS).min_by do |i|
+              chunk_freq.zip(table_freqs[i]).sum { |a, b| a + b }
+            end
+            selectors << best
+            alphabet_size.times { |a| table_freqs[best][a] += chunk_freq[a] }
+          end
+
+          # MTF the selectors (Rust mirrors upstream bzip2).
+          order = (0...N_GROUPS).to_a
+          mtf_selectors = selectors.map do |t|
+            idx = order.index(t)
+            order.delete_at(idx)
+            order.unshift(t)
+            idx
+          end
+
+          n_selectors = [chunks.length, 1].max
           writer.write_bits(N_GROUPS, 3)
           writer.write_bits(n_selectors, 15)
-          # MTF-coded selectors; all are 0 (table 0) — unary '0'.
-          n_selectors.times { writer.write_bit(false) }
+          # MTF value N -> N '1's then '0'.
+          mtf_selectors.each do |v|
+            v.times { writer.write_bit(true) }
+            writer.write_bit(false)
+          end
 
-          alphabet_size = n_in_use + 2
-          freqs = Array.new(alphabet_size, 0)
-          symbols.each { |sym| freqs[sym] += 1 }
-          lengths = code_lengths(freqs)
-          codes = canonical_codes(lengths)
+          # Build N canonical-Huffman tables over the alphabet.
+          lengths_per_table = Array.new(N_GROUPS) { |i| code_lengths(table_freqs[i]) }
+          tables = lengths_per_table.map { |l| canonical_codes(l) }
 
-          N_GROUPS.times { write_huffman_table(writer, lengths) }
-          symbols.each do |sym|
-            code, len = codes[sym]
-            writer.write_bits(code, len)
+          lengths_per_table.each { |l| write_huffman_table(writer, l) }
+
+          chunks.each_with_index do |chunk, i|
+            table = tables[selectors[i]]
+            chunk.each do |sym|
+              code, len = table[sym]
+              writer.write_bits(code, len)
+            end
           end
         end
         # rubocop:enable Metrics/AbcSize
+        # rubocop:enable Metrics/MethodLength
 
         # The active bytes in ascending order (the seeded-MTF table).
         def build_sequence(data)
