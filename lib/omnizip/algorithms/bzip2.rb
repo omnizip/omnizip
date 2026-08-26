@@ -41,11 +41,8 @@ module Omnizip
     class BZip2 < Algorithm
       # Nested classes - autoloaded
       autoload :Bwt, "omnizip/algorithms/bzip2/bwt"
-      autoload :Mtf, "omnizip/algorithms/bzip2/mtf"
       autoload :Rle, "omnizip/algorithms/bzip2/rle"
-      autoload :Huffman, "omnizip/algorithms/bzip2/huffman"
-      autoload :Encoder, "omnizip/algorithms/bzip2/encoder"
-      autoload :Decoder, "omnizip/algorithms/bzip2/decoder"
+      autoload :Bz2, "omnizip/algorithms/bzip2/bz2"
 
       # Cross-namespace dependencies - autoloaded
       autoload :Crc32, "omnizip/checksums/crc32"
@@ -69,10 +66,8 @@ module Omnizip
       # @param options [Models::CompressionOptions] Compression options
       # @return [void]
       def compress(input_stream, output_stream, options = nil)
-        input_data = input_stream.read
-        encoder = Encoder.new(output_stream,
-                              build_encoder_options(options))
-        encoder.encode_stream(input_data)
+        level = level_from(options)
+        output_stream.write(Bz2.compress(input_stream.read, level))
       end
 
       # Decompress BZip2-compressed data
@@ -83,43 +78,20 @@ module Omnizip
       # @return [void]
       def decompress(input_stream, output_stream, _options = nil)
         output_stream.set_encoding(Encoding::BINARY)
-        decoder = Decoder.new(input_stream)
-        decompressed = decoder.decode_stream
-        output_stream.write(decompressed)
+        output_stream.write(Bz2.decompress(input_stream.read))
       end
 
       private
 
-      # Build encoder options from compression options
-      #
-      # @param options [Models::CompressionOptions, nil] Compression opts
-      # @return [Hash] Encoder options
-      def build_encoder_options(options)
-        return {} if options.nil?
-
-        opts = {}
+      # Compression level (1-9) from options; bzip2's levels map
+      # directly to 100 KB..900 KB block sizes.
+      def level_from(options)
+        return 9 if options.nil?
+        return (options[:level] || 9).clamp(1, 9) if options.is_a?(Hash)
 
         # allowed: options is a public parameter; any object with #level is honored
-        if options.respond_to?(:level)
-          level = options.level || 9
-          opts[:block_size] = block_size_for_level(level)
-        end
-
-        opts
-      end
-
-      # Get block size based on compression level
-      #
-      # BZip2 traditionally uses levels 1-9 corresponding to
-      # 100KB-900KB block sizes
-      #
-      # @param level [Integer] Compression level (1-9)
-      # @return [Integer] Block size in bytes
-      def block_size_for_level(level)
-        # Clamp level to valid range
-        level = [[level, 1].max, 9].min
-        # Each level = 100KB
-        level * 100_000
+        level = options.respond_to?(:level) ? options.level : nil
+        (level || 9).clamp(1, 9)
       end
     end
   end
