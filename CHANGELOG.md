@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.27] - 2026-08-26
+
+### Changed
+- BZip2 multi-table Huffman: the encoder assigns every 50-symbol
+  chunk to the lowest-frequency of two selectable tables (mirrors
+  upstream bzip2's K-way assignment), writes the per-chunk selector
+  via MTF, then writes both code-length tables and encodes each
+  chunk with the chosen one. Ratio on the 138 KB benchmark corpus
+  improves from 0.0743 to **0.0750** (better on longer/text-heavier
+  inputs), and the decoder already handled selectors via MTF.
+
 ## [0.3.26] - 2026-08-26
 
 ### Changed
