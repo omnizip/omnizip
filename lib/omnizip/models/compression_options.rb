@@ -12,6 +12,8 @@ module Omnizip
     # provides +#to_hash+, +#to_json+, and +.from_hash+ / +.from_json+
     # automatically from the +attribute+ declarations below.
     class CompressionOptions < Lutaml::Model::Serializable
+      include AttributeApply
+
       attribute :level, :integer, default: 5
       attribute :dictionary_size, :integer
       attribute :num_fast_bytes, :integer
@@ -36,13 +38,6 @@ module Omnizip
       #
       # @param attributes [Hash{Symbol=>Object}]
       # @return [self]
-      def apply(attributes)
-        self.class.attributes.each do |attr|
-          name = attr.name
-          public_send("#{name}=", attributes[name]) if attributes.key?(name)
-        end
-        self
-      end
 
       # Validate that all set values are within their type's domain.
       #

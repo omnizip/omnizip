@@ -79,35 +79,30 @@ module Omnizip
         def decode(data)
           return "".b if data.empty?
 
+          # Single linear pass over the INPUT: a run marker is four
+          # identical bytes followed by an extra-count byte (the old
+          # decoder rescanned the growing output per byte, which made
+          # decode quadratic).
           result = []
           i = 0
-          skip_count = 0
+          n = data.bytesize
 
-          while i < data.length
+          while i < n
             byte = data.getbyte(i)
-            result << byte
-            i += 1
-
-            # Decrement skip counter if active
-            if skip_count.positive?
-              skip_count -= 1
-              next
+            if byte == data.getbyte(i + 1) &&
+                byte == data.getbyte(i + 2) &&
+                byte == data.getbyte(i + 3)
+              count = data.getbyte(i + 4) || 0
+              result << byte
+              result << byte
+              result << byte
+              result << byte
+              count.times { result << byte }
+              i += 5
+            else
+              result << byte
+              i += 1
             end
-
-            # Check for run encoding (4 consecutive identical bytes)
-            next unless i >= 4 && consecutive_match?(result, byte, 4)
-
-            # Read run count
-            break if i >= data.length
-
-            count = data.getbyte(i)
-            i += 1
-
-            # Emit additional copies
-            count.times { result << byte }
-
-            # Skip checking for next 3 bytes (need 4 to form a run)
-            skip_count = 3
           end
 
           result.pack("C*")

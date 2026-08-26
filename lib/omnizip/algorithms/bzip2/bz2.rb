@@ -34,7 +34,7 @@ module Omnizip
       module Bz2
         BLOCK_MAGIC = 0x3141_5926_5359
         EOS_MAGIC = 0x1772_4538_5090
-        N_GROUPS = 2
+        ITERATIONS = 4
         GROUP_SIZE = 50
         MAX_GROUPS = 6
         MAX_CODE_LENGTH = 23
@@ -121,23 +121,55 @@ module Omnizip
           writer.write_bits(groups_used, 16)
           group_maps.each { |g| writer.write_bits(g, 16) }
 
-          # Assign every GROUP_SIZE-symbol chunk to the lowest-
-          # frequency table (classic bzip2 selector algorithm).
+          # Upstream bzip2 table selection: the group count grows
+          # with symbol count (2 below 200, 3 below 600, then toward
+          # 6), then ITERATIONS rounds of chunk-to-table assignment by
+          # cheapest total code length and table recomputation.
           chunks = symbols.each_slice(GROUP_SIZE).to_a
-          table_freqs = Array.new(N_GROUPS) { Array.new(alphabet_size, 0) }
-          selectors = []
-          chunks.each do |chunk|
-            chunk_freq = Array.new(alphabet_size, 0)
-            chunk.each { |s| chunk_freq[s] += 1 }
-            best = (0...N_GROUPS).min_by do |i|
-              chunk_freq.zip(table_freqs[i]).sum { |a, b| a + b }
+          chunk_freqs = chunks.map do |chunk|
+            freq = Array.new(alphabet_size, 0)
+            chunk.each { |s| freq[s] += 1 }
+            freq
+          end
+          n_groups = if symbols.length < 200
+                       2
+                     else
+                       symbols.length < 600 ? 3 : 6
+                     end
+          # The format requires 2..6 groups even for a single chunk.
+
+          # Seed the tables with upstream bzip2's position ramp
+          # (len[t][v] = v / (t+1) + 1): starting every table from
+          # the global frequencies collapses the first assignment
+          # round onto table 0 and the iteration never differentiates.
+          lengths_per_table = Array.new(n_groups) do |t|
+            Array.new(alphabet_size) { |v| [(v / (t + 1)) + 1, 20].min }
+          end
+          selectors = Array.new(chunks.length, 0)
+
+          ITERATIONS.times do
+            selectors = chunks.each_index.map do |ci|
+              cf = chunk_freqs[ci]
+              (0...n_groups).min_by do |ti|
+                lengths = lengths_per_table[ti]
+                cost = 0
+                cf.each_with_index do |f, sym|
+                  cost += f * lengths[sym] if f.positive?
+                end
+                cost
+              end
             end
-            selectors << best
-            alphabet_size.times { |a| table_freqs[best][a] += chunk_freq[a] }
+
+            table_freqs = Array.new(n_groups) { Array.new(alphabet_size, 0) }
+            selectors.each_with_index do |ti, ci|
+              cf = chunk_freqs[ci]
+              alphabet_size.times { |a| table_freqs[ti][a] += cf[a] }
+            end
+            lengths_per_table = Array.new(n_groups) { |i| code_lengths(table_freqs[i]) }
           end
 
-          # MTF the selectors (Rust mirrors upstream bzip2).
-          order = (0...N_GROUPS).to_a
+          # MTF the selectors over the final table order.
+          order = (0...n_groups).to_a
           mtf_selectors = selectors.map do |t|
             idx = order.index(t)
             order.delete_at(idx)
@@ -146,7 +178,7 @@ module Omnizip
           end
 
           n_selectors = [chunks.length, 1].max
-          writer.write_bits(N_GROUPS, 3)
+          writer.write_bits(n_groups, 3)
           writer.write_bits(n_selectors, 15)
           # MTF value N -> N '1's then '0'.
           mtf_selectors.each do |v|
@@ -154,10 +186,7 @@ module Omnizip
             writer.write_bit(false)
           end
 
-          # Build N canonical-Huffman tables over the alphabet.
-          lengths_per_table = Array.new(N_GROUPS) { |i| code_lengths(table_freqs[i]) }
           tables = lengths_per_table.map { |l| canonical_codes(l) }
-
           lengths_per_table.each { |l| write_huffman_table(writer, l) }
 
           chunks.each_with_index do |chunk, i|
