@@ -67,11 +67,12 @@ module Omnizip
             ].min
 
             len = 2
-            # Compare 8 bytes at a time using 64-bit integers
+            # Compare 8 bytes at a time using 64-bit integers read
+            # without intermediate strings (byteslice + unpack1
+            # allocates two Strings per step and dominated GC time).
             while len + 8 <= max_match_len
-              # Read 8 bytes as little-endian 64-bit integers
-              v1 = buf.byteslice(buf_pos + len, 8).unpack1("Q<")
-              v2 = buf.byteslice(buf_back_index + len, 8).unpack1("Q<")
+              v1 = read8(buf, buf_pos + len)
+              v2 = read8(buf, buf_back_index + len)
               break if v1 != v2
 
               len += 8
@@ -104,7 +105,15 @@ module Omnizip
           # A match may reference anything before `position`: bytes already
           # committed to the dictionary *and* bytes decoded earlier within
           # the chunk currently being encoded.
-          best_normal = matches.max_by { |m| [m.length, m.distance] }
+          best_normal = nil
+          matches.each do |m|
+            next if best_normal &&
+              (m.length < best_normal.length ||
+                (m.length == best_normal.length &&
+                  m.distance <= best_normal.distance))
+
+            best_normal = m
+          end
 
           if best_normal && best_normal.length >= nice_len &&
               best_normal.distance <= position
@@ -124,6 +133,18 @@ module Omnizip
             # Use literal - return UINT32_MAX to indicate literal (not 0!)
             [UINT32_MAX, 1]
           end
+        end
+
+        # Allocation-free little-endian 8-byte read.
+        def read8(buf, pos)
+          buf.getbyte(pos) |
+            (buf.getbyte(pos + 1) << 8) |
+            (buf.getbyte(pos + 2) << 16) |
+            (buf.getbyte(pos + 3) << 24) |
+            (buf.getbyte(pos + 4) << 32) |
+            (buf.getbyte(pos + 5) << 40) |
+            (buf.getbyte(pos + 6) << 48) |
+            (buf.getbyte(pos + 7) << 56)
         end
 
         # Constants
