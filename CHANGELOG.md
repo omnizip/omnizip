@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.28] - 2026-08-26
+
+### Fixed
+- `Models::CompressionOptions#apply` and `Models::AlgorithmMetadata#apply`
+  raised NoMethodError (lutaml `attributes` is a Hash; the loop read
+  `attr.name` off Array pairs). Both now share a tested
+  `Models::AttributeApply` concern with `ParallelOptions`
+  (TODO.refactor track 13 follow-ups 2 and 3).
+- BZip2 decode: the inverse-BWT reconstruction sorted the first
+  column inside the output loop (O(n^2 log n)) and the RLE1 decoder
+  rescanned the growing output per byte (quadratic). Both are now
+  single linear passes — 138 KB decodes in 0.15 s (previously
+  minutes).
+
+### Changed
+- BZip2 upstream table selection: group count grows with symbol
+  count (2/3/6), tables are seeded with the position ramp
+  (global-frequency seeding collapsed the assignment onto one
+  table), and 4 iterations of chunk assignment by cheapest code
+  length rebuild the tables. The 138 KB corpus compresses to
+  8,974 B — beating the `bzip2 -9` CLI's 8,981 B.
+
 ## [0.3.27] - 2026-08-26
 
 ### Changed

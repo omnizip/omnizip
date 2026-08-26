@@ -84,16 +84,15 @@ module Omnizip
           # This maps each position in L to corresponding position in F
           lf = build_lf_mapping(data)
 
-          # Reconstruct by following the LF chain
+          # Reconstruct by following the LF chain. The first column
+          # is the sorted last column — sort ONCE (the previous code
+          # re-sorted inside the loop, making decode O(n^2 log n)).
+          first_column = data.bytes.sort
           result = []
           idx = primary_index
 
           data.length.times do
-            # The first column is the sorted last column
-            # Get the character at this position
-            byte_val = data.bytes.sort[idx]
-            result << byte_val
-            # Follow LF mapping to next position
+            result << first_column[idx]
             idx = lf[idx]
           end
 

@@ -8,6 +8,8 @@ module Omnizip
     #
     # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
     class AlgorithmMetadata < Lutaml::Model::Serializable
+      include AttributeApply
+
       attribute :name, :string
       attribute :description, :string
       attribute :version, :string
@@ -34,13 +36,6 @@ module Omnizip
       #
       # @param attributes [Hash{Symbol=>Object}]
       # @return [self]
-      def apply(attributes)
-        self.class.attributes.each do |attr|
-          name = attr.name
-          public_send("#{name}=", attributes[name]) if attributes.key?(name)
-        end
-        self
-      end
     end
   end
 end

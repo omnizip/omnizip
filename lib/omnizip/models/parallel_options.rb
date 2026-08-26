@@ -20,6 +20,8 @@ module Omnizip
     # @example Use with parallel compression
     #   Omnizip::Parallel.compress_directory('files/', 'backup.zip', options)
     class ParallelOptions < Lutaml::Model::Serializable
+      include AttributeApply
+
       # @return [Integer] Number of worker threads (default: auto-detect)
       attribute :threads, :integer, default: -> { detect_cpu_count }
 
@@ -75,12 +77,6 @@ module Omnizip
       #
       # @param values [Hash{Symbol=>Object}] attributes to set
       # @return [self]
-      def apply(values)
-        self.class.attributes.each_key do |name|
-          public_send("#{name}=", values[name]) if values.key?(name)
-        end
-        self
-      end
 
       private
 

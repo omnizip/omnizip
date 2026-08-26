@@ -89,6 +89,7 @@ end
 module Omnizip
   module Models
     autoload :AlgorithmMetadata, "omnizip/models/algorithm_metadata"
+    autoload :AttributeApply, "omnizip/models/attribute_apply"
     autoload :CompressionOptions, "omnizip/models/compression_options"
     autoload :PerformanceResult, "omnizip/models/performance_result"
     autoload :ProfileReport, "omnizip/models/profile_report"
