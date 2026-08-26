@@ -49,13 +49,16 @@ module Omnizip
           n = data.length
           bytes = data.bytes
 
-          # Build suffix array without creating rotation strings
-          # Use direct byte comparison for efficiency
-          suffix_array = (0...n).to_a
+          # Doubled bytes: rotation a's byte at offset o is
+          # dbl[a + o] — indexing needs no modulo, and comparisons
+          # can run 8 bytes at a time (modulo arithmetic in the
+          # comparator dominated the encoder's profile).
+          dbl = bytes * 2
 
-          # Sort using optimized comparison that avoids string allocation
+          # Build suffix array without creating rotation strings
+          suffix_array = (0...n).to_a
           suffix_array.sort! do |a, b|
-            compare_rotations(bytes, a, b, n)
+            compare_rotations(dbl, a, b, n)
           end
 
           # Find primary index (position where suffix starts at 0)
@@ -63,7 +66,7 @@ module Omnizip
 
           # Extract last column (character before each suffix)
           transformed = suffix_array.map do |idx|
-            bytes[(idx - 1) % n]
+            dbl[n + idx - 1]
           end.pack("C*").b
 
           [transformed, primary_index]
@@ -149,23 +152,32 @@ module Omnizip
         # @param b [Integer] Second rotation start index
         # @param n [Integer] Length
         # @return [Integer] -1, 0, or 1 for comparison result
-        def compare_rotations(bytes, a, b, n)
-          # Fast path: compare first few bytes directly
-          8.times do |offset|
-            byte_a = bytes[(a + offset) % n]
-            byte_b = bytes[(b + offset) % n]
-            cmp = byte_a <=> byte_b
-            return cmp if cmp != 0
-          end
+        # Compare rotations a and b over the doubled byte array.
+        # Four big-endian bytes per step: the chunk fits a Fixnum (no
+        # Bignum allocation), the low-offset byte dominates so the
+        # order is lexicographic, and the doubled array removes the
+        # per-byte modulo.
+        def compare_rotations(dbl, a, b, n)
+          len = 0
+          while len + 4 <= n
+            wa = (dbl[a + len] << 24) |
+              (dbl[a + len + 1] << 16) |
+              (dbl[a + len + 2] << 8) |
+              dbl[a + len + 3]
+            wb = (dbl[b + len] << 24) |
+              (dbl[b + len + 1] << 16) |
+              (dbl[b + len + 2] << 8) |
+              dbl[b + len + 3]
+            return wa <=> wb if wa != wb
 
-          # Continue comparing remaining bytes
-          (8...n).each do |offset|
-            byte_a = bytes[(a + offset) % n]
-            byte_b = bytes[(b + offset) % n]
-            cmp = byte_a <=> byte_b
-            return cmp if cmp != 0
+            len += 4
           end
+          while len < n
+            cmp = dbl[a + len] <=> dbl[b + len]
+            return cmp if cmp != 0
 
+            len += 1
+          end
           0
         end
 

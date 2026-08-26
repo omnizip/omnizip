@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.25] - 2026-08-26
+
+### Changed
+- BZip2 Burrows-Wheeler Transform: rotation comparator compares 4
+  big-endian bytes per step (Fixnum-safe, no modulo) over a doubled
+  byte array. 21x fewer allocations per 138 KB compressed, with
+  byte-identical output and 25 case-round-tripped correctness
+  (random and degenerate). The BZip2 codec itself does not emit a
+  standard bzip2 file format (pre-existing, separate issue).
+
 ## [0.3.24] - 2026-08-26
 
 ### Changed
