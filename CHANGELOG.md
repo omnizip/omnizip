@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.26] - 2026-08-26
+
+### Changed
+- BZip2 codec emits the **standard .bz2 wire format** (`BZh` magic,
+  bzip2 CRC-32, RLE1, BWT, seeded MTF, RUNA/RUNB RLE2, canonical
+  Huffman with the delta-coded length tables, 2..=6 selectable
+  groups, MSB-first bit packing, EOS magic + combined CRC). Output
+  is decodable by `bzip2 -d`; input from the CLI decodes here.
+  The previous internal byte-aligned container is removed.
+
 ## [0.3.25] - 2026-08-26
 
 ### Changed
