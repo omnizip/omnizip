@@ -41,9 +41,17 @@ RSpec.describe "7z Header Encryption" do
       result = encryptor.encrypt(test_data)
       wrong_encryptor = Omnizip::Formats::SevenZip::HeaderEncryptor.new("wrong_password")
 
-      expect do
-        wrong_encryptor.decrypt(result[:data], result[:salt], result[:iv])
-      end.to raise_error(/incorrect password/)
+      # Detection rides on PKCS#7 padding validation, which a wrong
+      # key passes with probability ~1/256 — so the honest assertion
+      # is raise OR garbage, never the original plaintext.
+      decrypted =
+        begin
+          wrong_encryptor.decrypt(result[:data], result[:salt], result[:iv])
+        rescue StandardError => e
+          expect(e.message).to match(/incorrect password/)
+          nil
+        end
+      expect(decrypted).not_to eq(test_data) if decrypted
     end
 
     it "uses PBKDF2 for key derivation" do
