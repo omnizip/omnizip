@@ -19,10 +19,11 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     end
   end
 
-  after { FileUtils.rm_f(Dir.glob("/tmp/omnizip_sf_out*")) }
+  let(:outdir) { Dir.mktmpdir("omnizip-sf") }
+  after { FileUtils.rm_rf(outdir) }
 
-  def roundtrip_of(ext)
-    path = "/tmp/omnizip_sf_out#{ext}"
+  def roundtrip_of(ext, outdir)
+    path = File.join(outdir, "out#{ext}")
     Omnizip.compress_file(input.path, path)
 
     out = StringIO.new
@@ -38,7 +39,7 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
 
   [".gz", ".bz2", ".xz", ".lzma", ".lz"].each do |ext|
     it "routes #{ext} to the matching single-file format (not a ZIP)" do
-      path, decoded = roundtrip_of(ext)
+      path, decoded = roundtrip_of(ext, outdir)
 
       expect(File.binread(path, 2)).not_to eq("PK")
       expect(decoded).to eq(source)
@@ -46,14 +47,14 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
   end
 
   it "keeps the ZIP default for unknown extensions" do
-    path = "/tmp/omnizip_sf_out.dat"
+    path = File.join(outdir, "out.dat")
     Omnizip.compress_file(input.path, path)
 
     expect(File.binread(path, 2)).to eq("PK")
   end
 
   it "produces the documented .lzma container (props + dict + size)" do
-    path, = roundtrip_of(".lzma")
+    path, = roundtrip_of(".lzma", outdir)
     header = File.binread(path, 13)
 
     expect(header.getbyte(0)).to eq((((2 * 5) + 0) * 9) + 3)
