@@ -31,6 +31,15 @@ module Omnizip
         return Omnizip::Chunked.compress_file(input_path, output_path, **options)
       end
 
+      # Single-file compression formats route by output extension
+      # (unless an archive format was requested explicitly): writing
+      # output.lzma through the archive path silently produced a ZIP
+      # under a foreign extension.
+      if format == DEFAULT_FORMAT && (handler = single_file_handler(output_path))
+        handler.call(input_path, output_path, options)
+        return output_path
+      end
+
       Omnizip::ArchiveHandler.for(format).create(output_path) do |archive|
         archive.add(::File.basename(input_path), input_path)
       end
@@ -158,6 +167,43 @@ module Omnizip
     def create_rar(archive_path, **options, &block)
       options[:version] ||= 5
       Omnizip::Formats::Rar.create(archive_path, options, &block)
+    end
+
+    # Extension -> single-file compressor map. Each lambda takes
+    # (input_path, output_path, options). These formats are streams,
+    # not archives, so they bypass ArchiveHandler.
+    SINGLE_FILE_COMPRESSORS = {
+      ".gz" => lambda do |input, output, options|
+        Omnizip::Formats::Gzip.compress(input, output, options)
+      end,
+      ".bz2" => lambda do |input, output, options|
+        Omnizip::Formats::Bzip2File.compress(input, output, options)
+      end,
+      ".xz" => lambda do |input, output, options|
+        Omnizip::Formats::Xz.create(::File.binread(input), output, options)
+      end,
+      ".lzma" => lambda do |input, output, options|
+        ::File.open(input, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::LzmaAlone.compress_stream(input_io, output_io,
+                                                        options)
+          end
+        end
+      end,
+      ".lz" => lambda do |input, output, options|
+        ::File.open(input, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::Lzip.compress_stream(input_io, output_io,
+                                                   options)
+          end
+        end
+      end,
+    }.freeze
+
+    # The single-file compressor matching the output extension, or nil.
+    def single_file_handler(output_path)
+      ext = ::File.extname(output_path).downcase
+      SINGLE_FILE_COMPRESSORS[ext]
     end
 
     private
