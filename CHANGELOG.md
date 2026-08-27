@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Omnizip.compress_file` now routes single-file compression by
+  output extension: `.gz`, `.bz2`, `.xz`, `.lzma` and `.lz` produce
+  the matching format instead of silently writing a ZIP under a
+  foreign extension (the documented
+  `compress_file('input.txt', 'output.lzma', algorithm: :lzma)`
+  example previously emitted `PK`-magic data). Unknown extensions
+  and explicit archive formats keep the previous behavior.
+
 ## [0.3.30] - 2026-08-27
 
 ### Changed
