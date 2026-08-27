@@ -24,6 +24,9 @@ jobs:
         elif [ "$RUNNER_OS" = "macOS" ]; then
           brew install rar 7-zip lzip
         elif [ "$RUNNER_OS" = "Windows" ]; then
-          choco install 7zip winrar
+          choco install 7zip
+          # winrar downloads a versioned installer from rarlab.com that
+          # rots; RAR specs skip when it is absent, so never fail on it.
+          choco install winrar || echo "winrar unavailable (non-fatal)"
         fi
       shell: bash
