@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.35] - 2026-08-28
+
 ### Fixed
 - `Omnizip.list_archive` on `.7z` returned raw Reader objects (the
   SevenZip.open facade discards block return values) and
