@@ -16,9 +16,13 @@ jobs:
     with:
       before-setup-ruby: |
         if [ "$RUNNER_OS" = "Linux" ]; then
-          sudo apt-get update && sudo apt-get install -y unrar 7zip
+          sudo apt-get update && sudo apt-get install -y unrar 7zip p7zip-full lzip
+          # The specs invoke `7zz` by name; some images provide only
+          # p7zip's `7z`. Guarantee the name exists and show the log.
+          command -v 7zz >/dev/null 2>&1 || sudo ln -sf "$(command -v 7z)" /usr/local/bin/7zz
+          echo "interop CLIs: 7zz=$(command -v 7zz) 7z=$(command -v 7z) lzip=$(command -v lzip) unrar=$(command -v unrar)"
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          brew install rar 7-zip
+          brew install rar 7-zip lzip
         elif [ "$RUNNER_OS" = "Windows" ]; then
           choco install 7zip winrar
         fi
