@@ -40,12 +40,12 @@ module Omnizip
           @writer = writer
         end
 
+        # Directory entries are a no-op: 7z archives derive the
+        # directory tree from the files' archive paths ("sub/f.txt"
+        # implies "sub/"), and the writer/reader handle slashed
+        # paths (verified against 7zz).
         def add(name, source_path = nil)
-          if source_path.nil?
-            raise ArgumentError,
-                  "directory entries are not supported in .7z " \
-                  "convenience compression"
-          end
+          return if source_path.nil?
 
           @writer.add_file(source_path, name)
         end
