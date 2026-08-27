@@ -40,7 +40,7 @@ module Omnizip
         return output_path
       end
 
-      Omnizip::ArchiveHandler.for(format).create(output_path) do |archive|
+      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path) do |archive|
         archive.add(::File.basename(input_path), input_path)
       end
 
@@ -69,7 +69,7 @@ module Omnizip
         apply_profile(first_file, options)
       end
 
-      Omnizip::ArchiveHandler.for(format).create(output_path) do |archive|
+      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path) do |archive|
         add_directory_contents(archive, input_dir, "", recursive: recursive)
       end
 
@@ -87,7 +87,7 @@ module Omnizip
     def extract_archive(archive_path, output_dir, format: DEFAULT_FORMAT,
                         overwrite: false, **options)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(format)
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
         .extract_to(archive_path, output_dir,
                     overwrite: overwrite, **options)
     end
@@ -102,7 +102,7 @@ module Omnizip
     def list_archive(archive_path, format: DEFAULT_FORMAT, details: false,
                      **options)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(format)
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
         .list(archive_path, details: details, **options)
     end
 
@@ -114,7 +114,7 @@ module Omnizip
     # @return [String] Entry contents
     def read_from_archive(archive_path, entry_name, format: DEFAULT_FORMAT)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(format).read_entry(archive_path, entry_name)
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format)).read_entry(archive_path, entry_name)
     end
 
     # Add a file to an existing archive.
@@ -131,7 +131,7 @@ module Omnizip
         raise Errno::ENOENT, "Source file not found: #{source_path}"
       end
 
-      handler = Omnizip::ArchiveHandler.for(format)
+      handler = Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
       # allowed: handler is a registered duck; missing add_entry raises below
       if handler.respond_to?(:add_entry)
         handler.add_entry(archive_path, entry_name, source_path)
@@ -151,7 +151,7 @@ module Omnizip
     # @return [String] +archive_path+
     def remove_from_archive(archive_path, entry_name, format: DEFAULT_FORMAT)
       require_archive!(archive_path)
-      handler = Omnizip::ArchiveHandler.for(format)
+      handler = Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
       # allowed: handler is a registered duck; missing remove_entry raises below
       unless handler.respond_to?(:remove_entry)
         raise Omnizip::UnsupportedFormatError,
@@ -172,6 +172,20 @@ module Omnizip
     # Extension -> single-file compressor map. Each lambda takes
     # (input_path, output_path, options). These formats are streams,
     # not archives, so they bypass ArchiveHandler.
+    # Extensions naming archive formats with a registered handler;
+    # routed when the caller did not pass an explicit +format:+.
+    ARCHIVE_FORMAT_EXTENSIONS = {
+      ".zip" => :zip,
+      ".tar" => :tar,
+      ".7z" => :seven_zip,
+    }.freeze
+
+    # Extensions naming real formats this gem can READ but not write
+    # through the convenience API. Writing them a ZIP under a foreign
+    # name was silent corruption; failing truthfully is the only
+    # honest behavior.
+    READ_ONLY_FORMAT_EXTENSIONS = [".rar", ".iso", ".cpio"].freeze
+
     SINGLE_FILE_COMPRESSORS = {
       ".gz" => lambda do |input, output, options|
         Omnizip::Formats::Gzip.compress(input, output, options)
@@ -204,6 +218,26 @@ module Omnizip
     def single_file_handler(output_path)
       ext = ::File.extname(output_path).downcase
       SINGLE_FILE_COMPRESSORS[ext]
+    end
+
+    # Archive format for a path: an explicit +format+ wins unless it
+    # is the default; otherwise the extension routes. Known-but-
+    # unwritable extensions raise instead of receiving a mislabeled
+    # ZIP.
+    def resolve_archive_format(path, format)
+      return format unless format == DEFAULT_FORMAT
+
+      ext = ::File.extname(path).downcase
+      routed = ARCHIVE_FORMAT_EXTENSIONS[ext]
+      return routed if routed
+
+      if READ_ONLY_FORMAT_EXTENSIONS.include?(ext)
+        raise Omnizip::UnsupportedFormatError,
+              "#{ext} archives cannot be written by the convenience " \
+              "API (read-only support); use the format-specific reader"
+      end
+
+      DEFAULT_FORMAT
     end
 
     private

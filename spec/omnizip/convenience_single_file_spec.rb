@@ -60,4 +60,38 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     expect(header.getbyte(0)).to eq((((2 * 5) + 0) * 9) + 3)
     expect(header.byteslice(5, 8)).to eq([source.bytesize].pack("Q<"))
   end
+
+  describe "archive extension routing" do
+    it "writes a real TAR for .tar outputs" do
+      path = File.join(outdir, "out.tar")
+      Omnizip.compress_file(input.path, path)
+
+      expect(`tar -tf #{path}`.strip).to eq(File.basename(input.path))
+    end
+
+    it "writes a real 7z for .7z outputs and extracts it back" do
+      path = File.join(outdir, "out.7z")
+      Omnizip.compress_file(input.path, path)
+      expect(File.binread(path, 2)).to eq("7z")
+
+      dest = File.join(outdir, "extracted")
+      Omnizip.extract_archive(path, dest)
+      expect(File.binread(File.join(dest, File.basename(input.path)))).to eq(source)
+    end
+
+    it "raises truthfully for read-only format extensions" do
+      [".rar", ".iso", ".cpio"].each do |ext|
+        expect do
+          Omnizip.compress_file(input.path, File.join(outdir, "out#{ext}"))
+        end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+      end
+    end
+
+    it "keeps the ZIP default for extensionless outputs" do
+      path = File.join(outdir, "noext")
+      Omnizip.compress_file(input.path, path)
+
+      expect(File.binread(path, 2)).to eq("PK")
+    end
+  end
 end
