@@ -32,7 +32,7 @@ as absolute rules:
 | 10 | `10-format-detector-ocp.md` | medium | **DONE** |
 | 11 | `11-convenience-decoupling.md` | medium | **DONE** (ArchiveHandler dispatcher + ZipHandler + TarHandler) |
 | 12 | `12-thread-safety.md` | covered by 01 | n/a |
-| 13 | `13-lutaml-model-migration.md` | medium | **PARTIAL** — CompressionOptions and AlgorithmMetadata migrated; ConversionOptions pending lutaml symbol-type support |
+| 13 | `13-lutaml-model-migration.md` | medium | **DONE** — six models migrated; follow-ups 2+3 landed in 0.3.28; 1 and 4 decided (deferred rename / migration declined with reasons) |
 | 14 | `14-add-missing-specs.md` | high | **DONE** |
 
 ## Anti-pattern counts (lib/)
