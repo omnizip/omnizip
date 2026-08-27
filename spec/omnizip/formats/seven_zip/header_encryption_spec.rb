@@ -124,13 +124,11 @@ RSpec.describe "7z Header Encryption" do
 
   describe "Creating encrypted archives" do
     it "creates archive with encrypted headers" do
-      # Use COPY algorithm instead of LZMA2 due to known LZMA2 encoder bug
-      # TODO: Re-enable LZMA2 once encoder is fixed
       Omnizip::Formats::SevenZip.create(
         archive_path,
         password: password,
         encrypt_headers: true,
-        algorithm: :copy,
+        algorithm: :lzma2,
       ) do |archive|
         archive.add_file(test_file)
       end
@@ -139,13 +137,11 @@ RSpec.describe "7z Header Encryption" do
     end
 
     it "requires password when encrypt_headers is true" do
-      # Use COPY algorithm instead of LZMA2 due to known LZMA2 encoder bug
-      # TODO: Re-enable LZMA2 once encoder is fixed
       expect do
         Omnizip::Formats::SevenZip.create(
           archive_path,
           encrypt_headers: true,
-          algorithm: :copy,
+          algorithm: :lzma2,
         ) do |archive|
           archive.add_file(test_file)
         end
@@ -155,13 +151,11 @@ RSpec.describe "7z Header Encryption" do
 
   describe "Reading encrypted archives" do
     before do
-      # Use COPY algorithm instead of LZMA2 due to known LZMA2 encoder bug
-      # TODO: Re-enable LZMA2 once encoder is fixed
       Omnizip::Formats::SevenZip.create(
         archive_path,
         password: password,
         encrypt_headers: true,
-        algorithm: :copy,
+        algorithm: :lzma2,
       ) do |archive|
         archive.add_file(test_file)
       end

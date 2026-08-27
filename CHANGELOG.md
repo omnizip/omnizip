@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.31] - 2026-08-27
+
+### Changed
+- Re-enabled LZMA2 in the 7-Zip header-encryption and split-archive
+  specs (the multi-chunk encoder landed in 0.3.19; the specs had
+  been pinned to :copy) and replaced the match-encoding TODO with a
+  wire-level round-trip verification of the distance-8/length
+  pattern through the LZMA2 decoder. No code under lib/ changes.
+
 ## [0.3.30] - 2026-08-27
 
 ### Verified

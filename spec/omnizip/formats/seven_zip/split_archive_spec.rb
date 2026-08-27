@@ -250,11 +250,9 @@ RSpec.describe "SevenZip Split Archive Support" do
       test_files = create_test_files(2, 40)
       archive_path = File.join(temp_dir, "archive.7z.001")
 
-      # Use COPY algorithm instead of LZMA2 due to known LZMA2 encoder bug
-      # TODO: Re-enable LZMA2 once encoder is fixed
       writer = Omnizip::Formats::SevenZip::SplitArchiveWriter.new(
         archive_path,
-        { algorithm: :copy, level: 1 },
+        { algorithm: :lzma2, level: 1 },
         split_options,
       )
 
