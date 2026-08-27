@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.31] - 2026-08-27
+
 ### Fixed
 - `Omnizip.compress_file` now routes single-file compression by
   output extension: `.gz`, `.bz2`, `.xz`, `.lzma` and `.lz` produce
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `compress_file('input.txt', 'output.lzma', algorithm: :lzma)`
   example previously emitted `PK`-magic data). Unknown extensions
   and explicit archive formats keep the previous behavior.
+- CI: the Windows matrix no longer fails when choco's winrar
+  download 404s (RAR specs skip when it is absent).
 
 ## [0.3.30] - 2026-08-27
 
