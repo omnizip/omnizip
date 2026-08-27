@@ -19,9 +19,38 @@
 require "thor"
 
 module Omnizip
+  # Shared helpers used by the Thor command groups defined below
+  # (ProfileCommands, ArchiveCommands, Cli). Defined here because the
+  # command classes include it at class-body time; a separate file
+  # under Omnizip::Cli would re-trigger this file's autoload
+  # mid-load.
+  module Shared
+    # Print a formatted error message and exit nonzero.
+    #
+    # @param error [StandardError] the error to display
+    def handle_error(error)
+      warn Omnizip::CliOutputFormatter.format_error(error)
+      exit 1
+    end
+
+    # Format a byte count with a binary-unit suffix.
+    #
+    # @param bytes [Integer] the byte count
+    # @return [String] human-readable size (e.g. "1.5 MB")
+    def format_bytes(bytes)
+      return "0 B" if bytes.zero?
+
+      units = %w[B KB MB GB TB]
+      exp = (Math.log(bytes) / Math.log(1024)).to_i
+      exp = [exp, units.size - 1].min
+
+      "%.1f %s" % [bytes.to_f / (1024**exp), units[exp]]
+    end
+  end
+
   # Profile commands subcommand group
   class ProfileCommands < Thor
-    include Omnizip::Cli::Shared
+    include Shared
 
     class << self
       def exit_on_failure?
@@ -69,7 +98,7 @@ module Omnizip
 
   # Archive commands subcommand group
   class ArchiveCommands < Thor
-    include Omnizip::Cli::Shared
+    include Shared
 
     class << self
       def exit_on_failure?
@@ -298,7 +327,7 @@ module Omnizip
   # Provides Thor-based CLI commands for compressing and decompressing
   # files using various compression algorithms.
   class Cli < Thor
-    include Omnizip::Cli::Shared
+    include Shared
 
     class << self
       def exit_on_failure?

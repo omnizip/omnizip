@@ -67,6 +67,7 @@ module Omnizip
   autoload :Profiler, "omnizip/profiler"
   autoload :Commands, "omnizip/commands"
   autoload :CliOutputFormatter, "omnizip/cli/output_formatter"
+  autoload :Cli, "omnizip/cli"
 
   # Implementation namespaces. Each namespace file declares autoloads
   # for its concrete classes. The classes self-register with their

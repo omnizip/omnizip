@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The `omnizip` executable crashed on every invocation
+  (`uninitialized constant Omnizip::Cli`): the `Cli` autoload was
+  missing and the Thor command classes referenced
+  `Omnizip::Cli::Shared` mid-load, re-triggering the in-progress
+  autoload. The autoload exists now and Shared is defined ahead of
+  the command classes in `lib/omnizip/cli.rb` (its separate file is
+  gone). Verified: `omnizip version`, the documented
+  `compress/decompress output.lzma` round-trip (which also
+  interops with `xz --format=lzma` in both directions), and
+  `archive create backup.7z` producing an archive `7zz` validates.
+
 ## [0.3.31] - 2026-08-27
 
 ### Fixed
