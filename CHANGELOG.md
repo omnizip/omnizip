@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.32] - 2026-08-27
+
 ### Fixed
 - The `omnizip` executable crashed on every invocation
   (`uninitialized constant Omnizip::Cli`): the `Cli` autoload was
