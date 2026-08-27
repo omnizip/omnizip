@@ -28,11 +28,11 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
 
     out = StringIO.new
     case ext
-    when ".gz" then Omnizip::Formats::Gzip.decompress_stream(File.open(path), out)
-    when ".bz2" then Omnizip::Formats::Bzip2File.decompress_stream(File.open(path), out)
+    when ".gz" then Omnizip::Formats::Gzip.decompress_stream(File.open(path, "rb"), out)
+    when ".bz2" then Omnizip::Formats::Bzip2File.decompress_stream(File.open(path, "rb"), out)
     when ".xz" then out << Omnizip::Formats::Xz.decompress(File.binread(path))
-    when ".lzma" then Omnizip::Formats::LzmaAlone.decompress_stream(File.open(path), out)
-    when ".lz" then Omnizip::Formats::Lzip.decompress_stream(File.open(path), out)
+    when ".lzma" then Omnizip::Formats::LzmaAlone.decompress_stream(File.open(path, "rb"), out)
+    when ".lz" then Omnizip::Formats::Lzip.decompress_stream(File.open(path, "rb"), out)
     end
     [path, out.string]
   end
