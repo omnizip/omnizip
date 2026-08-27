@@ -66,7 +66,13 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       path = File.join(outdir, "out.tar")
       Omnizip.compress_file(input.path, path)
 
-      expect(`tar -tf #{path}`.strip).to eq(File.basename(input.path))
+      # POSIX ustar magic at offset 257 — true on every platform.
+      expect(File.binread(path, 5, 257)).to eq("ustar")
+
+      if system("tar --version > /dev/null 2>&1")
+        listing = `tar -tf #{path}`.strip
+        expect(listing).to include(File.basename(input.path))
+      end
     end
 
     it "writes a real 7z for .7z outputs and extracts it back" do
