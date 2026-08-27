@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The convenience API (`compress_file`, `compress_directory`,
+  `extract_archive`, `list_archive`, `read_from_archive`,
+  `add_to_archive`, `remove_from_archive`) now routes archive
+  formats by extension: `.tar` writes/reads real TAR (previously a
+  mislabeled ZIP), `.7z` writes/reads real 7z via a new
+  `ArchiveHandlers::SevenZipHandler` (previously a mislabeled ZIP;
+  archives verify with `7zz`), and read-only formats (`.rar`,
+  `.iso`, `.cpio`) raise `UnsupportedFormatError` instead of
+  silently writing a ZIP under a foreign name. Extensionless
+  outputs keep the ZIP default; an explicit `format:` still wins.
+
 ## [0.3.32] - 2026-08-27
 
 ### Fixed

@@ -7,5 +7,6 @@ module Omnizip
   module ArchiveHandlers
     autoload :ZipHandler, "omnizip/archive_handlers/zip_handler"
     autoload :TarHandler, "omnizip/archive_handlers/tar_handler"
+    autoload :SevenZipHandler, "omnizip/archive_handlers/seven_zip_handler"
   end
 end

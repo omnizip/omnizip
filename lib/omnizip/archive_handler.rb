@@ -69,6 +69,7 @@ module Omnizip
     LAZY_LOAD_TRIGGERS = {
       zip: -> { Omnizip::ArchiveHandlers::ZipHandler },
       tar: -> { Omnizip::ArchiveHandlers::TarHandler },
+      seven_zip: -> { Omnizip::ArchiveHandlers::SevenZipHandler },
     }.freeze
     private_constant :LAZY_LOAD_TRIGGERS
   end
