@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "stringio"
 
 RSpec.describe Omnizip::Implementations::XZUtils::LZMA2::Encoder do
   describe "match encoding" do
@@ -10,14 +11,19 @@ RSpec.describe Omnizip::Implementations::XZUtils::LZMA2::Encoder do
       # First 8 unique bytes, then repeat many times to create match
       data = "ABCDEFGH" * 20 # 160 bytes
 
-      encoder = described_class.new
+      encoder = described_class.new(standalone: false)
       compressed = encoder.encode(data)
 
-      # Should compress to smaller than input (despite property byte overhead)
+      # Should compress to smaller than input
       expect(compressed.bytesize).to be < data.bytesize
 
-      # TODO: Verify exact encoding of distance and length
-      # This test will likely fail initially
+      # Exact distance/length verification: the distance-8 matches in
+      # this pattern only decode back to the original bytes if every
+      # distance and length field was encoded correctly on the wire.
+      decoder = Omnizip::Implementations::XZUtils::LZMA2::Decoder.new(
+        StringIO.new(compressed), raw_mode: true
+      )
+      expect(decoder.decode_stream).to eq(data)
     end
 
     it "correctly encodes simple repeated pattern" do
