@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.31] - 2026-08-27
+## [0.3.30] - 2026-08-27
 
 ### Changed
 - Re-enabled LZMA2 in the 7-Zip header-encryption and split-archive
