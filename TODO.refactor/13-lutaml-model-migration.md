@@ -129,18 +129,30 @@ is the intended end state, not unfinished work.
 
 ## Follow-up work
 
-1. **Rename the 17.** If they are reports and projections, `to_h` is
-   the wrong name — that is the real defect. Suggested groupings:
-   `to_report` for the computed ones, `to_tag_map` / `to_attributes`
-   for projections, `to_xml_attributes` / `to_fields` for wire-format
-   builders. Each rename is itself a public-API break.
-2. **Fix `apply` in `CompressionOptions` and `AlgorithmMetadata`.**
-   Both iterate `self.class.attributes.each do |attr| ... attr.name`,
-   but `attributes` is a Hash, so the block gets a two-element Array
-   and `attr.name` raises `NoMethodError`. Neither has a caller or a
-   spec today, which is why it went unnoticed. Fix is `each_key`, plus
-   a spec per class.
-3. **Extract the shared `apply` loop** once (2) has landed — three
-   classes now carry a similar body.
-4. **Consider `FilterConfig` and the profile classes** for a proper
-   migration; both were judged too high-blast-radius to bundle here.
+1. **Rename the 17 — DECIDED: deferred to a deliberate major/minor
+   release.** The names below remain the plan if that release
+   happens: `to_report` for the computed ones, `to_tag_map` /
+   `to_attributes` for projections, `to_xml_attributes` / `to_fields`
+   for wire-format builders. Each rename is a public-API break
+   (every one of the 17 is a public class method), so it cannot ship
+   silently in a patch; the 17 staying is the intended end state for
+   now, per "Why 17 stay" above.
+2. **DONE (0.3.28, PR #42).** `apply` fixed in both classes — all
+   three options models now share the tested
+   `Models::AttributeApply` concern, which also delivers (3).
+3. **DONE (0.3.28, PR #42)** — see (2).
+4. **Considered — decided against, with reasons.**
+   - `FilterConfig` is a behavior-heavy domain object, not a
+     serialization model: `filter_instance` reaches into
+     `FilterRegistry`, `id_for_format`/`bcj?`/`delta?` are domain
+     queries, `properties` defaults to a binary String (lutaml's
+     `:string` is UTF-8-oriented, so the attribute would need a
+     custom type), and initialization accepts two alias keys
+     (`:name`/`:name_sym`). Its `to_h` is a projection with no
+     round-trip consumer. Migration would fight the framework to
+     achieve nothing the class needs.
+   - The profile classes are abstract domain objects: subclasses
+     override `suitable_for?`, `apply_to` mutates an options object,
+     five validators run at construction, and `to_h` coexists with
+     `to_s`/`inspect` as display projections. No wire format round
+     trips them. Same verdict.
