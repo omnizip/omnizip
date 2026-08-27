@@ -6,7 +6,9 @@ module Omnizip
     # /+list+ interface for the TAR format. Wraps +Omnizip::Formats::Tar+.
     class TarHandler
       def create(path, &block)
-        Omnizip::Formats::Tar.create(path, &block)
+        Omnizip::Formats::Tar.create(path) do |writer|
+          block&.call(EntryProxy.new(writer))
+        end
       end
 
       def open(path, &block)
@@ -31,6 +33,22 @@ module Omnizip
           end
         else
           entries.map(&:name)
+        end
+      end
+
+      # Translates the generic +add(name, source_path)+ interface:
+      # a bare +add(name)+ is a directory ENTRY (no source on disk
+      # relative to the caller), which the Tar writer's own +add+
+      # would misread as a CWD-relative path.
+      class EntryProxy
+        def initialize(writer)
+          @writer = writer
+        end
+
+        def add(name, source_path = nil)
+          return @writer.add_directory(name) if source_path.nil?
+
+          @writer.add(name, source_path)
         end
       end
 

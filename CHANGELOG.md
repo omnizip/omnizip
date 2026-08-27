@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Omnizip.compress_directory` to `.7z` and `.tar` (both documented)
+  works now: the 7z handler treats directory entries as the no-op
+  they are in the format (7z derives the tree from file paths;
+  nested paths verified against `7zz`), and the Tar handler routes
+  bare directory entries to the writer's `add_directory` instead of
+  misreading them as CWD-relative paths. Both round-trip nested
+  subdirectories through `extract_archive`.
+
 ## [0.3.33] - 2026-08-27
 
 ### Fixed

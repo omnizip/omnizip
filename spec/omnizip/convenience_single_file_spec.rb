@@ -93,6 +93,25 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       end
     end
 
+    it "compresses directories to .7z and .tar with nested paths" do
+      Dir.mktmpdir("omnizip-sf-dir") do |src|
+        File.binwrite(File.join(src, "a.txt"), "top-level\n")
+        Dir.mkdir(File.join(src, "sub"))
+        File.binwrite(File.join(src, "sub", "b.txt"), "nested\n")
+
+        [".7z", ".tar"].each do |ext|
+          path = File.join(outdir, "dir#{ext}")
+          Omnizip.compress_directory(src, path)
+
+          dest = File.join(outdir, "dir-extract#{ext}")
+          Dir.mkdir(dest)
+          Omnizip.extract_archive(path, dest)
+          expect(File.binread(File.join(dest, "sub", "b.txt"))).to eq("nested\n")
+          expect(File.binread(File.join(dest, "a.txt"))).to eq("top-level\n")
+        end
+      end
+    end
+
     it "keeps the ZIP default for extensionless outputs" do
       path = File.join(outdir, "noext")
       Omnizip.compress_file(input.path, path)
