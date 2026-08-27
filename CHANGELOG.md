@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.34] - 2026-08-27
+
 ### Fixed
 - `Omnizip.compress_directory` to `.7z` and `.tar` (both documented)
   works now: the 7z handler treats directory entries as the no-op
