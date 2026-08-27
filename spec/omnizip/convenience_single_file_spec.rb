@@ -112,6 +112,20 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       end
     end
 
+    it "lists and reads .7z entries" do
+      path = File.join(outdir, "list.7z")
+      Omnizip.compress_file(input.path, path)
+
+      expect(Omnizip.list_archive(path)).to eq([File.basename(input.path)])
+      details = Omnizip.list_archive(path, details: true)
+      expect(details.first[:name]).to eq(File.basename(input.path))
+      expect(details.first[:size]).to eq(source.bytesize)
+      expect(Omnizip.read_from_archive(path, File.basename(input.path))).to eq(source)
+      expect do
+        Omnizip.read_from_archive(path, "no-such-entry")
+      end.to raise_error(Errno::ENOENT)
+    end
+
     it "keeps the ZIP default for extensionless outputs" do
       path = File.join(outdir, "noext")
       Omnizip.compress_file(input.path, path)

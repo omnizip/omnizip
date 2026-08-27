@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `Omnizip.list_archive` on `.7z` returned raw Reader objects (the
+  SevenZip.open facade discards block return values) and
+  `read_from_archive` on `.7z` raised NotImplementedError. Both work
+  now: list returns entry names (or name/size/directory/mtime hashes
+  with `details: true`) and read returns entry bytes, wired through
+  the reader's `extract_entry_data`; missing entries raise
+  `Errno::ENOENT` like the ZIP handler.
+
 ## [0.3.34] - 2026-08-27
 
 ### Fixed

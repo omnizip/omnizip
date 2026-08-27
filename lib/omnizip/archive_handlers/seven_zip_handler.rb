@@ -21,16 +21,40 @@ module Omnizip
       end
 
       def list(path, details: false, **options)
-        Omnizip::Formats::SevenZip.open(path, options) do |reader|
-          files = reader.list_files
-          return details ? files.map { |f| { name: f } } : files
+        with_reader(path, options) do |reader|
+          entries = reader.list_files
+          if details
+            entries.map do |e|
+              { name: e.name, size: e.size, directory: e.is_dir,
+                mtime: e.mtime }
+            end
+          else
+            entries.map(&:name)
+          end
         end
       end
 
-      def read_entry(_path, _entry_name)
-        raise NotImplementedError,
-              "read_from_archive for .7z is not wired; use " \
-              "Formats::SevenZip.open"
+      def read_entry(path, entry_name, **options)
+        with_reader(path, options) do |reader|
+          entry = reader.list_files.find { |e| e.name == entry_name }
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
+
+          reader.extract_entry_data(File.open(path, "rb"), entry)
+        end
+      end
+
+      private
+
+      # The SevenZip.open facade returns the reader, discarding the
+      # block's value — so drive the Reader directly.
+      def with_reader(path, options)
+        reader = Omnizip::Formats::SevenZip::Reader.new(path, options)
+        reader.open
+        begin
+          yield reader
+        ensure
+          reader.split_reader&.close
+        end
       end
 
       # Translates the generic +add(name, source_path)+ interface to
