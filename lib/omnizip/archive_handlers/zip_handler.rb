@@ -6,7 +6,9 @@ module Omnizip
     # /+list+ interface for the ZIP format. Wraps +Omnizip::Zip::File+.
     class ZipHandler
       def create(path, &block)
-        Omnizip::Zip::File.create(path, &block)
+        Omnizip::Zip::File.create(path) do |file|
+          block&.call(FileProxy.new(file))
+        end
       end
 
       def open(path, &block)
@@ -65,6 +67,24 @@ module Omnizip
 
       def remove_entry(path, entry_name)
         Omnizip::Zip::File.open(path) { |zip| zip.remove(entry_name) }
+      end
+
+      # Translates the generic +add(name, source_path)+ and
+      # +add_data(name, data)+ interface. +Zip::File#add_data+ is
+      # private, so in-memory content goes through the public block
+      # form +add(name) { data }+.
+      class FileProxy
+        def initialize(file)
+          @file = file
+        end
+
+        def add(name, source_path = nil)
+          @file.add(name, source_path)
+        end
+
+        def add_data(name, data)
+          @file.add(name) { data }
+        end
       end
     end
   end

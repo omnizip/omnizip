@@ -50,6 +50,10 @@ module Omnizip
 
           @writer.add(name, source_path)
         end
+
+        def add_data(name, data)
+          @writer.add_data(name, data)
+        end
       end
 
       def read_entry(path, entry_name)
