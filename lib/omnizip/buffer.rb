@@ -30,6 +30,7 @@ module Omnizip
     # Nested classes - autoloaded
     autoload :MemoryArchive, "omnizip/buffer/memory_archive"
     autoload :MemoryExtractor, "omnizip/buffer/memory_extractor"
+    autoload :SevenZipBridge, "omnizip/buffer/seven_zip_bridge"
 
     class << self
       # Create archive in memory
@@ -54,7 +55,7 @@ module Omnizip
         when :zip
           create_zip(buffer, options, &block)
         when :seven_zip, :"7z"
-          raise NotImplementedError, "7z format support coming in Phase 2"
+          SevenZipBridge.create(buffer, options, &block)
         else
           raise ArgumentError, "Unsupported format: #{format}"
         end
@@ -84,7 +85,7 @@ module Omnizip
         when :zip
           open_zip(buffer, &block)
         when :seven_zip, :"7z"
-          raise NotImplementedError, "7z format support coming in Phase 2"
+          SevenZipBridge.open(buffer, &block)
         else
           raise ArgumentError, "Unsupported format: #{format}"
         end
@@ -132,14 +133,14 @@ module Omnizip
       # @return [Symbol] Detected format
       # @raise [Omnizip::FormatError] If format cannot be detected
       def detect_format(buffer)
-        magic = buffer.read(4)
+        magic = buffer.read(4).to_s.b
         buffer.rewind
 
         case magic
-        when "PK\x03\x04", "PK\x05\x06", "PK\x07\x08"
+        when "PK\x03\x04".b, "PK\x05\x06".b, "PK\x07\x08".b
           # ZIP signatures: local file header, EOCD, data descriptor
           :zip
-        when "7z\xBC\xAF"
+        when "7z\xBC\xAF".b
           :seven_zip
         else
           raise Omnizip::FormatError,

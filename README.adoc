@@ -633,6 +633,37 @@ Omnizip.extract_archive('archive.zip', 'output/')
 Omnizip.list_archive('archive.zip')
 ----
 
+==== In-Memory Archives
+
+`Omnizip::Buffer` creates and reads ZIP and 7z archives entirely in
+memory (7z bridges through a temporary file internally):
+
+[source,ruby]
+----
+require 'omnizip'
+
+# Create in memory
+buffer = Omnizip::Buffer.create(:zip) do |archive|
+  archive.add('readme.txt', 'Hello World')
+  archive.add('docs/', '')            # directory entry
+end
+
+# Same API for 7z
+buffer7z = Omnizip::Buffer.create(:seven_zip) do |archive|
+  archive.add('data.json', '{"key": "value"}')
+end
+
+# Read back (format auto-detected)
+files = Omnizip::Buffer.extract_to_memory(buffer.string)
+# => {"readme.txt" => "Hello World"}
+
+Omnizip::Buffer.open(buffer.string) do |archive|
+  archive.each_entry do |entry|
+    puts "#{entry.name}: #{entry.size} bytes" unless entry.directory?
+  end
+end
+----
+
 ==== Rubyzip Compatibility Mode
 
 [source,ruby]

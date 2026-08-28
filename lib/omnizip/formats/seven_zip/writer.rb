@@ -68,6 +68,23 @@ module Omnizip
           @entries << entry
         end
 
+        # Add an explicit directory entry with no data or stream
+        #
+        # @param archive_path [String] Directory path inside the
+        #   archive (trailing slash optional)
+        # @return [self]
+        def add_directory_entry(archive_path)
+          entry = Models::FileEntry.new
+          entry.name = archive_path.chomp("/")
+          entry.source_path = nil
+          entry.size = 0
+          entry.is_dir = true
+          entry.has_stream = false
+          entry.mtime = Time.now
+          @entries << entry
+          self
+        end
+
         def write
           # Collect any files from the collector (if add_file/add_directory was used)
           collected_entries = @collector.collect_files
