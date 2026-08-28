@@ -46,6 +46,36 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     end
   end
 
+  describe ".decompress_file" do
+    it "round-trips every documented extension" do
+      [".gz", ".bz2", ".xz", ".lzma", ".lz"].each do |ext|
+        compressed = File.join(outdir, "rt#{ext}")
+        Omnizip.compress_file(input.path, compressed)
+
+        output = File.join(outdir, "rt#{ext}.out")
+        Omnizip.decompress_file(compressed, output)
+
+        expect(File.binread(output)).to eq(source)
+      end
+    end
+
+    it "raises truthfully for archive extensions" do
+      zip_path = File.join(outdir, "plain.zip")
+      Omnizip.compress_file(input.path, zip_path)
+
+      expect do
+        Omnizip.decompress_file(zip_path, File.join(outdir, "x"))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /extract_archive/)
+    end
+
+    it "raises for missing input" do
+      expect do
+        Omnizip.decompress_file(File.join(outdir, "nope.gz"),
+                                File.join(outdir, "x"))
+      end.to raise_error(Errno::ENOENT)
+    end
+  end
+
   it "keeps the ZIP default for unknown extensions" do
     path = File.join(outdir, "out.dat")
     Omnizip.compress_file(input.path, path)

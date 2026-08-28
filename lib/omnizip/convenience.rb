@@ -47,6 +47,36 @@ module Omnizip
       output_path
     end
 
+    # Decompress a single-file compressed stream (the counterpart of
+    # #compress_file). The format is resolved from the input
+    # extension: .gz, .bz2, .xz, .lzma, .lz.
+    #
+    # @param compressed_path [String] Path to the compressed file
+    # @param output_path [String] Path to write the decompressed data
+    # @return [String] +output_path+
+    def decompress_file(compressed_path, output_path)
+      require_archive!(compressed_path)
+
+      format_class = DECOMPRESSORS[::File.extname(compressed_path).downcase]
+      unless format_class
+        raise Omnizip::UnsupportedFormatError,
+              "decompress_file supports #{DECOMPRESSORS.keys.join(', ')}; " \
+              "use extract_archive for archive formats"
+      end
+
+      case format_class
+      when :xz
+        ::File.binwrite(output_path, Formats::Xz.decompress(compressed_path))
+      else
+        ::File.open(compressed_path, "rb") do |input_io|
+          ::File.open(output_path, "wb") do |output_io|
+            format_class.decompress_stream(input_io, output_io)
+          end
+        end
+      end
+      output_path
+    end
+
     # Compress a directory into an archive.
     #
     # @param input_dir [String] Path to input directory
@@ -187,6 +217,19 @@ module Omnizip
     # name was silent corruption; failing truthfully is the only
     # honest behavior.
     READ_ONLY_FORMAT_EXTENSIONS = [".rar", ".iso", ".cpio"].freeze
+
+    # Extension -> single-file decompressor (stream interface).
+    # The Gzip/Bzip2File/Xz classes take path or stream; use the
+    # ones exposing decompress_stream for symmetry.
+    # Xz exposes a path-based decompress rather than a stream one,
+    # so it is marked specially here.
+    DECOMPRESSORS = {
+      ".gz" => Formats::Gzip,
+      ".bz2" => Formats::Bzip2File,
+      ".xz" => :xz,
+      ".lzma" => Formats::LzmaAlone,
+      ".lz" => Formats::Lzip,
+    }.freeze
 
     SINGLE_FILE_COMPRESSORS = {
       ".gz" => lambda do |input, output, options|
