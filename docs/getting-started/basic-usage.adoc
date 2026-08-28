@@ -53,12 +53,8 @@ Omnizip.compress_directory('my_folder/', 'backup.zip')
 # Create 7z archive
 Omnizip.compress_directory('my_folder/', 'backup.7z', format: :seven_zip)
 
-# Add individual files
-Omnizip::Archive.create('custom.zip') do |archive|
-  archive.add_file('file1.txt')
-  archive.add_file('file2.txt')
-  archive.add_directory('folder/')
-end
+# Add individual files: compress one file per call
+Omnizip.compress_file('file1.txt', 'custom.zip')
 ----
 
 === Extracting Archives
@@ -70,10 +66,9 @@ require 'omnizip'
 # Extract entire archive
 Omnizip.extract_archive('backup.zip', 'output/')
 
-# Extract with pattern matching
-Omnizip::Archive.open('backup.zip') do |archive|
-  archive.extract_matching('*.txt', 'output/')
-end
+# Extract a single entry without a full extraction
+content = Omnizip.read_from_archive('backup.zip', 'notes.txt')
+File.write('output/notes.txt', content)
 ----
 
 === Reading Archive Contents
@@ -82,10 +77,10 @@ end
 ----
 require 'omnizip'
 
-# List all entries
-entries = Omnizip.list_archive('backup.zip')
-entries.each do |entry|
-  puts "#{entry.name}: #{entry.size} bytes"
+# List all entries (names); pass details: true for sizes
+Omnizip.list_archive('backup.zip').each { |name| puts name }
+Omnizip.list_archive('backup.zip', details: true).each do |entry|
+  puts "#{entry[:name]}: #{entry[:size]} bytes"
 end
 
 # Read specific file without extraction
@@ -187,13 +182,12 @@ end
 ----
 require 'omnizip'
 
-# Verify archive integrity
+# Verify archive integrity: reading the archive's central
+# directory raises FormatError when the archive is damaged.
 begin
-  Omnizip::Archive.open('archive.zip') do |archive|
-    archive.verify
-  end
+  Omnizip.list_archive('archive.zip')
   puts "Archive is valid"
-rescue Omnizip::CorruptArchiveError => e
+rescue Omnizip::FormatError => e
   puts "Archive is corrupted: #{e.message}"
 end
 ----
@@ -253,9 +247,7 @@ require 'tempfile'
 
 # Create temporary archive
 Tempfile.create(['backup', '.zip']) do |tmpfile|
-  Omnizip::Archive.create(tmpfile.path) do |archive|
-    archive.add_directory('data/')
-  end
+  Omnizip.compress_directory('data', tmpfile.path)
 
   # Use archive...
   puts "Temporary archive: #{tmpfile.path}"
