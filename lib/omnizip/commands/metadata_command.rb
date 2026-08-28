@@ -18,18 +18,82 @@ module Omnizip
           raise Errno::ENOENT, "Archive not found: #{archive_path}"
         end
 
+        if seven_zip?(archive_path)
+          show_seven_zip_metadata(archive_path, pattern)
+          return
+        end
+
+        unless zip?(archive_path)
+          raise ArgumentError,
+                "Metadata is supported for .zip and .7z archives: " \
+                "#{archive_path}"
+        end
+
         Omnizip::Zip::File.open(archive_path) do |archive|
-          if options[:show]
+          if options[:show] || editing_nothing?
             show_metadata(archive, pattern)
           else
             edit_metadata(archive, pattern)
+            puts "Metadata updated successfully"
           end
         end
-
-        puts "Metadata updated successfully" unless options[:show]
       end
 
       private
+
+      def zip?(path)
+        path.end_with?(".zip")
+      end
+
+      def seven_zip?(path)
+        path.end_with?(".7z")
+      end
+
+      # True when no edit option was given — editing would be a no-op
+      def editing_nothing?
+        %i[comment set_mtime chmod set_attribute].none? { |key| options[key] }
+      end
+
+      # Read-only view for 7z archives; the edit path is zip-only
+      def show_seven_zip_metadata(archive_path, pattern)
+        if options[:comment] || options[:set_mtime] ||
+            options[:chmod] || options[:set_attribute]
+          raise ArgumentError,
+                "Metadata editing is only supported for ZIP archives"
+        end
+
+        reader = Omnizip::Formats::SevenZip::Reader.new(archive_path)
+        reader.open
+
+        if pattern
+          entries = reader.list_files.select do |e|
+            File.fnmatch(pattern, e.name)
+          end
+          if entries.empty?
+            warn "No entries match pattern: #{pattern}"
+            return
+          end
+
+          entries.each do |entry|
+            puts "Entry: #{entry.name}"
+            puts "  Type: #{entry.is_dir ? 'Directory' : 'File'}"
+            puts "  Size: #{format_size(entry.size)}"
+            # Per-entry packed sizes are not tracked by the parser
+            if entry.compressed_size&.positive?
+              puts "  Compressed: #{format_size(entry.compressed_size)}"
+            end
+            puts "  Modified: #{entry.mtime}" if entry.mtime
+            puts "  CRC32: 0x#{entry.crc.to_s(16).upcase}" if entry.crc
+          end
+        else
+          entries = reader.list_files
+          files = entries.reject(&:is_dir)
+          puts "Archive: #{archive_path}"
+          puts "Entries: #{entries.size} " \
+               "(#{files.size} files, #{entries.size - files.size} dirs)"
+          puts "Total size: #{format_size(files.sum(&:size))}"
+        end
+      end
 
       def show_metadata(archive, pattern)
         if pattern

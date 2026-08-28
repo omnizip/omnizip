@@ -154,8 +154,13 @@ module Omnizip
                                                     writer_opts) do |rar|
           inputs.each do |input|
             if File.directory?(input)
-              raise ArgumentError,
-                    "RAR5 writer does not support directories yet. Add individual files."
+              CliOutputFormatter.verbose_puts(
+                "Adding directory: #{input}",
+                verbose,
+              )
+              # Strip the parent so the tree lands under its own
+              # name, matching the .7z creation behavior
+              rar.add_directory(input, File.dirname(input))
             else
               CliOutputFormatter.verbose_puts(
                 "Adding file: #{input}",

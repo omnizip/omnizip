@@ -329,7 +329,7 @@ Zstandard supports levels 1-22:
 
 [source,ruby]
 ----
-zstd = Omnizip::AlgorithmRegistry.get(:zstd).new(level: 3)
+zstd = Omnizip::AlgorithmRegistry.get(:zstandard).new(level: 3)
 zstd.compress(input, output)
 ----
 

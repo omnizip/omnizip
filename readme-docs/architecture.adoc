@@ -246,7 +246,7 @@ end
 
 # List all available
 algorithms = Omnizip::AlgorithmRegistry.available
-# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstd]
+# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstandard]
 ----
 
 === Adding New Algorithms

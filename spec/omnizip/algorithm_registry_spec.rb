@@ -68,11 +68,14 @@ RSpec.describe Omnizip::AlgorithmRegistry do
 
       available = described_class.available
 
-      expect(available).to contain_exactly(:algo1, :algo2)
+      expect(available).to include(:algo1, :algo2)
     end
 
-    it "returns empty array when no algorithms registered" do
-      expect(described_class.available).to eq([])
+    it "always lists the lazy-registered builtin algorithms" do
+      available = described_class.available
+
+      expect(available).to include(:lzma, :lzma2, :bzip2, :deflate,
+                                   :deflate64, :zstandard, :ppmd7, :ppmd8)
     end
   end
 end

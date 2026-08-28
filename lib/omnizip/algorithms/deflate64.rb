@@ -28,14 +28,11 @@ module Omnizip
 
       # Algorithm metadata
       def self.metadata
-        {
-          name: "Deflate64",
-          type: :compression,
-          streaming_supported: true,
-          dictionary_size: DICTIONARY_SIZE,
-          compression_method: 9,
-          description: "Enhanced Deflate with 64KB window",
-        }
+        Models::AlgorithmMetadata.new.tap do |meta|
+          meta.name = "deflate64"
+          meta.description = "Enhanced Deflate with 64KB window"
+          meta.version = "1.0.0"
+        end
       end
 
       # Compress input stream to output stream

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "fileutils"
+
 #
 # Copyright (C) 2024 Ribose Inc.
 #
@@ -31,11 +33,19 @@ module Omnizip
 
       # Execute the decompress command.
       #
+      # Archives (.zip/.7z/.tar/...) extract into the output
+      # directory; single-file streams decompress to the output file.
+      #
       # @param input_file [String] Path to input file
-      # @param output_file [String] Path to output file
+      # @param output_file [String] Path to output file or directory
       # @return [void]
       def run(input_file, output_file)
         validate_inputs(input_file, output_file)
+
+        if archive_input?(input_file) || File.directory?(output_file)
+          run_archive_extract(input_file, output_file)
+          return
+        end
 
         algorithm_name = options[:algorithm] || detect_algorithm
         verbose = options[:verbose] || false
@@ -70,7 +80,25 @@ module Omnizip
         end
       end
 
+      ARCHIVE_EXTENSIONS = %w[.zip .7z .tar .rar .cpio .iso].freeze
+
       private
+
+      def archive_input?(path)
+        ext = File.extname(path).downcase
+        ARCHIVE_EXTENSIONS.include?(ext)
+      end
+
+      def run_archive_extract(input_file, output_dir)
+        FileUtils.mkdir_p(output_dir) unless File.directory?(output_dir)
+
+        entries = Omnizip.list_archive(input_file)
+        Omnizip.extract_archive(input_file, output_dir)
+
+        puts "Extracted #{entries.size} file(s) to: #{output_dir}"
+      rescue StandardError => e
+        raise Omnizip::IOError, "Failed to extract archive: #{e.message}"
+      end
 
       def validate_inputs(input_file, output_file)
         unless File.exist?(input_file)

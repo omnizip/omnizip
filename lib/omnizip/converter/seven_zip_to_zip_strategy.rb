@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tmpdir"
+
 module Omnizip
   module Converter
     # Convert 7-Zip archives to ZIP format
@@ -8,18 +10,22 @@ module Omnizip
       # @return [ConversionResult] Conversion result
       def convert
         start_time = Time.now
-        0
 
-        # Open source 7z archive
         reader = Omnizip::Formats::SevenZip::Reader.new(source_path)
-        reader.read
+        reader.open
+        entry_count = reader.list_files.size
 
-        # Collect entries
-        entries_data = collect_seven_zip_entries(reader)
-        entry_count = entries_data.size
+        Dir.mktmpdir("omnizip_convert") do |tmp|
+          reader.extract_all(tmp)
 
-        # Create target ZIP archive
-        create_zip(entries_data)
+          writer = Omnizip::Formats::Zip::Writer.new(target_path)
+          Dir.glob(File.join(tmp, "**", "*")).each do |path|
+            next if File.directory?(path)
+
+            writer.add_file(path, path.delete_prefix("#{tmp}/"))
+          end
+          writer.write
+        end
 
         create_result(start_time, entry_count)
       end
@@ -42,50 +48,6 @@ module Omnizip
       # @return [Boolean] True if can convert
       def self.can_convert?(source, target)
         source.end_with?(".7z") && target.end_with?(".zip")
-      end
-
-      private
-
-      def collect_seven_zip_entries(reader)
-        entries = []
-
-        reader.entries.each do |entry|
-          data = {
-            name: entry.name,
-            content: nil,
-            mtime: entry.mtime || Time.now,
-          }
-
-          # Extract entry data
-          unless entry.name.end_with?("/")
-            File.open(source_path, "rb") do |io|
-              data[:content] = reader.extract_entry_data(io, entry)
-            end
-          end
-
-          entries << data
-        end
-
-        entries
-      end
-
-      def create_zip(entries)
-        Omnizip::Zip::File.create(target_path) do |zip|
-          entries.each do |entry_data|
-            if entry_data[:name].end_with?("/")
-              # Directory entry
-              zip.add(entry_data[:name])
-            else
-              # File entry
-              zip.add(entry_data[:name]) { entry_data[:content] }
-            end
-          end
-
-          # Set archive comment if preserving metadata
-          if options.preserve_metadata
-            zip.comment = "Converted from 7z by Omnizip"
-          end
-        end
       end
     end
   end
