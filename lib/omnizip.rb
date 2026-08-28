@@ -83,6 +83,7 @@ module Omnizip
   autoload :Implementations, "omnizip/implementations"
   autoload :ArchiveHandler, "omnizip/archive_handler"
   autoload :ArchiveHandlers, "omnizip/archive_handlers"
+  autoload :Archive, "omnizip/archive"
   autoload :Password, "omnizip/password"
   autoload :Convenience, "omnizip/convenience"
 end

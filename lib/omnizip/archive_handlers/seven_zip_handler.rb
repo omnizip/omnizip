@@ -8,8 +8,8 @@ module Omnizip
       # Creates a .7z archive. The yielded proxy only supports
       # +add(name, source_path)+ for files — directory entries are not
       # part of the single-file convenience flow.
-      def create(path, &block)
-        Omnizip::Formats::SevenZip.create(path) do |writer|
+      def create(path, **options, &block)
+        Omnizip::Formats::SevenZip.create(path, options) do |writer|
           block&.call(FileProxy.new(writer))
         end
       end
@@ -72,6 +72,10 @@ module Omnizip
           return if source_path.nil?
 
           @writer.add_file(source_path, name)
+        end
+
+        def add_data(name, data)
+          @writer.add_data(name, data)
         end
       end
     end
