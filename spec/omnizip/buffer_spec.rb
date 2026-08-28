@@ -63,6 +63,63 @@ RSpec.describe Omnizip::Buffer do
       end.to raise_error(ArgumentError, /Unsupported format/)
     end
 
+    describe "7z format" do
+      it "creates a valid 7z archive readable back in memory" do
+        buffer = described_class.create(:seven_zip) do |archive|
+          archive.add("readme.txt", "Hello World")
+          archive.add("docs/", "")
+          archive.add("docs/api.json", '{"key": "value"}')
+        end
+
+        expect(buffer.string.byteslice(0, 6)).to eq("7z\xBC\xAF\x27\x1C".b)
+
+        files = described_class.extract_to_memory(buffer.string)
+        expect(files).to eq("readme.txt" => "Hello World",
+                            "docs/api.json" => '{"key": "value"}')
+      end
+
+      it "round-trips through Buffer.open with directory detection" do
+        buffer = described_class.create(:seven_zip) do |archive|
+          archive.add("file.txt", "content")
+          archive.add("empty/", "")
+        end
+
+        names = []
+        described_class.open(buffer.string.dup) do |archive|
+          archive.each_entry do |entry|
+            names << [entry.name, entry.directory?]
+          end
+        end
+
+        expect(names).to contain_exactly(["file.txt", false], ["empty/", true])
+      end
+
+      it "extracts and lists single entries via MemoryExtractor" do
+        buffer = described_class.create_from_hash(
+          { "a.txt" => "AAA", "b.bin" => "\x00\x01" }, :seven_zip
+        )
+
+        extractor = Omnizip::Buffer::MemoryExtractor.new(buffer.string)
+        expect(extractor.list_entries).to contain_exactly("a.txt", "b.bin")
+        expect(extractor.entry_exists?("a.txt")).to be(true)
+        expect(extractor.extract_entry("b.bin")).to eq("\x00\x01".b)
+      end
+
+      it "produces archives 7-Zip accepts",
+         skip: !system("which 7zz > /dev/null 2>&1") do
+        buffer = described_class.create(:seven_zip) do |archive|
+          archive.add("data.txt", "seven zip buffer " * 500)
+        end
+
+        Dir.mktmpdir("omnizip_buffer_7z_spec") do |tmp|
+          path = File.join(tmp, "a.7z")
+          File.binwrite(path, buffer.string)
+          expect(system("7zz", "t", path, out: File::NULL,
+                                          err: File::NULL)).to be(true)
+        end
+      end
+    end
+
     it "creates archive with compression options" do
       buffer = described_class.create(:zip) do |archive|
         archive.add("file.txt", "Hello World", compression: :deflate, level: 9)
