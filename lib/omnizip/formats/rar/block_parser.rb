@@ -121,6 +121,10 @@ module Omnizip
 
           header_flags = read_vint(io)
 
+          # Optional ExtraAreaSize / DataSize precede the file fields
+          extra_size = header_flags.anybits?(RAR5_FLAG_EXTRA_AREA) ? read_vint(io) : 0
+          data_size = header_flags.anybits?(RAR5_FLAG_DATA_AREA) ? read_vint(io) : 0
+
           # Read file header
           file_flags = read_vint(io)
           unpack_size = read_vint(io)
@@ -145,7 +149,7 @@ module Omnizip
 
           # Set entry properties
           entry.size = unpack_size
-          entry.compressed_size = 0 # Not directly available in header
+          entry.compressed_size = data_size
           entry.crc = crc
           entry.host_os = host_os
           entry.flags = file_flags
@@ -154,17 +158,9 @@ module Omnizip
           entry.is_dir = file_flags.anybits?(RAR5_FLAG_IS_DIR)
           entry.version = 5
 
-          # Read extra area if present
-          if header_flags.anybits?(RAR5_FLAG_EXTRA_AREA)
-            extra_size = read_vint(io)
-            io.read(extra_size) if extra_size.positive?
-          end
-
-          # Read data area if present
-          if header_flags.anybits?(RAR5_FLAG_DATA_AREA)
-            data_size = read_vint(io)
-            io.read(data_size) if data_size.positive?
-          end
+          # Skip extra area, then compressed data
+          io.read(extra_size) if extra_size.positive?
+          io.read(data_size) if data_size.positive?
 
           entry
         end

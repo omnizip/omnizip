@@ -121,13 +121,15 @@ omnizip compress input.txt output.lzma --level 3
 omnizip compress input.txt output.zst --algorithm zstandard
 ----
 
-3. Enable parallel processing:
+3. Run independent archives in parallel processes (see the
+link:../guides/advanced-features/parallel-processing.html[Parallel Processing guide]):
 [source,ruby]
 ----
-Omnizip.compress_file('input.txt', 'output.lzma',
-  parallel: true,
-  threads: 4
-)
+dirs = %w[data_a data_b]
+pids = dirs.map do |dir|
+  Process.fork { Omnizip.compress_directory(dir, "#{dir}.7z") }
+end
+pids.each { |pid| Process.wait(pid) }
 ----
 
 ==== Slow Decompression

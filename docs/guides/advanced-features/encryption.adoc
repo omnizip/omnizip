@@ -12,7 +12,7 @@ Protect sensitive data in your archives with industry-standard AES-256 encryptio
 == Benefits
 
 * **Strong Security**: AES-256 encryption with secure key derivation
-* **Format Flexibility**: Encryption available in both ZIP and 7z formats
+* **Format**: Encryption available for 7z archives (ZIP encryption is unsupported)
 * **Header Protection**: Encrypt filenames and metadata (7z format)
 * **Password Validation**: Built-in password strength checking
 * **Compatibility**: Works with archives from other tools
@@ -44,40 +44,20 @@ end
 * Optional header encryption (hides filenames)
 * HMAC-SHA-256 authentication
 
-=== WinZip AES (ZIP Format)
+=== ZIP Encryption: not supported
 
-Industry-standard AES encryption for ZIP archives:
+Omnizip can neither create nor decrypt encrypted ZIP archives —
+neither WinZip AES nor traditional ZipCrypto. Encrypted 7z is the
+supported path; extract encrypted ZIPs with 7-Zip/unzip.
 
-[source,ruby]
-----
-# Create AES-encrypted ZIP
-Omnizip::Zip::File.open('secure.zip', create: true) do |zip|
-  zip.password = 'SecurePassword123'
-  zip.encryption = :winzip_aes  # AES-256
-  zip.add('private.doc', 'files/private.doc')
-end
-----
-
-**Features**:
-
-* AES-256, AES-192, or AES-128
-* Compatible with WinZip, 7-Zip, PeaZip
-* HMAC-SHA-1 authentication
-* Standard ZIP format
-
-=== Traditional ZIP Encryption
-
-[WARNING]
-Traditional ZIP encryption (ZipCrypto) is weak and should only be used for compatibility with legacy systems.
+The convenience API raises rather than silently ignoring a
+password for zip:
 
 [source,ruby]
 ----
-# Only for compatibility - NOT RECOMMENDED
-Omnizip::Zip::File.open('legacy.zip', create: true) do |zip|
-  zip.password = 'password'
-  zip.encryption = :traditional  # Weak encryption
-  zip.add('file.txt', 'data.txt')
-end
+Omnizip::Archive.create('secure.zip', password: 'x')
+# => Omnizip::UnsupportedFormatError:
+#    password is only supported for seven_zip; :zip has no encryption support
 ----
 
 == Decrypting Archives
@@ -91,10 +71,8 @@ Omnizip::Archive.open('secure.7z', password: 'MyStr0ngP@ssw0rd') do |archive|
   archive.extract_all('decrypted/')
 end
 
-# Decrypt ZIP archive
-Omnizip::Zip::File.open('secure.zip', password: 'SecurePassword123') do |zip|
-  zip.extract_all('output/')
-end
+# ZIP encryption: Omnizip can neither create nor decrypt
+# password-protected ZIP archives; extract them with 7-Zip/unzip
 ----
 
 === Password via Environment Variable
@@ -286,12 +264,11 @@ Some older archives may use unsupported encryption:
 [source,ruby]
 ----
 begin
-  Omnizip::Archive.open('old-archive.zip') do |archive|
-    # ...
+  Omnizip::Archive.open('old-archive.7z', password: 'wrong') do |archive|
+    archive.read('secret.txt')
   end
-rescue Omnizip::UnsupportedEncryptionError => e
-  puts "Encryption method not supported: #{e.message}"
-  puts "Try opening with 7-Zip or WinZip first"
+rescue Omnizip::FormatError => e
+  puts "Archive damaged or password wrong: #{e.message}"
 end
 ----
 

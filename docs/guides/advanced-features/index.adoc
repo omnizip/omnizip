@@ -34,12 +34,22 @@ These features can be combined for maximum efficiency:
 
 [source,ruby]
 ----
-# Combine streaming + parallel + progress
-Omnizip.compress_directory('large_data/', 'backup.7z',
-  parallel: true,
-  threads: 8
-) do |progress|
-  puts "#{progress.percentage}% - #{progress.throughput_mb_s} MB/s"
+# Streaming writes + a progress tracker
+require 'omnizip/zip/output_stream'
+
+files = Dir.glob('large_data/**/*').select { |f| File.file?(f) }
+tracker = Omnizip::Progress.track(
+  total_files: files.size,
+  total_bytes: files.sum { |f| File.size(f) },
+  reporter: :console
+)
+
+Omnizip::Zip::OutputStream.open('backup.zip') do |stream|
+  files.each do |file|
+    stream.put_next_entry(file.delete_prefix('large_data/'))
+    stream.write(File.binread(file))
+    tracker.update(files: 1, bytes: File.size(file))
+  end
 end
 ----
 

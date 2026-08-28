@@ -58,7 +58,9 @@ module Omnizip
         RAR5_FLAG_UNKNOWN_BLOCKS = 0x0004
         RAR5_FLAG_DATA_INHERITED = 0x0008
         RAR5_FLAG_CHILD_BLOCKS = 0x0010
-        RAR5_FLAG_IS_DIR = 0x0020
+        # File-header-specific flags (FileFlags field): the directory
+        # bit is 0x0001 per the RAR5 spec.
+        RAR5_FLAG_IS_DIR = 0x0001
         RAR5_FLAG_MULTI_VOLUME = 0x0001
 
         # Compression methods

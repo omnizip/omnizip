@@ -59,10 +59,8 @@ Deflate is the standard ZIP compression algorithm, offering a good balance betwe
 # Deflate is the default for ZIP
 Omnizip.compress_directory('project/', 'backup.zip')
 
-# Explicit Deflate configuration
+# ZIP entries use Deflate by default
 Omnizip::Archive.create('archive.zip', format: :zip) do |archive|
-  archive.compression = :deflate
-  archive.level = 6  # Default level
   archive.add_directory('files/')
 end
 ----
@@ -250,8 +248,6 @@ Omnizip.compress_directory(
 ----
 # Package for distribution (broad compatibility)
 Omnizip::Archive.create('release-v1.0.zip', format: :zip) do |archive|
-  archive.compression = :deflate
-  archive.level = 9  # Best compression
   archive.add_directory('dist/')
 end
 ----
@@ -265,8 +261,6 @@ Process uploads quickly:
 # Handle user uploads efficiently
 uploaded_files.each do |file|
   Omnizip::Archive.create("#{user_id}-upload.zip", format: :zip) do |archive|
-    archive.compression = :deflate
-    archive.level = 6  # Balanced
     archive.add_data(file.original_filename, file.read)
   end
 end

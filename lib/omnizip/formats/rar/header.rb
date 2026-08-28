@@ -122,9 +122,11 @@ module Omnizip
         #
         # @param io [IO] Input stream
         def parse_rar5_header(io)
-          # RAR5 uses variable-length integer encoding
+          # RAR5 uses variable-length integer encoding. Layout per the
+          # RAR 5.0 format: HeaderCRC32(4), Header size(vint), Header
+          # type(vint), Header flags(vint), then type-specific fields.
           read_uint32(io)
-          read_vint(io)
+          read_vint(io) # header size (redundant: areas carry their own)
           header_type = read_vint(io)
           header_flags = read_vint(io)
 
@@ -133,12 +135,20 @@ module Omnizip
           end
 
           @flags = header_flags
-          @is_multi_volume = header_flags.anybits?(RAR5_FLAG_MULTI_VOLUME)
 
-          # Read extra area if present
-          return unless header_flags.anybits?(RAR5_FLAG_EXTRA_AREA)
+          extra_size = 0
+          if header_flags.anybits?(RAR5_FLAG_EXTRA_AREA)
+            extra_size = read_vint(io)
+          end
 
-          extra_size = read_vint(io)
+          # Archive flags: 0x0001 volume, 0x0002 volume number
+          # present, 0x0004 solid, 0x0008 recovery, 0x0010 locked
+          archive_flags = read_vint(io)
+          @is_multi_volume = archive_flags.anybits?(0x0001)
+          @is_solid = archive_flags.anybits?(0x0004)
+          @is_locked = archive_flags.anybits?(0x0010)
+          read_vint(io) if archive_flags.anybits?(0x0002) # volume number
+
           io.read(extra_size) if extra_size.positive?
         end
 

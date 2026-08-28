@@ -5,7 +5,10 @@ module Omnizip
     # Adapter that exposes the canonical +create+/+open+/+extract_to+
     # /+list+ interface for the ZIP format. Wraps +Omnizip::Zip::File+.
     class ZipHandler
-      def create(path, &block)
+      # Zip::File has no archive-level compression options (method and
+      # level are per-entry in Zip::OutputStream), so extra keywords —
+      # e.g. profile-injected ones — are absorbed here.
+      def create(path, **_options, &block)
         Omnizip::Zip::File.create(path) do |file|
           block&.call(FileProxy.new(file))
         end

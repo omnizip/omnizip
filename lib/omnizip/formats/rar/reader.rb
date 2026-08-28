@@ -142,8 +142,12 @@ module Omnizip
           # Detect recovery records
           detect_recovery_records
 
-          # Parse entries using decompressor
-          parse_entries_with_decompressor
+          # Parse entries natively first (full metadata: sizes,
+          # directory flags); fall back to the external decompressor
+          # when native parsing yields nothing (e.g. encrypted
+          # headers).
+          parse_entries_from_header
+          parse_entries_with_decompressor if @entries.empty?
         end
 
         # Detect recovery records in archive

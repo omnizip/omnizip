@@ -49,29 +49,33 @@ Zstandard (zstd) is a modern, fast compression algorithm developed by Facebook t
 
 == Basic Usage
 
-=== Create Zstandard Archive
+=== Compress a File (.zst)
 
 [source,ruby]
 ----
-# Create with Zstandard compression
-Omnizip::Archive.create('fast-backup.7z', format: :seven_zip) do |archive|
-  archive.compression = :zstandard
-  archive.level = 3  # Default level
-  archive.add_directory('data/')
+# Writes a real Zstandard frame (validated by the system zstd CLI)
+Omnizip.compress_file('logfile.log', 'logfile.log.zst')
+
+# Compression level (generic 0-9 scale; values above 9 pass through
+# as native zstd levels 1-22)
+Omnizip.compress_file('data.bin', 'data.bin.zst', level: 9)
+
+Omnizip.decompress_file('logfile.log.zst', 'logfile.log')
+----
+
+=== Zstandard Entries in ZIP
+
+ZIP supports Zstandard as a per-entry method (method 93). Requires a
+modern reader (e.g. 7-Zip 21+):
+
+[source,ruby]
+----
+require 'omnizip/zip/output_stream'
+
+Omnizip::Zip::OutputStream.open('fast.zip') do |zip|
+  zip.put_next_entry('data.bin', compression: :zstandard, level: 3)
+  zip.write(data)
 end
-----
-
-=== Quick Compression
-
-[source,ruby]
-----
-# Fast compression for temporary archives
-Omnizip.compress_file(
-  'logfile.log',
-  'logs.7z',
-  compression: :zstandard,
-  level: 1  # Fastest compression
-)
 ----
 
 == Compression Levels
@@ -106,109 +110,63 @@ Zstandard offers levels 1-22 with fine-grained control:
 .Level Performance Example
 [source,ruby]
 ----
-# Compare different Zstandard levels
-[1, 3, 10, 19].each do |level|
+# Compare different Zstandard levels (native zstd scale)
+[1, 12, 19].each do |level|
   time = Benchmark.measure do
-    Omnizip.compress_file('data.bin', "zstd-#{level}.7z",
-      compression: :zstandard,
-      level: level
-    )
+    Omnizip.compress_file('data.bin', "zstd-#{level}.zst", level: level)
   end
 
-  size = File.size("zstd-#{level}.7z")
+  size = File.size("zstd-#{level}.zst")
   puts "Level #{level}: #{size / 1024} KB in #{time.real.round(3)}s"
 end
-
-# Output:
-# Level 1:  145 KB in 0.052s (fastest)
-# Level 3:  128 KB in 0.089s (default)
-# Level 10: 105 KB in 0.425s (better compression)
-# Level 19: 98 KB in 2.156s (approaching LZMA quality)
 ----
 
 == Performance Comparison
 
-=== Speed vs Deflate
-
-[cols="2,1,1,1"]
-|===
-|Operation |Deflate |Zstandard |Improvement
-
-|Compress 100 MB
-|10s
-|3s
-|3.3x faster
-
-|Decompress 100 MB
-|5s
-|1.2s
-|4.2x faster
-
-|Compression Ratio
-|68%
-|72%
-|4% better
-|===
-
-=== Speed vs LZMA
-
-[cols="2,1,1,1"]
-|===
-|Operation |LZMA |Zstandard |Trade-off
-
-|Compress 100 MB
-|60s
-|3s
-|20x faster, slightly worse ratio
-
-|Decompress 100 MB
-|8s
-|1.2s
-|6.7x faster
-
-|Compression Ratio
-|78%
-|72%
-|LZMA ~6% better
-|===
+No benchmark tables here: Omnizip's Zstandard is a pure Ruby
+implementation, so absolute throughput differs substantially from
+the C library. The algorithmic trade-offs hold — faster than LZMA
+per level, better ratio than Deflate — but measure on your own
+workloads.
 
 == Advanced Features
 
-=== Dictionary Training
+=== Dictionary Compression
 
-Train custom dictionaries for specific data types:
+A raw dictionary (shared prefix) dramatically improves ratios on
+small, repetitive inputs. Dictionary *training* is not implemented;
+prepare dictionary content yourself and load it with +from_raw+:
 
 [source,ruby]
 ----
-# Train dictionary on sample data
-training_data = Dir.glob('samples/*.json').map { |f| File.read(f) }
-dictionary = Omnizip::Zstandard.train_dictionary(training_data, size: 100.kilobytes)
-
-# Use trained dictionary for better compression
-Omnizip.compress_file('data.json', 'output.7z',
-  compression: :zstandard,
-  level: 5,
-  dictionary: dictionary
+dict = Omnizip::Algorithms::Zstandard::Dictionary.from_raw(
+  42, File.binread('shared-samples.bin')
 )
 
-# Can improve compression 10-30% for similar data
+zstd = Omnizip::Algorithms::Zstandard.new
+File.open('data.json', 'rb') do |input|
+  File.open('data.json.zstd', 'wb') do |output|
+    zstd.compress_with_dict(input, output, dict)
+  end
+end
+
+File.open('data.json.zstd', 'rb') do |input|
+  File.open('data.restored', 'wb') do |output|
+    zstd.decompress_with_dict(input, output, dict)
+  end
+end
 ----
 
-=== Streaming with Zstandard
+=== Streaming
 
-Excellent streaming performance:
+The codec is stream-oriented:
 
 [source,ruby]
 ----
-# Stream compression for real-time data
-Omnizip::OutputStream.open('stream.7z', format: :seven_zip) do |stream|
-  stream.compression = :zstandard
-  stream.level = 3  # Fast for real-time
-
-  # Process log entries as they arrive
-  log_stream.each do |log_entry|
-    stream.put_next_entry("log_#{log_entry.id}.txt")
-    stream.write(log_entry.content)
+zstd = Omnizip::AlgorithmRegistry.get(:zstandard).new
+File.open('input.log', 'rb') do |input|
+  File.open('input.log.zst', 'wb') do |output|
+    zstd.compress(input, output, level: 3)
   end
 end
 ----
@@ -222,15 +180,8 @@ Perfect for compressing logs quickly:
 [source,ruby]
 ----
 # Compress today's logs rapidly
-log_files = Dir.glob('/var/log/app/*.log')
-
-Omnizip.compress_files(
-  log_files,
-  "logs_#{Date.today}.7z",
-  compression: :zstandard,
-  level: 5  # Fast with good compression
-) do |progress|
-  puts "Compressing logs: #{progress.percentage}%"
+Dir.glob('/var/log/app/*.log').each do |log|
+  Omnizip.compress_file(log, "#{log}.zst", level: 3)
 end
 ----
 
@@ -240,47 +191,37 @@ Compress API responses on-the-fly:
 
 [source,ruby]
 ----
+require 'stringio'
+
 class ExportController < ApplicationController
   def download
-    # Generate export data
-    data = generate_export_data
+    data = generate_export_data # a String
 
-    # Compress quickly with Zstandard
-    compressed = Omnizip::Buffer.create(:seven_zip) do |archive|
-      archive.compression = :zstandard
-      archive.level = 3  # Fast compression
+    zstd = Omnizip::AlgorithmRegistry.get(:zstandard).new
+    output = StringIO.new
+    zstd.compress(StringIO.new(data), output, level: 3)
 
-      data.each do |filename, content|
-        archive.add(filename, content)
-      end
-    end
-
-    send_data compressed.string,
-      filename: 'export.7z',
-      type: 'application/x-7z-compressed'
+    send_data output.string,
+      filename: 'export.zst',
+      type: 'application/zstd'
   end
 end
 ----
 
 === Database Dumps
 
-Compress database backups efficiently:
+Stream a dump into a .zst frame:
 
 [source,ruby]
 ----
-# Stream database dump to compressed archive
+# Stream database dump to compressed file
 require 'open3'
 
-Omnizip::OutputStream.open('db-backup.7z', format: :seven_zip) do |stream|
-  stream.compression = :zstandard
-  stream.level = 7
-  stream.put_next_entry('database.sql')
-
+zstd = Omnizip::AlgorithmRegistry.get(:zstandard).new
+File.open('db-backup.sql.zst', 'wb') do |output|
   # Stream pg_dump output directly
-  Open3.popen3('pg_dump mydb') do |stdin, stdout, stderr, wait_thr|
-    while chunk = stdout.read(65536)
-      stream.write(chunk)
-    end
+  Open3.popen3('pg_dump mydb') do |_stdin, stdout, _stderr, _wait_thr|
+    zstd.compress(stdout, output, level: 7)
   end
 end
 ----
@@ -324,34 +265,28 @@ Zstandard is memory efficient:
 
 [source,bash]
 ----
-# Create Zstandard-compressed archive
-$ omnizip archive create backup.7z data/ \
-    --compression zstandard \
-    --level 5
+$ omnizip compress data.bin data.bin.zst --algorithm zstandard
 
-# Fast compression
-$ omnizip archive create logs.7z logs/ \
-    --compression zstandard \
-    --level 1 \
-    --verbose
-Algorithm: Zstandard, Level: 1
-Compression speed: 185 MB/s
-Original: 500 MB
-Compressed: 145 MB (71% reduction)
-Time: 2.7s
+# The output is a standard Zstandard frame, readable by the system
+# zstd CLI
 ----
 
 == Technical Details
 
 **Zstandard Features**:
 
-* **Fast Entropy Encoding**: Finite State Entropy (FSE) for speed
+* **Fast Entropy Encoding**: Finite State Entropy (FSE)
 * **Adaptive Window**: Dynamically sized based on level
-* **Dictionary Compression**: Optional pre-trained dictionaries
-* **Multi-Threading**: Native parallel compression support
-* **Seekable Format**: Optional frame indexes for random access
+* **Dictionary Compression**: Raw-dictionary priming (entropy-table
+  preloading from RFC dictionaries is not implemented)
+* **Frames**: Interoperable with the reference zstd CLI (verified
+  both directions)
 
-**Implementation**: Uses zstd-ruby gem (native binding)
+**Implementation**: Pure Ruby, part of Omnizip. No native binding.
+
+**Not available**: Zstandard is not offered as a 7z coder method;
+in 7z archives use LZMA2/PPMd/BZip2. Multi-threading is not
+implemented (single-threaded encoder).
 
 == See Also
 

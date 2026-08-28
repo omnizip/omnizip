@@ -34,9 +34,8 @@ module Omnizip
     # - Dictionary support for small data compression
     # - Streaming and frame modes
     #
-    # This implementation uses the zstd-ruby gem which provides Ruby bindings
-    # to the official Zstandard C library. This ensures compatibility with
-    # the reference implementation and excellent performance.
+    # Pure Ruby implementation of the Zstandard format, interoperable
+    # with the reference zstd CLI in both directions.
     #
     # Zstandard is particularly effective for:
     # - Real-time compression needs

@@ -65,9 +65,8 @@ The encoder is fully production-ready for creating LZMA-compressed streams. The 
 [source,ruby]
 ----
 # Create LZMA-compressed archive
-Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma
-  archive.level = 7
+Omnizip::Archive.create('backup.7z', format: :seven_zip,
+                        algorithm: :lzma, level: 7) do |archive|
   archive.add_directory('project/')
 end
 ----
@@ -290,10 +289,9 @@ Improve compression of executables:
 [source,ruby]
 ----
 # Compress executable with BCJ filter
-Omnizip::Archive.create('app.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma
-  archive.level = 9
-  archive.filter = :bcj_x86  # For x86 executables
+Omnizip::Archive.create('app.7z', format: :seven_zip,
+                        algorithm: :lzma, level: 9,
+                        filters: [:bcj_x86]) do |archive|  # For x86 executables
   archive.add_file('application.exe')
 end
 
@@ -344,10 +342,9 @@ end
 [source,ruby]
 ----
 # Package software release with maximum compression
-Omnizip::Archive.create("app-v1.0.7z", format: :seven_zip) do |archive|
-  archive.compression = :lzma
-  archive.level = 9
-  archive.solid = true  # Even better compression
+Omnizip::Archive.create("app-v1.0.7z", format: :seven_zip,
+                        algorithm: :lzma, level: 9,
+                        solid: true) do |archive|  # Even better compression
   archive.add_directory('release/')
 end
 ----
@@ -374,9 +371,8 @@ Omnizip.compress_directory(
 Omnizip.compress_directory(
   '/var/www/',
   "backup_#{Date.today}.7z",
-  compression: :lzma,
-  level: 6,  # Balanced
-  parallel: true  # Speed up with parallel processing
+  algorithm: :lzma,
+  level: 6  # Balanced
 )
 ----
 
