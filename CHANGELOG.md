@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.38] - 2026-08-28
+
 ### Added
 - `.cpio` and `.iso` read routing: `extract_archive`/`list_archive`/
   `read_from_archive`/`Archive.open` operate on CPIO archives and ISO
