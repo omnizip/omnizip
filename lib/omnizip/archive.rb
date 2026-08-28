@@ -58,7 +58,7 @@ module Omnizip
       # over ENV['OMNIZIP_PASSWORD'].
       def open(path, password: nil, **options, &block)
         resolved = Omnizip.resolve_archive_format(
-          path, Convenience::DEFAULT_FORMAT
+          path, Convenience::DEFAULT_FORMAT, writing: false
         )
         pw = password || ENV.fetch("OMNIZIP_PASSWORD", nil)
         check_password_support!(resolved, pw)

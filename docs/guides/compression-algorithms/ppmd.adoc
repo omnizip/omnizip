@@ -55,29 +55,32 @@ PPMd7 (Prediction by Partial Matching, variant H revision 7) is a statistical co
 [source,ruby]
 ----
 # Compress source code with PPMd7
-Omnizip::Archive.create('code.7z', format: :seven_zip) do |archive|
-  archive.compression = :ppmd7
-  archive.level = 6  # Default
+Omnizip::Archive.create('code.7z', format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
   archive.add_directory('src/')
 end
 ----
 
-=== Configure Memory
+=== Memory and Order
 
-PPMd7 uses configurable memory (2^mem_size bytes):
+PPMd memory (2^mem_size bytes) and context order are encoder
+parameters; the writer currently emits PPMd with default settings
+(empty properties, which readers interpret as defaults), so there
+are no +mem_size:/+order: knobs yet:
 
 [source,ruby]
 ----
-# Configure PPMd7 memory and order
-Omnizip::Archive.create('text.7z', format: :seven_zip) do |archive|
-  archive.compression = :ppmd7
-  archive.mem_size = 24  # 2^24 = 16 MB
-  archive.order = 6      # Context order (default)
+Omnizip::Archive.create('text.7z', format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
   archive.add_directory('documents/')
 end
 ----
 
 == Configuration Parameters
+
+The writer currently emits PPMd with default memory/order settings;
+the tables below describe the algorithm's parameters for reference
+when choosing PPMd.
 
 === Memory Size
 
@@ -142,10 +145,8 @@ Number of previous characters used for prediction:
 [source,ruby]
 ----
 # For large source code archive
-Omnizip::Archive.create('linux-kernel.7z', format: :seven_zip) do |archive|
-  archive.compression = :ppmd7
-  archive.mem_size = 26  # 64 MB memory
-  archive.order = 8      # Deep context
+Omnizip::Archive.create('linux-kernel.7z', format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
   archive.add_directory('linux-6.0/')
 end
 ----
@@ -215,10 +216,8 @@ For 10 MB text file:
 [source,ruby]
 ----
 # Archive project source code
-Omnizip::Archive.create("project-v1.0.7z", format: :seven_zip) do |archive|
-  archive.compression = :ppmd7
-  archive.mem_size = 24  # 16 MB
-  archive.order = 6
+Omnizip::Archive.create("project-v1.0.7z", format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
   archive.add_directory('src/')
   archive.add_directory('tests/')
   archive.add_file('README.md')
@@ -232,13 +231,11 @@ end
 # Compress application logs with maximum ratio
 log_files = Dir.glob('/var/log/app/*.log')
 
-Omnizip.compress_files(
-  log_files,
-  "logs_#{Date.today}.7z",
-  compression: :ppmd7,
-  mem_size: 26,  # 64 MB for large logs
-  order: 8
-)
+Omnizip::Archive.create("logs_#{Date.today}.7z",
+                        format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
+  log_files.each { |log| archive.add_file(log) }
+end
 ----
 
 === Documentation Archives
@@ -246,8 +243,8 @@ Omnizip.compress_files(
 [source,ruby]
 ----
 # Compress documentation and markup files
-Omnizip::Archive.create('docs.7z', format: :seven_zip) do |archive|
-  archive.compression = :ppmd7
+Omnizip::Archive.create('docs.7z', format: :seven_zip,
+                        algorithm: :ppmd7) do |archive|
   archive.add_directory('docs/')
   archive.add_directory('wiki/')
   archive.add_directory('examples/')

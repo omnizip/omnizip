@@ -19,7 +19,7 @@ LZMA2 is an enhanced version of LZMA designed for better multi-threading support
 |Excellent (same as LZMA)
 
 |Compression Speed
-|Slow to medium (with parallel speedup)
+|Slow to medium (single-threaded)
 
 |Decompression Speed
 |Fast
@@ -48,7 +48,7 @@ LZMA2 is an enhanced version of LZMA designed for better multi-threading support
 |Multi-Threading
 |Limited
 |Excellent
-|LZMA2 is parallelizable
+|LZMA2 chunks are independent, but Omnizip's encoder is single-threaded
 
 |Incompressible Data
 |Poor
@@ -75,7 +75,6 @@ LZMA2 is an enhanced version of LZMA designed for better multi-threading support
 
 **Choose LZMA2 when**:
 
-* You have multi-core CPU and want parallel compression
 * Working with mixed content (text + binary + compressed)
 * Creating modern 7z archives (it's the default)
 * Need better streaming support
@@ -94,34 +93,24 @@ LZMA2 is an enhanced version of LZMA designed for better multi-threading support
 [source,ruby]
 ----
 # Create with LZMA2 (modern default)
-Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma2  # Default for 7z
-  archive.level = 9
+# :lzma2 is the default algorithm for 7z
+Omnizip::Archive.create('backup.7z', format: :seven_zip,
+                        algorithm: :lzma2, level: 9) do |archive|
   archive.add_directory('project/')
 end
 ----
 
 === With Parallel Processing
 
-Leverage multi-core CPUs:
-
-[source,ruby]
-----
-# Use parallel processing with LZMA2
-Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma2
-  archive.level = 7
-  archive.parallel = true
-  archive.threads = 4  # Use 4 cores
-  archive.add_directory('large_project/')
-end
-
-# Can achieve 2-3x speedup on multi-core systems
-----
+Omnizip's codecs are pure Ruby and single-threaded: there is no
++parallel:+ or +threads:+ option. To use multiple cores, run
+several archive operations in separate processes instead (see the
+link:../advanced-features/parallel-processing.html[Parallel
+Processing guide]).
 
 == Compression Levels
 
-Same levels as LZMA (1-9) but with better parallelization:
+Same levels as LZMA (1-9):
 
 [cols="1,2,2,2"]
 |===
@@ -145,34 +134,17 @@ Same levels as LZMA (1-9) but with better parallelization:
 
 == Advanced Configuration
 
-=== Chunk Size
+=== Dictionary Size
 
-Control parallelization granularity:
-
-[source,ruby]
-----
-# Smaller chunks = better parallelization, more overhead
-Omnizip::Archive.create('backup.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma2
-  archive.chunk_size = 8.megabytes  # Process 8 MB chunks
-  archive.parallel = true
-  archive.add_directory('data/')
-end
-
-# Larger chunks = less overhead, less parallel benefit
-# Default: 64 MB (good balance)
-----
-
-=== Dictionary Reset
-
-LZMA2 can reset dictionary for better incompressible data handling:
+LZMA2's dictionary size follows the compression +level:+. It can
+also be set explicitly:
 
 [source,ruby]
 ----
-# Automatic dictionary reset for mixed content
-Omnizip::Archive.create('mixed.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma2
-  archive.adaptive_dictionary = true  # Reset on incompressible blocks
+# 64 MB dictionary for large homogeneous datasets
+Omnizip::Archive.create('dataset.7z', format: :seven_zip,
+                        algorithm: :lzma2,
+                        dict_size: 64 * 1024 * 1024) do |archive|
   archive.add_directory('mixed_data/')  # Text + images + binaries
 end
 ----
@@ -181,34 +153,9 @@ end
 
 === Parallel Speedup
 
-[cols="2,1,1,1,1"]
-|===
-|File Mix |1 Thread |2 Threads |4 Threads |8 Threads
-
-|All text
-|60s
-|35s
-|20s
-|15s
-
-|Mixed content
-|45s
-|28s
-|18s
-|14s
-
-|Many small files
-|30s
-|18s
-|12s
-|10s
-
-|Few large files
-|90s
-|52s
-|30s
-|22s
-|===
+Not applicable: Omnizip's codecs are pure Ruby and single-threaded.
+Compression of independent archives can be parallelized at the
+process level (see the link:../advanced-features/parallel-processing.html[Parallel Processing guide]).
 
 === Incompressible Data Handling
 
@@ -226,23 +173,16 @@ Pure text       30s          30s          Same
 
 == Use Cases
 
-=== Multi-Core Server Backups
-
-Maximize server CPU utilization:
+=== Server Backups
 
 [source,ruby]
 ----
-# Server with 16 cores
 Omnizip.compress_directory(
   '/var/www/',
   'www-backup.7z',
-  compression: :lzma2,
-  level: 9,
-  parallel: true,
-  threads: 16  # Use all cores
-) do |progress|
-  puts "#{progress.percentage}% - #{progress.active_threads} active threads"
-end
+  algorithm: :lzma2,
+  level: 9
+)
 ----
 
 === Large Dataset Compression
@@ -252,12 +192,9 @@ Process large datasets efficiently:
 [source,ruby]
 ----
 # Compress large research dataset
-Omnizip::Archive.create('dataset.7z', format: :seven_zip) do |archive|
-  archive.compression = :lzma2
-  archive.level = 9
-  archive.solid = true  # Better compression
-  archive.parallel = true
-
+Omnizip::Archive.create('dataset.7z', format: :seven_zip,
+                        algorithm: :lzma2, level: 9,
+                        solid: true) do |archive|  # Better compression
   # Add gigabytes of data
   archive.add_directory('research_data/')
 end
@@ -265,7 +202,7 @@ end
 
 === Software Build Artifacts
 
-Package build outputs with parallel compression:
+Package build outputs (BCJ filter for executables):
 
 [source,ruby]
 ----
@@ -273,10 +210,9 @@ Package build outputs with parallel compression:
 Omnizip.compress_directory(
   'build/release/',
   "app-#{version}.7z",
-  compression: :lzma2,
+  algorithm: :lzma2,
   level: 7,
-  filter: :bcj_x86,  # For executables
-  parallel: true
+  filters: [:bcj_x86]
 )
 ----
 
@@ -286,34 +222,15 @@ Omnizip.compress_directory(
 ----
 # Create LZMA2 archive
 $ omnizip archive create backup.7z files/ \
-    --compression lzma2 \
+    --algorithm lzma2 \
     --level 9
-
-# With parallel processing
-$ omnizip archive create backup.7z files/ \
-    --compression lzma2 \
-    --level 9 \
-    --parallel \
-    --threads 8
-
-# Show compression statistics
-$ omnizip archive create backup.7z files/ \
-    --compression lzma2 \
-    --level 9 \
-    --stats
-Algorithm: LZMA2, Level: 9
-Dictionary: 64 MB
-Threads: 8
-Original: 1.2 GB
-Compressed: 456 MB (62% reduction)
-Time: 3m 45s (2.7x speedup from parallelization)
 ----
 
 == Technical Details
 
 **LZMA2 Improvements over LZMA**:
 
-. **Chunk-Based**: Data divided into independent chunks for parallel processing
+. **Chunk-Based**: Data divided into independent chunks (which is what allows multi-threaded encoders; Omnizip's is single-threaded)
 . **Dictionary Reset**: Can reset dictionary between chunks
 . **Uncompressed Chunks**: Stores incompressible data without overhead
 . **Better Streaming**: Designed for better streaming support
@@ -323,5 +240,5 @@ Time: 3m 45s (2.7x speedup from parallelization)
 
 * link:lzma.html[LZMA] - Original algorithm
 * link:zstandard.html[Zstandard] - Fast alternative
-* link:../advanced-features/parallel-processing.html[Parallel Processing] - Maximize LZMA2 performance
+* link:../advanced-features/parallel-processing.html[Parallel Processing] - Process-level parallelism for multiple archives
 * link:../../compatibility.html[Compatibility] - LZMA2 support across tools

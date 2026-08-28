@@ -33,11 +33,12 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     when ".xz" then out << Omnizip::Formats::Xz.decompress(File.binread(path))
     when ".lzma" then Omnizip::Formats::LzmaAlone.decompress_stream(File.open(path, "rb"), out)
     when ".lz" then Omnizip::Formats::Lzip.decompress_stream(File.open(path, "rb"), out)
+    when ".zst" then Omnizip::Algorithms::Zstandard.new.decompress(File.open(path, "rb"), out)
     end
     [path, out.string]
   end
 
-  [".gz", ".bz2", ".xz", ".lzma", ".lz"].each do |ext|
+  [".gz", ".bz2", ".xz", ".lzma", ".lz", ".zst"].each do |ext|
     it "routes #{ext} to the matching single-file format (not a ZIP)" do
       path, decoded = roundtrip_of(ext, outdir)
 
@@ -48,7 +49,7 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
 
   describe ".decompress_file" do
     it "round-trips every documented extension" do
-      [".gz", ".bz2", ".xz", ".lzma", ".lz"].each do |ext|
+      [".gz", ".bz2", ".xz", ".lzma", ".lz", ".zst"].each do |ext|
         compressed = File.join(outdir, "rt#{ext}")
         Omnizip.compress_file(input.path, compressed)
 
@@ -113,6 +114,35 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       dest = File.join(outdir, "extracted")
       Omnizip.extract_archive(path, dest)
       expect(File.binread(File.join(dest, File.basename(input.path)))).to eq(source)
+    end
+
+    it "raises truthfully when a directory targets a single-file stream format" do
+      expect do
+        Omnizip.compress_directory(input.path, File.join(outdir, "dir.lzma"))
+      end.to raise_error(ArgumentError)
+      expect do
+        Omnizip.compress_directory(outdir, File.join(outdir, "dir.gz"))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /single-file/)
+    end
+
+    it "reads .rar archives through the read-only handler" do
+      fixture = File.expand_path("fixtures/rar/official/store_method.rar",
+                                 __dir__)
+
+      expect(Omnizip.list_archive(fixture)).to eq(["store.txt"])
+      details = Omnizip.list_archive(fixture, details: true)
+      expect(details.first[:size]).to eq(26)
+      expect(Omnizip.read_from_archive(fixture, "store.txt"))
+        .to eq("STORE method test content\n")
+
+      dest = File.join(outdir, "rar-extract")
+      Omnizip.extract_archive(fixture, dest)
+      expect(File.binread(File.join(dest, "store.txt")))
+        .to eq("STORE method test content\n")
+
+      expect do
+        Omnizip.compress_file(input.path, File.join(outdir, "w.rar"))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
     end
 
     it "raises truthfully for read-only format extensions" do

@@ -40,7 +40,7 @@ module Omnizip
         return output_path
       end
 
-      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path) do |archive|
+      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path, **options) do |archive|
         archive.add(::File.basename(input_path), input_path)
       end
 
@@ -67,6 +67,13 @@ module Omnizip
       case format_class
       when :xz
         ::File.binwrite(output_path, Formats::Xz.decompress(compressed_path))
+      when :zstandard
+        zstd = Algorithms::Zstandard.new
+        ::File.open(compressed_path, "rb") do |input_io|
+          ::File.open(output_path, "wb") do |output_io|
+            zstd.decompress(input_io, output_io)
+          end
+        end
       else
         ::File.open(compressed_path, "rb") do |input_io|
           ::File.open(output_path, "wb") do |output_io|
@@ -94,12 +101,23 @@ module Omnizip
         raise ArgumentError, "Input is not a directory: #{input_dir}"
       end
 
+      # A directory cannot be written through a single-file stream
+      # format; routing it to the default would silently produce a
+      # ZIP under a foreign extension.
+      if format == DEFAULT_FORMAT && single_file_handler(output_path)
+        raise Omnizip::UnsupportedFormatError,
+              "#{::File.extname(output_path).downcase} is a single-file " \
+              "stream format and cannot contain a directory; use an " \
+              "archive format (.zip/.tar/.7z) or compress entries " \
+              "individually"
+      end
+
       if options[:profile]
         first_file = find_first_file(input_dir)
         apply_profile(first_file, options)
       end
 
-      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path) do |archive|
+      Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path, **options) do |archive|
         add_directory_contents(archive, input_dir, "", recursive: recursive)
       end
 
@@ -117,7 +135,7 @@ module Omnizip
     def extract_archive(archive_path, output_dir, format: DEFAULT_FORMAT,
                         overwrite: false, **options)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format, writing: false))
         .extract_to(archive_path, output_dir,
                     overwrite: overwrite, **options)
     end
@@ -132,7 +150,7 @@ module Omnizip
     def list_archive(archive_path, format: DEFAULT_FORMAT, details: false,
                      **options)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format, writing: false))
         .list(archive_path, details: details, **options)
     end
 
@@ -144,7 +162,7 @@ module Omnizip
     # @return [String] Entry contents
     def read_from_archive(archive_path, entry_name, format: DEFAULT_FORMAT)
       require_archive!(archive_path)
-      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format)).read_entry(archive_path, entry_name)
+      Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format, writing: false)).read_entry(archive_path, entry_name)
     end
 
     # Add a file to an existing archive.
@@ -218,6 +236,12 @@ module Omnizip
     # honest behavior.
     READ_ONLY_FORMAT_EXTENSIONS = [".rar", ".iso", ".cpio"].freeze
 
+    # Extensions whose format has a READ-ONLY handler: extraction and
+    # listing route to it, while creation keeps raising.
+    READ_ARCHIVE_FORMAT_EXTENSIONS = {
+      ".rar" => :rar,
+    }.freeze
+
     # Extension -> single-file decompressor (stream interface).
     # The Gzip/Bzip2File/Xz classes take path or stream; use the
     # ones exposing decompress_stream for symmetry.
@@ -229,6 +253,7 @@ module Omnizip
       ".xz" => :xz,
       ".lzma" => Formats::LzmaAlone,
       ".lz" => Formats::Lzip,
+      ".zst" => :zstandard,
     }.freeze
 
     SINGLE_FILE_COMPRESSORS = {
@@ -257,6 +282,14 @@ module Omnizip
           end
         end
       end,
+      ".zst" => lambda do |input, output, options|
+        ::File.open(input, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Algorithms::Zstandard.new.compress(input_io, output_io,
+                                                        options)
+          end
+        end
+      end,
     }.freeze
 
     # The single-file compressor matching the output extension, or nil.
@@ -268,12 +301,14 @@ module Omnizip
     # Archive format for a path: an explicit +format+ wins unless it
     # is the default; otherwise the extension routes. Known-but-
     # unwritable extensions raise instead of receiving a mislabeled
-    # ZIP.
-    def resolve_archive_format(path, format)
+    # ZIP. +writing:+ false (read operations) additionally routes
+    # extensions with read-only handlers.
+    def resolve_archive_format(path, format, writing: true)
       return format unless format == DEFAULT_FORMAT
 
       ext = ::File.extname(path).downcase
       routed = ARCHIVE_FORMAT_EXTENSIONS[ext]
+      routed ||= READ_ARCHIVE_FORMAT_EXTENSIONS[ext] unless writing
       return routed if routed
 
       if READ_ONLY_FORMAT_EXTENSIONS.include?(ext)

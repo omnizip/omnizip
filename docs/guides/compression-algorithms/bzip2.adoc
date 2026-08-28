@@ -59,7 +59,8 @@ Omnizip.compress_file('data.txt', 'data.txt.bz2',
 )
 
 # Create archive with BZip2 compression
-Omnizip::Archive.create('backup.tar.bz2', format: :tar_bzip2) do |archive|
+Omnizip::Archive.create('backup.7z', format: :seven_zip,
+                        algorithm: :bzip2) do |archive|
   archive.add_directory('project/')
 end
 ----

@@ -7,176 +7,94 @@ grand_parent: Guides
 
 == Purpose
 
-Parallel processing leverages multiple CPU cores to significantly speed up compression and extraction operations. This feature allows you to process large archives or multiple files simultaneously, reducing overall processing time.
+Omnizip's codecs are pure Ruby and single-threaded: a single archive
+is always compressed or extracted by one CPU core. To use multiple
+cores, run independent archive operations in parallel — across
+processes for CPU-bound compression, or across threads for
+I/O-bound extraction of separate archives.
 
-== Benefits
-
-* **2-3x Faster**: Achieve 2-3x speedup on multi-core systems
-* **Better Resource Utilization**: Use all available CPU cores effectively
-* **Reduced Wait Time**: Process large batches of files quickly
-* **Scalable**: Performance improves with more CPU cores
-
-== When to Use Parallel Processing
+== When It Helps
 
 [cols="1,3"]
 |===
-|Scenario |Parallel Benefit
+|Scenario |Approach
 
-|Large Archives (>100 files)
-|Distribute file processing across cores
+|Many archives to compress
+|One process per archive
 
-|Batch Operations
-|Process multiple archives simultaneously
+|Many archives to extract
+|One thread per archive (I/O releases the GVL)
 
-|Multi-core Servers
-|Maximize server resource utilization
-
-|Time-Critical Tasks
-|Reduce processing time for urgent operations
+|One large archive
+|No parallelism available; pick an appropriate +level:+
 |===
 
-== Parallel Compression
+== Parallel Compression (Processes)
 
-=== Compress Directory in Parallel
-
-Automatically distribute files across available cores:
-
-[source,ruby]
-----
-# Compress using all available cores
-Omnizip.compress_directory(
-  'large_project/',
-  'backup.zip',
-  parallel: true,
-  threads: 4  # Or omit to use all cores
-)
-----
-
-=== Custom Thread Count
-
-Control the number of parallel workers:
+Compression is CPU-bound, so use processes — MRI's GVL prevents
+in-thread parallelism:
 
 [source,ruby]
 ----
-# Use specific number of threads
-Omnizip::Archive.create('archive.7z', format: :seven_zip) do |archive|
-  archive.add_directory(
-    'data/',
-    parallel: true,
-    threads: 8,  # Use 8 worker threads
-    chunk_size: 1.megabyte  # Process 1MB chunks
-  )
+# Compress each directory in its own process
+dirs = %w[project_a project_b project_c]
+
+pids = dirs.map do |dir|
+  Process.fork do
+    Omnizip.compress_directory(dir, "#{dir}.7z", format: :seven_zip)
+  end
 end
+pids.each { |pid| Process.wait(pid) }
 ----
 
-== Parallel Extraction
+Or drive the CLI from your shell or job scheduler:
 
-=== Extract Multiple Files Simultaneously
+[source,bash]
+----
+ls -d project_*/ | xargs -P 8 -I{} omnizip archive create {}.7z {}
+----
 
-Extract files in parallel for faster extraction:
+== Parallel Extraction (Threads)
+
+Extracting separate archives is I/O-bound, so threads work:
 
 [source,ruby]
 ----
-# Extract with parallel processing
-Omnizip.extract_archive(
-  'large-archive.zip',
-  'output/',
-  parallel: true,
-  threads: 4
-)
-----
+archives = Dir.glob('downloads/*.zip')
 
-=== With Progress Tracking
-
-Combine parallel processing with progress monitoring:
-
-[source,ruby]
-----
-Omnizip.extract_archive('backup.zip', 'restored/') do |progress|
-  puts "Extracted #{progress.files_processed}/#{progress.total_files} files"
-  puts "Using #{progress.active_threads} parallel threads"
-  puts "Speed: #{progress.throughput_mb_s} MB/s"
+threads = archives.map do |archive|
+  Thread.new do
+    Omnizip.extract_archive(
+      archive,
+      "extracted/#{File.basename(archive, '.zip')}/"
+    )
+  end
 end
+
+threads.each(&:join)
 ----
 
-== Performance Characteristics
-
-[cols="2,1,1,1,1"]
-|===
-|Workload |1 Thread |2 Threads |4 Threads |8 Threads
-
-|100 small files
-|10s
-|6s
-|4s
-|3s
-
-|10 large files
-|60s
-|35s
-|20s
-|15s
-
-|Mixed workload
-|30s
-|18s
-|12s
-|10s
-|===
-
-*Note: Performance varies based on CPU, disk speed, and file characteristics.*
-
-== Configuration Options
-
-=== Thread Count
-
-Control parallelism level:
-
-[source,ruby]
-----
-# Auto-detect (recommended)
-parallel: true
-
-# Specific thread count
-parallel: true, threads: 4
-
-# Match CPU cores
-parallel: true, threads: Etc.nprocessors
-----
-
-=== Chunk Size
-
-Configure work distribution:
-
-[source,ruby]
-----
-# Smaller chunks = better distribution, more overhead
-chunk_size: 512.kilobytes
-
-# Larger chunks = less overhead, less parallel benefit
-chunk_size: 10.megabytes
-
-# Default: 1MB (good balance)
-chunk_size: 1.megabyte
-----
+Note: a single archive's extraction still uses one thread.
 
 == Use Cases
 
 === Server Deployments
 
-Maximize server hardware utilization:
-
 [source,ruby]
 ----
-# Backup server with 16 cores
-Omnizip.compress_directory(
-  '/var/www/',
-  '/backups/www-backup.7z',
-  format: :seven_zip,
-  compression: :lzma2,
-  parallel: true,
-  threads: 16
-)
+# One process per site on a multi-core backup server
+sites = Dir.children('/var/www')
+
+pids = sites.map do |site|
+  Process.fork do
+    Omnizip.compress_directory(
+      File.join('/var/www', site),
+      "/backups/#{site}.7z",
+      format: :seven_zip, algorithm: :lzma2, level: 9
+    )
+  end
+end
+pids.each { |pid| Process.wait(pid) }
 ----
 
 === Batch Processing
@@ -204,43 +122,23 @@ end
 
 == Best Practices
 
-. **Match Thread Count to Cores**: Use `Etc.nprocessors` for optimal performance
-. **Consider Disk I/O**: More threads may not help with slow disks
-. **Monitor Memory**: Each thread uses additional memory
-. **Test Your Workload**: Measure actual speedup for your use case
-. **Combine with Streaming**: Use both for maximum efficiency
+. **One process per archive** for compression; threads only help I/O
+. **Consider disk I/O**: more parallelism may not help on slow disks
+. **Monitor memory**: each process/thread adds overhead
+. **Test your workload**: measure the real speedup
 
 == Limitations
 
-* Ruby GIL limits true parallelism (use JRuby for better results)
-* Memory usage increases with thread count
-* I/O-bound operations see less benefit
-* Very small files have overhead from thread management
+* No intra-archive parallelism: a single archive uses one core
+* MRI's GVL blocks in-thread CPU parallelism — use processes
+* Memory usage grows with process/thread count
 
 == Platform Considerations
 
-[cols="1,3"]
-|===
-|Platform |Notes
-
-|MRI Ruby
-|Limited by GIL, 2-3x speedup typical
-
-|JRuby
-|No GIL, better parallel scalability
-
-|TruffleRuby
-|Excellent parallel performance
-
-|Windows
-|Similar performance to Unix systems
-
-|Linux/macOS
-|Full parallel processing support
-|===
+`Process.fork` is unavailable on Windows — use `Process.spawn` with
+the +omnizip+ CLI there, or a job scheduler.
 
 == See Also
 
-* link:streaming.html[Streaming] - Combine for memory efficiency
-* link:progress-tracking.html[Progress Tracking] - Monitor parallel operations
-* link:../../compatibility.html[Compatibility] - Format support for parallel processing
+* link:streaming.html[Streaming] - Memory efficiency
+* link:../compression-algorithms/lzma2.html[LZMA2] - Default 7z algorithm

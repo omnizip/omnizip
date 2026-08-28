@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Omnizip::Archive` — the block-style facade the guides have
+  documented since the docs were written (it never existed; ~50
+  examples across 17 files were dead). `Archive.create(path,
+  format:, **options)` yields a Builder with `add_file(path,
+  archive_path:)`, `add_directory(dir)` (tree stored under its own
+  name), and `add_data(name, content)`; `Archive.open(path,
+  password:)` yields (or returns) a session with `entries`
+  (name/size/directory?/mtime), `each_entry`, `read`, `extract`,
+  `extract_all`, `extract_matching`. 7z options (`level:`,
+  `password:`, `encrypt_headers:`, `algorithm:`, `filters:`,
+  `solid:`, `dict_size:`) pass through to the writer;
+  `ENV['OMNIZIP_PASSWORD']` backs `open`. Passwords are refused
+  loudly for zip/tar (no encryption support) instead of silently
+  producing unprotected archives.
+- `.zst` routing in the convenience API: `compress_file` to `.zst`
+  previously wrote a mislabeled ZIP; it now writes a real Zstandard
+  frame (validated against the system zstd CLI in both directions),
+  and `decompress_file` reads them.
+- Read-only RAR routing: `extract_archive`/`list_archive`/
+  `read_from_archive`/`Archive.open` operate on `.rar` files through
+  a new read-only `ArchiveHandlers::RarHandler`; creation keeps
+  raising truthfully. `resolve_archive_format` is now
+  operation-aware (`writing:`), so read operations no longer fail
+  with "cannot be written" errors.
+- `compress_file`/`compress_directory` forward compression options
+  (`algorithm:`, `level:`, ...) to the format writer instead of
+  silently dropping them (7z honors them; zip absorbs them —
+  per-entry ZIP compression is set through `Zip::OutputStream`).
+
+### Fixed
+- RAR5 metadata parsing: the file-header parser ignored the
+  optional ExtraAreaSize/DataSize vints, misaligning every field —
+  all RAR5 entries listed with size 0 (and one fixture failed to
+  parse at all). Field order now matches the RAR 5.0 specification
+  (verified against RARLAB fixtures); `compressed_size` is populated
+  from DataSize and the directory flag is the correct FileFlags bit
+  (0x0001). The main-header parser also reads the ArchiveFlags vint
+  it was skipping, so volume/solid detection works. Listing now
+  prefers the native parser (full metadata) over the external
+  `unrar vb` listing (names only, sizes hardcoded to 0).
+- `compress_directory` to a single-file stream extension (`.gz`,
+  `.lzma`, ...) silently wrote a ZIP under the foreign name; it now
+  raises `UnsupportedFormatError` explaining the mismatch.
+
+### Changed
+- Docs: every example across the guides now runs verbatim against
+  the real API. Fictional APIs removed or replaced
+  (`Omnizip::OutputStream`/`InputStream`, `compress_files`,
+  `train_dictionary`, `Archive#compression=` setters, `tar_bzip2`,
+  ZIP password attributes, `CorruptArchiveError`,
+  `UnsupportedEncryptionError`); fabricated parallel-processing and
+  benchmark sections rewritten as truthful process-level
+  parallelism; the zstandard guide now centers on the real
+  `.zst`/ZIP-entry/dictionary APIs (and no longer claims a native
+  zstd binding).
+
 ## [0.3.36] - 2026-08-28
 
 ### Fixed
