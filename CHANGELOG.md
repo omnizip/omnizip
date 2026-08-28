@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.36] - 2026-08-28
+
 ### Fixed
 - `add_to_archive`/`remove_from_archive` errors name the resolved
   format (`Format :seven_zip does not support adding entries`)
