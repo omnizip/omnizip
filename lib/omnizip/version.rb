@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Omnizip
-  VERSION = "0.3.36"
+  VERSION = "0.3.37"
 end
