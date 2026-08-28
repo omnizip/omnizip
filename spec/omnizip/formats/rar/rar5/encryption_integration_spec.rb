@@ -200,7 +200,7 @@ RSpec.describe "RAR5 Encryption Integration" do
     # "tested" them OK only because no CRC was stored.
     it "round-trips an encrypted STORE archive through unrar" do
       skip "unrar command not available" unless
-        Omnizip::Formats::Rar::Decompressor.available?
+        system("unrar", out: File::NULL, err: File::NULL)
 
       test_file = File.join(temp_dir, "secret.txt")
       File.binwrite(test_file, "Confidential data " * 40)
@@ -223,7 +223,7 @@ RSpec.describe "RAR5 Encryption Integration" do
 
     it "round-trips an encrypted LZMA archive through unrar" do
       skip "unrar command not available" unless
-        Omnizip::Formats::Rar::Decompressor.available?
+        system("unrar", out: File::NULL, err: File::NULL)
       # LZMA falls back to STORE when the RAR-compatible encoder is
       # unavailable; the archive is still decryptable.
       test_file = File.join(temp_dir, "secret.txt")
