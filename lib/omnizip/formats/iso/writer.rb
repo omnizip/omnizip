@@ -178,8 +178,13 @@ module Omnizip
             preparer: "OMNIZIP #{Omnizip::VERSION}",
             application: "OMNIZIP",
             level: 2,
-            rock_ridge: true,
-            joliet: true,
+            # Rock Ridge System Use fields and Joliet UCS-2 directory
+            # trees are not implemented; advertising either extension
+            # makes readers misparse the image (e.g. 7-Zip reads the
+            # ASCII names as UCS-2 via the cloned SVD), so both stay
+            # off until real implementations land.
+            rock_ridge: false,
+            joliet: false,
           }
         end
 
@@ -193,6 +198,7 @@ module Omnizip
             source: File.expand_path(dir_path),
             iso_path: iso_path,
             stat: File.stat(dir_path),
+            directory: true,
           }
 
           # Add all contents
@@ -219,6 +225,7 @@ module Omnizip
             source: File.expand_path(dir_path),
             iso_path: iso_path,
             stat: File.stat(dir_path),
+            directory: true,
           }
 
           Dir.foreach(dir_path) do |entry|
@@ -283,13 +290,22 @@ module Omnizip
         # @param builder [VolumeBuilder] Volume builder
         # @param dir_structure [Hash] Directory structure
         def write_volume_descriptors(io, builder, dir_structure)
+          # Fixed layout: 16 PVD, 17 terminator, 18 path table (L),
+          # 19 path table (BE), directory data from sector 22.
+          root = dir_structure[:root].merge(
+            total_sectors: dir_structure[:total_sectors],
+            path_table_size: dir_structure[:path_table_size],
+            path_table_location: 18,
+            path_table_location_be: 19,
+          )
+
           # Write primary volume descriptor
-          pvd = builder.build_primary(dir_structure[:root])
+          pvd = builder.build_primary(root)
           io.write(pvd)
 
           # Write Joliet supplementary descriptor if enabled
           if @joliet
-            svd = builder.build_joliet(dir_structure[:root])
+            svd = builder.build_joliet(root)
             io.write(svd)
           end
 

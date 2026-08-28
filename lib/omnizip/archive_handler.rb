@@ -71,6 +71,8 @@ module Omnizip
       tar: -> { Omnizip::ArchiveHandlers::TarHandler },
       seven_zip: -> { Omnizip::ArchiveHandlers::SevenZipHandler },
       rar: -> { Omnizip::ArchiveHandlers::RarHandler },
+      cpio: -> { Omnizip::ArchiveHandlers::CpioHandler },
+      iso: -> { Omnizip::ArchiveHandlers::IsoHandler },
     }.freeze
     private_constant :LAZY_LOAD_TRIGGERS
   end

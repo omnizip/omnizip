@@ -42,9 +42,11 @@ module Omnizip
               #
               # @return [Boolean] true if implemented
               def available?
-                # Full LZSS decoder is now implemented
-                # Encoder is not yet compatible with official RAR tools
-                true
+                # Decoder is implemented; the encoder is NOT compatible
+                # with official RAR tools (unrar "tests" its output as
+                # OK while extracting empty files). Callers fall back
+                # to STORE until a RAR-compatible encoder lands.
+                false
               end
 
               # Compress data using RAR5 LZSS

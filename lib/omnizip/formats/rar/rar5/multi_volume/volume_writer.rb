@@ -18,11 +18,10 @@ module Omnizip
           #   writer.write_end_header
           #   writer.close
           class VolumeWriter
-            # Main header flags for volume archives
-            # NOTE: Bits 0-1 are reserved for common flags (EXTRA_AREA, DATA_AREA)
-            # Use bits 2+ for format-specific flags
-            VOLUME_ARCHIVE_FLAG = 0x0004  # Bit 2: This is a volume archive
-            VOLUME_NUMBER_FLAG  = 0x0008  # Bit 3: Volume number present in extra area
+            # Main ARCHIVE flags (spec): 0x0001 volume,
+            # 0x0002 volume number field present
+            VOLUME_ARCHIVE_FLAG = MainHeader::ARCHIVE_FLAG_VOLUME
+            VOLUME_NUMBER_FLAG  = MainHeader::ARCHIVE_FLAG_VOLUME_NUMBER
 
             # End header flags
             VOLUME_END_FLAG = 0x0001 # Not the last volume (more volumes follow)
@@ -95,26 +94,18 @@ module Omnizip
             def write_main_header
               raise "Volume not open" unless @io
 
-              # Set volume-specific flags
-              flags = VOLUME_ARCHIVE_FLAG
-
-              # Add volume number in extra area for volumes 2+
-              nil
+              # Archive flags: every volume declares 0x0001; volumes
+              # after the first also carry the volume number field
+              # (spec: number is N-1, absent on the first volume).
+              archive_flags = VOLUME_ARCHIVE_FLAG
+              volume_number = nil
               if @volume_number > 1
-                flags |= VOLUME_NUMBER_FLAG
-                # Volume number as VINT in extra area
-                VINT.encode(@volume_number).pack("C*")
+                archive_flags |= VOLUME_NUMBER_FLAG
+                volume_number = @volume_number - 1
               end
 
-              header = MainHeader.new(flags: flags)
-
-              # Extra areas are not written: MainHeader does not
-              # model them and the omnizip-rs reference implements
-              # RAR5 reading only, so there is no writer-side spec
-              # to port. Volumes work without extras (the field is
-              # optional).
-
-              @io.write(header.encode)
+              @io.write(MainHeader.new(archive_flags: archive_flags,
+                                       volume_number: volume_number).encode)
             end
 
             # Write file data (header + compressed data)
@@ -135,18 +126,10 @@ module Omnizip
             def write_end_header
               raise "Volume not open" unless @io
 
-              # Set END_OF_ARCHIVE flags
-              flags = 0
-              flags | VOLUME_END_FLAG unless @is_last
-
-              # EndHeader always encodes the plain END_OF_ARCHIVE
-              # marker: the RAR5 spec makes the volume flag optional,
-              # readers position the marker inside the volume
-              # sequence, and the omnizip-rs reference (read-side)
-              # carries no writer-side volume-flag encoding to port.
-              header = EndHeader.new
-
-              @io.write(header.encode)
+              # End-of-archive flags: 0x0001 marks a volume with more
+              # volumes following; the last volume ends with 0.
+              end_flags = @is_last ? 0 : VOLUME_END_FLAG
+              @io.write(EndHeader.new(end_flags: end_flags).encode)
             end
 
             # Generate volume filename from base name

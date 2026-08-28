@@ -177,7 +177,10 @@ module Omnizip
               write_signature(f)
               write_main_header(f)
 
-              if @options[:solid]
+              # Solid mode needs a RAR-compatible LZSS encoder; until
+              # one lands, fall back to independent STORE entries so
+              # the archive is actually extractable by unrar.
+              if @options[:solid] && Compression::Lzss.available?
                 write_solid_block(f, @files)
               else
                 @files.each do |file|
@@ -251,6 +254,7 @@ module Omnizip
                 file_size: file_info[:size],
                 compressed_size: (idx.zero? ? result[:compressed_size] : 0), # Only first file has compressed size
                 compression_method: compression_method,
+                dict_size: dictionary_size_for(compression_method),
                 mtime: @options[:include_mtime] ? file[:mtime] : nil,
                 crc32: nil, # No CRC32 for solid/LZMA
               )
@@ -307,12 +311,13 @@ module Omnizip
             if @encryption_manager
               encryption_result = @encryption_manager.encrypt_file_data(compressed_data)
               final_data = encryption_result[:encrypted_data]
-              # The generated EncryptionHeader (salt/IV) is not
-              # persisted into the archive here, so archives this
-              # path writes cannot be decrypted afterwards; the RAR5
-              # CRYPT extra record has no write-side reference to
-              # port (omnizip-rar implements reading only).
-              # Encryption remains read-verified only.
+              # Persist the salt/IV as the RAR5 file encryption extra
+              # record (spec type 0x01) — without it the archive
+              # cannot be decrypted by anything.
+              enc_record = build_encryption_extra_record(
+                encryption_result[:header],
+              )
+              extra_area = extra_area ? extra_area + enc_record : enc_record
             else
               final_data = compressed_data
             end
@@ -332,6 +337,7 @@ module Omnizip
               file_size: data.bytesize,
               compressed_size: final_data.bytesize,
               compression_method: compression_method,
+              dict_size: dictionary_size_for(compression_method),
               mtime: @options[:include_mtime] ? file[:mtime] : nil,
               crc32: file_crc32,
               extra_area: extra_area,
@@ -356,6 +362,22 @@ module Omnizip
           #
           # @param data [String] File data
           # @return [Integer] Compression method ID
+          # Dictionary size matching the compression modules' level
+          # table (128 KB << N), for the file header's dictionary
+          # bits. STORE needs no dictionary.
+          def dictionary_size_for(method)
+            return 0 if method == Compression::Store::METHOD
+
+            1 << case method
+                 when 1 then 18 # 256 KB
+                 when 2 then 20 # 1 MB
+                 when 3 then 22 # 4 MB
+                 when 4 then 23 # 8 MB
+                 when 5 then 24 # 16 MB
+                 else 22
+                 end
+          end
+
           def select_compression_method(data)
             case @options[:compression]
             when :store
@@ -367,7 +389,9 @@ module Omnizip
               if Compression::Lzss.available?
                 Compression::Lzss.method_id(level)
               else
-                # LZSS not implemented, fall back to STORE
+                warn "omnizip: RAR5 #{@options[:compression] == :lzma ? 'lzma' : 'lzss'} " \
+                     "compression is not interoperable yet; storing data " \
+                     "uncompressed instead"
                 Compression::Store::METHOD
               end
             when :auto
@@ -418,15 +442,27 @@ module Omnizip
           def build_compression_extra_area(properties)
             return nil if properties.nil?
 
-            extra_data = []
+            # Extra record format per the RAR 5.0 spec: Size(vint),
+            # Type(vint), Data. Type 0x03 carries the compression
+            # parameters.
+            record = VINT.encode(0x03) + properties.bytes
+            VINT.encode(record.length) + record
+          end
 
-            # Extra record type: 0x03 = Compression parameters
-            extra_data.concat(VINT.encode(0x03))
+          # File encryption extra record (spec type 0x01): AES-256
+          # parameters the reader needs to derive the key and IV.
+          def build_encryption_extra_record(header)
+            require "base64"
 
-            # Compression properties (method-specific)
-            extra_data.concat(properties.bytes)
+            kdf_count = Math.log2(header.kdf_iterations).round
+            record = [].concat(VINT.encode(0x01)) # record type
+              .concat(VINT.encode(header.version)) # 0 = AES-256
+              .concat(VINT.encode(0)) # flags: no check data
+            record << kdf_count # 1 byte, log2
+            record.concat(Base64.strict_decode64(header.salt).bytes)
+            record.concat(Base64.strict_decode64(header.iv).bytes)
 
-            extra_data.pack("C*")
+            (VINT.encode(record.length) + record).pack("C*")
           end
 
           # Generate PAR2 recovery files for archives

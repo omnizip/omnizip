@@ -237,17 +237,17 @@ RSpec.describe "RAR5 Multi-Volume Archives Integration" do
       expect(volumes.size).to be > 1
       volumes.each { |vol| expect(File.exist?(vol)).to be true }
 
-      # Optional: try extraction if unrar succeeded
-      if result
-        extracted_file0 = File.join(extract_dir,
-                                    File.basename(File.join(temp_dir,
-                                                            "compat0.txt")))
-        extracted_file1 = File.join(extract_dir,
-                                    File.basename(File.join(temp_dir,
-                                                            "compat1.txt")))
-        expect(File.exist?(extracted_file0)).to be true if File.exist?(extract_dir) && !Dir.empty?(extract_dir)
-        expect(File.exist?(extracted_file1)).to be true if File.exist?(extract_dir) && !Dir.empty?(extract_dir)
-      end
+      # The spec-correct volume flags (archive flags 0x0001/0x0002,
+      # end-of-archive 0x0001) make volumes genuinely extractable.
+      expect(result).to be true
+      extracted_file0 = File.join(extract_dir,
+                                  File.basename(File.join(temp_dir,
+                                                          "compat0.txt")))
+      extracted_file1 = File.join(extract_dir,
+                                  File.basename(File.join(temp_dir,
+                                                          "compat1.txt")))
+      expect(File.exist?(extracted_file0)).to be true
+      expect(File.exist?(extracted_file1)).to be true
     end
 
     it "lists files in multi-volume archive with unrar" do

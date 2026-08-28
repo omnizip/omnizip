@@ -25,6 +25,28 @@ module Omnizip
   # under Omnizip::Cli would re-trigger this file's autoload
   # mid-load.
   module Shared
+    # Thor 1.x does not treat --help/-h on subcommands as a request
+    # for help: the flag reaches the command as a positional argument
+    # and arity checking fails. Classes extending this module route
+    # those flags to the standard help output instead.
+    module HelpDispatch
+      def dispatch(meth, given_args, given_opts, config)
+        wants_help = [Array(given_args), Array(given_opts)].any? do |list|
+          list.include?("--help") || list.include?("-h")
+        end
+        if wants_help
+          name = meth || Array(given_args).grep_v(/\A-/).first
+          # Subcommand groups intercept their own --help (e.g.
+          # "archive create --help" must show the create usage).
+          return super if subcommands.include?(name)
+
+          return start(["help", name].compact, config)
+        end
+
+        super
+      end
+    end
+
     # Print a formatted error message and exit nonzero.
     #
     # @param error [StandardError] the error to display
@@ -51,6 +73,7 @@ module Omnizip
   # Profile commands subcommand group
   class ProfileCommands < Thor
     include Shared
+    extend Shared::HelpDispatch
 
     class << self
       def exit_on_failure?
@@ -99,6 +122,7 @@ module Omnizip
   # Archive commands subcommand group
   class ArchiveCommands < Thor
     include Shared
+    extend Shared::HelpDispatch
 
     class << self
       def exit_on_failure?
@@ -328,6 +352,7 @@ module Omnizip
   # files using various compression algorithms.
   class Cli < Thor
     include Shared
+    extend Shared::HelpDispatch
 
     class << self
       def exit_on_failure?

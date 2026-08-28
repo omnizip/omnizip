@@ -43,6 +43,12 @@ module Omnizip
           # Allocate sectors for directories and files
           allocate_sectors(tree)
 
+          # Tree nodes are separate hashes from @files entries; copy
+          # the allocated file locations onto the tree so directory
+          # records reference the real extents (otherwise every
+          # record points at sector 0).
+          assign_file_locations(tree)
+
           # Build path table
           path_table = build_path_table(tree)
 
@@ -141,6 +147,24 @@ module Omnizip
 
           # Allocate for files
           allocate_file_sectors
+        end
+
+        # Copy allocated file locations onto the matching tree nodes
+        #
+        # @param tree [Hash] Directory tree root
+        def assign_file_locations(tree)
+          walk = lambda do |node|
+            (node[:children] || []).each do |child|
+              if child[:directory]
+                walk.call(child)
+              else
+                match = @files.find { |f| f[:iso_path] == child[:iso_path] }
+                child[:location] = match[:location] if match
+                child[:size] = match[:size] if match
+              end
+            end
+          end
+          walk.call(tree)
         end
 
         # Allocate sectors for a directory

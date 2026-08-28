@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `.cpio` and `.iso` read routing: `extract_archive`/`list_archive`/
+  `read_from_archive`/`Archive.open` operate on CPIO archives and ISO
+  9660 images through new read-only handlers, mirroring the RAR
+  routing (creation keeps raising truthfully).
+
+### Fixed
+- 7z archives with explicit directory entries (or zero-byte
+  entries) were structurally invalid: the writer never emitted the
+  kEmptyStream/kEmptyFile properties, hardcoded 0x20 attributes
+  over each entry's real attributes, and its kSubStreamsInfo
+  digest/size arrays counted directory entries as substreams. 7-Zip
+  rejects such archives with "Headers Error" (and our own reader
+  crashed extracting directory entries). Verified against 7zz
+  ground truth (`-mhc=off` dumps): kEmptyStream/kEmptyFile carry
+  RAW bit vectors with no all-defined marker — the parser expected
+  that marker everywhere, so it now reads both layouts correctly
+  (which also fixes reading 7-Zip-created archives containing empty
+  files).
+- RAR5 vint encoding was not the spec encoding: multi-byte values
+  (any size >= 128, extra-area sizes, dictionary sizes) were written
+  in a byte-swapped form no reader decodes — archives with more
+  than ~127 bytes of content were corrupt for unrar AND for our own
+  spec-conformant parser. All round-trips now verified against
+  unrar, including encrypted STORE, multi-file, and multi-volume
+  archives (volume flags were the previously documented "no
+  write-side reference" gap: Main archive flags 0x0001/0x0002 and
+  end-of-archive 0x0001 are written per the RAR 5.0 specification).
+- RAR5 file headers: a "mystery vint" not in the spec shifted every
+  field; the compression method was written into the version bits;
+  the file-attribute value chmods extracted files unreadable. Now:
+  spec field order, method in bits 8-10 with dictionary bits
+  11-15, Unix attribute 0o100644.
+- RAR5 encrypted writing now persists the salt/IV as the file
+  encryption extra record (spec type 0x01) — archives it wrote
+  before could not be decrypted by anything (unrar reported "All
+  OK" only because no CRC was stored).
+- RAR5 `:lzma`/`:lzss` compression advertised method bits for a
+  stream that nothing can decode (the encoder is not
+  official-RAR-compatible; `unrar` extracts empty files silently).
+  `Lzss.available?` is now honest, so writers fall back to STORE
+  with a warning; solid mode falls back to independent STORE
+  entries.
+- ISO writing: directory records pointed every file at sector 0
+  (allocated extents were never copied onto the tree nodes); the
+  volume descriptor declared 100 sectors regardless of actual
+  size; `add_directory` entries were not marked as directories;
+  Rock Ridge and Joliet were advertised by default without being
+  implemented (the cloned SVD made 7-Zip read ASCII names as
+  UCS-2); `Reader#extract_all` looked entries up by bare name
+  instead of full path; `Formats::Iso.list` returned the Reader
+  instead of entries. Images now extract byte-identically through
+  7zz, including nested directories.
+- CLI: `omnizip <command> --help` failed with an arity error on
+  every command (Thor does not route `--help` on subcommands by
+  itself). A dispatch hook now prints per-command help.
+- `Omnizip::Formats::Rar::Rar5::MainHeader/FileHeader` were
+  unreferenceable unless another file happened to load header.rb
+  first (missing autoload entries); three Rar5 autoloads pointed at
+  files that never existed.
+
+### Changed
+- Docs: the OLE, RPM, GZIP, RAR5 and API-overview guides now use
+  the real APIs (`Formats::Ole.list/read/info`, `Formats::Rpm.*`,
+  `Gzip.compress_stream`, `Formats::Zip::Reader#read`, correct
+  error class names); fictional methods (`open_stream`, `root`,
+  `extract_to`, `extract_files`, `extract_payload`,
+  `Rar::Rar5::Reader`, scriptlets/signature accessors) removed.
+
 ## [0.3.37] - 2026-08-28
 
 ### Added

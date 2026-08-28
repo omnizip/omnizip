@@ -99,15 +99,16 @@ writer.close
 [source,ruby]
 ----
 # 7z archive
-writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
-writer.add_file('document.txt')
-writer.add_directory('photos/')
-writer.close
+Omnizip::Formats::SevenZip.create('archive.7z') do |writer|
+  writer.add_file('document.txt')
+  writer.add_directory('photos/')
+end
 
 # ZIP archive
 writer = Omnizip::Formats::Zip::Writer.new('archive.zip')
 writer.add_file('document.txt')
-writer.close
+writer.add_directory('photos/')
+writer.write
 ----
 
 ==== Extracting Archives
@@ -115,26 +116,24 @@ writer.close
 [source,ruby]
 ----
 # 7z archive
-reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
-reader.extract_all('output/')
-reader.close
+Omnizip::Formats::SevenZip.open('archive.7z') do |reader|
+  reader.extract_all('output/')
+end
 
-# ZIP archive
-reader = Omnizip::Formats::Zip::Reader.new('archive.zip')
+# ZIP archive (call .read to parse before extracting)
+reader = Omnizip::Formats::Zip::Reader.new('archive.zip').read
 reader.extract_all('output/')
-reader.close
 ----
 
 ==== Listing Contents
 
 [source,ruby]
 ----
-reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
-reader.open
-reader.each_file do |entry|
-  puts "#{entry.name}: #{entry.size} bytes"
+Omnizip::Formats::SevenZip.open('archive.7z') do |reader|
+  reader.list_files.each do |entry|
+    puts "#{entry.name}: #{entry.size} bytes"
+  end
 end
-reader.close
 ----
 
 === Error Handling
@@ -145,7 +144,7 @@ begin
   Omnizip.compress_file('input.txt', 'output.lzma')
 rescue Omnizip::CompressionError => e
   puts "Compression failed: #{e.message}"
-rescue Omnizip::AlgorithmNotFound => e
+rescue Omnizip::AlgorithmNotFoundError => e
   puts "Algorithm not found: #{e.message}"
 rescue IOError => e
   puts "I/O error: #{e.message}"

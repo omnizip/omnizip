@@ -90,8 +90,8 @@ module Omnizip
           @entries.each do |entry|
             next if entry.current_directory? || entry.parent_directory?
 
-            output_path = File.join(output_dir, entry.name)
-            extract_entry(entry.name, output_path)
+            output_path = File.join(output_dir, entry.full_path)
+            extract_entry(entry.full_path, output_path)
           end
         end
 

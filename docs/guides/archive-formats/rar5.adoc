@@ -493,24 +493,24 @@ volumes.each { |v| puts "  - #{File.basename(v)}" }
 
 [source,ruby]
 ----
-# Convert ZIP to RAR5
-def zip_to_rar5(zip_file, rar_file)
-  zip = Omnizip::Formats::Zip::Reader.new(zip_file)
+# Convert ZIP to RAR5 (extract first: the RAR5 writer adds files
+# from disk)
+def zip_to_rar5(zip_file, rar_file, workdir)
+  require "fileutils"
 
-  Omnizip::Formats::Rar::Rar5::Writer.new(rar_file,
-    compression: :lzma,
-    level: 5
-  ) do |writer|
-    zip.each_entry do |entry|
-      content = zip.read_entry(entry)
-      writer.add_data(entry.name, content)
-    end
+  # Reader#read parses the central directory and returns self
+  zip = Omnizip::Formats::Zip::Reader.new(zip_file).read
+  zip.extract_all(workdir)
+
+  writer = Omnizip::Formats::Rar::Rar5::Writer.new(rar_file,
+                                                  compression: :store)
+  Dir.glob(File.join(workdir, "**", "*")).each do |path|
+    writer.add_file(path, path.delete_prefix("#{workdir}/")) if File.file?(path)
   end
-
-  zip.close
+  writer.write
 end
 
-zip_to_rar5('archive.zip', 'archive.rar')
+zip_to_rar5('archive.zip', 'archive.rar', 'workdir')
 ----
 
 === See Also

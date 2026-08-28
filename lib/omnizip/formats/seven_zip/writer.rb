@@ -60,7 +60,9 @@ module Omnizip
           entry.source_path = nil
           entry.size = data_str.bytesize
           entry.mtime = Time.now
-          entry.has_stream = true
+          # Zero-length data has no stream: readers identify it as an
+          # empty file through kEmptyStream + kEmptyFile.
+          entry.has_stream = data_str.bytesize.positive?
           entry.inline_data = data_str
           entry.compression_options = options
           @entries << entry
@@ -280,7 +282,7 @@ module Omnizip
         end
 
         def build_solid_streams_info(metadata, unpack_size, compressed_size,
-num_files)
+_num_files)
           # kPackInfo property (0x06)
           metadata << [PropertyId::PACK_INFO].pack("C")
           metadata << write_number(0)  # Pack position
@@ -313,37 +315,44 @@ num_files)
           # kEnd for UnpackInfo
           metadata << [PropertyId::K_END].pack("C")
 
-          # kSubStreamsInfo - for solid archives with multiple files
+          # kSubStreamsInfo describes exactly the entries WITH a
+          # stream: directory entries (empty-stream) are excluded,
+          # or readers reject the header.
           metadata << [PropertyId::SUBSTREAMS_INFO].pack("C")
-          if num_files > 1
+          stream_files = @entries.select(&:has_stream?)
+          # Write the explicit form whenever any entry lacks a
+          # stream (directory entries): without kNumUnpackStreams,
+          # readers assume one substream per file and reject the
+          # digest count.
+          if stream_files.size > 1 || stream_files.size != @entries.size
 
-            # NUM_UNPACK_STREAM - number of files in this folder
+            # NUM_UNPACK_STREAM - number of substreams in this folder
             metadata << [PropertyId::NUM_UNPACK_STREAM].pack("C")
-            metadata << write_number(num_files)
+            metadata << write_number(stream_files.size)
 
-            # SIZE - size of each file's data (except the last one)
-            # Per 7-Zip spec: only write numSubstreams-1 sizes, last is calculated
-            # from folder's unpack size minus sum of written sizes
+            # SIZE - size of each substream except the last one
+            # Per 7-Zip spec: only write numSubstreams-1 sizes, last
+            # is calculated from folder's unpack size minus the sum
             metadata << [PropertyId::SIZE].pack("C")
-            @entries[0..-2].each do |entry| # All except last
+            stream_files[0..-2].each do |entry|
               metadata << write_number(entry.size)
             end
 
             # CRCs
             metadata << [PropertyId::CRC].pack("C")
             metadata << [1].pack("C") # All defined
-            @entries.each do |entry|
+            stream_files.each do |entry|
               # Use 0 for entries without CRC (empty files)
               crc = entry.crc || 0
               metadata << [crc].pack("V")
             end
 
           else
-            # Single file: CRC goes in SubStreamsInfo
+            # Single substream: CRC goes in SubStreamsInfo
             metadata << [PropertyId::CRC].pack("C")
             metadata << [1].pack("C") # All defined
             # Use 0 for entries without CRC (empty files)
-            crc = @entries.first&.crc || 0
+            crc = stream_files.first&.crc || 0
             metadata << [crc].pack("V")
           end
           metadata << [PropertyId::K_END].pack("C")
@@ -396,12 +405,13 @@ num_files)
           # kEnd for UnpackInfo
           metadata << [PropertyId::K_END].pack("C")
 
-          # kSubStreamsInfo - CRCs for each file
+          # kSubStreamsInfo - CRC for each substream. Each folder
+          # holds exactly one substream here, so digests cover only
+          # the entries WITH a stream (directory entries have none).
           metadata << [PropertyId::SUBSTREAMS_INFO].pack("C")
           metadata << [PropertyId::CRC].pack("C")
           metadata << [1].pack("C") # All defined
-          @entries.each do |entry|
-            # Use 0 for entries without CRC (empty files)
+          @entries.select(&:has_stream?).each do |entry|
             crc = entry.crc || 0
             metadata << [crc].pack("V")
           end
@@ -437,6 +447,34 @@ num_files)
 
           # Number of files
           metadata << write_number(@entries.size)
+
+          # Build EMPTY_STREAM property (0x0E) — written first, like
+          # 7-Zip itself: readers derive the directory flag from it;
+          # without it, directory entries are extracted as (invalid)
+          # files. Format: [EMPTY_STREAM] [size] [bit vector]
+          empty_bits = @entries.map { |e| !e.has_stream? }
+          if empty_bits.any?
+            # kEmptyStream carries the raw bit bytes only — NO
+            # all-defined marker byte (verified against 7-Zip's own
+            # -mhc=off output; a marker byte here shifts the whole
+            # header for strict readers).
+            empty_data = write_bit_bytes(empty_bits)
+            metadata << [PropertyId::EMPTY_STREAM].pack("C")
+            metadata << write_number(empty_data.bytesize)
+            metadata << empty_data
+
+            # kEmptyFile distinguishes zero-byte files from
+            # directories among the empty-stream entries.
+            empty_file_bits = @entries.map do |e|
+              !e.has_stream? && !e.is_dir
+            end
+            if empty_file_bits.any?
+              ef_data = write_bit_bytes(empty_file_bits)
+              metadata << [PropertyId::EMPTY_FILE].pack("C")
+              metadata << write_number(ef_data.bytesize)
+              metadata << ef_data
+            end
+          end
 
           # Build NAME property (0x11)
           # Format: [NAME] [size] [external] [UTF-16LE names with null terminators]
@@ -474,8 +512,8 @@ num_files)
           # Build WIN_ATTRIB property (0x15) - comes after MTIME per 7-Zip spec
           # Format: [WIN_ATTRIB] [size] [defined bits] [external] [attributes]
           attr_data = String.new(encoding: "BINARY")
-          @entries.each do |_entry|
-            attr_data << FILE_ATTRIBUTE_ARCHIVE
+          @entries.each do |entry|
+            attr_data << [entry.attributes || FILE_ATTRIBUTE_ARCHIVE.unpack1("V")].pack("V")
           end
 
           metadata << [PropertyId::WIN_ATTRIB].pack("C")
@@ -671,6 +709,27 @@ next_header_data)
         #   110xxxxx BYTE y[2]     : value = (xxxxx << 16) + y
         #   1110xxxx BYTE y[3]     : value = (xxxx << 24) + y
         #   ...up to 8 bytes total
+        # Raw MSB-first packed bit bytes, no marker
+        def write_bit_bytes(bits)
+          bytes = Array.new((bits.size + 7) / 8, 0)
+          bits.each_with_index do |bit, i|
+            bytes[i / 8] |= (1 << (7 - (i % 8))) if bit
+          end
+          bytes.pack("C*")
+        end
+
+        # Bit vector with an all-defined marker byte, MSB-first
+        # packing (same layout as HeaderWriter's)
+        def write_bit_vector(bits)
+          return [1].pack("C") if bits.all?
+
+          bytes = Array.new((bits.size + 7) / 8, 0)
+          bits.each_with_index do |bit, i|
+            bytes[i / 8] |= (1 << (7 - (i % 8))) if bit
+          end
+          [0].pack("C") + bytes.pack("C*")
+        end
+
         def write_number(value)
           # Single byte encoding (0-127)
           return [value].pack("C") if value < 0x80
