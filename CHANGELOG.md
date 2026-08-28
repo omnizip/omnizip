@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.40] - 2026-08-29
+
+### Fixed
+- Every CLI command now works end-to-end (each was exercised against
+  real archives and its failure fixed):
+  - `omnizip list` printed "No algorithms registered." — all builtin
+    algorithms register lazily, so the available list was empty until
+    each was first used. `AlgorithmRegistry.available` now includes
+    the builtins.
+  - `omnizip convert a.7z a.zip` crashed on a fictional reader/writer
+    API inside the conversion strategy; rewritten on the real APIs and
+    round-trips byte-identically through unzip.
+  - `omnizip archive create x.rar ...` raised NoMethodError (a
+    module-level `Formats::Rar.create` never existed). It exists now
+    (RAR5 default, `version: 4` for RAR4); directory inputs work —
+    the stale "RAR5 does not support directories" restriction is gone
+    and trees archive under their own name like `.7z`, verified with
+    unrar.
+  - `omnizip archive metadata` opened every input as a ZIP: `.7z`
+    crashed with a ZIP parse error, and runs with no edit option
+    still printed "Metadata updated successfully". 7z now shows real
+    read-only metadata, unknown formats raise truthful errors, and
+    ZIPs default to show mode when nothing is being edited.
+  - `omnizip decompress archive.zip out/` — the behavior the
+    command's own help documents — failed with "Is a directory".
+    Archive inputs (zip/7z/tar/rar/cpio/iso) and directory outputs
+    now extract through the convenience layer, content-verified with
+    diff for zip, 7z, rar, and tar.
+- Deflate64.metadata returned a raw Hash, crashing the CLI algorithm
+  table; it returns `Models::AlgorithmMetadata` like every other
+  algorithm.
+- Guides referenced a nonexistent `:zstd` algorithm-registry key;
+  corrected to `:zstandard` everywhere (the registry key differs from
+  RPM's `:zstd` compression type).
+
+### Added
+- `Omnizip::Buffer` 7z support: `create(:seven_zip)` /
+  `create_from_hash(hash, :seven_zip)`, `open`, `extract_to_memory`,
+  and `MemoryExtractor` all handle 7z through a temporary-file bridge
+  (the format has no in-memory stream implementation), including
+  explicit directory entries via a new
+  `SevenZip::Writer#add_directory_entry`. Format auto-detection fixed
+  to compare binary magic literals — UTF-8 literals never matched
+  binary data, so 7z buffers raised "Unknown archive format".
+- README gains an In-Memory Archives section (examples run verbatim).
+
 ## [0.3.39] - 2026-08-28
 
 ### Fixed
