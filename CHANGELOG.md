@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.39] - 2026-08-28
+
+### Fixed
+- RAR4 writing was structurally fictional: HEAD_CRC used CRC-16/CCITT
+  instead of the low 16 bits of CRC32, HEAD_SIZE values excluded the
+  2-byte CRC field, a duplicate marker block followed the signature
+  (the 7-byte signature IS the marker), and file headers lacked the
+  LONG_BLOCK flag. unrar rejected every archive with "Main archive
+  header is corrupt". STORE archives now round-trip through unrar
+  byte-identically, including explicit directory entries (marked with
+  the full 0xE0 dictionary mask — proven empirically: attribute-based
+  and trailing-backslash markers do not work), empty files, and
+  nested trees. `password:` now raises `NotImplementedError` instead
+  of writing the encrypted flag with no salt; `solid:`/`recovery:`/
+  `volume_size:` warn and are never advertised in header flags.
+- RAR4 reading never parsed real WinRAR archives (the reader demanded
+  the same fictional layout the writer emitted). It now matches
+  `unrar l` exactly on libarchive fixtures — names (backslashes
+  normalized), sizes, directories, DOS timestamps — and native
+  decompression is CRC-verified before use: previously a real
+  WinRAR-compressed entry silently extracted garbage (e.g. 44308
+  bytes written for a 20111-byte file); now a CRC mismatch falls
+  back to unrar for byte-exact extraction while Omnizip-written
+  archives still decode natively.
+- RAR3 writer/reader: 6 reserved bytes in the main header (was 4),
+  LONG_BLOCK flag, high size words before the filename (was after),
+  terminator flags 0. STORE output is `unrar t`-clean. The reader
+  dropped a fictional extended-time parser that produced year-2039
+  timestamps; base DOS time (minute precision) is used.
+- RAR5 reader: mtime is a 32-bit Unix timestamp (the parser read a
+  vint plus FILETIME that do not exist in the format) and is nil
+  when the header carries none, instead of a fabricated `Time.now`.
+  Timestamps now match unrar exactly on fixtures.
+- `Formats::Rar3`/`Formats::Rar5` never loaded: the autoload
+  registry in `formats/rar.rb` pointed at files defining a different
+  namespace. Both get proper parent autoload files
+  (`formats/rar3.rb`, `formats/rar5.rb`).
+- Windows: the unrar program path was pre-wrapped in literal quotes
+  for a shell-string call form; shell-free array-form invocations
+  failed to start the program. Quotes now live only at the two
+  shell call sites, and unrar runs quietly (`-idq`).
+
+### Added
+- unrar-gated RAR4 interop spec (STORE test + byte-identical
+  extraction with directories) and real WinRAR fixture parsing specs
+  (listing + unrar-fallback extraction with CRC assertions).
+
+### Documentation
+- README RAR4/RAR5 sections rewritten to verified reality: STORE is
+  unrar-verified while `:fastest`-`:best` are Omnizip-round-trip-only
+  (previously all methods claimed "fully working"); the real writer
+  API (no `close`, no block form, `compression:` key); RAR5 "LZMA SDK
+  byte-for-byte" claims removed (the option falls back to STORE with
+  a warning). Fixed fictional `SevenZip::Writer` `close`/`algorithm=`
+  examples in the API-usage and architecture guides.
+
 ## [0.3.38] - 2026-08-28
 
 ### Added
