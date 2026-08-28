@@ -145,6 +145,35 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
     end
 
+    it "reads .cpio and .iso archives through read-only handlers" do
+      cpio = File.join(outdir, "in.cpio")
+      Omnizip::Formats::Cpio.create(cpio) { |c| c.add_file(input.path) }
+      expect(Omnizip.list_archive(cpio)).to eq([File.basename(input.path)])
+      expect(Omnizip.read_from_archive(cpio, File.basename(input.path)))
+        .to eq(source)
+      Omnizip.extract_archive(cpio, File.join(outdir, "cpio-out"))
+      expect(File.binread(File.join(outdir, "cpio-out",
+                                    File.basename(input.path)))).to eq(source)
+      expect do
+        Omnizip.compress_file(input.path, File.join(outdir, "w.cpio"))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+
+      # ISO 9660 truncates identifiers to 31 characters, so use a
+      # short archive name for the ISO part of this example.
+      iso_input = File.join(outdir, "iso-in.dat")
+      File.binwrite(iso_input, source)
+      iso = File.join(outdir, "in.iso")
+      Omnizip::Formats::Iso.create(iso) { |i| i.add_file(iso_input) }
+      expect(Omnizip.list_archive(iso)).to eq(["iso-in.dat"])
+      expect(Omnizip.read_from_archive(iso, "iso-in.dat")).to eq(source)
+      Omnizip.extract_archive(iso, File.join(outdir, "iso-out"))
+      expect(File.binread(File.join(outdir, "iso-out", "iso-in.dat")))
+        .to eq(source)
+      expect do
+        Omnizip.compress_file(input.path, File.join(outdir, "w.iso"))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+    end
+
     it "raises truthfully for read-only format extensions" do
       [".rar", ".iso", ".cpio"].each do |ext|
         expect do

@@ -121,6 +121,19 @@ module Omnizip
         #
         # @param num_items [Integer] Number of items in bit vector
         # @return [Array<Boolean>] Bit vector
+        # Raw MSB-first bit vector without an all-defined marker
+        # (kEmptyStream/kEmptyFile/kAnti layout)
+        def read_raw_bit_vector(num_items)
+          num_bytes = (num_items + 7) / 8
+          raise EOFError if @position + num_bytes > @data.bytesize
+
+          bits_data = @data[@position, num_bytes]
+          @position += num_bytes
+          decode_bit_vector(bits_data, num_items)
+        end
+
+        # Bit vector with an all-defined marker byte (kCRC/kWinAttrib
+        # defined-bits layout)
         def read_bit_vector(num_items)
           all_defined = read_byte
           num_bytes = (num_items + 7) / 8
@@ -519,11 +532,11 @@ module Omnizip
         # @param entries [Array<Models::FileEntry>] File entries
         def read_empty_stream(entries)
           skip_size
-          empty_stream = read_bit_vector(entries.size)
+          # kEmptyStream carries a RAW bit vector — no all-defined
+          # marker byte (unlike kCRC/kWinAttrib)
+          empty_stream = read_raw_bit_vector(entries.size)
           entries.each_with_index do |entry, i|
-            # Bit vector: 0 = has stream (file), 1 = empty (directory)
-            # Convert to boolean: has_stream = (bit == 0)
-            entry.has_stream = (empty_stream[i].zero?)
+            entry.has_stream = empty_stream[i].zero?
             entry.is_dir = (empty_stream[i] == 1)
           end
         end
@@ -534,9 +547,11 @@ module Omnizip
         def read_empty_file(entries)
           skip_size
           empty_files = entries.reject(&:has_stream)
-          empty_bits = read_bit_vector(empty_files.size)
+          empty_bits = read_raw_bit_vector(empty_files.size)
           empty_files.each_with_index do |entry, i|
-            entry.is_empty = !empty_bits[i]
+            # Bit set = zero-byte FILE (not a directory)
+            entry.is_empty = empty_bits[i] == 1
+            entry.is_dir = false if entry.is_empty
           end
         end
 
@@ -546,7 +561,7 @@ module Omnizip
         def read_anti(entries)
           skip_size
           anti_files = entries.select { |e| !e.has_stream && !e.is_empty }
-          anti_bits = read_bit_vector(anti_files.size)
+          anti_bits = read_raw_bit_vector(anti_files.size)
           anti_files.each_with_index do |entry, i|
             entry.is_anti = anti_bits[i]
           end

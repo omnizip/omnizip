@@ -193,4 +193,57 @@ RSpec.describe "RAR5 Encryption Integration" do
       expect(archive_size).to be > original_size
     end
   end
+
+  describe "decryptability (unrar interop)" do
+    # The v0.3.37-and-earlier writer discarded the salt/IV, so the
+    # archives it wrote could not be decrypted by anything; unrar
+    # "tested" them OK only because no CRC was stored.
+    it "round-trips an encrypted STORE archive through unrar" do
+      skip "unrar command not available" unless
+        Omnizip::Formats::Rar::Decompressor.available?
+
+      test_file = File.join(temp_dir, "secret.txt")
+      File.binwrite(test_file, "Confidential data " * 40)
+
+      writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
+                                                       compression: :store,
+                                                       password: password)
+      writer.add_file(test_file)
+      writer.write
+
+      out = File.join(temp_dir, "out")
+      Dir.mkdir(out)
+      ok = system("unrar", "x", "-p#{password}", "-o+",
+                  archive_path, out + File::SEPARATOR,
+                  out: File::NULL, err: File::NULL)
+      expect(ok).to be true
+      expect(File.binread(File.join(out, "secret.txt")))
+        .to eq(File.binread(test_file))
+    end
+
+    it "round-trips an encrypted LZMA archive through unrar" do
+      skip "unrar command not available" unless
+        Omnizip::Formats::Rar::Decompressor.available?
+      # LZMA falls back to STORE when the RAR-compatible encoder is
+      # unavailable; the archive is still decryptable.
+      test_file = File.join(temp_dir, "secret.txt")
+      File.binwrite(test_file, "Confidential data " * 40)
+
+      writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
+                                                       compression: :lzma,
+                                                       level: 3,
+                                                       password: password)
+      writer.add_file(test_file)
+      writer.write
+
+      out = File.join(temp_dir, "out")
+      Dir.mkdir(out)
+      ok = system("unrar", "x", "-p#{password}", "-o+",
+                  archive_path, out + File::SEPARATOR,
+                  out: File::NULL, err: File::NULL)
+      expect(ok).to be true
+      expect(File.binread(File.join(out, "secret.txt")))
+        .to eq(File.binread(test_file))
+    end
+  end
 end

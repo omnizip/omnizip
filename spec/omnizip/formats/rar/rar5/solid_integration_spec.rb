@@ -6,6 +6,10 @@ require "tempfile"
 require "tmpdir"
 
 RSpec.describe "RAR5 Solid Compression Integration" do
+  def skip_unless_lzss!
+    skip "RAR-compatible LZSS encoder not available" unless
+      Omnizip::Formats::Rar::Rar5::Compression::Lzss.available?
+  end
   let(:temp_dir) { Dir.mktmpdir }
   let(:archive_path) { File.join(temp_dir, "test_solid.rar") }
 
@@ -72,6 +76,7 @@ RSpec.describe "RAR5 Solid Compression Integration" do
       non_solid_size = File.size(non_solid_path)
       solid_size = File.size(solid_path)
 
+      skip_unless_lzss!
       # Solid should be smaller due to shared dictionary
       expect(solid_size).to be < non_solid_size
 
@@ -109,6 +114,7 @@ RSpec.describe "RAR5 Solid Compression Integration" do
     let(:test_content) { "Lorem ipsum dolor sit amet. " * 50 }
 
     it "higher levels produce smaller archives" do
+      skip_unless_lzss!
       test_file = File.join(temp_dir, "test.txt")
       File.write(test_file, test_content)
 

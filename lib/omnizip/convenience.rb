@@ -230,16 +230,18 @@ module Omnizip
       ".7z" => :seven_zip,
     }.freeze
 
-    # Extensions naming real formats this gem can READ but not write
-    # through the convenience API. Writing them a ZIP under a foreign
-    # name was silent corruption; failing truthfully is the only
-    # honest behavior.
+    # Extensions naming formats with read-only convenience routing.
+    # Writing them a ZIP under a foreign name was silent corruption;
+    # creation raises truthfully instead (the format-level writers
+    # exist for RAR/CPIO/ISO but are not part of the archive API).
     READ_ONLY_FORMAT_EXTENSIONS = [".rar", ".iso", ".cpio"].freeze
 
     # Extensions whose format has a READ-ONLY handler: extraction and
     # listing route to it, while creation keeps raising.
     READ_ARCHIVE_FORMAT_EXTENSIONS = {
       ".rar" => :rar,
+      ".cpio" => :cpio,
+      ".iso" => :iso,
     }.freeze
 
     # Extension -> single-file decompressor (stream interface).

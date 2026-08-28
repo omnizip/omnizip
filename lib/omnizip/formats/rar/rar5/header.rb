@@ -89,9 +89,18 @@ header_data: "")
 
         # Main archive header
         class MainHeader < Header
-          def initialize(flags: 0)
-            # Main header has no data
-            super(HEADER_TYPE_MAIN, flags: flags)
+          # Archive flags: 0x0001 volume, 0x0002 volume number
+          # present, 0x0004 solid, 0x0008 recovery, 0x0010 locked
+          ARCHIVE_FLAG_VOLUME = 0x0001
+          ARCHIVE_FLAG_VOLUME_NUMBER = 0x0002
+
+          def initialize(archive_flags: 0, volume_number: nil)
+            data = VINT.encode(archive_flags)
+            if archive_flags.anybits?(ARCHIVE_FLAG_VOLUME_NUMBER)
+              data.concat(VINT.encode(volume_number.to_i))
+            end
+
+            super(HEADER_TYPE_MAIN, header_data: data.pack("C*"))
           end
         end
 
@@ -102,69 +111,73 @@ header_data: "")
           FILE_HAS_MTIME = 0x0002
           FILE_HAS_CRC32 = 0x0004
 
+          # Compression information field layout (RAR 5.0 spec):
+          # bits 0-5 algorithm version (0), bit 7 solid,
+          # bits 8-10 method (0=store, 1-5=LZMA), bits 11-15
+          # dictionary size (128 KB * 2^N).
+          DICT_BASE = 128 * 1024
+
           def initialize(filename:, file_size:, compressed_size:,
-compression_method: 0, flags: 0, mtime: nil, crc32: nil, extra_area: nil)
+                         compression_method: 0, dict_size: 0,
+                         flags: 0, mtime: nil, crc32: nil, extra_area: nil)
             # Build file flags based on what's provided
             file_flags = 0
             file_flags |= FILE_HAS_MTIME if mtime
             file_flags |= FILE_HAS_CRC32 if crc32
 
             # Build header data with file information
-            data = build_file_data(filename, file_size, compressed_size,
-                                   file_flags, compression_method, mtime, crc32)
+            data = build_file_data(filename, file_size,
+                                   compression_method, dict_size,
+                                   file_flags, mtime, crc32)
             super(HEADER_TYPE_FILE, flags: flags, data_area_size: compressed_size, header_data: data, extra_area: extra_area)
           end
 
           private
 
-          def build_file_data(filename, file_size, _compressed_size,
-file_flags, compression_method, mtime, crc32)
+          def build_file_data(filename, file_size, compression_method,
+                              dict_size, file_flags, mtime, crc32)
             data = []
 
             # File flags (VINT)
             data.concat(VINT.encode(file_flags))
 
-            # Unp size (uncompressed size, VINT)
+            # Unpacked size (VINT)
             data.concat(VINT.encode(file_size))
 
-            # Attributes (VINT) - ALWAYS present in RAR5
-            # Use 0x2483 from official RAR (standard regular file with correct permissions)
-            data.concat(VINT.encode(0x2483))
-
-            # Mystery VINT with value 0x02 - observed in official RAR
-            # This appears after attributes in official archives - ALWAYS present
-            data.concat(VINT.encode(0x02))
+            # Attributes (VINT) - ALWAYS present in RAR5.
+            # Unix host: standard regular-file mode 0o100644.
+            data.concat(VINT.encode(0o100644))
 
             # mtime (optional) - only if FILE_HAS_MTIME flag is set
-            # RAR5 stores mtime as Unix timestamp (seconds since epoch) in DOS format
+            # RAR5 stores mtime as Unix timestamp (seconds since epoch)
             # Format: 4 bytes little-endian (NOT a VINT)
             if file_flags.anybits?(FILE_HAS_MTIME) && mtime
-              # Convert Time to Unix timestamp (seconds since 1970-01-01 00:00:00 UTC)
-              unix_time = mtime.to_i
-              # Pack as 32-bit unsigned little-endian
-              data.concat([unix_time].pack("V").bytes)
+              data.concat([mtime.to_i].pack("V").bytes)
             end
 
             # Data CRC32 (optional) - only if FILE_HAS_CRC32 flag is set
             # Format: 4 bytes little-endian (NOT a VINT)
             if file_flags.anybits?(FILE_HAS_CRC32) && crc32
-              # Pack as 32-bit unsigned little-endian
               data.concat([crc32].pack("V").bytes)
             end
 
-            # Compression info (VINT)
-            # Bits 0-5: method (0=STORE, 1-5=LZMA with different levels)
-            # Bits 6+: version
-            data.concat(VINT.encode(compression_method))
+            # Compression information (VINT): version 0 in bits 0-5,
+            # method in bits 8-10, dictionary size in bits 11-15
+            # (128 KB * 2^N).
+            dict_bits = if dict_size.positive?
+                          Math.log2(dict_size / DICT_BASE).round.clamp(0, 15)
+                        else
+                          0
+                        end
+            compression_info = (compression_method << 8) | (dict_bits << 11)
+            data.concat(VINT.encode(compression_info))
 
             # Host OS (VINT) - 1 = Unix
-            data.concat(VINT.encode(1)) # Unix
+            data.concat(VINT.encode(1))
 
-            # Name length (VINT)
+            # Name length (VINT) and name
             name_bytes = filename.encode("UTF-8").bytes
             data.concat(VINT.encode(name_bytes.size))
-
-            # Name
             data.concat(name_bytes)
 
             data.pack("C*")
@@ -173,9 +186,13 @@ file_flags, compression_method, mtime, crc32)
 
         # End of archive header
         class EndHeader < Header
-          def initialize
-            # End header is minimal
-            super(HEADER_TYPE_END, flags: 0)
+          # End of archive flags: 0x0001 volume and not the last
+          # volume in the set
+          END_FLAG_VOLUME_NEXT = 0x0001
+
+          def initialize(end_flags: 0)
+            super(HEADER_TYPE_END,
+                  header_data: VINT.encode(end_flags).pack("C*"))
           end
         end
       end

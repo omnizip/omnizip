@@ -188,11 +188,8 @@ omnizip archive create archive.zip files/ \
 
 [source,ruby]
 ----
-# Try RAR4 reader
+# One reader covers both RAR4 and RAR5 (version auto-detected)
 reader = Omnizip::Formats::Rar::Reader.new('archive.rar')
-
-# Or RAR5 reader
-reader = Omnizip::Formats::Rar::Rar5::Reader.new('archive.rar')
 ----
 
 ### Getting Help

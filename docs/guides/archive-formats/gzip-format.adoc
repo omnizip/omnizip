@@ -92,10 +92,8 @@ GZIP supports streaming for large files:
 ----
 # Stream compress large file
 File.open('large.bin', 'rb') do |input|
-  Omnizip::Gzip::Writer.open('large.bin.gz') do |output|
-    while chunk = input.read(65536)
-      output.write(chunk)
-    end
+  File.open('large.bin.gz', 'wb') do |output|
+    Omnizip::Formats::Gzip.compress_stream(input, output)
   end
 end
 ----

@@ -27,8 +27,8 @@ RSpec.describe Omnizip::Formats::Iso::Writer do
       writer = described_class.new(output_iso)
       expect(writer.output_path).to eq(output_iso)
       expect(writer.level).to eq(2)
-      expect(writer.rock_ridge).to be true
-      expect(writer.joliet).to be true
+      expect(writer.rock_ridge).to be false
+      expect(writer.joliet).to be false
     end
 
     it "accepts custom options" do

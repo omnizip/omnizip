@@ -37,10 +37,12 @@ module Omnizip
         autoload :VINT, "omnizip/formats/rar/rar5/vint"
         autoload :CRC32, "omnizip/formats/rar/rar5/crc32"
         autoload :Header, "omnizip/formats/rar/rar5/header"
+        # MainHeader/FileHeader live in header.rb directly under Rar5;
+        # without their own autoload entries, referencing them only
+        # works if something else loaded the file first.
+        autoload :MainHeader, "omnizip/formats/rar/rar5/header"
+        autoload :FileHeader, "omnizip/formats/rar/rar5/header"
         autoload :Writer, "omnizip/formats/rar/rar5/writer"
-        autoload :Reader, "omnizip/formats/rar/rar5/reader"
-        autoload :Compressor, "omnizip/formats/rar/rar5/compressor"
-        autoload :Decompressor, "omnizip/formats/rar/rar5/decompressor"
         # RAR5 compression
         module Compression
           autoload :Store, "omnizip/formats/rar/rar5/compression/store"

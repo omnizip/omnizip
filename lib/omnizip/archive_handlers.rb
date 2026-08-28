@@ -9,5 +9,7 @@ module Omnizip
     autoload :TarHandler, "omnizip/archive_handlers/tar_handler"
     autoload :SevenZipHandler, "omnizip/archive_handlers/seven_zip_handler"
     autoload :RarHandler, "omnizip/archive_handlers/rar_handler"
+    autoload :CpioHandler, "omnizip/archive_handlers/cpio_handler"
+    autoload :IsoHandler, "omnizip/archive_handlers/iso_handler"
   end
 end

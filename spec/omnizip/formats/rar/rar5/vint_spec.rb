@@ -11,12 +11,12 @@ RSpec.describe Omnizip::Formats::Rar::Rar5::VINT do
     end
 
     it "encodes multi-byte values" do
-      # 128 = 0x80 -> [0x80, 0x80]
-      expect(described_class.encode(128)).to eq([0x80, 0x80])
-
-      # Test vectors from RAR5 spec
-      expect(described_class.encode(0x100)).to eq([0x81, 0x00])
-      expect(described_class.encode(0x4000)).to eq([0xC0, 0x40, 0x00])
+      # Spec encoding: 7 data bits per byte, least significant
+      # group first, continuation bit on all but the last byte.
+      expect(described_class.encode(128)).to eq([0x80, 0x01])
+      expect(described_class.encode(256)).to eq([0x80, 0x02])
+      expect(described_class.encode(16_384)).to eq([0x80, 0x80, 0x01])
+      expect(described_class.encode(736)).to eq([0xE0, 0x05])
     end
   end
 
@@ -30,11 +30,14 @@ RSpec.describe Omnizip::Formats::Rar::Rar5::VINT do
     end
 
     it "decodes multi-byte values" do
-      io = StringIO.new([0x80, 0x80].pack("C*"))
+      io = StringIO.new([0x80, 0x01].pack("C*"))
       expect(described_class.decode(io)).to eq(128)
 
-      io = StringIO.new([0x81, 0x00].pack("C*"))
-      expect(described_class.decode(io)).to eq(0x100)
+      io = StringIO.new([0x80, 0x02].pack("C*"))
+      expect(described_class.decode(io)).to eq(256)
+
+      io = StringIO.new([0x80, 0x80, 0x01].pack("C*"))
+      expect(described_class.decode(io)).to eq(16_384)
     end
 
     it "round-trips all values" do

@@ -8,242 +8,101 @@ grand_parent: Guides
 [[rpm-format]]
 == Purpose
 
-RPM (Red Hat Package Manager) is the standard package format for Red Hat-based Linux distributions (RHEL, CentOS, Fedora). RPM packages contain software binaries, metadata, and scripts packaged in a single archive with a CPIO payload compressed using gzip, bzip2, xz, or zstd.
-
-== Key Characteristics
-
-[cols="1,3"]
-|===
-|Property |Value
-
-|Compression
-|gzip, bzip2, xz, or zstd
-
-|Encryption
-|GPG signature verification
-
-|Archive Support
-|Single package with CPIO payload
-
-|Large Files
-|Limited by CPIO and compression
-
-|Best For
-|Linux software distribution, RPM-based systems
-|===
+RPM is the package format of Red Hat-based Linux distributions. An
+RPM file is a lead, signature, metadata header and a payload — a
+CPIO archive compressed with gzip/bzip2/xz/zstd.
 
 == Basic Usage
 
-=== Read RPM Package Metadata
+=== Open a Package
 
 [source,ruby]
 ----
-# Open and read RPM metadata
-rpm = Omnizip::Rpm.open('package.rpm')
-
-puts "Name: #{rpm.name}"
-puts "Version: #{rpm.version}"
-puts "Release: #{rpm.release}"
-puts "Architecture: #{rpm.arch}"
-puts "Summary: #{rpm.summary}"
-puts "Description: #{rpm.description}"
-
-# List package contents
-rpm.each_entry do |entry|
-  puts "#{entry.path} (#{entry.size} bytes)"
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  puts rpm.files.size
 end
 
+rpm = Omnizip::Formats::Rpm.open('package.rpm')
 rpm.close
 ----
 
-=== Extract RPM Package
+=== Package Metadata
 
 [source,ruby]
 ----
-# Extract all files from RPM
-Omnizip::Rpm.extract('package.rpm', '/output/directory/')
+info = Omnizip::Formats::Rpm.info('package.rpm')
+puts info[:name]        # => "app"
+puts info[:version]
+puts info[:release]
+puts info[:arch]
+puts info[:summary]
+puts info[:license]
+puts info[:vendor]
+puts info[:build_time]
+puts info[:file_count]
 
-# Extract specific files
-Omnizip::Rpm.open('package.rpm') do |rpm|
-  rpm.extract_files(['usr/bin/app', 'usr/share/man/man1/app.1.gz'], '/output/')
+# Same details on the reader
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  puts rpm.name
+  puts rpm.version
+  puts rpm.license
 end
 ----
 
-=== Check RPM Signature
+=== List and Extract Files
 
 [source,ruby]
 ----
-# Verify RPM signature (requires GPG keys)
-rpm = Omnizip::Rpm.open('package.rpm')
-if rpm.signed?
-  puts "Package is GPG signed"
-  puts "Key ID: #{rpm.signature_key_id}"
+# File paths inside the payload
+Omnizip::Formats::Rpm.list('package.rpm')
+
+# Extract the payload (CPIO contents)
+Omnizip::Formats::Rpm.extract('package.rpm', '/output/directory/')
+
+# Or per-reader
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  rpm.extract('/output/directory/')
 end
 ----
 
 == RPM Structure
 
-RPM packages consist of:
-
 . **Lead** - 96 bytes identifying the package
-. **Signature** - Header with cryptographic signatures
-. **Header** - Metadata (name, version, dependencies, scripts)
-. **Payload** - CPIO archive compressed with gzip/bzip2/xz/zstd
+. **Signature** - cryptographic signatures
+. **Header** - metadata (name, version, dependencies)
+. **Payload** - CPIO archive
 
 [source,ruby]
 ----
-# Internal RPM structure
-rpm = Omnizip::Rpm.open('package.rpm')
-
-# Access lead
+rpm = Omnizip::Formats::Rpm.open('package.rpm')
 puts rpm.lead.inspect
-
-# Access signature
 puts rpm.signature.inspect
-
-# Access header (metadata)
 puts rpm.header.inspect
-
-# Access payload directly (compressed CPIO)
-puts rpm.payload.inspect
 ----
 
-== Payload Extraction
-
-The RPM payload is a CPIO archive that can be extracted:
+== Payload
 
 [source,ruby]
 ----
-# Extract only the payload (files)
-Omnizip::Rpm.open('package.rpm') do |rpm|
-  rpm.extract_payload('/output/directory/')
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  puts "Compression: #{rpm.payload_compressor}"
+
+  # Compressed CPIO bytes; decompress with the matching format
+  payload = rpm.payload
 end
-
-# Access payload entries directly
-Omnizip::Rpm.open('package.rpm') do |rpm|
-  rpm.each_payload_entry do |entry|
-    puts "Entry: #{entry.path}"
-    puts "Content: #{entry.read[0, 100]}..."
-  end
-end
-----
-
-== Compression Types
-
-RPM supports four payload compression formats:
-
-[cols="2,1,1"]
-|===
-|Format |Extension |Compression Ratio
-
-|gzip
-|.gz
-|Good
-
-|bzip2
-|.bz2
-|Better
-
-|xz
-|.xz
-|Best
-
-|zstd
-|.zst
-|Best (modern)
-|===
-
-[source,ruby]
-----
-# Check compression type
-rpm = Omnizip::Rpm.open('package.rpm')
-puts "Compression: #{rpm.compression_type}"
-
-# Handle different compression types
-case rpm.compression_type
-when :gzip
-  puts "Using gzip decompression"
-when :bzip2
-  puts "Using bzip2 decompression"
-when :xz
-  puts "Using xz decompression"
-when :zstd
-  puts "Using zstd decompression"
-end
-----
-
-== Scriptlets
-
-RPM packages can contain pre/post install scripts:
-
-[source,ruby]
-----
-# Access scriptlets
-rpm = Omnizip::Rpm.open('package.rpm')
-
-puts "Pre-install script: #{rpm.pre_install_script}"
-puts "Post-install script: #{rpm.post_install_script}"
-puts "Pre-uninstall script: #{rpm.pre_uninstall_script}"
-puts "Post-uninstall script: #{rpm.post_uninstall_script}"
 ----
 
 == Dependencies
 
-RPM packages declare dependencies:
-
 [source,ruby]
 ----
-# Access dependencies
-rpm = Omnizip::Rpm.open('package.rpm')
-
-# Required packages
-puts "Requires:"
-rpm.requires.each do |dep|
-  puts "  #{dep.name} #{dep.version}"
-end
-
-# Provided capabilities
-puts "Provides:"
-rpm.provides.each do |cap|
-  puts "  #{cap.name}"
-end
-
-# Required capabilities
-puts "Requires:"
-rpm.requires.each do |req|
-  puts "  #{req.name} #{req.version}"
-end
-
-# Conflicts
-puts "Conflicts:"
-rpm.conflicts.each do |conf|
-  puts "  #{conf.name} #{conf.version}"
-end
-----
-
-== File Information
-
-RPM tracks detailed file information:
-
-[source,ruby]
-----
-# Access file entries
-Omnizip::Rpm.open('package.rpm') do |rpm|
-  rpm.each_file do |file|
-    puts "Path: #{file.path}"
-    puts "Size: #{file.size}"
-    puts "Mode: #{file.mode.to_s(8)}"
-    puts "Owner: #{file.owner}"
-    puts "Group: #{file.group}"
-    puts "MD5: #{file.md5}" if file.md5
-    puts "Is config: #{file.config?}"
-    puts "Is doc: #{file.doc?}"
-  end
+Omnizip::Formats::Rpm.open('package.rpm') do |rpm|
+  rpm.requires.each { |name, op, version| puts "#{name} #{op} #{version}" }
+  rpm.provides.each { |name, op, version| puts "#{name} #{op} #{version}" }
+  rpm.conflicts.each { |name, op, version| puts "#{name} #{op} #{version}" }
 end
 ----
 
 == See Also
 
-* link:tar-format.html[TAR Format] - Related archive format
-* link:xz-format.html[XZ Format] - XZ compression used in some RPMs
-* link:cpio-format.html[CPIO Format] - Underlying payload format
+* link:gzip-format.html[GZIP Format] - Common payload compression

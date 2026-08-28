@@ -69,7 +69,9 @@ module Omnizip
       # @param path [String] Path to ISO file
       # @return [Array<DirectoryRecord>] Directory entries
       def self.list(path)
-        open(path, &:entries)
+        entries = nil
+        open(path) { |iso| entries = iso.entries }
+        entries
       end
 
       # Extract ISO contents

@@ -38,4 +38,24 @@ RSpec.describe Omnizip::Cli do
       expect(header.getbyte(0)).to eq((((2 * 5) + 0) * 9) + 3)
     end
   end
+
+  describe "help flags on subcommands" do
+    {
+      ["--help"] => "Commands",
+      ["help"] => "Commands",
+      ["compress", "--help"] => "compress INPUT OUTPUT",
+      ["version", "-h"] => "Usage",
+      ["archive", "--help"] => "archive create",
+      ["archive", "create", "--help"] => "archive create OUTPUT INPUT",
+      ["archive", "extract", "-h"] => "archive extract",
+      ["profile", "show", "--help"] => "profile show PROFILE",
+      ["convert", "-h"] => "Usage",
+    }.each do |args, expected|
+      it "prints help for: omnizip #{args.join(' ')}" do
+        expect do
+          described_class.start(args)
+        end.to output(/#{Regexp.escape(expected)}/).to_stdout
+      end
+    end
+  end
 end
