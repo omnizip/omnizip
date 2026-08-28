@@ -7,6 +7,8 @@ module Omnizip
     autoload :SevenZip, "omnizip/formats/seven_zip"
     autoload :Zip, "omnizip/formats/zip"
     autoload :Rar, "omnizip/formats/rar"
+    autoload :Rar3, "omnizip/formats/rar3"
+    autoload :Rar5, "omnizip/formats/rar5"
     autoload :Tar, "omnizip/formats/tar"
     autoload :Gzip, "omnizip/formats/gzip"
     autoload :Bzip2File, "omnizip/formats/bzip2_file"

@@ -418,13 +418,14 @@ Full support for creating and extracting .7z archives.
 [source,ruby]
 ----
 # Create archive
-writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
-writer.add_file('input.txt')
-writer.add_file('data.bin')
-writer.close
+Omnizip::Formats::SevenZip.create('archive.7z') do |writer|
+  writer.add_file('input.txt')
+  writer.add_file('data.bin')
+end
 
 # Extract archive
 reader = Omnizip::Formats::SevenZip::Reader.new('archive.7z')
+reader.open
 reader.extract_all('output_dir/')
 reader.close
 

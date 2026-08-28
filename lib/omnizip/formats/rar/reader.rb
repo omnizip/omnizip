@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "stringio"
+require "zlib"
 
 module Omnizip
   module Formats
@@ -246,11 +247,7 @@ module Omnizip
           # Native decompression only for RAR4 for now
           return false unless @header.version == 4
 
-          # Check if we have the compression method
-          return false if entry.nil? || entry.method.nil?
-
-          # All RAR4 methods are supported by our Dispatcher
-          true
+          !entry.nil? && !entry.method.nil?
         end
 
         # Extract entry using native decompression
@@ -258,17 +255,24 @@ module Omnizip
         # @param entry [Models::RarEntry] File entry
         # @param output_path [String] Destination path
         def extract_entry_native(entry, output_path)
-          # Read compressed data from archive
           compressed_data = read_compressed_data(entry)
+          method = entry.method || 0x30
 
-          # Decompress using Dispatcher
-          File.open(output_path, "wb") do |output|
-            # For now, assume METHOD_STORE (0x30)
-            # Real implementation would get method from entry
-            method = entry.method || 0x30
+          output = StringIO.new(+"")
+          Compression::Dispatcher.decompress(method, compressed_data, output)
 
-            Compression::Dispatcher.decompress(method, compressed_data, output)
+          # The native LZ/PPMd decoders understand Omnizip's own
+          # encoder output, not official RAR streams — without this
+          # check, real WinRAR archives would silently extract as
+          # garbage. The header CRC is authoritative: on mismatch,
+          # fall back to unrar.
+          data = output.string
+          if entry.crc && Zlib.crc32(data) != entry.crc
+            raise Compression::DecompressionError,
+                  "CRC mismatch for #{entry.name}"
           end
+
+          File.binwrite(output_path, data)
         rescue StandardError => e
           # Fall back to external decompressor on error
           warn "Native decompression failed for #{entry.name}: #{e.message}"

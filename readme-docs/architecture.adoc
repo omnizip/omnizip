@@ -198,12 +198,13 @@ end
 
 [source,ruby]
 ----
-writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
-writer.algorithm = :lzma2
-writer.level = 9
+writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z',
+  algorithm: :lzma2,
+  level: 9
+)
 writer.add_file('file1.txt')
 writer.add_file('file2.txt')
-writer.close
+writer.write
 ----
 
 === Adapter Pattern

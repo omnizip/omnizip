@@ -98,14 +98,6 @@ module Omnizip
         end
       end
 
-      # RAR3 support
-      module Rar3
-        autoload :Compressor, "omnizip/formats/rar3/compressor"
-        autoload :Decompressor, "omnizip/formats/rar3/decompressor"
-        autoload :Reader, "omnizip/formats/rar3/reader"
-        autoload :Writer, "omnizip/formats/rar3/writer"
-      end
-
       # Compression layer
       module Compression
         autoload :BitStream, "omnizip/formats/rar/compression/bit_stream"

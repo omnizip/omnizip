@@ -67,9 +67,10 @@ RSpec.describe "RAR Real-World Scenarios", :integration do
       reader.open
 
       files = reader.list_files
-      expect(files.size).to eq(3)
-      expect(files.map(&:name)).to include("README.md", "src/main.rb",
+      expect(files.size).to eq(4)
+      expect(files.map(&:name)).to include("README.md", "src", "src/main.rb",
                                            "src/helper.rb")
+      expect(files.find { |f| f.name == "src" }).to be_directory
     end
   end
 

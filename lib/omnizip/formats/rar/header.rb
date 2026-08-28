@@ -84,20 +84,12 @@ module Omnizip
 
         # Parse RAR4 header
         #
+        # The 7-byte signature consumed by #parse IS the marker
+        # block, so the main header follows immediately.
+        #
         # @param io [IO] Input stream
         def parse_rar4_header(io)
-          # Read marker block
-          read_uint16(io)
-          head_type = io.read(1)&.ord
-          read_uint16(io)
-          read_uint16(io)
-
-          unless head_type == BLOCK_MARKER
-            raise "Expected marker block, got 0x#{head_type.to_s(16)}"
-          end
-
-          # Read archive header
-          read_uint16(io)
+          read_uint16(io) # HEAD_CRC
           head_type = io.read(1)&.ord
           head_flags = read_uint16(io)
           head_size = read_uint16(io)
@@ -112,9 +104,9 @@ module Omnizip
           @is_locked = head_flags.anybits?(ARCHIVE_LOCKED)
           @comment_present = head_flags.anybits?(ARCHIVE_COMMENT)
 
-          # Skip rest of archive header
-          # head_size includes TYPE(1) + FLAGS(2) + SIZE(2) = 5 bytes already read
-          remaining = head_size - 5
+          # Skip rest of archive header. HEAD_SIZE counts the whole
+          # block including the 2 HEAD_CRC bytes; 7 bytes consumed.
+          remaining = head_size - 7
           io.read(remaining) if remaining.positive?
         end
 

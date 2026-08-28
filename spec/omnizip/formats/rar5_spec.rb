@@ -33,6 +33,28 @@ RSpec.describe "RAR v5 Format Support" do
       expect(reader.spec.magic_bytes).to eq(rar5_magic)
       expect(reader.spec.magic_bytes).not_to eq(rar3_magic)
     end
+
+    it "reads 32-bit Unix mtimes matching unrar on a real archive" do
+      fixture = File.join(__dir__, "..", "..", "fixtures", "rar",
+                          "libarchive_reference",
+                          "test_read_format_rar5_owner.rar")
+      skip "fixture missing" unless File.exist?(fixture)
+
+      entries = File.open(fixture, "rb") { |io| reader.read_archive(io) }
+      root = entries.find { |e| e.name == "root.txt" }
+
+      expect(root.modified_time).to eq(Time.at(1_555_533_309))
+    end
+
+    it "reports nil mtime when the header does not carry one" do
+      fixture = File.join(__dir__, "..", "..", "fixtures", "rar",
+                          "libarchive_reference",
+                          "test_read_format_rar5_stored.rar")
+      skip "fixture missing" unless File.exist?(fixture)
+
+      entries = File.open(fixture, "rb") { |io| reader.read_archive(io) }
+      expect(entries.first.modified_time).to be_nil
+    end
   end
 
   describe Omnizip::Formats::Rar5::Writer do

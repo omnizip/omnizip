@@ -21,6 +21,10 @@ module Omnizip
         BLOCK_SUBBLOCK = 0x7A
         BLOCK_ENDARC = 0x7B
 
+        # HEAD_FLAGS bit 0x8000 (LONG_BLOCK): the block carries a
+        # data area whose size is the PACK_SIZE field at offset 7
+        BLOCK_LONG = 0x8000
+
         # Archive flags
         ARCHIVE_VOLUME = 0x0001
         ARCHIVE_COMMENT = 0x0002

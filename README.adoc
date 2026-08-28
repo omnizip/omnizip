@@ -115,13 +115,14 @@ Omnizip provides complete XZ container format (`.xz`) support with LZMA2 compres
 ----
 require 'omnizip'
 
-# Compress to XZ format
-compressed = Omnizip::Formats::Xz.compress("Hello, World!")
-File.write('output.xz', compressed)
+# Compress a file to XZ format
+Omnizip::Formats::Xz.create_file('input.txt', level: 6)
 
-# Decompress from XZ format
-compressed_data = File.read('output.xz')
-decompressed = Omnizip::Formats::Xz.decompress(compressed_data)
+# Compress in-memory data (returns the .xz bytes)
+compressed = Omnizip::Formats::Xz.create("Hello, World!")
+
+# Decompress (accepts a path or the .xz bytes)
+decompressed = Omnizip::Formats::Xz.decompress(compressed)
 
 # Or use the Reader API
 reader = Omnizip::Formats::Xz::Reader.new('file.xz')
@@ -133,7 +134,7 @@ data = reader.read
 [source,ruby]
 ----
 # Configure checksum type
-compressed = Omnizip::Formats::Xz.compress(data, check_type: :crc64)
+compressed = Omnizip::Formats::Xz.create(data, check_type: :crc64)
 # Options: :crc32 (default), :crc64, :sha256, :none
 
 # Using Builder API for multi-part data
@@ -216,19 +217,19 @@ Omnizip provides complete 7-Zip container format (`.7z`) support with multiple c
 require 'omnizip'
 
 # Create 7z archive
-Omnizip::Formats::SevenZip::Writer.create('archive.7z') do |sz|
+Omnizip::Formats::SevenZip.create('archive.7z') do |sz|
   sz.add_file('document.pdf')
   sz.add_directory('photos/')
 end
 
 # Extract 7z archive
-Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |sz|
+Omnizip::Formats::SevenZip.open('archive.7z') do |sz|
   sz.extract_all('output/')
 end
 
 # List contents
-Omnizip::Formats::SevenZip::Reader.open('archive.7z') do |sz|
-  sz.entries.each do |entry|
+Omnizip::Formats::SevenZip.open('archive.7z') do |sz|
+  sz.list_files.each do |entry|
     puts "#{entry.name}: #{entry.size} bytes"
   end
 end
@@ -239,7 +240,7 @@ end
 [source,ruby]
 ----
 # With compression options
-Omnizip::Formats::SevenZip::Writer.create('archive.7z',
+Omnizip::Formats::SevenZip.create('archive.7z',
   algorithm: :lzma2,
   level: 9,
   solid: true
@@ -248,9 +249,9 @@ Omnizip::Formats::SevenZip::Writer.create('archive.7z',
 end
 
 # With password encryption
-Omnizip::Formats::SevenZip::Writer.create('secure.7z',
+Omnizip::Formats::SevenZip.create('secure.7z',
   password: 'secret123',
-  encrypt_header: true
+  encrypt_headers: true
 ) do |sz|
   sz.add_file('confidential.doc')
 end
@@ -417,39 +418,23 @@ puts "#{info[:name]}-#{info[:version]}-#{info[:release]}"
 ----
 require 'omnizip'
 
-# Create RPM package with gzip compression (default)
-Omnizip::Formats::Rpm.write('mypackage-1.0-1.noarch.rpm') do |rpm|
-  rpm.name = 'mypackage'
-  rpm.version = '1.0'
-  rpm.release = '1'
-  rpm.arch = 'noarch'
-  rpm.summary = 'My awesome package'
-  rpm.description = 'A longer description of the package'
-  rpm.license = 'MIT'
-  rpm.vendor = 'My Company'
-  rpm.url = 'https://example.com/mypackage'
+# Create RPM package with gzip-compressed payload (default)
+rpm = Omnizip::Formats::Rpm::Writer.new(
+  name: 'mypackage', version: '1.0', release: '1', arch: 'noarch'
+)
 
-  # Add files from filesystem
-  rpm.add_file('/usr/bin/myapp', 'path/to/myapp')
-  rpm.add_file('/etc/myapp.conf', 'path/to/config')
-  rpm.add_directory('/var/lib/myapp')
+# Add payload entries (content is passed as a string)
+rpm.add_file('/usr/bin/myapp', File.binread('path/to/myapp'), mode: 0o755)
+rpm.add_file('/etc/myapp.conf', File.binread('path/to/config'))
+rpm.add_directory('/var/lib/myapp')
 
-  # Add dependencies
-  rpm.add_dependency('glibc', '>= 2.17')
-  rpm.add_provides('myapp')
-end
-
-# Create RPM with different compression
-Omnizip::Formats::Rpm.write('mypackage-1.0-1.x86_64.rpm',
-                            compression: :xz) do |rpm|
-  rpm.name = 'mypackage'
-  rpm.version = '1.0'
-  rpm.release = '1'
-  rpm.arch = 'x86_64'
-  # ... add files
-end
+rpm.write('mypackage-1.0-1.noarch.rpm')
 
 # Supported compression types: :gzip (default), :bzip2, :xz, :zstd, :none
+Omnizip::Formats::Rpm::Writer.new(
+  name: 'mypackage', version: '1.0', release: '1',
+  arch: 'x86_64', compression: :xz
+)
 ----
 
 **Architecture**:
@@ -544,8 +529,8 @@ See link:readme-docs/preprocessing-filters.adoc[Preprocessing Filters Guide] for
 
 * **.7z** - Full read/write with solid compression, multi-volume support
 * **ZIP** - Full read/write with ZIP64, WinZip AES encryption
-* **RAR4** - Full read support with all compression methods, write support with STORE, FASTEST, NORMAL (v0.3.0)
-* **RAR5** - Full read/write support with STORE and LZMA compression, multi-volume, solid archives (v0.3.0)
+* **RAR4** - Read support for real WinRAR archives (STORE natively; compressed methods via unrar), write with STORE verified against unrar, FASTEST through BEST for Omnizip round-trip (v0.3.0)
+* **RAR5** - Read/write with STORE (unrar-verified), AES-256 encryption, multi-volume; compressed-method writing falls back to STORE (v0.3.0)
 * **TAR** - Full read/write with POSIX extensions
 * **ISO 9660** - Full read/write with Rock Ridge/Joliet
 * **CPIO** - Full read/write (newc, CRC formats) with RPM payload support (v0.4.0)
@@ -679,16 +664,19 @@ File.open('input.txt', 'rb') do |input|
 end
 
 # .7z archive operations
-writer = Omnizip::Formats::SevenZip::Writer.new('archive.7z')
-writer.add_file('document.pdf')
-writer.close
+Omnizip::Formats::SevenZip.create('archive.7z') do |sz|
+  sz.add_file('document.pdf')
+end
 ----
 
 ==== RAR Archives
 
 ==== RAR4 Archives (v0.3.0)
 
-Omnizip v0.3.0 provides complete RAR4 archive support with full read capabilities and write support for three compression methods:
+RAR4 reading and writing against the on-disk format unrar accepts:
+headers carry the low 16 bits of a CRC32, HEAD_SIZE counts the whole
+block, and the dictionary mask 0xE0 marks directory entries. STORE
+archives round-trip through official unrar byte-identically.
 
 ====== Reading RAR4 Archives
 
@@ -696,31 +684,29 @@ Omnizip v0.3.0 provides complete RAR4 archive support with full read capabilitie
 ----
 require 'omnizip'
 
-# Read RAR4 archive with native decompression
-reader = Omnizip::Formats::Rar3::Reader.new
-File.open('archive.rar', 'rb') do |io|
-  entries = reader.read_archive(io)
+reader = Omnizip::Formats::Rar::Reader.new('archive.rar')
+reader.open
 
-  # List files with metadata
-  entries.each do |entry|
-    puts "#{entry.name}: #{entry.uncompressed_size} bytes (#{entry.compressed_size} compressed)"
-    puts "  Method: #{entry.compression_method}"
-    puts "  Modified: #{entry.modified_time}"
-    puts "  Directory: #{entry.is_directory}"
-  end
+reader.list_files.each do |entry|
+  puts "#{entry.name}: #{entry.size} bytes (#{entry.compressed_size} compressed)"
+  puts "  Directory: #{entry.is_dir}"
+  puts "  Modified: #{entry.mtime}"
 end
+
+# STORE data decodes natively; WinRAR-compressed entries fall back to
+# the unrar command after a CRC check rejects foreign streams
+reader.extract_entry('test.txt', 'output/test.txt')
+reader.extract_all('output/')
 ----
 
 **RAR4 Reader Features:**
 
-* ✅ All compression methods: STORE, FASTEST, FAST, NORMAL, GOOD, BEST
-* ✅ Proper block header parsing (FILE blocks, archive headers)
-* ✅ Minimal archive support (archives without archive header)
-* ✅ Unicode filename support
-* ✅ Symlink detection and handling
+* ✅ Block header parsing (MAIN/FILE/ENDARC), directories, empty files
+* ✅ Native STORE decompression with stored-CRC32 verification
+* ✅ unrar fallback for real WinRAR-compressed entries (byte-exact)
+* ✅ DOS-style backslash name normalization to forward slashes
 * ✅ Multi-volume archive detection
-* ✅ Graceful error handling for truncated/malformed files
-* ✅ libarchive compatibility (52 test files verified)
+* ✅ Parsing verified against libarchive WinRAR fixtures
 
 ====== Writing RAR4 Archives
 
@@ -728,141 +714,123 @@ end
 ----
 require 'omnizip'
 
-# Create RAR4 archive with default compression (NORMAL)
-writer = Omnizip::Formats::Rar::Writer.new('archive.rar')
+# STORE output is verified interoperable with unrar
+writer = Omnizip::Formats::Rar::Writer.new('archive.rar',
+  compression: :store
+)
 writer.add_file('document.txt')
 writer.add_file('image.png')
 writer.add_directory('photos/')
 writer.write
-writer.close
-
-# Or use block syntax
-Omnizip::Formats::Rar::Writer.new('archive.rar') do |rar|
-  rar.add_file('document.txt')
-  rar.add_directory('photos/')
-end
-
-# Select compression method
-writer = Omnizip::Formats::Rar::Writer.new('archive.rar',
-  compression_method: :normal  # or :store, :fastest
-)
-writer.add_file('large_file.bin')
-writer.write
 ----
+
+Writer options: `compression:` (see below), `test_after_create: true`
+(reads the archive back and verifies every file). RAR4 encryption is
+not implemented — `password:` raises `NotImplementedError`. The
+`solid:`/`recovery:`/`volume_size:` options are accepted but not
+implemented; they are ignored with a warning and never advertised in
+header flags.
 
 ====== RAR4 Compression Methods
 
 [cols="2,2,2,4",options="header"]
 |===
-|Method |Speed |Ratio |Status
-|`:store` |Instant |1.0x |✅ Fully working
-|`:fastest` |Very Fast |2-3x |✅ Fully working
-|`:normal` |Fast |3-5x |✅ Fully working (default)
-|`:best` |Slow |5-10x |⚠️ Known issues (v0.3.1)
+|Method |Speed |unrar interop |Notes
+|`:store` |Instant |✅ verified |Byte-identical round-trip incl. directories
+|`:fastest` |Very Fast |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:normal` (default) |Fast |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:good` |Medium |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:best` |Slow |❌ Omnizip-only |PPMd, readable by Omnizip
 |===
+
+Official RAR LZ/PPMd streams are proprietary; methods above `:store`
+produce archives Omnizip can read back but unrar reports as checksum
+errors. Use `:store` for interoperability.
 
 ===== RAR5 Archives (v0.3.0)
 
-Full read/write support for RAR5 archives with STORE and LZMA compression, including optional fields (mtime, CRC32).
+Read/write support for RAR5 archives with STORE compression,
+AES-256 encryption, and multi-volume archives — all verified against
+official unrar.
 
 ====== Reading RAR5 Archives
 
 [source,ruby]
 ----
-require 'omnizip/formats/rar5/reader'
+require 'omnizip'
 
-# Read RAR5 archive
 reader = Omnizip::Formats::Rar5::Reader.new
 File.open('archive.rar', 'rb') do |io|
   entries = reader.read_archive(io)
 
-  # List files with metadata
   entries.each do |entry|
     puts "#{entry.name}: #{entry.uncompressed_size} bytes"
-    puts "  Method: #{entry.compression_method}"
-    puts "  CRC32: #{entry.crc32.to_s(16)}"
-    puts "  Modified: #{entry.modified_time}"
+    puts "  CRC32: #{entry.crc32.to_s(16)}" if entry.crc32
+    puts "  Modified: #{entry.modified_time}" if entry.modified_time
   end
 end
 ----
 
 **RAR5 Reader Features:**
 
-* ✅ All compression methods: STORE, LZSS (methods 0-5)
-* ✅ Solid archive support
+* ✅ STORE file data, header CRC32 verification
+* ✅ 32-bit Unix mtime decoding (matches unrar; nil when absent)
 * ✅ Unicode filenames (UTF-8)
-* ✅ Symlink and hardlink support
 * ✅ Multi-file archives
 * ✅ VInt (variable-length integer) parsing
-* ✅ Proper header tracking with bounds checking
 * ✅ Graceful error handling for truncated/invalid files
-* ✅ libarchive compatibility (51 test files verified)
+* ✅ libarchive compatibility fixtures
 
 ====== Writing RAR5 Archives
 
 [source,ruby]
 ----
-require 'omnizip/formats/rar/rar5/writer'
+require 'omnizip'
 
-# Create RAR5 archive with STORE compression (default)
+# STORE compression (default) — unrar-verified
 writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar')
 writer.add_file('document.txt')
 writer.add_file('image.png')
 writer.write
 
-# LZMA compression with level selection
+# AES-256 encryption
 writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
-  compression: :lzma,
-  level: 5  # 1=fastest, 3=normal, 5=best
+  password: 'secret'
 )
 writer.add_file('data.json')
 writer.write
 
-# Auto-select compression based on file size
+# Multi-volume archives split at 64 KB boundaries
 writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
-  compression: :auto,  # < 1KB → STORE, ≥ 1KB → LZMA
-  level: 3
+  multi_volume: true,
+  volume_size: 65536
 )
-writer.add_file('small.txt')
-writer.add_file('large.dat')
-writer.write
+writer.add_file('big1.bin')
+writer.add_file('big2.bin')
+writer.write   # writes archive.part1.rar, archive.part2.rar, ...
 ----
 
 ====== RAR5 Compression Methods
 
-[cols="2,2,3,3",options="header"]
+[cols="2,2,4",options="header"]
 |===
-|Method |Level |Dictionary |Status
-|`:store` |0 |None |✅ Uncompressed passthrough
-|`:lzma` |1 |256 KB |✅ LZMA fastest
-|`:lzma` |2 |1 MB |✅ LZMA fast
-|`:lzma` |3 |4 MB |✅ LZMA normal (default)
-|`:lzma` |4 |8 MB |✅ LZMA good
-|`:lzma` |5 |16 MB |✅ LZMA best
+|Method |Interop |Notes
+|`:store` (default) |✅ unrar-verified |Uncompressed passthrough
+|`:lzss` / `:lzma` |falls back to STORE |Encoder is not official-RAR compatible; warns and stores
+|`:auto` |STORE |Size-based selection
 |===
 
-====== RAR5 Features
+====== RAR5 Optional Fields
 
-**Implemented (v0.3.0):**
+The writer can embed metadata that readers use without decompressing:
 
-* ✅ **STORE compression** - Uncompressed storage (method 0)
-* ✅ **LZMA compression** - 5 compression levels (methods 1-5) - *SDK-compatible encoder*
-* ✅ **Auto compression** - Smart selection based on file size
-* ✅ **Multi-volume archives** - Split archives across multiple volumes
-* ✅ **Solid compression** - 10-30% better compression for similar files
-* ✅ **AES-256 encryption** - Password protection with PBKDF2-HMAC-SHA256
-* ✅ **PAR2 recovery records** - Error correction with Reed-Solomon codes
-* ✅ **Optional fields** - Modification time (mtime), CRC32 checksums
-* ✅ **Pure Ruby** - Zero external dependencies
-* ✅ **LZMA SDK compatibility** - Encoder produces byte-for-byte identical output to reference implementation
-* ✅ **Full reader support** - All compression methods, solid archives, unicode, symlinks
-
-**CRC32 Limitation:**
-
-* ⚠️ **CRC32 checksums** - Only compatible with STORE compression
-  - When LZMA compression is used, CRC32 is automatically disabled
-  - This is a RAR5 format limitation, not an implementation issue
-  - Use BLAKE2sp (always enabled) for compressed file integrity
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  include_mtime: true,   # 32-bit Unix mtime per file header
+  include_crc32: true    # CRC32 per file header
+)
+----
 
 ====== RAR5 Optional Fields
 

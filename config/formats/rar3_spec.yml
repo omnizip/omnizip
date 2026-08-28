@@ -45,6 +45,7 @@ format:
     version: 0x0800          # Version flag
     ext_time: 0x1000         # Extended time field present
     ext_flags: 0x2000        # Extended flags field
+    long_block: 0x8000       # Block carries a data area (PACK_SIZE)
 
   compression_methods:
     store: 0x30              # No compression

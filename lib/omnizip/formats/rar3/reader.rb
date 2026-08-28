@@ -178,12 +178,7 @@ module Omnizip
           attr = header_data[pos, 4].unpack1("V")
           pos += 4
 
-          # Read filename
-          name_bytes = header_data[pos, name_size]
-          pos += name_size
-          filename = decode_filename(name_bytes, block.flags)
-
-          # Handle large file sizes
+          # High size words precede the filename per the RAR4 layout
           if block.flags & 0x0100 != 0 # large_file flag
             high_packed = header_data[pos, 4].unpack1("V")
             high_unpacked = header_data[pos + 4, 4].unpack1("V")
@@ -192,20 +187,23 @@ module Omnizip
             pos += 8
           end
 
+          # Read filename
+          name_bytes = header_data[pos, name_size]
+          pos += name_size
+          filename = decode_filename(name_bytes, block.flags)
+
           # Read salt if encrypted
           salt = nil
           if block.flags & 0x0400 != 0 # salt flag
             salt = header_data[pos, 8]
-            pos += 8
+            pos + 8
           end
 
-          # Read extended time if present
+          # Base DOS time from the file header (minute precision).
+          # The RAR4 extended-time record (0x1000 flag) is a
+          # variable-length nibble format that is not parsed; the
+          # base time is authoritative for minute-granularity mtimes.
           mtime = parse_dos_time(file_time)
-          if block.flags & 0x1000 != 0 # ext_time flag
-            # Extended time format: mtime[4] + ctime[4] + atime[4] + arctime[4] + flags
-            # Plus additional 3 bytes for each present time
-            mtime, = read_extended_time_data(header_data, pos)
-          end
 
           # We've already read all header data, no need to seek
           # Just skip to end of block and then past file data
@@ -246,33 +244,6 @@ module Omnizip
           )
         end
 
-        # Read extended time from header data
-        #
-        # @param data [String] The header data
-        # @param pos [Integer] Current position in data
-        # @return [Array<Time, Integer>] The modification time and new position
-        def read_extended_time_data(data, pos)
-          return [Time.now, pos] if pos + 4 > data.bytesize
-
-          mtime = parse_dos_time(data[pos, 4].unpack1("V"))
-          pos += 4
-
-          # Skip ctime, atime, arctime if present
-          begin
-            data[pos, 1].unpack1("C")
-          rescue StandardError
-            0
-          end
-          pos += 1
-
-          # For now, just skip the remaining extended time data
-          # The format is complex and varies
-
-          [mtime, pos]
-        rescue ArgumentError
-          [Time.now, pos]
-        end
-
         # Decode filename based on encoding flags
         #
         # @param bytes [String] The filename bytes
@@ -302,16 +273,6 @@ module Omnizip
 
           Time.new(year, month, day, hour, minute, second)
         rescue ArgumentError
-          Time.now
-        end
-
-        # Read extended time information
-        #
-        # @param io [IO] The input stream
-        # @return [Time] The extended time
-        def read_extended_time(io)
-          io.read(2)&.unpack1("v")
-          # Extended time format varies, simplified implementation
           Time.now
         end
 
