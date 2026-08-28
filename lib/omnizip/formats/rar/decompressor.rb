@@ -152,7 +152,7 @@ module Omnizip
                 "WinRAR", "UnRAR.exe"
               ),
             ].each do |path|
-              return "\"#{path}\"" if File.exist?(path)
+              return path if File.exist?(path)
             end
 
             nil
@@ -176,7 +176,7 @@ module Omnizip
           def command_version
             return nil unless command_available?
 
-            output = `#{command_path} 2>&1`
+            output = `"#{command_path}" 2>&1`
             output.match(/UNRAR\s+([\d.]+)/i)&.captures&.first || "unknown"
           end
 
@@ -215,7 +215,7 @@ module Omnizip
 
           # List with system command
           def list_with_command(archive_path)
-            output = `#{command_path} vb "#{archive_path}" 2>&1`
+            output = `"#{command_path}" vb "#{archive_path}" 2>&1`
             raise "Command listing failed" unless $CHILD_STATUS.success?
 
             output.split("\n").map do |line|
