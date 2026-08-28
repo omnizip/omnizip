@@ -24,7 +24,7 @@ module Omnizip
       #     ]
       #     writer.write_archive(file, entries)
       #   end
-      class Writer < Rar::RarFormatBase
+      class Writer < Omnizip::Formats::Rar::RarFormatBase
         # Initialize a RAR v3 writer
         def initialize
           super("rar3")
@@ -71,8 +71,9 @@ module Omnizip
           # Set default flags if needed
 
           header_data = StringIO.new
-          # Reserved fields
-          header_data.write([0, 0].pack("vv"))
+          # Reserved fields: HighPosAV (2) + PosAV (4) = 6 bytes,
+          # making the main header 13 bytes total like WinRAR's
+          header_data.write([0].pack("v") + [0].pack("V"))
 
           header = create_block_header(
             type: block_type_code(:archive),
@@ -107,13 +108,17 @@ module Omnizip
           name_bytes = name.encode("UTF-8")
           name_size = name_bytes.bytesize
 
-          # Set flags
-          flags = spec.format.file_flags[:unicode]
+          # Set flags: LONG_BLOCK marks the PACK_SIZE data area; names
+          # are written as plain bytes without the Unicode flag (the
+          # 0x0200 encoding appends a second encoded name we do not
+          # write)
+          flags = spec.format.file_flags[:long_block]
           if unpacked_size > 0xFFFFFFFF
             flags |= spec.format.file_flags[:large_file]
           end
 
-          # Build file header data
+          # Build file header data. High size words precede the name
+          # per the RAR4 layout.
           header_data = StringIO.new
           header_data.write([packed_size & 0xFFFFFFFF].pack("V"))
           header_data.write([unpacked_size & 0xFFFFFFFF].pack("V"))
@@ -124,13 +129,11 @@ module Omnizip
           header_data.write([compression_method_code(method)].pack("C"))
           header_data.write([name_size].pack("v"))
           header_data.write([0x20].pack("V"))  # File attributes
-          header_data.write(name_bytes)
-
-          # Add high size fields if needed
           if flags & spec.format.file_flags[:large_file] != 0
             header_data.write([(packed_size >> 32) & 0xFFFFFFFF].pack("V"))
             header_data.write([(unpacked_size >> 32) & 0xFFFFFFFF].pack("V"))
           end
+          header_data.write(name_bytes)
 
           # Create and write block header
           header = create_block_header(
@@ -151,7 +154,7 @@ module Omnizip
         def write_terminator_block(io)
           header = create_block_header(
             type: block_type_code(:terminator),
-            flags: 0x4000, # Archive end flag
+            flags: 0,
             data: "",
           )
 

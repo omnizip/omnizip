@@ -22,7 +22,7 @@ module Omnizip
       #     entries = reader.read_archive(file)
       #     entries.each { |entry| puts entry.name }
       #   end
-      class Reader < Rar::RarFormatBase
+      class Reader < Omnizip::Formats::Rar::RarFormatBase
         # Initialize a RAR v5 reader
         def initialize
           super("rar5")
@@ -174,8 +174,9 @@ module Omnizip
           unpacked_size = read_vint(io)
           attributes = read_vint(io)
 
-          # Read modification time if present
-          mtime = Time.now
+          # Read modification time if present; nil when the header
+          # does not carry one
+          mtime = nil
           if flags & 0x02 != 0 # time_present flag
             mtime = read_file_time(io)
           end
@@ -247,14 +248,11 @@ module Omnizip
         #
         # @param io [IO] The input stream
         # @return [Time] The file time
+        # RAR5 file headers store a 32-bit Unix timestamp when the
+        # mtime flag is set
         def read_file_time(io)
-          read_vint(io)
-
-          # Simplified time reading - actual format is more complex
-          unix_time = io.read(8)&.unpack1("Q<")
-          Time.at(unix_time / 10_000_000.0) if unix_time
-        rescue ArgumentError
-          Time.now
+          unix_time = io.read(4)&.unpack1("V")
+          Time.at(unix_time) if unix_time
         end
 
         # Read encryption header

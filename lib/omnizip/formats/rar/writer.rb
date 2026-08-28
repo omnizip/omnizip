@@ -3,14 +3,22 @@
 require "fileutils"
 require "zlib"
 require "stringio"
+require "tmpdir"
 
 module Omnizip
   module Formats
     module Rar
       # Pure Ruby RAR archive writer
       #
-      # This class provides basic RAR archive creation in pure Ruby.
-      # It writes RAR4-compatible archives with basic compression support.
+      # Writes RAR 1.5-4.x ("RAR4") archives per the on-disk layout
+      # unrar accepts: HEAD_CRC holds the low 16 bits of a CRC32 over
+      # the header bytes that follow it, HEAD_SIZE counts the whole
+      # block including the CRC field, and the 7-byte signature is
+      # itself the marker block (no second marker follows).
+      #
+      # Only METHOD_STORE output is interoperable with official RAR
+      # tools; the LZ/PPMd encoders produce Omnizip-internal streams
+      # that Omnizip can read back but unrar cannot.
       #
       # @example Create a RAR archive
       #   writer = Writer.new('archive.rar')
@@ -20,9 +28,7 @@ module Omnizip
       #
       # @example Create with options
       #   writer = Writer.new('archive.rar',
-      #     compression: :best,
-      #     solid: true,
-      #     recovery: 5
+      #     compression: :best
       #   )
       class Writer
         include Omnizip::Formats::Rar::Constants
@@ -64,16 +70,27 @@ module Omnizip
         # @option options [Symbol] :compression Compression level
         #   (:store, :fastest, :fast, :normal, :good, :best)
         # @option options [Boolean] :solid Create solid archive
-        # @option options [Integer] :recovery Recovery record percentage (0-10)
-        # @option options [Boolean] :encrypt_headers Encrypt file names
+        #   (not implemented; ignored with a warning)
+        # @option options [Integer] :recovery Recovery record
+        #   percentage (not implemented; ignored with a warning)
         # @option options [String] :password Archive password
-        # @option options [Integer] :volume_size Split into volumes (bytes)
+        #   (RAR4 encryption is not implemented)
+        # @option options [Integer] :volume_size Split into volumes
+        #   (not implemented; ignored with a warning)
         # @option options [Boolean] :test_after_create Test archive after creation
+        # @raise [NotImplementedError] if :password or :encrypt_headers is given
         def initialize(output_path, options = {})
           @output_path = output_path
           @options = default_options.merge(options)
           @files = []
           @directories = []
+
+          if @options[:password] || @options[:encrypt_headers]
+            raise NotImplementedError,
+                  "RAR4 encryption is not implemented"
+          end
+
+          warn_unimplemented_options
         end
 
         # Add file to archive
@@ -114,13 +131,11 @@ module Omnizip
         def write
           File.open(@output_path, "wb") do |io|
             write_signature(io)
-            write_marker_block(io)
             write_archive_header(io)
             write_file_entries(io)
             write_end_block(io)
           end
 
-          # Test archive if requested
           test_archive if @options[:test_after_create]
 
           @output_path
@@ -143,20 +158,30 @@ module Omnizip
           }
         end
 
-        # Calculate CRC16-CCITT for block headers
-        #
-        # RAR uses CRC16-CCITT with polynomial 0x1021
-        # @param data [String] Header data to checksum
-        # @return [Integer] 16-bit CRC value
-        def calculate_header_crc16(data)
-          crc = 0
-          data.bytes.each do |byte|
-            crc ^= (byte << 8)
-            8.times do
-              crc = crc.anybits?(0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1)
-            end
+        # Warn about accepted-but-unimplemented options so the
+        # resulting archive never advertises features it lacks.
+        def warn_unimplemented_options
+          if @options[:solid]
+            warn "RAR4 writer ignores solid: not implemented " \
+                 "(no corresponding flag is written)"
           end
-          crc & 0xFFFF
+          if @options[:volume_size]
+            warn "RAR4 writer ignores volume_size: not implemented " \
+                 "(no corresponding flag is written)"
+          end
+          return unless @options[:recovery].to_i.positive?
+
+          warn "RAR4 writer ignores recovery: not implemented " \
+               "(no corresponding flag is written)"
+        end
+
+        # RAR4 HEAD_CRC: low 16 bits of the CRC32 over every header
+        # byte that follows the 2-byte CRC field (unrar archive.cpp).
+        #
+        # @param header_data [String] Header bytes after the CRC field
+        # @return [Integer] 16-bit CRC value
+        def calculate_header_crc(header_data)
+          Zlib.crc32(header_data) & 0xFFFF
         end
 
         # Convert Ruby Time to DOS time format
@@ -169,44 +194,23 @@ module Omnizip
           (dos_date << 16) | dos_time_part
         end
 
-        # Write RAR signature
+        # Write RAR signature (the marker block itself)
         #
         # @param io [IO] Output stream
         def write_signature(io)
           io.write(RAR4_SIGNATURE.pack("C*"))
         end
 
-        # Write marker block
-        #
-        # @param io [IO] Output stream
-        def write_marker_block(io)
-          # Marker block has fixed CRC of 0x6152
-          io.write([0x6152].pack("v")) # HEAD_CRC
-          io.write([BLOCK_MARKER].pack("C")) # HEAD_TYPE
-          io.write([0x0000].pack("v"))      # HEAD_FLAGS
-          io.write([0x0007].pack("v"))      # HEAD_SIZE
-        end
-
-        # Write archive header
+        # Write archive header (MAIN_HEAD, 13 bytes total)
         #
         # @param io [IO] Output stream
         def write_archive_header(io)
-          flags = 0
-          flags |= ARCHIVE_SOLID if @options[:solid]
-          flags |= ARCHIVE_RECOVERY if @options[:recovery].positive?
-          flags |= ARCHIVE_ENCRYPTED if @options[:password]
-          flags |= ARCHIVE_VOLUME if @options[:volume_size]
-
-          # Build header data (without CRC)
-          # SIZE includes: TYPE(1) + FLAGS(2) + SIZE(2) + Reserved(6) = 11 bytes
           header_data = [BLOCK_ARCHIVE].pack("C") +
-            [flags].pack("v") +
-            [0x000B].pack("v") +
-            [0, 0, 0].pack("vvv") # 6 bytes reserved (3 x uint16)
+            [0x0000].pack("v") +                       # HEAD_FLAGS
+            [0x000D].pack("v") +                       # HEAD_SIZE
+            [0].pack("v") + [0].pack("V")              # HighPosAV, PosAV
 
-          # Calculate and write CRC
-          crc = calculate_header_crc16(header_data)
-          io.write([crc].pack("v"))
+          io.write([calculate_header_crc(header_data)].pack("v"))
           io.write(header_data)
         end
 
@@ -214,12 +218,11 @@ module Omnizip
         #
         # @param io [IO] Output stream
         def write_file_entries(io)
-          @files.each do |file_info|
-            write_file_entry(io, file_info)
-          end
-
           @directories.each do |dir_info|
             write_directory_entries(io, dir_info)
+          end
+          @files.each do |file_info|
+            write_file_entry(io, file_info)
           end
         end
 
@@ -230,35 +233,36 @@ module Omnizip
         def write_file_entry(io, file_info)
           file_path = file_info[:source]
           archive_path = file_info[:archive_path] || File.basename(file_path)
+          directory = file_info[:directory] || false
 
-          file_data = File.binread(file_path)
+          file_data = directory ? "" : File.binread(file_path)
 
-          # Select appropriate compression method based on data
-          method = file_info[:method] || select_compression_method(file_data)
+          method = file_info[:method] ||
+            (directory ? METHOD_STORE : select_compression_method(file_data))
           compressed_data = compress_data(file_data, method)
 
-          # File metadata
           stat = File.stat(file_path)
-          file_attr = stat.mode
+          file_attr = directory ? 0o040755 : stat.mode
           file_time = dos_time(stat.mtime)
           data_crc = Zlib.crc32(file_data)
 
-          # Name encoding
           name_bytes = archive_path.encode("UTF-8").bytes
 
-          # Flags
-          flags = FILE_UNICODE
-          flags |= FILE_ENCRYPTED if @options[:password]
-          flags |= FILE_LARGE if file_data.size > 0xFFFFFFFF
+          # HEAD_FLAGS bit 0x8000 (LONG_BLOCK) marks a data area of
+          # PACK_SIZE bytes; the full dictionary mask 0xE0 marks
+          # directory entries (a directory has no dictionary) —
+          # confirmed against unrar extraction behavior.
+          flags = BLOCK_LONG
+          flags |= FILE_DIRECTORY if directory
+          flags |= FILE_LARGE if file_data.bytesize > 0xFFFFFFFF
 
-          # Calculate header size
-          # Fixed fields: TYPE(1) + FLAGS(2) + SIZE(2) + PACK_SIZE(4) + UNPACK_SIZE(4) +
-          #               HOST_OS(1) + FILE_CRC(4) + FILE_TIME(4) + VERSION(1) + METHOD(1) +
-          #               NAME_SIZE(2) + ATTR(4) = 30 bytes
-          header_size = 30 + name_bytes.size
-          header_size += 8 if flags & FILE_LARGE != 0
+          # Fixed fields after HEAD_SIZE: PACK(4) + UNP(4) + HOST_OS(1)
+          # + FILE_CRC(4) + FTIME(4) + UNP_VER(1) + METHOD(1) +
+          # NAME_SIZE(2) + ATTR(4) = 25 bytes; plus TYPE(1) +
+          # FLAGS(2) + SIZE(2) and the 2-byte CRC itself.
+          header_size = 32 + name_bytes.size
+          header_size += 8 if flags.anybits?(FILE_LARGE)
 
-          # Build file header (without CRC)
           header_data = [BLOCK_FILE].pack("C") +
             [flags].pack("v") +
             [header_size].pack("v") +
@@ -267,61 +271,61 @@ module Omnizip
             [OS_UNIX].pack("C") +
             [data_crc].pack("V") +
             [file_time].pack("V") +
-            [compression_version(method)].pack("C") +  # VERSION first
-            [method].pack("C") +                       # METHOD second
+            [compression_version(method)].pack("C") +
+            [method].pack("C") +
             [name_bytes.size].pack("v") +
             [file_attr].pack("V")
 
-          # Add high 32 bits for large files
-          if flags & FILE_LARGE != 0
+          if flags.anybits?(FILE_LARGE)
             header_data += [(compressed_data.bytesize >> 32) & 0xFFFFFFFF].pack("V")
             header_data += [(file_data.bytesize >> 32) & 0xFFFFFFFF].pack("V")
           end
 
-          # Add filename
           header_data += name_bytes.pack("C*")
 
-          # Calculate and write CRC
-          crc = calculate_header_crc16(header_data)
-          io.write([crc].pack("v"))
+          io.write([calculate_header_crc(header_data)].pack("v"))
           io.write(header_data)
           io.write(compressed_data)
         end
 
-        # Write directory entries
+        # Write directory tree as explicit directory entries plus the
+        # files inside them
         #
         # @param io [IO] Output stream
         # @param dir_info [Hash] Directory information
         def write_directory_entries(io, dir_info)
           dir_path = dir_info[:source]
-          recursive = dir_info[:recursive]
+          prefix = dir_info[:archive_path].to_s.gsub(%r{^/+|/+$}, "")
 
-          pattern = recursive ? "**/*" : "*"
-          Dir.glob(File.join(dir_path, pattern)).each do |path|
-            next unless File.file?(path)
+          pattern = dir_info[:recursive] ? File.join(dir_path, "**", "*") : File.join(dir_path, "*")
+          Dir.glob(pattern).each do |path|
+            relative = path.delete_prefix("#{dir_path}/")
+            name = prefix.empty? ? relative : "#{prefix}/#{relative}"
 
-            relative_path = path.sub("#{dir_path}/", "")
-            write_file_entry(io, {
-                               source: path,
-                               archive_path: relative_path,
-                             })
+            if File.directory?(path)
+              write_file_entry(io, {
+                                 source: path,
+                                 archive_path: name,
+                                 directory: true,
+                               })
+            else
+              write_file_entry(io, {
+                                 source: path,
+                                 archive_path: name,
+                               })
+            end
           end
         end
 
-        # Write end block
+        # Write end block (ENDARC, 7 bytes total)
         #
         # @param io [IO] Output stream
         def write_end_block(io)
-          flags = 0x4000 # ENDARC flag
-
-          # Build header data (without CRC)
           header_data = [BLOCK_ENDARC].pack("C") +
-            [flags].pack("v") +
+            [0x0000].pack("v") +
             [0x0007].pack("v")
 
-          # Calculate and write CRC
-          crc = calculate_header_crc16(header_data)
-          io.write([crc].pack("v"))
+          io.write([calculate_header_crc(header_data)].pack("v"))
           io.write(header_data)
         end
 
@@ -334,7 +338,6 @@ module Omnizip
           input = StringIO.new(data)
           output = StringIO.new
 
-          # Use native compression dispatcher
           Compression::Dispatcher.compress(method, input, output, @options)
 
           output.string
@@ -372,37 +375,10 @@ module Omnizip
           end
         end
 
-        # Get Zlib compression level (DEPRECATED - kept for compatibility)
-        #
-        # @return [Integer] Zlib compression level
-        def compression_zlib_level
-          case @options[:compression]
-          when :store then Zlib::NO_COMPRESSION
-          when :fastest then Zlib::BEST_SPEED
-          when :fast then 3
-          when :normal then Zlib::DEFAULT_COMPRESSION
-          when :good then 7
-          when :best then Zlib::BEST_COMPRESSION
-          else Zlib::DEFAULT_COMPRESSION
-          end
-        end
-
-        # Get compression method code (DEPRECATED - use select_compression_method)
-        #
-        # @return [Integer] Method code
-        def compression_method
-          case @options[:compression]
-          when :store then METHOD_STORE
-          when :fastest then METHOD_FASTEST
-          when :fast then METHOD_FAST
-          when :normal then METHOD_NORMAL
-          when :good then METHOD_GOOD
-          when :best then METHOD_BEST
-          else METHOD_NORMAL
-          end
-        end
-
-        # Get compression version based on method
+        # Get compression version needed to extract. WinRAR writes 20
+        # for stored files and 29 for every compressed method,
+        # including PPMd (method 0x35) — confirmed against libarchive
+        # RAR4 fixtures created by the official tool.
         #
         # @param method [Integer] Compression method
         # @return [Integer] Version code
@@ -410,17 +386,26 @@ module Omnizip
           method == METHOD_STORE ? 20 : 29
         end
 
-        # Test archive integrity
+        # Test archive integrity by reading it back with the RAR
+        # reader and comparing every extracted entry to its source
         #
         # @return [Boolean] true if valid
         def test_archive
-          # Basic validation: check if file exists and has RAR signature
           return false unless File.exist?(@output_path)
 
-          File.open(@output_path, "rb") do |io|
-            signature = io.read(7)
-            signature&.bytes == RAR4_SIGNATURE[0..6]
+          reader = Reader.new(@output_path)
+          reader.open
+
+          Dir.mktmpdir("omnizip_rar_test") do |tmp|
+            @files.map { |f| f[:archive_path] || File.basename(f[:source]) }
+              .zip(@files.map { |f| f[:source] }).all? do |name, source|
+              dest = File.join(tmp, name)
+              reader.extract_entry(name, dest)
+              FileUtils.compare_file(source, dest)
+            end
           end
+        rescue StandardError
+          false
         end
       end
     end

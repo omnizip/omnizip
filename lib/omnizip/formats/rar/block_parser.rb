@@ -76,6 +76,9 @@ module Omnizip
           # Read file name
           name_bytes = io.read(name_size)
           entry.name = decode_filename(name_bytes, head_flags)
+          # RAR4 archives store DOS-style backslash separators;
+          # normalize to forward slashes like unrar on Unix.
+          entry.name = entry.name.tr("\\", "/")
 
           # Set entry properties
           entry.size = unpack_size
@@ -88,18 +91,25 @@ module Omnizip
           entry.attributes = attr
           entry.mtime = dos_time_to_time(file_time)
 
-          # Set flags
-          entry.is_dir = head_flags.anybits?(FILE_DIRECTORY)
+          # Set flags. RAR4 directory entries carry the full
+          # dictionary mask 0xE0 in HEAD_FLAGS (a directory has no
+          # dictionary); the exact match avoids misreading a large
+          # dictionary size on files as the marker.
+          entry.is_dir = head_flags.allbits?(FILE_DIRECTORY)
+          # WinRAR writes directory names with a trailing backslash;
+          # normalize it away for host paths.
+          entry.name = entry.name.chomp("\\") if entry.is_dir
           entry.encrypted = head_flags.anybits?(FILE_ENCRYPTED)
           entry.split_before = head_flags.anybits?(FILE_SPLIT_BEFORE)
           entry.split_after = head_flags.anybits?(FILE_SPLIT_AFTER)
 
-          # Skip remaining header data and file data
-          # Fixed fields: TYPE(1) + FLAGS(2) + SIZE(2) + PACK_SIZE(4) + UNPACK_SIZE(4) +
-          #               HOST_OS(1) + FILE_CRC(4) + FILE_TIME(4) + VERSION(1) + METHOD(1) +
-          #               NAME_SIZE(2) + ATTR(4) = 30 bytes
-          remaining = head_size - (name_size + 30)
-          remaining += 8 if head_flags.anybits?(FILE_LARGE)
+          # Skip remaining header data and file data. HEAD_SIZE
+          # counts the whole block including the 2-byte HEAD_CRC;
+          # consumed so far: 2 (CRC) + 30 (fixed fields) + name, plus
+          # 8 more when high-size words were present. Leftover bytes
+          # cover salt/extra time fields without interpreting them.
+          remaining = head_size - (name_size + 32)
+          remaining -= 8 if head_flags.anybits?(FILE_LARGE)
           io.read(remaining) if remaining.positive?
           io.read(pack_size) # Skip compressed data
 

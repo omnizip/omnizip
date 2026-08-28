@@ -146,22 +146,18 @@ RSpec.describe Omnizip::Formats::Rar::Writer do
         expect(File.exist?(output_path)).to be true
       end
 
-      it "applies password protection" do
-        writer = described_class.new(output_path, password: "secret")
-        writer.add_file(test_file)
-        result = writer.write
-        expect(result).to eq(output_path)
-        expect(File.exist?(output_path)).to be true
+      it "raises for password protection (not implemented)" do
+        expect do
+          described_class.new(output_path, password: "secret")
+        end.to raise_error(NotImplementedError, /encryption/)
       end
 
-      it "encrypts headers when requested" do
-        writer = described_class.new(output_path,
-                                     password: "secret",
-                                     encrypt_headers: true)
-        writer.add_file(test_file)
-        result = writer.write
-        expect(result).to eq(output_path)
-        expect(File.exist?(output_path)).to be true
+      it "raises for header encryption (not implemented)" do
+        expect do
+          described_class.new(output_path,
+                              password: "secret",
+                              encrypt_headers: true)
+        end.to raise_error(NotImplementedError, /encryption/)
       end
 
       it "creates volume splits" do

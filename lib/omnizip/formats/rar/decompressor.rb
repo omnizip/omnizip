@@ -191,7 +191,7 @@ module Omnizip
           # Extract with system command
           def extract_with_command(archive_path, output_dir, password)
             cmd = build_extract_command(archive_path, output_dir, password)
-            return if system(cmd)
+            return if system(*cmd)
 
             raise "Command extraction failed: #{archive_path}"
           end
@@ -240,7 +240,7 @@ module Omnizip
                                          output_path, password)
             temp_dir = Dir.mktmpdir
             cmd = build_extract_command(archive_path, temp_dir, password)
-            unless system(cmd)
+            unless system(*cmd)
               raise "Command entry extraction failed: #{entry_name}"
             end
 
@@ -252,9 +252,13 @@ module Omnizip
 
           # Build extract command
           def build_extract_command(archive_path, output_dir, password)
-            cmd = "#{command_path} x -y"
-            cmd += " -p#{password}" if password
-            cmd += " \"#{archive_path}\" \"#{output_dir}/\""
+            # Array form: no shell involved, so paths and passwords
+            # with special characters stay literal. -idq silences the
+            # per-file progress banner.
+            cmd = [command_path, "x", "-idq", "-y"]
+            cmd << "-p#{password}" if password
+            cmd << archive_path
+            cmd << "#{output_dir}/"
             cmd
           end
 
