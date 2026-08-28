@@ -131,13 +131,14 @@ module Omnizip
         raise Errno::ENOENT, "Source file not found: #{source_path}"
       end
 
-      handler = Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
+      resolved = resolve_archive_format(archive_path, format)
+      handler = Omnizip::ArchiveHandler.for(resolved)
       # allowed: handler is a registered duck; missing add_entry raises below
       if handler.respond_to?(:add_entry)
         handler.add_entry(archive_path, entry_name, source_path)
       else
         raise Omnizip::UnsupportedFormatError,
-              "Format #{format.inspect} does not support adding entries"
+              "Format #{resolved.inspect} does not support adding entries"
       end
 
       archive_path
@@ -151,11 +152,12 @@ module Omnizip
     # @return [String] +archive_path+
     def remove_from_archive(archive_path, entry_name, format: DEFAULT_FORMAT)
       require_archive!(archive_path)
-      handler = Omnizip::ArchiveHandler.for(resolve_archive_format(archive_path, format))
+      resolved = resolve_archive_format(archive_path, format)
+      handler = Omnizip::ArchiveHandler.for(resolved)
       # allowed: handler is a registered duck; missing remove_entry raises below
       unless handler.respond_to?(:remove_entry)
         raise Omnizip::UnsupportedFormatError,
-              "Format #{format.inspect} does not support removing entries"
+              "Format #{resolved.inspect} does not support removing entries"
       end
 
       handler.remove_entry(archive_path, entry_name)

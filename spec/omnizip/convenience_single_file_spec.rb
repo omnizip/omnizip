@@ -126,6 +126,18 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       end.to raise_error(Errno::ENOENT)
     end
 
+    it "names the resolved format in add/remove errors" do
+      path = File.join(outdir, "t.7z")
+      Omnizip.compress_file(input.path, path)
+
+      expect do
+        Omnizip.add_to_archive(path, "x.txt", input.path)
+      end.to raise_error(Omnizip::UnsupportedFormatError, /:seven_zip/)
+      expect do
+        Omnizip.remove_from_archive(path, File.basename(input.path))
+      end.to raise_error(Omnizip::UnsupportedFormatError, /:seven_zip/)
+    end
+
     it "keeps the ZIP default for extensionless outputs" do
       path = File.join(outdir, "noext")
       Omnizip.compress_file(input.path, path)
