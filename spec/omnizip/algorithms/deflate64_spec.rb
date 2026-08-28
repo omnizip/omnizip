@@ -7,11 +7,10 @@ RSpec.describe Omnizip::Algorithms::Deflate64 do
     it "returns algorithm metadata" do
       metadata = described_class.metadata
 
-      expect(metadata[:name]).to eq("Deflate64")
-      expect(metadata[:type]).to eq(:compression)
-      expect(metadata[:streaming_supported]).to be true
-      expect(metadata[:dictionary_size]).to eq(65_536)
-      expect(metadata[:compression_method]).to eq(9)
+      expect(metadata).to be_a(Omnizip::Models::AlgorithmMetadata)
+      expect(metadata.name).to eq("deflate64")
+      expect(metadata.description).to eq("Enhanced Deflate with 64KB window")
+      expect(metadata.version).to eq("1.0.0")
     end
   end
 

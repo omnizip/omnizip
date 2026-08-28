@@ -38,6 +38,13 @@ module Omnizip
         "Algorithm"
       end
 
+      # All builtin algorithms register lazily, so the plain storage
+      # keys are empty until each algorithm is first used. Listing
+      # (e.g. the CLI's `omnizip list`) must show the builtins too.
+      def available
+        (super + BUILTIN_ALGORITHMS.keys).uniq
+      end
+
       def register(name, klass)
         raise ArgumentError, "Algorithm name cannot be nil" if name.nil?
         raise ArgumentError, "Algorithm class cannot be nil" if klass.nil?

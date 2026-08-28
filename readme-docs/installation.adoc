@@ -63,7 +63,7 @@ require 'omnizip'
 
 # Check available algorithms
 puts Omnizip::AlgorithmRegistry.available.inspect
-# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstd]
+# => [:lzma, :lzma2, :bzip2, :ppmd7, :ppmd8, :deflate, :deflate64, :zstandard]
 
 # Get version
 puts Omnizip::VERSION

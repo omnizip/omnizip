@@ -125,6 +125,24 @@ module Omnizip
       end
 
       class << self
+        # Create a RAR archive, yielding the writer for entries.
+        # RAR5 is the default; pass version: 4 for the RAR4 writer.
+        #
+        # @param path [String] Output archive path
+        # @param options [Hash] Writer options
+        # @return [String, Array<String>] Path(s) of the created
+        #   archive (a volume set returns every volume)
+        def create(path, options = {})
+          version = options.fetch(:version, 5)
+          writer = if version == 4
+                     Writer.new(path, options)
+                   else
+                     Rar5::Writer.new(path, options)
+                   end
+          yield writer if block_given?
+          writer.write
+        end
+
         # Check if RAR extraction is available
         #
         # @return [Boolean] true if unrar available

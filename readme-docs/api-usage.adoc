@@ -340,7 +340,7 @@ Zstandard offers fast compression with good ratios, using the native library.
 
 [source,ruby]
 ----
-algorithm = Omnizip::AlgorithmRegistry.get(:zstd).new(level: 3)
+algorithm = Omnizip::AlgorithmRegistry.get(:zstandard).new(level: 3)
 algorithm.compress(input, output)
 ----
 

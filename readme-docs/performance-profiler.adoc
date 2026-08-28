@@ -302,7 +302,7 @@ def compare_algorithms(data, algorithms)
 end
 
 data = File.read('test_file.dat')
-compare_algorithms(data, [:deflate, :lzma, :bzip2, :zstd])
+compare_algorithms(data, [:deflate, :lzma, :bzip2, :zstandard])
 ----
 
 === Example 3: Memory Leak Detection
