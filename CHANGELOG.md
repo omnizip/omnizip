@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.41] - 2026-08-29
+
+### Changed
+- One RAR parser. `Formats::Rar3::Reader` and `Formats::Rar5::Reader`
+  are adapters over the primary `Formats::Rar::Reader` — the only
+  parser verified against real WinRAR archives — replacing ~600
+  lines of duplicate parsing. Both legacy interfaces gain real-
+  archive fidelity for free (exact mtimes, backslash normalization,
+  directory detection, CRC fields). The legacy RAR5 writer — whose
+  output not even unrar could list (garbage names, 2038 dates) —
+  now bridges onto the spec-conformant primary writer; its archives
+  pass `unrar t`. The primary Header learned minimal archives (file
+  block first, no main header) for RAR4 and RAR5, restoring a legacy
+  capability in one place.
+- Direct-seek extraction: the parser records each entry's
+  data_offset, so native extraction is one seek + read instead of
+  re-parsing the archive per entry. unrar-backed extraction spills
+  the archive once per archive path instead of extracting the whole
+  archive per entry (O(n^2) -> O(n)). Fixed a latent off-by-two in
+  the fallback block walk.
+- Converter symmetry: zip -> 7z uses the native reader with the
+  same extract-to-temp/write-from-tree shape as 7z -> zip; internal
+  code no longer calls the rubyzip-compat `Omnizip::Zip::File` seam.
+- `omnizip archive create` passes one flat options hash;
+  `Formats::Rar.create` applies the RAR4/RAR5-specific semantics
+  (the RAR4 writer's recovery guard no longer trips on explicit
+  false).
+
+### Fixed
+- Native-decode CRC guard referenced `Compression::DecompressionError`
+  which does not exist (the classes live under
+  `Compression::Dispatcher`); the NameError was silently masked by
+  the fallback rescue.
+- Unicode-flagged RAR4 names can carry non-UTF-8 bytes;
+  String#tr raised and aborted the block walk under non-UTF-8
+  locales (CI runners). Names are scrubbed before normalization.
+- Corrupt size fields drove unbounded reads: a garbage pack_size
+  attempted a multi-gigabyte read (NoMemoryError on CI) or an
+  overflowing seek (EINVAL on Linux, silently clamped on macOS).
+  Packed data is now seeked past — never allocated to skip — with
+  sizes bounds-checked against the archive length and corrupt skips
+  clamped to EOF so entries still list.
+
 ## [0.3.40] - 2026-08-29
 
 ### Fixed
