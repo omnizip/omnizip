@@ -268,7 +268,7 @@ module Omnizip
           # fall back to unrar.
           data = output.string
           if entry.crc && Zlib.crc32(data) != entry.crc
-            raise Compression::DecompressionError,
+            raise Compression::Dispatcher::DecompressionError,
                   "CRC mismatch for #{entry.name}"
           end
 
