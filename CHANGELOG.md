@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.42] - 2026-08-29
+
+### Changed
+- `Formats::Zip::Reader` is usable immediately: entries parse on
+  first use, so `extract_all`/listing no longer silently do nothing
+  when `#read` was not called first. `#read` remains for eager
+  loading.
+- `Temp::ArchiveHelper` writes zips through the native
+  `Formats::Zip::Writer` instead of the rubyzip-compat
+  `Omnizip::Zip::File` seam (the Metadata subsystem remains on
+  compat deliberately as an in-place central-directory editor).
+- The RAR extraction spill cache installs an `at_exit` sweeper on
+  first use, reclaiming spill directories at normal process exit.
+- Module docs tell the truth: `Formats::Rar` claimed read-only with
+  external tools required; `Formats::Iso` claimed read-only while
+  carrying the verified writer. New `CONTEXT.md` records the domain
+  glossary (primary parser vs adapters, native vs external decode,
+  interop-verified vs Omnizip-internal codecs, handler routes, the
+  compat seam, bridges).
+
 ## [0.3.41] - 2026-08-29
 
 ### Changed
