@@ -78,7 +78,7 @@ module Omnizip
           # head_size can never exceed the bytes left from the block
           # start, and the name must fit inside the header.
           if head_size > io.size - block_start ||
-             name_size + 32 > head_size
+              name_size + 32 > head_size
             return nil
           end
 
