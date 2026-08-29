@@ -28,6 +28,7 @@ module Omnizip
           @offset = options[:offset] || 0
           @solid_cache = {}
           @solid_cache_extracted = {}
+          @opened = false
         end
 
         # Open and parse .7z archive
@@ -79,10 +80,12 @@ module Omnizip
           @split_reader&.volumes || [@file_path]
         end
 
-        # List all files in archive
+        # List all files in archive, parsing on first use — a Reader
+        # is always usable; #open remains for eager loading
         #
         # @return [Array<Models::FileEntry>] File entries
         def list_files
+          ensure_open
           @entries.reject { |e| e.name.nil? || e.name.empty? }
         end
 
@@ -92,6 +95,7 @@ module Omnizip
         # @param output_path [String] Destination path
         # @raise [RuntimeError] if entry not found or extraction fails
         def extract_entry(entry_name, output_path)
+          ensure_open
           # Delegate to split reader if available
           if @split_reader
             @split_reader.extract_entry(entry_name, output_path)
@@ -132,6 +136,7 @@ module Omnizip
         # @param output_dir [String] Destination directory
         # @raise [RuntimeError] on extraction error
         def extract_all(output_dir)
+          ensure_open
           FileUtils.mkdir_p(output_dir)
 
           real_out = File.realpath(output_dir)
@@ -186,6 +191,11 @@ module Omnizip
         end
 
         private
+
+        # Parse the archive once, on demand
+        def ensure_open
+          open unless @opened
+        end
 
         # Parse .7z archive structure
         #
@@ -407,6 +417,20 @@ module Omnizip
             entry.folder_index = folder_idx
             entry.file_index = i
             entry.size = @stream_info.unpack_sizes[stream_idx] if @stream_info.unpack_sizes[stream_idx]
+
+            # Single-stream folders own their packed bytes outright,
+            # so the entry's compressed size is exact. Solid folders
+            # share packed bytes across streams — leave nil rather
+            # than fabricate a split.
+            num_in_folder = @stream_info.num_unpack_streams_in_folders[folder_idx]
+            if num_in_folder == 1
+              folder = @stream_info.folders[folder_idx]
+              packed = folder.pack_stream_indices.sum do |pi|
+                @stream_info.pack_sizes[pi] || 0
+              end
+              entry.compressed_size = packed
+            end
+
             stream_idx += 1
           end
         end

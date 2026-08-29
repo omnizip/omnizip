@@ -12,7 +12,7 @@ module Omnizip
       class Reader
         include Omnizip::Formats::Rar::Constants
 
-        attr_reader :file_path, :header, :entries, :archive_info,
+        attr_reader :file_path, :header, :archive_info,
                     :volume_manager
 
         # Initialize reader with file path
@@ -25,6 +25,7 @@ module Omnizip
           @archive_info = Models::RarArchive.new(file_path)
           @volume_manager = VolumeManager.new(file_path)
           @use_native = true # Prefer native decompression
+          @opened = false
         end
 
         # Open and parse RAR archive
@@ -34,14 +35,24 @@ module Omnizip
           File.open(@file_path, "rb") do |io|
             parse_archive(io)
           end
+          @opened = true
           self
+        end
+
+        # All entries, parsing on first use — a Reader is always
+        # usable; #open remains for eager loading
+        #
+        # @return [Array<Models::RarEntry>] File entries
+        def entries
+          ensure_open
+          @entries
         end
 
         # List all files in archive
         #
         # @return [Array<Models::RarEntry>] File entries
         def list_files
-          @entries
+          entries
         end
 
         # Extract file to output path
@@ -51,6 +62,7 @@ module Omnizip
         # @param password [String, nil] Optional password
         # @raise [RuntimeError] if entry not found or extraction fails
         def extract_entry(entry_name, output_path, password: nil)
+          ensure_open
           entry = @entries.find { |e| e.name == entry_name }
           raise "Entry not found: #{entry_name}" unless entry
 
@@ -79,6 +91,7 @@ module Omnizip
         # @param password [String, nil] Optional password
         # @raise [RuntimeError] on extraction error
         def extract_all(output_dir, password: nil)
+          ensure_open
           FileUtils.mkdir_p(output_dir)
 
           # Use decompressor to extract all
@@ -125,6 +138,11 @@ module Omnizip
         end
 
         private
+
+        # Parse the archive once, on demand
+        def ensure_open
+          open unless @opened
+        end
 
         # Parse RAR archive structure
         #
