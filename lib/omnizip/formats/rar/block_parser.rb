@@ -127,9 +127,10 @@ module Omnizip
           # straight to it instead of re-parsing the archive
           entry.data_offset = io.pos
           # Seek past the data: never allocate the packed bytes just
-          # to skip them (a corrupt pack_size must not request
-          # gigabytes of memory)
-          io.seek(pack_size, ::IO::SEEK_CUR)
+          # to skip them. A corrupt pack_size (bigger than the file)
+          # would overflow the seek offset on Linux — clamp to EOF so
+          # the entry still lists.
+          skip_past(io, pack_size)
 
           entry
         end
@@ -195,9 +196,19 @@ module Omnizip
           # never read: corrupt sizes must not drive huge allocations.
           io.read(extra_size) if extra_size.positive?
           entry.data_offset = io.pos
-          io.seek(data_size, ::IO::SEEK_CUR)
+          skip_past(io, data_size)
 
           entry
+        end
+
+        # Skip forward without allocating: clamp corrupt sizes to EOF
+        # so an overflowing seek (EINVAL on Linux) cannot abort the
+        # block walk
+        def skip_past(io, bytes)
+          return if bytes <= 0
+
+          remaining = io.size - io.pos
+          io.seek(bytes <= remaining ? bytes : remaining, ::IO::SEEK_CUR)
         end
 
         # Decode filename from bytes
