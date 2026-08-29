@@ -45,6 +45,7 @@ module Omnizip
         # @return [Models::RarEntry, nil] Parsed entry or nil
         def parse_rar4_file_block(io)
           entry = Models::RarEntry.new
+          block_start = io.pos
 
           # Read block header
           read_uint16(io)
@@ -73,12 +74,23 @@ module Omnizip
             unpack_size |= (high_unpack_size << 32)
           end
 
+          # Sanity bounds: corrupt headers must not drive huge reads.
+          # head_size can never exceed the bytes left from the block
+          # start, and the name must fit inside the header.
+          if head_size > io.size - block_start ||
+             name_size + 32 > head_size
+            return nil
+          end
+
           # Read file name
           name_bytes = io.read(name_size)
           entry.name = decode_filename(name_bytes, head_flags)
           # RAR4 archives store DOS-style backslash separators;
-          # normalize to forward slashes like unrar on Unix.
-          entry.name = entry.name.tr("\\", "/")
+          # normalize to forward slashes like unrar on Unix. Scrub
+          # first: unicode-flagged names may carry bytes that are not
+          # valid UTF-8, and String#tr raises on them under any
+          # locale.
+          entry.name = entry.name.scrub.tr("\\", "/")
 
           # Set entry properties
           entry.size = unpack_size
@@ -114,7 +126,10 @@ module Omnizip
           # Record where the packed data starts so extraction can seek
           # straight to it instead of re-parsing the archive
           entry.data_offset = io.pos
-          io.read(pack_size) # Skip compressed data
+          # Seek past the data: never allocate the packed bytes just
+          # to skip them (a corrupt pack_size must not request
+          # gigabytes of memory)
+          io.seek(pack_size, ::IO::SEEK_CUR)
 
           entry
         end
@@ -138,6 +153,10 @@ module Omnizip
           extra_size = header_flags.anybits?(RAR5_FLAG_EXTRA_AREA) ? read_vint(io) : 0
           data_size = header_flags.anybits?(RAR5_FLAG_DATA_AREA) ? read_vint(io) : 0
 
+          # Sanity bounds: corrupt headers must not drive huge reads
+          remaining_bytes = io.size - io.pos
+          return nil if extra_size > remaining_bytes || data_size > remaining_bytes
+
           # Read file header
           file_flags = read_vint(io)
           unpack_size = read_vint(io)
@@ -158,7 +177,7 @@ module Omnizip
 
           # Read file name
           name_bytes = io.read(name_length)
-          entry.name = name_bytes.force_encoding("UTF-8")
+          entry.name = name_bytes.to_s.scrub.force_encoding("UTF-8")
 
           # Set entry properties
           entry.size = unpack_size
@@ -172,10 +191,11 @@ module Omnizip
           entry.version = 5
 
           # Skip extra area, then compressed data; record the data
-          # start for direct-seek extraction
+          # start for direct-seek extraction. The data is seeked past,
+          # never read: corrupt sizes must not drive huge allocations.
           io.read(extra_size) if extra_size.positive?
           entry.data_offset = io.pos
-          io.read(data_size) if data_size.positive?
+          io.seek(data_size, ::IO::SEEK_CUR)
 
           entry
         end
