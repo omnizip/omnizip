@@ -236,7 +236,16 @@ module Omnizip
 
           # Parse metadata
           parser = Parser.new(next_header_data)
-          @stream_info, @entries = parse_metadata(parser)
+          begin
+            @stream_info, @entries = parse_metadata(parser)
+          rescue StandardError => e
+            if @headers_decrypted
+              raise "Failed to decrypt headers: incorrect password " \
+                    "or corrupted data (#{e.message})"
+            end
+
+            raise
+          end
 
           # Map entries to their folders/streams
           map_entries_to_streams
@@ -257,11 +266,16 @@ module Omnizip
 
           # Decrypt using password
           encryptor = HeaderEncryptor.new(@password)
-          encryptor.decrypt(
+          decrypted = encryptor.decrypt(
             @encrypted_header.encrypted_data,
             @encrypted_header.salt,
             @encrypted_header.iv,
           )
+          # AES-CBC 'succeeds' with any key and yields garbage; wrong
+          # passwords surface as later header-parse failures, so mark
+          # the archive and translate those into the password error
+          @headers_decrypted = true
+          decrypted
         rescue OpenSSL::Cipher::CipherError => e
           raise "Failed to decrypt headers: incorrect password (#{e.message})"
         end
