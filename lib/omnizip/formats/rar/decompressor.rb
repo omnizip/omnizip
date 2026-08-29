@@ -258,6 +258,7 @@ module Omnizip
                 raise "Command entry extraction failed: #{entry_name}"
               end
               extract_cache[cache_key] = cached_dir
+              install_exit_sweeper
             end
 
             source = File.join(cached_dir, entry_name)
@@ -265,8 +266,8 @@ module Omnizip
           end
 
           # Extracted-archive cache: archive path => spill directory.
-          # Cleared by .clear_extract_cache! (tests); directories live
-          # in the system temp dir until process exit.
+          # Cleared by .clear_extract_cache!; an at_exit sweeper
+          # reclaims everything at normal process termination.
           def extract_cache
             @extract_cache ||= {}
           end
@@ -275,6 +276,14 @@ module Omnizip
           def clear_extract_cache!
             extract_cache.each_value { |dir| FileUtils.rm_rf(dir) }
             extract_cache.clear
+          end
+
+          # Reclaim spill directories when the process exits normally
+          def install_exit_sweeper
+            return if @exit_sweeper_installed
+
+            at_exit { clear_extract_cache! }
+            @exit_sweeper_installed = true
           end
 
           # Build extract command

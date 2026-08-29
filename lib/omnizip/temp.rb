@@ -129,9 +129,12 @@ module Omnizip
 
         case format
         when :zip
-          Omnizip::Zip::File.create(path) do |zip|
-            zip.add(name) { data }
-          end
+          # Native writer — the rubyzip-compat Omnizip::Zip seam is
+          # for library consumers migrating from rubyzip, not for
+          # internal use
+          writer = Omnizip::Formats::Zip::Writer.new(path)
+          writer.add_data(name, data.to_s)
+          writer.write
         end
       end
     end

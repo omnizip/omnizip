@@ -3,17 +3,18 @@
 module Omnizip
   module Formats
     # RAR archive format support
-    # Provides read-only access to RAR archives (single and multi-volume)
     #
-    # This module implements RAR archive format support:
-    # - Format signature validation (RAR4 and RAR5)
-    # - Archive structure parsing
-    # - File listing
-    # - File extraction (requires unrar gem or system command)
-    # - Multi-volume archive support
-    #
-    # Note: RAR compression is proprietary, so this implementation
-    # is read-only and requires external decompression tools.
+    # - Formats::Rar::Reader — the primary parser, verified against
+    #   real WinRAR archives: listing, directories, mtimes, and
+    #   extraction (native STORE decode with stored-CRC verification;
+    #   foreign compressed streams fall back to the unrar command
+    #   after the CRC check rejects them)
+    # - Formats::Rar::Writer (RAR4) and Formats::Rar::Rar5::Writer —
+    #   STORE output is unrar-verified; compressed methods produce
+    #   Omnizip-internal streams (see the README interop table)
+    # - Formats::Rar3 / Formats::Rar5 — legacy interfaces, thin
+    #   adapters over the primary reader and the RAR5 writer
+    # - Multi-volume archives, encryption (RAR5), recovery records
     module Rar
       # Nested classes - autoloaded
       autoload :Constants, "omnizip/formats/rar/constants"

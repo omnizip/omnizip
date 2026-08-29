@@ -3,14 +3,13 @@
 module Omnizip
   module Formats
     # ISO 9660 CD-ROM filesystem format support
-    # Provides read-only access to ISO images
     #
-    # ISO 9660 is the standard filesystem for CD-ROMs and DVD-ROMs.
-    # This implementation supports:
-    # - Primary Volume Descriptor parsing
-    # - Directory structure traversal
-    # - File extraction
-    # - Rock Ridge extensions (basic)
+    # Reads and writes ISO 9660 images: Primary Volume Descriptor
+    # parsing, directory traversal, file extraction, and image
+    # creation whose directory records point at allocated extents
+    # (verified against 7-Zip). Rock Ridge and Joliet are NOT
+    # implemented — the writer's options stay false rather than
+    # advertising extensions readers would misparse.
     module Iso
       # Nested classes - autoloaded
       autoload :Reader, "omnizip/formats/iso/reader"
