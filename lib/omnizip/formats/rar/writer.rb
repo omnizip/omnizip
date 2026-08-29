@@ -169,7 +169,7 @@ module Omnizip
             warn "RAR4 writer ignores volume_size: not implemented " \
                  "(no corresponding flag is written)"
           end
-          return unless @options[:recovery].to_i.positive?
+          return unless @options[:recovery]&.to_i&.positive?
 
           warn "RAR4 writer ignores recovery: not implemented " \
                "(no corresponding flag is written)"

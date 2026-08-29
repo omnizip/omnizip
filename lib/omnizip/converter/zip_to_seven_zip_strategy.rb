@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tmpdir"
+
 module Omnizip
   module Converter
     # Convert ZIP archives to 7-Zip format
@@ -10,14 +12,20 @@ module Omnizip
         start_time = Time.now
         entry_count = 0
 
-        # Open source ZIP archive
-        Omnizip::Zip::File.open(source_path) do |zip|
-          # Collect all entries and their data
-          entries_data = collect_entries(zip)
-          entry_count = entries_data.size
+        Dir.mktmpdir("omnizip_convert_zip") do |tmp|
+          # Extract the ZIP through the native reader; directories are
+          # implied by extracted file paths
+          Omnizip::Formats::Zip.extract(source_path, tmp)
 
-          # Create target 7z archive
-          create_seven_zip(entries_data)
+          writer = Omnizip::Formats::SevenZip::Writer.new(target_path,
+                                                          writer_options)
+          Dir.glob(File.join(tmp, "**", "*")).each do |path|
+            next if File.directory?(path)
+
+            entry_count += 1
+            writer.add_file(path, path.delete_prefix("#{tmp}/"))
+          end
+          writer.write
         end
 
         create_result(start_time, entry_count)
@@ -45,62 +53,12 @@ module Omnizip
 
       private
 
-      def collect_entries(zip)
-        entries = []
-
-        zip.entries.each do |entry|
-          data = {
-            name: entry.name,
-            directory: entry.directory?,
-            mtime: entry.time,
-            content: nil,
-          }
-
-          unless entry.directory?
-            data[:content] = zip.get_input_stream(entry)
-
-            if options.preserve_metadata && entry.unix_perms.positive?
-              data[:unix_perms] = entry.unix_perms
-            end
-          end
-
-          entries << data
-        end
-
-        entries
-      end
-
-      def create_seven_zip(entries)
-        writer = Omnizip::Formats::SevenZip::Writer.new(target_path)
-
-        # Set compression options
-        compression = options.compression || :lzma2
-        level = options.compression_level || 5
-        options.solid.nil? || options.solid
-
-        # Add each entry
-        entries.each do |entry_data|
-          if entry_data[:directory]
-            # 7z doesn't have explicit directory entries
-            # Directories are implied by file paths
-            next
-          end
-
-          writer.add_data(
-            entry_data[:name],
-            entry_data[:content],
-            algorithm: compression,
-            level: level,
-          )
-        end
-
-        # Apply filter if specified
-        if options.filter
-          add_warning("Filters not yet supported in 7z conversion")
-        end
-
-        # Write the archive
-        writer.write
+      # SevenZip::Writer takes algorithm/level/solid as keywords
+      def writer_options
+        {
+          algorithm: options.compression || :lzma2,
+          level: options.compression_level || 5,
+        }
       end
     end
   end

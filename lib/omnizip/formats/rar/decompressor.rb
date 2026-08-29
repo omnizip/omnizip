@@ -236,18 +236,45 @@ module Omnizip
           end
 
           # Extract entry with command
+          #
+          # unrar cannot extract a single entry without walking the
+          # archive, so the archive spills to a cache directory ONCE
+          # per archive path; subsequent extractions copy out of the
+          # cache instead of re-running unrar over the whole file.
           def extract_entry_with_command(archive_path, entry_name,
                                          output_path, password)
-            temp_dir = Dir.mktmpdir
-            cmd = build_extract_command(archive_path, temp_dir, password)
-            unless system(*cmd)
-              raise "Command entry extraction failed: #{entry_name}"
+            cache_key = begin
+              File.realpath(archive_path)
+            rescue StandardError
+              archive_path
             end
 
-            source = File.join(temp_dir, entry_name)
-            FileUtils.mv(source, output_path) if File.exist?(source)
-          ensure
-            FileUtils.rm_rf(temp_dir) if temp_dir
+            cached_dir = extract_cache[cache_key]
+            unless cached_dir
+              cached_dir = Dir.mktmpdir("omnizip_unrar")
+              cmd = build_extract_command(archive_path, cached_dir, password)
+              unless system(*cmd)
+                FileUtils.rm_rf(cached_dir)
+                raise "Command entry extraction failed: #{entry_name}"
+              end
+              extract_cache[cache_key] = cached_dir
+            end
+
+            source = File.join(cached_dir, entry_name)
+            FileUtils.cp(source, output_path) if File.exist?(source)
+          end
+
+          # Extracted-archive cache: archive path => spill directory.
+          # Cleared by .clear_extract_cache! (tests); directories live
+          # in the system temp dir until process exit.
+          def extract_cache
+            @extract_cache ||= {}
+          end
+
+          # Drop the extraction cache and remove its directories
+          def clear_extract_cache!
+            extract_cache.each_value { |dir| FileUtils.rm_rf(dir) }
+            extract_cache.clear
           end
 
           # Build extract command

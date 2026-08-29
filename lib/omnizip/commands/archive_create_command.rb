@@ -120,35 +120,23 @@ module Omnizip
 
         start_time = Time.now
 
+        # Format-agnostic options; Formats::Rar applies the
+        # version-specific semantics
         writer_opts = {
           version: version,
           compression: compression,
           level: level,
           include_mtime: include_mtime,
           include_crc32: include_crc32,
-        }
-
-        # Add solid compression for RAR5
-        writer_opts[:solid] = solid if version == 5 && solid
-
-        # Add multi-volume options for RAR5
-        if version == 5 && multi_volume && volume_size
-          writer_opts[:multi_volume] = true
-          writer_opts[:volume_size] = volume_size
-          writer_opts[:volume_naming] = volume_naming
-        end
-
-        # Add encryption options for RAR5
-        if version == 5 && password
-          writer_opts[:password] = password
-          writer_opts[:kdf_iterations] = kdf_iterations
-        end
-
-        # Add recovery options for RAR5
-        if version == 5 && recovery
-          writer_opts[:recovery] = true
-          writer_opts[:recovery_percent] = recovery_percent
-        end
+          solid: solid,
+          multi_volume: multi_volume,
+          volume_size: volume_size,
+          volume_naming: volume_naming,
+          password: password,
+          kdf_iterations: kdf_iterations,
+          recovery: recovery,
+          recovery_percent: recovery_percent,
+        }.compact
 
         result_files = Omnizip::Formats::Rar.create(output_file,
                                                     writer_opts) do |rar|

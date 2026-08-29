@@ -10,7 +10,7 @@ module Omnizip
           attr_accessor :name, :size, :compressed_size, :crc, :is_dir,
                         :host_os, :mtime, :attributes, :method,
                         :version, :flags, :volume_index, :split_before,
-                        :split_after, :encrypted
+                        :split_after, :encrypted, :data_offset
 
           # Initialize RAR entry
           def initialize

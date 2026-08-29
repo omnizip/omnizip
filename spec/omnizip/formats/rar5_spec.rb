@@ -203,10 +203,9 @@ RSpec.describe "RAR v5 Format Support" do
                            0x00].pack("C*"))
     end
 
-    it "handles large files" do
+    it "round-trips large files as unrar-clean STORE archives" do
       writer = Omnizip::Formats::Rar5::Writer.new
 
-      # Create archive with large content
       archive_io = StringIO.new
       large_data = "X" * 10_000
       entries = [
@@ -214,9 +213,25 @@ RSpec.describe "RAR v5 Format Support" do
       ]
 
       writer.write_archive(archive_io, entries)
+      archive_io.rewind
 
-      # Should compress significantly
-      expect(archive_io.size).to be < large_data.size
+      # Read back through the primary reader
+      reader = Omnizip::Formats::Rar5::Reader.new
+      entries_out = reader.read_archive(archive_io)
+      expect(entries_out.first.name).to eq("large.txt")
+      expect(entries_out.first.uncompressed_size).to eq(large_data.bytesize)
+
+      # The legacy writer delegates to the primary spec-conformant
+      # writer, so the archive must test clean in unrar
+      if system("which unrar > /dev/null 2>&1")
+        Dir.mktmpdir("omnizip_rar5_spec") do |tmp|
+          path = File.join(tmp, "large.rar")
+          archive_io.rewind
+          File.binwrite(path, archive_io.read)
+          expect(system("unrar", "t", "-idq", path,
+                        out: File::NULL, err: File::NULL)).to be(true)
+        end
+      end
     end
   end
 

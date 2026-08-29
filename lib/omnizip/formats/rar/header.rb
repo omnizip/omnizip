@@ -85,7 +85,9 @@ module Omnizip
         # Parse RAR4 header
         #
         # The 7-byte signature consumed by #parse IS the marker
-        # block, so the main header follows immediately.
+        # block, so the main header follows immediately. Minimal
+        # archives skip the main header and start with a file block —
+        # accept those by rewinding to the block.
         #
         # @param io [IO] Input stream
         def parse_rar4_header(io)
@@ -93,6 +95,12 @@ module Omnizip
           head_type = io.read(1)&.ord
           head_flags = read_uint16(io)
           head_size = read_uint16(io)
+
+          if head_type == BLOCK_FILE
+            io.seek(-7, ::IO::SEEK_CUR)
+            @flags = 0
+            return
+          end
 
           unless head_type == BLOCK_ARCHIVE
             raise "Expected archive block, got 0x#{head_type.to_s(16)}"
@@ -117,10 +125,19 @@ module Omnizip
           # RAR5 uses variable-length integer encoding. Layout per the
           # RAR 5.0 format: HeaderCRC32(4), Header size(vint), Header
           # type(vint), Header flags(vint), then type-specific fields.
+          header_start = io.pos
           read_uint32(io)
           read_vint(io) # header size (redundant: areas carry their own)
           header_type = read_vint(io)
           header_flags = read_vint(io)
+
+          # Minimal archives skip the main header and start with a
+          # file header (type 2) — rewind so block iteration reads it
+          if header_type == RAR5_HEADER_FILE
+            io.seek(header_start, ::IO::SEEK_SET)
+            @flags = 0
+            return
+          end
 
           unless header_type == RAR5_HEADER_MAIN
             raise "Expected main header, got #{header_type}"
