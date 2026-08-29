@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.43] - 2026-08-29
+
+### Changed
+- Reader invariant, library-wide: `Formats::SevenZip::Reader` and
+  `Formats::Rar::Reader` parse on first use, so `list_files`/
+  `extract_entry`/`extract_all` no longer silently operate on empty
+  entries when `#open` was not called first. "A reader is always
+  usable" is recorded in `CONTEXT.md`; `#open` remains for eager
+  loading. New specs pin the behavior for both readers.
+- 7z entries in single-stream folders report their exact
+  `compressed_size` (folder pack sizes were parsed but never mapped
+  onto entries); solid folders share packed bytes across streams, so
+  those entries keep nil rather than a fabricated split.
+
 ## [0.3.42] - 2026-08-29
 
 ### Changed
