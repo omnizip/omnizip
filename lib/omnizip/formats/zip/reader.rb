@@ -9,7 +9,7 @@ module Omnizip
       class Reader
         include Omnizip::Formats::Zip::Constants
 
-        attr_reader :file_path, :entries
+        attr_reader :file_path
 
         def initialize(file_path)
           @file_path = file_path
@@ -34,6 +34,13 @@ module Omnizip
           read_central_directory(io, eocd)
 
           self
+        end
+
+        # All entries, parsing on first use — a Reader is usable
+        # immediately; #read remains for explicit eager loading
+        def entries
+          ensure_read
+          @entries
         end
 
         # Extract all files to a directory
@@ -162,6 +169,11 @@ dereference_links: false)
         end
 
         private
+
+        # Parse the central directory once, on demand
+        def ensure_read
+          read if @entries.empty? && @central_directory.empty?
+        end
 
         # Read central directory entries
         def read_central_directory(io, eocd)

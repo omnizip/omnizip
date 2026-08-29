@@ -11,7 +11,10 @@ RSpec.describe Omnizip::Formats::Zip::Reader do
   describe "#initialize" do
     it "creates a new reader with file path" do
       expect(reader.file_path).to eq(test_zip_path)
-      expect(reader.entries).to be_empty
+    end
+
+    it "is usable without an explicit read (entries parse on demand)" do
+      expect(reader.entries).not_to be_empty
     end
   end
 
