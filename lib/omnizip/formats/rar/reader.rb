@@ -296,19 +296,26 @@ module Omnizip
         # @param entry [Models::RarEntry] File entry
         # @return [StringIO] Compressed data stream
         def read_compressed_data(entry)
-          # Find the entry's data offset in the archive
+          # The parser records each entry's data offset, so native
+          # extraction is a single seek + read
+          if entry.data_offset && entry.compressed_size
+            File.open(@file_path, "rb") do |io|
+              io.seek(entry.data_offset)
+              return StringIO.new(io.read(entry.compressed_size) || "")
+            end
+          end
+
+          # Fallback for entries parsed without offsets (e.g. by older
+          # parsers): walk the blocks to locate the entry
           File.open(@file_path, "rb") do |io|
-            # Skip signature and headers
             Header.read(io)
 
-            # Parse file blocks to find our entry
             parser = BlockParser.new(@header.version)
 
             loop do
               block_start = io.pos
               break if io.eof?
 
-              # Peek at block type
               crc_bytes = io.read(2)
               break unless crc_bytes
 
@@ -317,45 +324,33 @@ module Omnizip
 
               head_type = type_byte.ord
 
-              # If end block, stop
               break if head_type == BLOCK_ENDARC
 
-              # Reset to block start
               io.seek(block_start)
 
-              # If not a file block, read and skip it
               unless head_type == BLOCK_FILE
-                # Read header
                 io.read(2) # CRC
                 io.read(1) # TYPE
-                io.read(2)&.unpack1("v") || 0
+                io.read(2) # FLAGS
                 size = io.read(2)&.unpack1("v") || 0
 
-                # Skip rest of block (size includes TYPE+FLAGS+SIZE = 5 bytes)
-                remaining = size - 5
+                # 7 bytes consumed (CRC/TYPE/FLAGS/SIZE); skip the rest
+                remaining = size - 7
                 io.read(remaining) if remaining.positive?
                 next
               end
 
-              # Parse this file block
               test_entry = parser.parse_file_block(io)
 
-              # Check if this is our entry
               if test_entry && test_entry.name == entry.name
-                # BlockParser positions us right after the compressed data
-                # So we need to back up and read it
-                data_end = io.pos
-                data_start = data_end - entry.compressed_size
+                data_start = io.pos - entry.compressed_size
 
                 io.seek(data_start)
-                compressed = io.read(entry.compressed_size)
-
-                return StringIO.new(compressed)
+                return StringIO.new(io.read(entry.compressed_size) || "")
               end
             end
           end
 
-          # If we didn't find it, return empty
           StringIO.new("")
         end
       end

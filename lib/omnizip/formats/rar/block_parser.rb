@@ -111,6 +111,9 @@ module Omnizip
           remaining = head_size - (name_size + 32)
           remaining -= 8 if head_flags.anybits?(FILE_LARGE)
           io.read(remaining) if remaining.positive?
+          # Record where the packed data starts so extraction can seek
+          # straight to it instead of re-parsing the archive
+          entry.data_offset = io.pos
           io.read(pack_size) # Skip compressed data
 
           entry
@@ -168,8 +171,10 @@ module Omnizip
           entry.is_dir = file_flags.anybits?(RAR5_FLAG_IS_DIR)
           entry.version = 5
 
-          # Skip extra area, then compressed data
+          # Skip extra area, then compressed data; record the data
+          # start for direct-seek extraction
           io.read(extra_size) if extra_size.positive?
+          entry.data_offset = io.pos
           io.read(data_size) if data_size.positive?
 
           entry

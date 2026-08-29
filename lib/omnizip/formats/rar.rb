@@ -127,6 +127,9 @@ module Omnizip
       class << self
         # Create a RAR archive, yielding the writer for entries.
         # RAR5 is the default; pass version: 4 for the RAR4 writer.
+        # RAR5-only options (solid, multi-volume, password, recovery)
+        # are ignored for RAR4 — its writer warns about the
+        # unimplemented ones and raises for passwords.
         #
         # @param path [String] Output archive path
         # @param options [Hash] Writer options
@@ -137,7 +140,7 @@ module Omnizip
           writer = if version == 4
                      Writer.new(path, options)
                    else
-                     Rar5::Writer.new(path, options)
+                     Rar5::Writer.new(path, rar5_options(options))
                    end
           yield writer if block_given?
           writer.write
@@ -172,6 +175,16 @@ module Omnizip
         # @return [ArchiveRepairer::RepairResult] Repair result
         def repair(archive_path, output_path)
           ArchiveRepairer.new.repair(archive_path, output_path)
+        end
+
+        private
+
+        # Writer keywords the RAR5 writer understands
+        def rar5_options(options)
+          options.slice(:compression, :level, :solid, :multi_volume,
+                        :volume_size, :volume_naming, :password,
+                        :kdf_iterations, :recovery, :recovery_percent,
+                        :include_mtime, :include_crc32, :dict_size)
         end
       end
     end
