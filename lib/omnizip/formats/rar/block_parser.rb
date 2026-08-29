@@ -208,7 +208,7 @@ module Omnizip
           return if bytes <= 0
 
           remaining = io.size - io.pos
-          io.seek(bytes <= remaining ? bytes : remaining, ::IO::SEEK_CUR)
+          io.seek([bytes, remaining].min, ::IO::SEEK_CUR)
         end
 
         # Decode filename from bytes
