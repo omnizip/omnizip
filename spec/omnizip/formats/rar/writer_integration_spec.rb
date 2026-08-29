@@ -219,3 +219,24 @@ RSpec.describe Omnizip::Formats::Rar::Writer, :integration do
     end
   end
 end
+
+RSpec.describe Omnizip::Formats::Rar::Reader, "#open" do
+  it "is usable without an explicit open (entries parse on demand)" do
+    Dir.mktmpdir("omnizip_rar_lazy") do |tmp|
+      src = File.join(tmp, "f.txt")
+      File.write(src, "lazy rar reader")
+      archive = File.join(tmp, "a.rar")
+      writer = Omnizip::Formats::Rar::Writer.new(archive,
+                                                 compression: :store)
+      writer.add_file(src)
+      writer.write
+
+      reader = Omnizip::Formats::Rar::Reader.new(archive)
+      expect(reader.list_files.map(&:name)).to eq(["f.txt"])
+
+      out = File.join(tmp, "out.txt")
+      reader.extract_entry("f.txt", out)
+      expect(File.read(out)).to eq("lazy rar reader")
+    end
+  end
+end

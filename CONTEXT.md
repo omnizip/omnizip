@@ -19,7 +19,11 @@ here.
   extract/list/read. `.rar`, `.cpio`, `.iso` are read-only routes;
   creating them raises truthfully.
 
-## Reading and decoding
+## Reading and decode
+
+- **Reader invariant — always usable** — every Reader
+  (`Formats::Zip`, `Formats::SevenZip`, `Formats::Rar`) parses on
+  first use; calling `#open` first is never required, only eager.
 
 - **Native decode** — decompression implemented in Ruby inside
   omnizip. RAR native decode is **CRC-gated**: the stored header CRC
