@@ -1,3 +1,5 @@
+require "tmpdir"
+
 RSpec.describe Omnizip::Formats::SevenZip::Writer, "non-solid mode" do
   it "compresses each file independently (LZMA2)" do
     Dir.mktmpdir("omnizip_ns7z") do |tmp|
