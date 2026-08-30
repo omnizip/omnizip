@@ -458,6 +458,12 @@ module Omnizip
             pack_idx += num_streams
           end
 
+          # Pack streams are laid out sequentially; skip past every
+          # stream owned by earlier folders to reach this folder's
+          # bytes (with stored archives pack sizes equal unpack
+          # sizes, which masked this offset in the past)
+          pack_idx.times { |i| pack_pos += @stream_info.pack_sizes[i] || 0 }
+
           # Check if this is a BCJ2 multi-stream folder
           if Bcj2StreamDecompressor.bcj2_folder?(folder)
             extract_bcj2_entry(io, entry, folder, pack_pos, pack_idx)
