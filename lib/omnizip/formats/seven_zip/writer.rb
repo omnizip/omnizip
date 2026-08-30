@@ -169,15 +169,20 @@ module Omnizip
           [lzma2_chunk, [compressed_size]]
         end
 
-        # Build packed data for non-solid mode (COPY - no compression)
+        # Build packed data for non-solid mode: every file is its own
+        # LZMA2 stream. Empty files keep a zero-size pack stream.
         def build_non_solid_packed_data(file_data)
-          # For non-solid mode, concatenate raw file data without compression
-          packed_data = String.new(encoding: "BINARY")
+          packed_data = String.new(encoding: Encoding::BINARY)
           packed_sizes = []
 
           file_data[:streams].each do |stream|
-            packed_data << stream[:data]
-            packed_sizes << stream[:size]
+            if stream[:size].positive?
+              compressed = compress_with_lzma2(stream[:data])
+              packed_data << compressed
+              packed_sizes << compressed.bytesize
+            else
+              packed_sizes << 0
+            end
           end
 
           [packed_data, packed_sizes]
@@ -255,7 +260,8 @@ module Omnizip
                                      num_files)
           else
             # Non-solid mode: one pack stream per file, one folder per file
-            build_non_solid_streams_info(metadata, file_data[:streams])
+            build_non_solid_streams_info(metadata, file_data[:streams],
+                                         packed_sizes)
           end
 
           # kEnd for MainStreamsInfo
@@ -375,7 +381,7 @@ _num_files)
           metadata << [PropertyId::K_END].pack("C")
         end
 
-        def build_non_solid_streams_info(metadata, streams)
+        def build_non_solid_streams_info(metadata, streams, packed_sizes)
           num_streams = streams.size
 
           # kPackInfo property (0x06)
@@ -383,10 +389,10 @@ _num_files)
           metadata << write_number(0) # Pack position
           metadata << write_number(num_streams) # Number of pack streams
 
-          # kSize property - sizes of each pack stream
+          # kSize property - sizes of each pack stream (compressed)
           metadata << [PropertyId::SIZE].pack("C")
-          streams.each do |stream|
-            metadata << write_number(stream[:size])
+          packed_sizes.each do |packed|
+            metadata << write_number(packed)
           end
 
           # kEnd for PackInfo
@@ -402,18 +408,20 @@ _num_files)
           # External flag for all folders
           metadata << [0].pack("C")
 
-          # Folder definitions (coders only, no sizes yet)
-          streams.each do |_stream|
-            # Number of coders
-            metadata << write_number(1)
-            # Coder info for COPY
-            # MainByte format: bits 0-3 = num bytes for CodecID (0-15), bit 4 = is_complex, bits 5-7 = num props
-            # For COPY: 1 byte CodecID (0x00), no properties
-            metadata << COPY_MAIN_BYTE  # MainByte: 1 byte for CodecID, no props
-            metadata << COPY_METHOD_ID  # Method ID: COPY = 0x00
+          # Folder definitions (coders only, no sizes yet):
+          # one LZMA2 coder per non-empty stream, COPY for empties
+          streams.each do |stream|
+            if stream[:size].positive?
+              build_folder_coder(metadata)
+            else
+              metadata << write_number(1)
+              metadata << COPY_MAIN_BYTE
+              metadata << COPY_METHOD_ID
+            end
           end
 
           # kCodersUnpackSize - comes after ALL folder definitions
+          # (original sizes; kSize above carries the packed sizes)
           metadata << [PropertyId::CODERS_UNPACK_SIZE].pack("C")
           streams.each do |stream|
             metadata << write_number(stream[:size])

@@ -344,6 +344,17 @@ module Omnizip
     rescue StandardError => e
       handle_error(e)
     end
+
+    desc "verify ARCHIVE", "Verify archive integrity"
+    long_desc <<~DESC
+      Verify the integrity of an archive (currently RAR archives via
+      header and recovery-record checks).
+    DESC
+    def verify(archive)
+      Omnizip::Commands::ArchiveVerifyCommand.new(options).run(archive)
+    rescue StandardError => e
+      handle_error(e)
+    end
   end
 
   # Command-line interface for Omnizip.

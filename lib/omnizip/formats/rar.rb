@@ -165,8 +165,8 @@ module Omnizip
         #
         # @param archive_path [String] Path to RAR archive
         # @return [ArchiveVerifier::VerificationResult] Verification result
-        def verify(archive_path)
-          ArchiveVerifier.new(archive_path).verify
+        def verify(archive_path, use_recovery: true)
+          ArchiveVerifier.new(archive_path).verify(use_recovery: use_recovery)
         end
 
         # Repair corrupted archive
