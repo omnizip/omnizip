@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.44] - 2026-08-31
+
+### Fixed
+- Non-solid 7z archives now compress: the writer advertised
+  `algorithm: :lzma2` but the `solid: false` path concatenated raw
+  data under COPY coders (30 KB of compressible input produced a
+  30 KB archive). Each file now compresses independently with the
+  same SDK encoder as the solid path, folders carry LZMA2 coders
+  with the dictionary property, and kSize holds packed sizes while
+  kCodersUnpackSize keeps originals. 7zz-verified, extraction
+  byte-identical (30 KB -> 532 B in the fixture).
+- Latent 7z reader bug exposed by the above: multi-folder
+  non-solid archives read folder 1's packed stream for every entry
+  (pack positions never skipped earlier folders' bytes). Stored
+  archives masked it because pack sizes equalled unpack sizes, and
+  the tool-compat specs verify extraction through 7zz rather than
+  our reader. Fixed; new specs pin byte-exact multi-file
+  extraction through our own reader.
+- `omnizip archive verify` is reachable: the command existed but
+  was registered in no CLI group, and its `Formats::Rar.verify`
+  call passed a kwarg the module method never accepted (an arity
+  crash on first contact). The module method forwards
+  `use_recovery:` now; RAR archives verify with per-file results
+  and unsupported formats exit non-zero with an honest message.
+
 ## [0.3.43] - 2026-08-29
 
 ### Changed
