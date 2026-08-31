@@ -64,49 +64,14 @@ dereference_links: false)
           else
             FileUtils.mkdir_p(File.dirname(output_path))
 
-            File.open(file_path, "rb") do |io|
-              # Seek to local file header
-              io.seek(entry.local_header_offset, ::IO::SEEK_SET)
+            decompressed_data = read_entry_data(entry)
 
-              # Read fixed part of local file header (30 bytes)
-              fixed_header = io.read(30)
+            # Write decompressed data
+            File.binwrite(output_path, decompressed_data)
 
-              # Extract variable lengths from fixed header
-              _signature, _version, _flags, _method, _time, _date, _crc32,
-              _comp_size, _uncomp_size, filename_length, extra_length = fixed_header.unpack("VvvvvvVVVvv")
-
-              # Read variable parts
-              variable_data = io.read(filename_length + extra_length)
-
-              # Parse complete local file header
-              LocalFileHeader.from_binary(fixed_header + variable_data)
-
-              # Now we're positioned right after the local file header, read compressed data
-              compressed_data = io.read(entry.compressed_size)
-
-              # Decompress data
-              decompressed_data = decompress_data(
-                compressed_data,
-                entry.compression_method,
-                entry.uncompressed_size,
-              )
-
-              # Verify CRC
-              calculated_crc = Omnizip::Checksums::Crc32.new.tap do |c|
-                c.update(decompressed_data)
-              end.finalize
-              if calculated_crc != entry.crc32
-                raise Omnizip::ChecksumError,
-                      "CRC mismatch for #{entry.filename}"
-              end
-
-              # Write decompressed data
-              File.binwrite(output_path, decompressed_data)
-
-              # Set file permissions if Unix
-              if entry.unix_permissions.positive?
-                File.chmod(entry.unix_permissions & 0o777, output_path)
-              end
+            # Set file permissions if Unix
+            if entry.unix_permissions.positive?
+              File.chmod(entry.unix_permissions & 0o777, output_path)
             end
           end
         end
@@ -168,7 +133,56 @@ dereference_links: false)
           decompress_data(compressed_data, method, uncompressed_size)
         end
 
+        # Read an entry's decompressed content into a String.
+        # Directory entries return an empty string; symlinks return
+        # their target path.
+        #
+        # @param entry_name [String] Name of the entry to read
+        # @return [String] Decompressed content
+        # @raise [RuntimeError] if the entry is not found
+        def read_entry(entry_name)
+          ensure_read
+          entry = @entries.find { |e| e.filename == entry_name }
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
+
+          return "" if entry.directory?
+          return entry.link_target if entry.symlink?
+
+          read_entry_data(entry)
+        end
+
         private
+
+        # Decompress and CRC-verify a single entry's data
+        def read_entry_data(entry)
+          File.open(file_path, "rb") do |io|
+            io.seek(entry.local_header_offset, ::IO::SEEK_SET)
+
+            fixed_header = io.read(30)
+            _signature, _version, _flags, _method, _time, _date, _crc32,
+            _comp_size, _uncomp_size, filename_length, extra_length = fixed_header.unpack("VvvvvvVVVvv")
+
+            variable_data = io.read(filename_length + extra_length)
+            LocalFileHeader.from_binary(fixed_header + variable_data)
+
+            compressed_data = io.read(entry.compressed_size)
+            decompressed_data = decompress_data(
+              compressed_data,
+              entry.compression_method,
+              entry.uncompressed_size,
+            )
+
+            calculated_crc = Omnizip::Checksums::Crc32.new.tap do |c|
+              c.update(decompressed_data)
+            end.finalize
+            if calculated_crc != entry.crc32
+              raise Omnizip::ChecksumError,
+                    "CRC mismatch for #{entry.filename}"
+            end
+
+            decompressed_data
+          end
+        end
 
         # Parse the central directory once, on demand
         def ensure_read

@@ -60,6 +60,36 @@ module Omnizip
         end
 
         # Check if this is a directory entry
+        # DOS date/time (as stored in the central directory) to Time
+        def time
+          year = ((last_mod_date >> 9) & 0x7F) + 1980
+          month = (last_mod_date >> 5) & 0x0F
+          day = last_mod_date & 0x1F
+          hour = (last_mod_time >> 11) & 0x1F
+          minute = (last_mod_time >> 5) & 0x3F
+          second = (last_mod_time & 0x1F) * 2
+          Time.new(year, month, day, hour, minute, second)
+        rescue ArgumentError
+          nil
+        end
+
+        # Omnizip::Entry contract
+        def entry_name
+          filename
+        end
+
+        def entry_directory?
+          directory?
+        end
+
+        def entry_size
+          uncompressed_size
+        end
+
+        def entry_mtime
+          time
+        end
+
         def directory?
           filename.end_with?("/") ||
             external_attributes.anybits?(ATTR_DIRECTORY)

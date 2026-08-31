@@ -19,6 +19,9 @@ module Omnizip
       def extract_to(path, output_dir, password: nil, **_)
         Omnizip::Formats::Rar::Decompressor.extract(path, output_dir,
                                                     password: password)
+        reader = Omnizip::Formats::Rar::Reader.new(path).open
+        reader.list_files.reject(&:is_dir)
+          .map { |e| ::File.join(output_dir, e.name) }
       end
 
       def list(path, details: false, **_)
@@ -27,6 +30,7 @@ module Omnizip
         if details
           entries.map do |e|
             { name: e.name, size: e.size, directory: e.is_dir,
+              compressed_size: (e.compressed_size if e.compressed_size.positive?),
               mtime: e.mtime }
           end
         else

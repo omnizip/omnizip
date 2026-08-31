@@ -17,6 +17,8 @@ module Omnizip
 
       def extract_to(path, output_dir, **_)
         Omnizip::Formats::Tar.extract(path, output_dir)
+        Omnizip::Formats::Tar.list(path).reject(&:directory?)
+          .map { |e| ::File.join(output_dir, e.name) }
       end
 
       def list(path, details: false, **_)

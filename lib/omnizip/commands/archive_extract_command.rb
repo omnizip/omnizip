@@ -111,54 +111,24 @@ module Omnizip
       end
 
       def extract_archive(archive_file, output_dir, verbose)
-        reader = case File.extname(archive_file).downcase
-                 when ".rar"
-                   Formats::Rar::Reader.new(archive_file).open
-                 when ".tar"
-                   Formats::Tar::Reader.new(archive_file).read
-                 when ".gz", ".gzip"
-                   # GZIP files are single-file compression, extract directly
-                   extract_gzip(archive_file, output_dir, verbose)
-                   return 1
-                 when ".bz2", ".bzip2"
-                   # BZIP2 files are single-file compression, extract directly
-                   extract_bzip2(archive_file, output_dir, verbose)
-                   return 1
-                 when ".xz"
-                   # XZ files are single-file compression, extract directly
-                   extract_xz(archive_file, output_dir, verbose)
-                   return 1
-                 else
-                   Formats::SevenZip::Reader.new(archive_file).open
-                 end
-        file_count = 0
-
-        reader.entries.each do |entry|
-          output_path = File.join(output_dir, entry.name)
-
-          if entry.directory?
-            CliOutputFormatter.verbose_puts(
-              "Creating directory: #{entry.name}",
-              verbose,
-            )
-            FileUtils.mkdir_p(output_path)
-          else
-            CliOutputFormatter.verbose_puts(
-              "Extracting: #{entry.name}",
-              verbose,
-            )
-
-            # Ensure parent directory exists
-            FileUtils.mkdir_p(File.dirname(output_path))
-
-            # Extract file
-            reader.extract_entry(entry.name, output_path)
-
-            file_count += 1
-          end
+        # Single-file compression formats decompress directly
+        case File.extname(archive_file).downcase
+        when ".gz", ".gzip"
+          extract_gzip(archive_file, output_dir, verbose)
+          return 1
+        when ".bz2", ".bzip2"
+          extract_bzip2(archive_file, output_dir, verbose)
+          return 1
+        when ".xz"
+          extract_xz(archive_file, output_dir, verbose)
+          return 1
         end
 
-        file_count
+        # Archives route through the handler seam: the extension
+        # routes pick each format's reader instead of hand-rolled
+        # branches, and zip/7z/rar/tar/cpio/iso all extract the same
+        # way
+        Omnizip.extract_archive(archive_file, output_dir).size
       rescue StandardError => e
         raise Omnizip::CompressionError,
               "Failed to extract archive: #{e.message}"

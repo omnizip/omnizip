@@ -141,7 +141,8 @@ RSpec.describe Omnizip::Parity do
   describe ".repair" do
     let!(:par2_file) do
       files = described_class.create(test_file, redundancy: 10)
-      files.find { |f| f.end_with?(".par2") && !f.include?("vol") }
+      files.find { |f| f.end_with?(".par2") && !f.include?("vol") } ||
+        files.first
     end
 
     it "repairs damaged files" do

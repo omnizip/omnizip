@@ -54,6 +54,11 @@ module Omnizip
       # @param progress [Proc, nil] Progress callback
       # @raise [ArgumentError] if file doesn't exist
       def initialize(par2_file, progress: nil)
+        if par2_file.nil?
+          raise ArgumentError,
+                "PAR2 file is nil — no index .par2 was produced for this set"
+        end
+
         raise ArgumentError, "PAR2 file not found: #{par2_file}" unless
           File.exist?(par2_file)
 
