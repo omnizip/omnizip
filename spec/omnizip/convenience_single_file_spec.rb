@@ -126,6 +126,8 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     end
 
     it "reads .rar archives through the handler" do
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+
       fixture = File.expand_path("fixtures/rar/official/store_method.rar",
                                  __dir__)
 
@@ -145,6 +147,15 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       written = File.join(outdir, "w.rar")
       Omnizip.compress_file(input.path, written)
       expect(Omnizip.list_archive(written)).to eq([File.basename(input.path)])
+    end
+
+    it "reads entries from .rar archives it created" do
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+
+      written = File.join(outdir, "created.rar")
+      Omnizip.compress_file(input.path, written)
+      expect(Omnizip.read_from_archive(written, File.basename(input.path)))
+        .to eq(File.read(input.path))
     end
 
     it "reads .cpio and .iso archives through read-only handlers" do

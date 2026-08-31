@@ -200,6 +200,9 @@ RSpec.describe Omnizip::Archive do
 
     created = File.join(outdir, "x.rar")
     described_class.create(created) { |a| a.add_data("x", "1") }
+
+    skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+
     expect(described_class.open(created) { |a| a.read("x") }).to eq("1")
   end
 
@@ -224,10 +227,12 @@ RSpec.describe Omnizip::Archive, "RAR creation" do
 
       Omnizip::Archive.open(archive) do |a|
         expect(a.entries.map(&:name)).to contain_exactly("a.txt", "d.txt")
-        expect(a.read("d.txt")).to eq("inline data")
       end
 
-      if system("which unrar > /dev/null 2>&1")
+      if Omnizip::Formats::Rar::Decompressor.available?
+        Omnizip::Archive.open(archive) do |a|
+          expect(a.read("d.txt")).to eq("inline data")
+        end
         expect(system("unrar", "t", "-idq", archive,
                       out: File::NULL, err: File::NULL)).to be(true)
       end
