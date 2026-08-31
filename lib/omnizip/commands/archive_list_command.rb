@@ -58,19 +58,12 @@ module Omnizip
       end
 
       def list_archive(archive_file, verbose, patterns, excludes, count_only)
-        archive = if archive_file.end_with?(".zip")
-                    Omnizip::Zip::File.open(archive_file)
-                  elsif archive_file.end_with?(".rar")
-                    Formats::Rar::Reader.new(archive_file).open
-                  else
-                    Formats::SevenZip::Reader.new(archive_file).open
-                  end
+        # Route through the handler seam: every format's reader is
+        # chosen by the extension routes, not by hand-rolled branches
+        entries = Omnizip.list_archive(archive_file, details: true)
+                        .map { |h| EntryAdapter.new(h) }
 
-        entries = if patterns || excludes
-                    filter_entries(archive, patterns, excludes)
-                  else
-                    archive.entries
-                  end
+        entries = filter_entries(entries, patterns, excludes) if patterns || excludes
 
         if count_only
           puts "Matches: #{entries.size}"
@@ -91,11 +84,9 @@ module Omnizip
       rescue StandardError => e
         raise Omnizip::CompressionError,
               "Failed to list archive: #{e.message}"
-      ensure
-        archive.close if archive.is_a?(Omnizip::Zip::File)
       end
 
-      def filter_entries(archive, patterns, excludes)
+      def filter_entries(entries, patterns, excludes)
         filter = Extraction::FilterChain.new
 
         # Add include patterns
@@ -104,7 +95,7 @@ module Omnizip
         # Add exclude patterns
         excludes&.each { |pattern| filter.exclude_pattern(pattern) }
 
-        filter.filter(archive.entries)
+        filter.filter(entries)
       end
 
       def display_simple_listing_filtered(entries)
@@ -202,15 +193,26 @@ module Omnizip
       end
 
       def entry_compressed_size(entry)
-        entry.compressed_size if entry.is_a?(Omnizip::Formats::SevenZip::Models::FileEntry)
+        entry.compressed_size
       end
 
       def entry_has_stream?(entry)
-        entry.has_stream? if entry.is_a?(Omnizip::Formats::SevenZip::Models::FileEntry)
+        entry.has_stream?
       end
 
       def entry_mtime(entry)
         entry.entry_mtime
+      end
+
+      # Presents handler list-detail hashes under the Omnizip::Entry
+      # contract the display helpers already use
+      EntryAdapter = Struct.new(:hash) do
+        def entry_name = hash[:name]
+        def entry_directory? = hash[:directory]
+        def entry_size = hash[:size]
+        def entry_mtime = hash[:mtime] || hash[:time]
+        def compressed_size = hash[:compressed_size]
+        def has_stream? = !hash[:directory] && hash[:size].to_i.positive?
       end
     end
   end
