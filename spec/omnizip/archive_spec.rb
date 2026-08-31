@@ -201,7 +201,7 @@ RSpec.describe Omnizip::Archive do
     created = File.join(outdir, "x.rar")
     described_class.create(created) { |a| a.add_data("x", "1") }
 
-    skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+    skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
 
     expect(described_class.open(created) { |a| a.read("x") }).to eq("1")
   end
@@ -229,7 +229,9 @@ RSpec.describe Omnizip::Archive, "RAR creation" do
         expect(a.entries.map(&:name)).to contain_exactly("a.txt", "d.txt")
       end
 
-      if Omnizip::Formats::Rar::Decompressor.available?
+      # Gate on the command, not Decompressor.available?: runners can
+      # carry the unrar gem without the binary on PATH
+      if Omnizip::Formats::Rar::Decompressor.command_available?
         Omnizip::Archive.open(archive) do |a|
           expect(a.read("d.txt")).to eq("inline data")
         end
