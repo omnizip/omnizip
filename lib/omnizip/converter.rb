@@ -11,6 +11,8 @@ module Omnizip
     autoload :SevenZipToZipStrategy,
              "omnizip/converter/seven_zip_to_zip_strategy"
     autoload :ConversionRegistry, "omnizip/converter/conversion_registry"
+    autoload :ExtractRepackStrategy,
+             "omnizip/converter/extract_repack_strategy"
 
     class << self
       # Convert archive from one format to another

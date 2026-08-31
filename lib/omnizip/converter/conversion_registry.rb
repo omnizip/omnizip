@@ -45,5 +45,6 @@ module Omnizip
     # Register built-in strategies
     ConversionRegistry.register(ZipToSevenZipStrategy)
     ConversionRegistry.register(SevenZipToZipStrategy)
+    ConversionRegistry.register(ExtractRepackStrategy)
   end
 end
