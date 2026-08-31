@@ -121,6 +121,22 @@ module Omnizip
             }
           end
 
+          # Add a name-only directory entry (empty trees survive
+          # archive creation instead of vanishing)
+          #
+          # @param archive_path [String] Directory path inside the
+          #   archive (trailing slash optional)
+          # @return [self]
+          def add_directory_entry(archive_path)
+            @files << {
+              input: nil,
+              archive: archive_path.chomp("/"),
+              mtime: Time.now,
+              directory: true,
+            }
+            self
+          end
+
           # Add directory recursively
           #
           # @param dir_path [String] Directory path
@@ -227,11 +243,18 @@ module Omnizip
           # @param files [Array<Hash>] Files to compress in solid mode
           # @return [void]
           def write_solid_block(io, files)
+            # Directory entries carry no data; write their headers
+            # separately so the solid stream indexes stay aligned
+            files.each do |file|
+              write_directory_file_entry(io, file) if file[:directory]
+            end
+            solid_files = files.reject { |f| f[:directory] }
+
             # Create solid manager
             manager = Solid::SolidManager.new(level: @options[:level])
 
             # Add all files to solid stream
-            files.each do |file|
+            solid_files.each do |file|
               data = File.binread(file[:input])
               manager.add_file(file[:archive], data, mtime: file[:mtime],
                                                      stat: file[:stat])
@@ -242,7 +265,7 @@ module Omnizip
 
             # Write each file header with references to the solid block
             # In RAR5, all files share the same compressed data
-            files.each_with_index do |file, idx|
+            solid_files.each_with_index do |file, idx|
               file_info = result[:files][idx]
 
               # Calculate CRC32 if needed (note: only for STORE in non-solid)
@@ -286,6 +309,8 @@ module Omnizip
           # @param io [IO] Output stream
           # @param file [Hash] File information
           def write_file_entry(io, file)
+            return write_directory_file_entry(io, file) if file[:directory]
+
             # Read file data
             data = File.binread(file[:input])
 
@@ -348,6 +373,24 @@ module Omnizip
 
             # Write data (compressed and encrypted if applicable)
             io.write(final_data)
+          end
+
+          # Write a directory entry: FileFlags directory bit, zero
+          # sizes, no data area
+          #
+          # @param io [IO] Output stream
+          # @param file [Hash] Entry with :archive name and :mtime
+          def write_directory_file_entry(io, file)
+            header = FileHeader.new(
+              filename: file[:archive],
+              file_size: 0,
+              compressed_size: 0,
+              compression_method: Compression::Store::METHOD,
+              dict_size: 0,
+              mtime: @options[:include_mtime] ? file[:mtime] : nil,
+              directory: true,
+            )
+            io.write(header.encode)
           end
 
           # Write End header

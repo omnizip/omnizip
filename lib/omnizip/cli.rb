@@ -355,6 +355,18 @@ module Omnizip
     rescue StandardError => e
       handle_error(e)
     end
+
+    desc "repair ARCHIVE OUTPUT", "Repair a damaged archive"
+    long_desc <<~DESC
+      Repair a damaged archive (currently RAR archives via recovery
+      records and .rev volumes). OUTPUT is the repaired archive path.
+    DESC
+    option :verbose, type: :boolean, default: false, aliases: "-v"
+    def repair(archive, output)
+      Omnizip::Commands::ArchiveRepairCommand.new(options).run(archive, output)
+    rescue StandardError => e
+      handle_error(e)
+    end
   end
 
   # Command-line interface for Omnizip.

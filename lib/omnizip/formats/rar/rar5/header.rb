@@ -106,8 +106,10 @@ header_data: "")
 
         # File header
         class FileHeader < Header
-          # File header flags
-          FILE_HAS_ATTRIBUTES = 0x0001
+          # File header flags. Per the RAR 5.0 spec, 0x0001 marks a
+          # directory entry (what this codebase once mislabeled as
+          # "has attributes" — attributes are an always-present field)
+          FILE_IS_DIRECTORY = 0x0001
           FILE_HAS_MTIME = 0x0002
           FILE_HAS_CRC32 = 0x0004
 
@@ -119,23 +121,27 @@ header_data: "")
 
           def initialize(filename:, file_size:, compressed_size:,
                          compression_method: 0, dict_size: 0,
-                         flags: 0, mtime: nil, crc32: nil, extra_area: nil)
+                         flags: 0, mtime: nil, crc32: nil,
+                         directory: false, extra_area: nil)
             # Build file flags based on what's provided
             file_flags = 0
+            file_flags |= FILE_IS_DIRECTORY if directory
             file_flags |= FILE_HAS_MTIME if mtime
             file_flags |= FILE_HAS_CRC32 if crc32
 
             # Build header data with file information
             data = build_file_data(filename, file_size,
                                    compression_method, dict_size,
-                                   file_flags, mtime, crc32)
+                                   file_flags, mtime, crc32,
+                                   directory: directory)
             super(HEADER_TYPE_FILE, flags: flags, data_area_size: compressed_size, header_data: data, extra_area: extra_area)
           end
 
           private
 
           def build_file_data(filename, file_size, compression_method,
-                              dict_size, file_flags, mtime, crc32)
+                              dict_size, file_flags, mtime, crc32,
+                              directory: false)
             data = []
 
             # File flags (VINT)
@@ -145,8 +151,9 @@ header_data: "")
             data.concat(VINT.encode(file_size))
 
             # Attributes (VINT) - ALWAYS present in RAR5.
-            # Unix host: standard regular-file mode 0o100644.
-            data.concat(VINT.encode(0o100644))
+            # Unix host: directory mode for directory entries,
+            # regular-file 0o100644 otherwise.
+            data.concat(VINT.encode(directory ? 0o040755 : 0o100644))
 
             # mtime (optional) - only if FILE_HAS_MTIME flag is set
             # RAR5 stores mtime as Unix timestamp (seconds since epoch)

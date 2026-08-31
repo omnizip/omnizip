@@ -3,6 +3,7 @@
 require "spec_helper"
 require "fileutils"
 require "tempfile"
+require "tmpdir"
 
 RSpec.describe Omnizip::Archive do
   let(:source) do
@@ -206,5 +207,47 @@ RSpec.describe Omnizip::Archive do
     path = File.join(outdir, "ret.zip")
     expect(described_class.create(path) { |a| a.add_data("x", "1") })
       .to eq(path)
+  end
+end
+
+RSpec.describe Omnizip::Archive, "RAR creation" do
+  it "creates .rar archives through the handler (unrar-verified STORE)" do
+    Dir.mktmpdir("omnizip_rar_facade") do |tmp|
+      src = File.join(tmp, "a.txt")
+      File.binwrite(src, "facade rar content " * 50)
+      archive = File.join(tmp, "a.rar")
+
+      Omnizip::Archive.create(archive, format: :rar) do |b|
+        b.add_file(src, "a.txt")
+        b.add_data("d.txt", "inline data")
+      end
+
+      Omnizip::Archive.open(archive) do |a|
+        expect(a.entries.map(&:name)).to contain_exactly("a.txt", "d.txt")
+        expect(a.read("d.txt")).to eq("inline data")
+      end
+
+      if system("which unrar > /dev/null 2>&1")
+        expect(system("unrar", "t", "-idq", archive,
+                      out: File::NULL, err: File::NULL)).to be(true)
+      end
+    end
+  end
+
+  it "preserves explicit empty directory entries" do
+    Dir.mktmpdir("omnizip_rar_facade_dir") do |tmp|
+      empty = File.join(tmp, "emptydir")
+      FileUtils.mkdir_p(empty)
+      archive = File.join(tmp, "d.rar")
+
+      Omnizip::Archive.create(archive, format: :rar) do |b|
+        b.add_directory(empty)
+      end
+
+      Omnizip::Archive.open(archive) do |a|
+        dir = a.entries.find { |e| e.name == "emptydir" }
+        expect(dir).to be_directory
+      end
+    end
   end
 end
