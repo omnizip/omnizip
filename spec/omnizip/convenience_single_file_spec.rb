@@ -253,4 +253,28 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       expect(File.binread(path, 2)).to eq("PK")
     end
   end
+
+  it "routes .rpm archives through the read-only handler" do
+    fixture = File.expand_path("fixtures/rpm/example-1.0-1.x86_64.rpm",
+                               __dir__)
+    skip "fixture missing" unless File.exist?(fixture)
+
+    entries = Omnizip.list_archive(fixture)
+    expect(entries).to be_an(Array)
+    expect(entries.first).to include("/")
+
+    expect do
+      Omnizip.compress_file(input.path, File.join(outdir, "x.rpm"))
+    end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+  end
+
+  it "routes .msi compound documents through the OLE handler" do
+    fixture = Dir.glob(File.expand_path("fixtures/lessmsi/MsiInput/*.msi",
+                                        __dir__)).first
+    skip "fixture missing" unless fixture
+
+    entries = Omnizip.list_archive(fixture)
+    expect(entries).to be_an(Array)
+    expect(entries).not_to be_empty
+  end
 end

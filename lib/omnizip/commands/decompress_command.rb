@@ -80,7 +80,7 @@ module Omnizip
         end
       end
 
-      ARCHIVE_EXTENSIONS = %w[.zip .7z .tar .rar .cpio .iso].freeze
+      ARCHIVE_EXTENSIONS = %w[.zip .7z .tar .rar .cpio .iso .rpm .xar .msi].freeze
 
       private
 

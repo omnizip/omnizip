@@ -37,6 +37,16 @@ module Omnizip
           }.merge(options)
           @collector = FileCollector.new
           @entries = []
+
+          # Preprocessing filters are decode-side only: the write
+          # path does not apply them, so say so instead of silently
+          # ignoring the option
+          filters = @options[:filters]
+          return unless filters && !filters.empty?
+
+          warn "omnizip: the 7z writer does not apply filters " \
+               "(#{Array(filters).join(', ')}); writing unfiltered data. " \
+               "Filters apply when reading archives that contain them."
         end
 
         def add_file(file_path, archive_path = nil)

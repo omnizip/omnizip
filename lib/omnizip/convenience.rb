@@ -236,7 +236,7 @@ module Omnizip
     # creation raises truthfully instead (the format-level writers
     # exist for CPIO/ISO but are not part of the archive API; RAR
     # moved to the writable routes when its handler gained create).
-    READ_ONLY_FORMAT_EXTENSIONS = [".iso", ".cpio"].freeze
+    READ_ONLY_FORMAT_EXTENSIONS = %w[.iso .cpio .rpm .xar .msi].freeze
 
     # Extensions whose format has a READ-ONLY handler: extraction and
     # listing route to it, while creation keeps raising.
@@ -244,6 +244,9 @@ module Omnizip
       ".rar" => :rar,
       ".cpio" => :cpio,
       ".iso" => :iso,
+      ".rpm" => :rpm,
+      ".xar" => :xar,
+      ".msi" => :ole,
     }.freeze
 
     # Extension -> single-file decompressor (stream interface).
