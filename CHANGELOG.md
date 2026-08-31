@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.50] - 2026-08-31
+
+### Added
+- The conversion matrix is closed: `Omnizip::Converter.convert` now
+  converts any routed source format (ZIP, 7z, TAR, RAR, cpio, ISO,
+  RPM, XAR, MSI) into any writable target format (ZIP, 7z, TAR,
+  RAR) through a new extract-and-repack strategy built on the
+  handler registry. The documented RAR→ZIP and TAR→7z pairs
+  previously had no strategy behind them — `Converter.supported?`
+  answered false for conversions the README promised. The direct
+  ZIP↔7z strategies keep precedence, so entry-copying conversions
+  don't take the repack detour.
+
 ## [0.3.49] - 2026-08-31
 
 ### Added
