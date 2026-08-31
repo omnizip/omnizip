@@ -228,13 +228,15 @@ module Omnizip
       ".zip" => :zip,
       ".tar" => :tar,
       ".7z" => :seven_zip,
+      ".rar" => :rar,
     }.freeze
 
     # Extensions naming formats with read-only convenience routing.
     # Writing them a ZIP under a foreign name was silent corruption;
     # creation raises truthfully instead (the format-level writers
-    # exist for RAR/CPIO/ISO but are not part of the archive API).
-    READ_ONLY_FORMAT_EXTENSIONS = [".rar", ".iso", ".cpio"].freeze
+    # exist for CPIO/ISO but are not part of the archive API; RAR
+    # moved to the writable routes when its handler gained create).
+    READ_ONLY_FORMAT_EXTENSIONS = [".iso", ".cpio"].freeze
 
     # Extensions whose format has a READ-ONLY handler: extraction and
     # listing route to it, while creation keeps raising.

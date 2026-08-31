@@ -125,7 +125,7 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       end.to raise_error(Omnizip::UnsupportedFormatError, /single-file/)
     end
 
-    it "reads .rar archives through the read-only handler" do
+    it "reads .rar archives through the handler" do
       fixture = File.expand_path("fixtures/rar/official/store_method.rar",
                                  __dir__)
 
@@ -140,9 +140,11 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       expect(File.binread(File.join(dest, "store.txt")))
         .to eq("STORE method test content\n")
 
-      expect do
-        Omnizip.compress_file(input.path, File.join(outdir, "w.rar"))
-      end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+      # .rar creation now routes to the RAR writer (unrar-verified
+      # STORE since the handler gained create)
+      written = File.join(outdir, "w.rar")
+      Omnizip.compress_file(input.path, written)
+      expect(Omnizip.list_archive(written)).to eq([File.basename(input.path)])
     end
 
     it "reads .cpio and .iso archives through read-only handlers" do
@@ -175,11 +177,17 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
     end
 
     it "raises truthfully for read-only format extensions" do
-      [".rar", ".iso", ".cpio"].each do |ext|
+      [".iso", ".cpio"].each do |ext|
         expect do
           Omnizip.compress_file(input.path, File.join(outdir, "out#{ext}"))
         end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
       end
+    end
+
+    it "creates .rar archives through the writable route" do
+      target = File.join(outdir, "out.rar")
+      Omnizip.compress_file(input.path, target)
+      expect(Omnizip.list_archive(target)).to eq([File.basename(input.path)])
     end
 
     it "compresses directories to .7z and .tar with nested paths" do

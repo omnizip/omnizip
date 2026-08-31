@@ -187,7 +187,7 @@ RSpec.describe Omnizip::Archive do
     end
   end
 
-  it "opens RAR archives read-only with real metadata" do
+  it "opens RAR archives with real metadata" do
     fixture = File.expand_path("fixtures/rar/official/normal_method.rar",
                                __dir__)
 
@@ -198,9 +198,9 @@ RSpec.describe Omnizip::Archive do
       expect(entry.directory?).to be false
     end
 
-    expect do
-      described_class.create(File.join(outdir, "x.rar")) { |a| a.add_data("x", "1") }
-    end.to raise_error(Omnizip::UnsupportedFormatError, /read-only/)
+    created = File.join(outdir, "x.rar")
+    described_class.create(created) { |a| a.add_data("x", "1") }
+    expect(described_class.open(created) { |a| a.read("x") }).to eq("1")
   end
 
   it "returns the archive path from create" do
