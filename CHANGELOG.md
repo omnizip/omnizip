@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.45] - 2026-08-31
+
+### Changed
+- The ZIP ArchiveHandler — the seam the facade, the convenience
+  layer, and the CLI all route through — now sits on the native
+  `Formats::Zip` tree instead of the rubyzip-compat
+  `Omnizip::Zip::File` layer (which remains for in-place entry
+  editing and Metadata, by design). The native reader gains
+  `#read_entry` (decompress + CRC-verify, shared with extraction)
+  and the central-directory entry model gains the `Omnizip::Entry`
+  contract plus DOS-time decoding.
+- CLI `archive list` and `archive extract` route through the
+  handler registry instead of hand-rolled format dispatch:
+  `archive list foo.tar` no longer falls into the 7z reader, zip
+  listing no longer opens the compat layer, and every handler's
+  `extract_to` returns the extracted file paths (7z/rar/tar
+  previously returned the reader or nil). Verbose listings show
+  real per-entry compressed sizes for the formats that track them.
+
+### Fixed
+- Parity hardening: a nil PAR2 index crashed five frames deep as a
+  `TypeError`; the repairer boundary now raises a named
+  `ArgumentError` and the spec fixture can no longer select a nil
+  index (the order-coupled CI flake from 0.3.44).
+
 ## [0.3.44] - 2026-08-31
 
 ### Fixed
