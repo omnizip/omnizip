@@ -68,6 +68,9 @@ module Omnizip
     # file, which then self-registers at the bottom of the file.
     LAZY_LOAD_TRIGGERS = {
       zip: -> { Omnizip::ArchiveHandlers::ZipHandler },
+      rpm: -> { Omnizip::ArchiveHandlers::RpmHandler },
+      xar: -> { Omnizip::ArchiveHandlers::XarHandler },
+      ole: -> { Omnizip::ArchiveHandlers::OleHandler },
       tar: -> { Omnizip::ArchiveHandlers::TarHandler },
       seven_zip: -> { Omnizip::ArchiveHandlers::SevenZipHandler },
       rar: -> { Omnizip::ArchiveHandlers::RarHandler },
