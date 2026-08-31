@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.47] - 2026-08-31
+
+### Fixed
+- `.rar` is a writable extension route: the RAR handler gained
+  create in 0.3.46, but the route table still classified `.rar` as
+  read-only — `Archive.create('a.rar')` without an explicit format
+  kept raising "cannot be written by the convenience API" while
+  `Archive.create(fmt: :rar)` worked. The route table matches the
+  handler now; `.cpio`/`.iso` stay read-only.
+
 ## [0.3.46] - 2026-08-31
 
 ### Added
