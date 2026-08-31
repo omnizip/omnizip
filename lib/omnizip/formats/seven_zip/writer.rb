@@ -75,7 +75,9 @@ module Omnizip
         # @return [self]
         def add_directory_entry(archive_path)
           entry = Models::FileEntry.new
-          entry.name = archive_path.chomp("/")
+          # Trailing slash is preserved: explicit directory entries
+          # carry it ("testdir/"), matching the collector's tree walk
+          entry.name = archive_path
           entry.source_path = nil
           entry.size = 0
           entry.is_dir = true

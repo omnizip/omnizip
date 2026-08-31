@@ -123,7 +123,11 @@ module Omnizip
             @entry = entry
             @reader = reader
             @tmp = tmp
-            @name = entry.is_dir ? "#{entry.name}/" : entry.name
+            @name = if entry.is_dir
+                      entry.name.end_with?("/") ? entry.name : "#{entry.name}/"
+                    else
+                      entry.name
+                    end
             @size = entry.size
           end
 
