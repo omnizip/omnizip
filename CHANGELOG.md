@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.48] - 2026-08-31
+
+### Changed
+- `omnizip archive create` routes through the Archive facade: the
+  command's two hand-munged format branches collapse into one
+  `Archive.create` call — the handler registry picks each format's
+  writer and applies its option semantics, and the command only
+  translates CLI vocabulary (414 -> 290 lines). Verified for 7z
+  (7zz byte-identical), RAR5, RAR4, volume splitting, and verbose
+  output.
+
+### Fixed
+- The 7z handler proxy dropped the Builder's explicit directory
+  entries (derive-from-paths no-op), so CLI-created archives lost
+  the `dir/` entries the previous writer path emitted. The proxy
+  maps name-only adds to `add_directory_entry`, which preserves the
+  trailing slash; the Buffer read proxy no longer double-slashes
+  such names.
+- The facade denied RAR passwords (`PASSWORD_FORMATS` listed 7z
+  only) while the RAR5 writer produces unrar-decryptable encrypted
+  archives — `:rar` added (verified with `unrar -p`).
+- RAR4 recovery guard crashed on explicit boolean options:
+  `false&.to_i` still calls `to_i` (safe navigation guards nil
+  only) — Numeric check now.
+- RAR interop specs gate on the unrar command (through its resolved
+  path), not the gem wrapper: CI runners can carry the gem without
+  the binary on PATH.
+
 ## [0.3.47] - 2026-08-31
 
 ### Fixed
