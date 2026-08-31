@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.49] - 2026-08-31
+
+### Added
+- Read routes for `.rpm`, `.xar`, and `.msi`: the formats had
+  verified readers but no handler and no extension route, so
+  `list_archive('pkg.rpm')` silently fell through to the ZIP
+  reader. Three read-only handlers register them (extraction,
+  listing, entry reading; creation raises truthfully). `.msi`
+  streams are listed exactly as stored — MSI table-stream names
+  are mangled in an MSI-domain encoding the handler does not guess
+  at. The CLI `decompress` command learns the new extensions
+  (`.rpm` previously fell into the single-file LZMA path and failed
+  with `Invalid pb`).
+
+### Fixed
+- The 7z writer silently ignored its documented `filters:` option
+  (preprocessing filters are decode-side only); it now warns that
+  it writes unfiltered data instead of pretending.
+
 ## [0.3.48] - 2026-08-31
 
 ### Changed
