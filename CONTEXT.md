@@ -16,8 +16,9 @@ here.
 - **Extension route** — mapping from a file extension to a format
   symbol. Writable routes (`ARCHIVE_FORMAT_EXTENSIONS`) may create
   archives; read routes (`READ_ARCHIVE_FORMAT_EXTENSIONS`) only
-  extract/list/read. `.rar`, `.cpio`, `.iso` are read-only routes;
-  creating them raises truthfully.
+  extract/list/read. `.rar` is a writable route (its handler
+  creates unrar-verified STORE archives); `.cpio`, `.iso` remain
+  read-only routes.
 
 ## Reading and decode
 
