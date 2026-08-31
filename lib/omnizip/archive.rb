@@ -36,7 +36,7 @@ module Omnizip
       end
     end
 
-    PASSWORD_FORMATS = [:seven_zip].freeze
+    PASSWORD_FORMATS = %i[seven_zip rar].freeze
     private_constant :PASSWORD_FORMATS
 
     class << self
