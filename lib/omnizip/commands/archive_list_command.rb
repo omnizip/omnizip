@@ -61,7 +61,7 @@ module Omnizip
         # Route through the handler seam: every format's reader is
         # chosen by the extension routes, not by hand-rolled branches
         entries = Omnizip.list_archive(archive_file, details: true)
-                        .map { |h| EntryAdapter.new(h) }
+          .map { |h| EntryAdapter.new(h) }
 
         entries = filter_entries(entries, patterns, excludes) if patterns || excludes
 
@@ -206,13 +206,15 @@ module Omnizip
 
       # Presents handler list-detail hashes under the Omnizip::Entry
       # contract the display helpers already use
-      EntryAdapter = Struct.new(:hash) do
-        def entry_name = hash[:name]
-        def entry_directory? = hash[:directory]
-        def entry_size = hash[:size]
-        def entry_mtime = hash[:mtime] || hash[:time]
-        def compressed_size = hash[:compressed_size]
-        def has_stream? = !hash[:directory] && hash[:size].to_i.positive?
+      # :fields, not :hash — Struct members must not override
+      # Struct#hash
+      EntryAdapter = Struct.new(:fields) do
+        def entry_name = fields[:name]
+        def entry_directory? = fields[:directory]
+        def entry_size = fields[:size]
+        def entry_mtime = fields[:mtime] || fields[:time]
+        def compressed_size = fields[:compressed_size]
+        def has_stream? = !fields[:directory] && fields[:size].to_i.positive?
       end
     end
   end
