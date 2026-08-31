@@ -93,6 +93,21 @@ module Omnizip
           warn_unimplemented_options
         end
 
+        # Add a name-only directory entry (empty trees survive
+        # archive creation instead of vanishing)
+        #
+        # @param archive_path [String] Directory path inside the
+        #   archive (trailing slash optional)
+        # @return [self]
+        def add_directory_entry(archive_path)
+          @files << {
+            source: nil,
+            archive_path: archive_path.chomp("/"),
+            directory: true,
+          }
+          self
+        end
+
         # Add file to archive
         #
         # @param file_path [String] Path to file
@@ -241,10 +256,17 @@ module Omnizip
             (directory ? METHOD_STORE : select_compression_method(file_data))
           compressed_data = compress_data(file_data, method)
 
-          stat = File.stat(file_path)
-          file_attr = directory ? 0o040755 : stat.mode
-          file_time = dos_time(stat.mtime)
-          data_crc = Zlib.crc32(file_data)
+          if directory && file_path.nil?
+            # Name-only directory entry: no source to stat
+            file_attr = 0o040755
+            file_time = dos_time(Time.now)
+            data_crc = 0
+          else
+            stat = File.stat(file_path)
+            file_attr = directory ? 0o040755 : stat.mode
+            file_time = dos_time(stat.mtime)
+            data_crc = Zlib.crc32(file_data)
+          end
 
           name_bytes = archive_path.encode("UTF-8").bytes
 

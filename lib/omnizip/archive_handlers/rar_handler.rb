@@ -1,19 +1,23 @@
 # frozen_string_literal: true
 
 require "tmpdir"
+require "tempfile"
 
 module Omnizip
   module ArchiveHandlers
-    # Read-only adapter for the RAR format. RAR compression is
-    # patented software (see link:README[RAR write support]); this
-    # handler exposes extraction/listing/reading only, so the
-    # convenience API and the Archive facade can operate on existing
-    # archives truthfully instead of raising on every operation.
+    # Adapter for the RAR format: extraction/listing/reading, plus
+    # creation through Formats::Rar (RAR5 STORE is unrar-verified;
+    # compressed methods fall back to STORE with a warning — see the
+    # README interop table).
     class RarHandler
-      def create(_path, **_options)
-        raise Omnizip::UnsupportedFormatError,
-              "RAR archives cannot be created (patented format); " \
-              "Omnizip reads RAR archives only"
+      def create(path, **options, &block)
+        proxy = nil
+        result = Omnizip::Formats::Rar.create(path, options) do |writer|
+          proxy = WriterProxy.new(writer)
+          block&.call(proxy)
+        end
+        proxy&.cleanup
+        result
       end
 
       def extract_to(path, output_dir, password: nil, **_)
@@ -45,6 +49,44 @@ module Omnizip
             path, entry_name, dest, password: password
           )
           File.binread(dest)
+        end
+      end
+
+      # Translates the generic +add(name, source_path)+ /
+      # +add_data(name, data)+ / +add_directory(name)+ interface onto
+      # the RAR writers. The writers take file paths, so in-memory
+      # content spills to a temporary file.
+      class WriterProxy
+        def initialize(writer)
+          @writer = writer
+          @spill = []
+        end
+
+        def add(name, source_path = nil)
+          if source_path
+            @writer.add_file(source_path, name)
+          else
+            @writer.add_directory_entry(name)
+          end
+        end
+
+        def add_data(name, data)
+          file = Tempfile.new(["omnizip_rar_entry", File.extname(name)])
+          file.binmode
+          file.write(data)
+          file.close
+          @spill << file
+          @writer.add_file(file.path, name)
+        end
+
+        def add_directory(name)
+          @writer.add_directory_entry(name)
+        end
+
+        # Remove the temporary files add_data spilled
+        def cleanup
+          @spill.each(&:unlink)
+          @spill.clear
         end
       end
     end

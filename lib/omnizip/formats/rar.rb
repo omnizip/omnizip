@@ -174,8 +174,8 @@ module Omnizip
         # @param archive_path [String] Path to corrupted RAR archive
         # @param output_path [String] Path for repaired archive
         # @return [ArchiveRepairer::RepairResult] Repair result
-        def repair(archive_path, output_path)
-          ArchiveRepairer.new.repair(archive_path, output_path)
+        def repair(archive_path, output_path, options = {})
+          ArchiveRepairer.new.repair(archive_path, output_path, options)
         end
 
         private
