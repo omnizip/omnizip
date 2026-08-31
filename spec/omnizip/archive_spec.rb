@@ -231,11 +231,14 @@ RSpec.describe Omnizip::Archive, "RAR creation" do
 
       # Gate on the command, not Decompressor.available?: runners can
       # carry the unrar gem without the binary on PATH
-      if Omnizip::Formats::Rar::Decompressor.command_available?
+      unrar = Omnizip::Formats::Rar::Decompressor.command_path
+      if unrar
         Omnizip::Archive.open(archive) do |a|
           expect(a.read("d.txt")).to eq("inline data")
         end
-        expect(system("unrar", "t", "-idq", archive,
+        # Invoke through the resolved path: the binary may live in
+        # Program Files rather than on PATH (Windows runners)
+        expect(system(unrar, "t", "-idq", archive,
                       out: File::NULL, err: File::NULL)).to be(true)
       end
     end
