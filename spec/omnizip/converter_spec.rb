@@ -75,7 +75,7 @@ RSpec.describe Omnizip::Converter do
     end
 
     it "returns false for unsupported conversions" do
-      expect(described_class.supported?("file.rar", "output.zip")).to be false
+      expect(described_class.supported?("file.rar", "output.iso")).to be false
     end
   end
 
@@ -213,13 +213,13 @@ RSpec.describe Omnizip::Converter do
     end
 
     it "returns nil for unsupported conversion" do
-      strategy = described_class.find_strategy("test.rar", "test.zip")
+      strategy = described_class.find_strategy("test.rar", "test.iso")
       expect(strategy).to be_nil
     end
 
     it "checks if conversion is supported" do
       expect(described_class.supported?("test.zip", "test.7z")).to be true
-      expect(described_class.supported?("test.rar", "test.zip")).to be false
+      expect(described_class.supported?("test.rar", "test.iso")).to be false
     end
   end
 
@@ -250,6 +250,37 @@ RSpec.describe Omnizip::Converter do
     it "checks if can convert" do
       expect(described_class.can_convert?("test.7z", "test.zip")).to be true
       expect(described_class.can_convert?("test.zip", "test.7z")).to be false
+    end
+  end
+
+  describe "extract-repack fallback" do
+    it "converts tar to zip through the handler registry" do
+      Dir.mktmpdir("omnizip_conv_spec") do |tmp|
+        src = File.join(tmp, "in.txt")
+        File.binwrite(src, "fallback conversion " * 50)
+        tar = File.join(tmp, "a.tar")
+        `tar -cf #{tar} -C #{tmp} in.txt`
+
+        target = File.join(tmp, "a.zip")
+        described_class.convert(tar, target)
+
+        files = Omnizip::Buffer.extract_to_memory(File.binread(target))
+        expect(files["in.txt"]).to eq(File.binread(src))
+      end
+    end
+
+    it "converts any routed source to any writable target" do
+      expect(described_class.supported?("a.rar", "b.tar")).to be true
+      expect(described_class.supported?("a.rpm", "b.7z")).to be true
+      expect(described_class.supported?("a.zip", "b.rar")).to be true
+      expect(described_class.supported?("a.zip", "b.iso")).to be false
+    end
+
+    it "keeps the direct strategies' precedence" do
+      strategy = Omnizip::Converter::ConversionRegistry.find_strategy(
+        "a.7z", "b.zip"
+      )
+      expect(strategy).to eq(Omnizip::Converter::SevenZipToZipStrategy)
     end
   end
 end
