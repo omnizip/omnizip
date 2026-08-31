@@ -21,7 +21,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads STORE method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "store_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -48,7 +48,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads FASTEST method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "fastest_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -74,7 +74,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads NORMAL method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "normal_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -100,7 +100,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads BEST (PPMd) method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.available?
+      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "best_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
