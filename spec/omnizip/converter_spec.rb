@@ -259,7 +259,9 @@ RSpec.describe Omnizip::Converter do
         src = File.join(tmp, "in.txt")
         File.binwrite(src, "fallback conversion " * 50)
         tar = File.join(tmp, "a.tar")
-        `tar -cf #{tar} -C #{tmp} in.txt`
+        Omnizip::Archive.create(tar, format: :tar) do |b|
+          b.add_file(src, "in.txt")
+        end
 
         target = File.join(tmp, "a.zip")
         described_class.convert(tar, target)
