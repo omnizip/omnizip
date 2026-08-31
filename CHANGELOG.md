@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.46] - 2026-08-31
+
+### Added
+- The Archive facade and convenience layer create `.rar` archives:
+  the RAR ArchiveHandler raised "RAR archives cannot be created
+  (patented format)" while `Formats::Rar.create` has written
+  unrar-verified STORE archives since 0.3.39 and the CLI create
+  command worked — three front doors, three different truths. The
+  handler now delegates through the same proxy pattern as the 7z
+  and zip handlers.
+- Explicit directory entries for both RAR writers
+  (`add_directory_entry`): the Builder's `add_directory` output —
+  and empty trees — no longer vanish from RAR archives. RAR4
+  reuses its unrar-verified 0xE0-mask path; RAR5 writes
+  FileFlags-directory-bit headers with Unix directory attributes
+  (the constant previously mislabeled 0x0001 as "has attributes" —
+  it is the spec's Directory flag), and the solid path writes
+  directory headers separately so stream indexes stay aligned.
+- `omnizip archive repair ARCHIVE OUTPUT` registered (the command
+  existed but was wired to nothing; like `verify`, its
+  `Formats::Rar.repair` call passed options the module method never
+  accepted — fixed and forwarded).
+
+### Fixed
+- `Formats::Rar.repair` accepts the options hash the repair command
+  has always passed (arity crash on first contact).
+
 ## [0.3.45] - 2026-08-31
 
 ### Changed
