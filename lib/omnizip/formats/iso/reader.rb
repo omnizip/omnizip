@@ -67,7 +67,7 @@ module Omnizip
         # @param output_path [String] Destination path
         def extract_entry(entry_path, output_path)
           entry = find_entry(entry_path)
-          raise "Entry not found: #{entry_path}" unless entry
+          raise Errno::ENOENT, "Entry not found: #{entry_path}" unless entry
 
           if entry.directory?
             FileUtils.mkdir_p(output_path)
@@ -111,7 +111,7 @@ module Omnizip
           loop do
             @io.seek(sector * Iso::SECTOR_SIZE)
             data = @io.read(Iso::SECTOR_SIZE)
-            raise "Failed to read volume descriptor" unless data
+            raise Omnizip::InvalidArchiveError, "Failed to read volume descriptor" unless data
 
             vd = VolumeDescriptor.parse(data)
 
@@ -127,7 +127,7 @@ module Omnizip
 
           return if @primary_volume_descriptor
 
-          raise "No primary volume descriptor found"
+          raise Omnizip::InvalidArchiveError, "No primary volume descriptor found"
         end
 
         # Parse directory structure

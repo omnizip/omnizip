@@ -95,30 +95,23 @@ module Omnizip
                 "Input archive not found: #{input}"
         end
 
-        writer = Writer.new(output, chunk_size: chunk_size)
+        reader = Omnizip::Formats::Zip::Reader.new(input)
+        entry = reader.entries.first
+        raise Omnizip::Error, "No entries to decompress in #{input}" unless entry
+
+        total_size = entry.uncompressed_size.to_i
         processed = 0
+        writer = Writer.new(output, chunk_size: chunk_size)
 
-        Omnizip::Zip::File.open(input) do |zip|
-          entry = zip.entries.first
-          total_size = entry.size
+        # Streams entry-by-entry in bounded memory — the whole entry
+        # is never held at once
+        reader.read_entry_stream(entry.filename, chunk_size: chunk_size) do |chunk|
+          writer.write_chunk(chunk)
+          processed += chunk.bytesize
 
-          # Read the full entry content
-          content = zip.get_input_stream(entry)
-
-          # Write in chunks
-          offset = 0
-          while offset < content.bytesize
-            chunk = content.byteslice(offset, chunk_size) || ""
-            break if chunk.empty?
-
-            writer.write_chunk(chunk)
-            processed += chunk.bytesize
-            offset += chunk.bytesize
-
-            if progress
-              percentage = (processed.to_f / total_size * 100).round(2)
-              progress.call(processed, total_size, percentage)
-            end
+          if progress
+            percentage = (processed.to_f / total_size * 100).round(2)
+            progress.call(processed, total_size, percentage)
           end
         end
 

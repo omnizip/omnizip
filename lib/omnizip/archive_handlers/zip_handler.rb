@@ -38,7 +38,7 @@ module Omnizip
           extracted = []
           reader.entries.each do |entry|
             dest_path = ::File.join(output_dir, entry.filename)
-            raise "File exists: #{dest_path}" if ::File.exist?(dest_path)
+            raise Errno::EEXIST, "File exists: #{dest_path}" if ::File.exist?(dest_path)
 
             reader.extract_entry(entry, output_dir)
             extracted << dest_path

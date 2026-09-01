@@ -230,26 +230,6 @@ module Omnizip
               # Decode as 8 direct bits
               @range_decoder.decode_direct_bits(8)
             end
-
-            # Decode RAR-specific escape code
-            #
-            # RAR variant H uses different escape code values
-            # and handling compared to standard PPMd7.
-            #
-            # Escape codes in RAR:
-            # - 0: New symbol follows
-            # - 1: Same as last symbol (run-length)
-            # - 2-255: Reserved for future use
-            #
-            # @return [Integer, nil] Escape code or nil
-            def decode_escape_code
-              # RAR escape codes differ from PPMd7
-              # This is a placeholder for the proper implementation
-
-              # For now, return 0 (new symbol follows)
-              # Real implementation would decode from range coder
-              0
-            end
           end
         end
       end

@@ -64,7 +64,7 @@ module Omnizip
         def extract_entry(entry_name, output_path, password: nil)
           ensure_open
           entry = @entries.find { |e| e.name == entry_name }
-          raise "Entry not found: #{entry_name}" unless entry
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
 
           # Create directory if needed
           FileUtils.mkdir_p(File.dirname(output_path))
@@ -150,7 +150,7 @@ module Omnizip
         def parse_archive(io)
           # Read and validate header
           @header = Header.read(io)
-          raise "Invalid RAR archive" unless @header.valid?
+          raise Omnizip::InvalidArchiveError, "Invalid RAR archive" unless @header.valid?
 
           # Update archive info
           @archive_info.version = @header.version

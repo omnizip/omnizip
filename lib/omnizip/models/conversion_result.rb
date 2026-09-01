@@ -1,84 +1,111 @@
 # frozen_string_literal: true
 
+require "lutaml/model"
+
 module Omnizip
   module Models
-    # Model for format conversion results
-    class ConversionResult
-      attr_reader :source_path, :target_path, :source_format, :target_format,
-                  :source_size, :target_size, :duration, :entry_count,
-                  :compression_ratio, :warnings
+    # Model for format conversion results.
+    #
+    # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
+    # The percentage/speed keys serialize the derived methods; the
+    # attribute names differ from the keys so the framework's
+    # generated readers do not shadow the methods.
+    class ConversionResult < Lutaml::Model::Serializable
+      attribute :source_path, :string
+      attribute :target_path, :string
+      attribute :source_format, :symbol
+      attribute :target_format, :symbol
+      attribute :source_size, :integer
+      attribute :target_size, :integer
+      attribute :duration, :double
+      attribute :entry_count, :integer
+      attribute :warnings, :string, collection: true, default: []
 
-      # Initialize conversion result
-      # @param source_path [String] Source file path
-      # @param target_path [String] Target file path
-      # @param source_format [Symbol] Source format
-      # @param target_format [Symbol] Target format
-      # @param source_size [Integer] Source file size in bytes
-      # @param target_size [Integer] Target file size in bytes
-      # @param duration [Float] Conversion duration in seconds
-      # @param entry_count [Integer] Number of entries converted
-      # @param warnings [Array<String>] Conversion warnings
-      def initialize(
-        source_path:,
-        target_path:,
-        source_format:,
-        target_format:,
-        source_size:,
-        target_size:,
-        duration:,
-        entry_count:,
-        warnings: []
-      )
-        @source_path = source_path
-        @target_path = target_path
-        @source_format = source_format
-        @target_format = target_format
-        @source_size = source_size
-        @target_size = target_size
-        @duration = duration
-        @entry_count = entry_count
-        @warnings = warnings
-        @compression_ratio = calculate_compression_ratio
+      attribute :ratio, :double, method: :compression_ratio_value
+      attribute :reduction_pct, :double, method: :size_reduction
+      attribute :ratio_pct, :double, method: :size_ratio
+      attribute :speed, :double, method: :processing_speed
+
+      key_value do
+        map "source_path", to: :source_path,
+                           render_default: true, render_nil: true
+        map "target_path", to: :target_path,
+                           render_default: true, render_nil: true
+        map "source_format", to: :source_format,
+                             render_default: true, render_nil: true
+        map "target_format", to: :target_format,
+                             render_default: true, render_nil: true
+        map "source_size", to: :source_size,
+                           render_default: true, render_nil: true
+        map "target_size", to: :target_size,
+                           render_default: true, render_nil: true
+        map "size_reduction", to: :reduction_pct,
+                              render_default: true, render_nil: true
+        map "size_ratio", to: :ratio_pct,
+                          render_default: true, render_nil: true
+        map "duration", to: :duration,
+                        render_default: true, render_nil: true
+        map "entry_count", to: :entry_count,
+                           render_default: true, render_nil: true
+        map "processing_speed", to: :speed,
+                                render_default: true, render_nil: true
+        map "warnings", to: :warnings,
+                        render_default: true, render_nil: true
+        map "compression_ratio", to: :ratio,
+                                 render_default: true, render_nil: true
+      end
+
+      # lutaml-model 0.8.x does not render empty-string/empty-collection
+      # defaults, so they are assigned explicitly to keep every key
+      # present in the serialized shape.
+      def initialize(attrs = {})
+        super({ warnings: [] }.merge(attrs))
       end
 
       # Get size reduction percentage
+      #
       # @return [Float] Size reduction as percentage
       def size_reduction
-        return 0.0 if source_size.zero?
+        return 0.0 if source_size.to_i.zero?
 
         ((source_size - target_size).to_f / source_size * 100).round(2)
       end
 
       # Get size ratio
+      #
       # @return [Float] Target size as percentage of source size
       def size_ratio
-        return 0.0 if source_size.zero?
+        return 0.0 if source_size.to_i.zero?
 
         (target_size.to_f / source_size * 100).round(2)
       end
 
       # Check if conversion resulted in smaller file
+      #
       # @return [Boolean] True if target is smaller
       def smaller?
         target_size < source_size
       end
 
       # Check if conversion resulted in larger file
+      #
       # @return [Boolean] True if target is larger
       def larger?
         target_size > source_size
       end
 
       # Check if there were warnings
+      #
       # @return [Boolean] True if warnings exist
       def warnings?
         !warnings.empty?
       end
 
       # Get average processing speed
+      #
       # @return [Float] MB/s processing speed
       def processing_speed
-        return 0.0 if duration.zero? || source_size.zero?
+        return 0.0 if duration.to_f.zero? || source_size.to_i.zero?
 
         speed = source_size / duration / 1_048_576.0
         rounded = speed.round(2)
@@ -86,26 +113,17 @@ module Omnizip
         rounded.zero? && speed.positive? ? speed : rounded
       end
 
-      # Convert to hash
-      # @return [Hash] Result as hash
-      def to_h
-        {
-          source_path: source_path,
-          target_path: target_path,
-          source_format: source_format,
-          target_format: target_format,
-          source_size: source_size,
-          target_size: target_size,
-          size_reduction: size_reduction,
-          size_ratio: size_ratio,
-          duration: duration,
-          entry_count: entry_count,
-          processing_speed: processing_speed,
-          warnings: warnings,
-        }
+      # Compression ratio (0.0-1.0 fraction saved by compression)
+      #
+      # @return [Float]
+      def compression_ratio_value
+        return 0.0 if source_size.to_i.zero?
+
+        (1.0 - (target_size.to_f / source_size)).round(4)
       end
 
       # Format as human-readable string
+      #
       # @return [String] Formatted result
       def to_s
         "Converted #{source_path} (#{format_size(source_size)}) to " \
@@ -114,12 +132,6 @@ module Omnizip
       end
 
       private
-
-      def calculate_compression_ratio
-        return 0.0 if source_size.zero?
-
-        (1.0 - (target_size.to_f / source_size)).round(4)
-      end
 
       def format_size(bytes)
         Omnizip::CliOutputFormatter.format_size(bytes)

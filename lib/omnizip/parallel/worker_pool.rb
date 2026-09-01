@@ -93,7 +93,7 @@ module Omnizip
       # @param work [Fractor::Work] work item to process
       # @return [void]
       def submit(work)
-        raise "Worker pool not started" unless @running
+        raise Omnizip::IOError, "Worker pool not started" unless @running
 
         if @continuous
           # In continuous mode, add to work queue
@@ -116,8 +116,8 @@ module Omnizip
       #
       # @return [void]
       def run
-        raise "Can only run in batch mode" if @continuous
-        raise "Worker pool not started" unless @running
+        raise Omnizip::IOError, "Can only run in batch mode" if @continuous
+        raise Omnizip::IOError, "Worker pool not started" unless @running
 
         @supervisor.run
 

@@ -402,7 +402,7 @@ module Omnizip
         ::File.open(@name, "rb") do |io|
           # Find the entry in reader
           reader_entry = @reader.entries.find { |e| e.filename == entry.name }
-          raise "Entry not found in archive: #{entry.name}" unless reader_entry
+          raise Errno::ENOENT, "Entry not found in archive: #{entry.name}" unless reader_entry
 
           # Extract just the data
           io.seek(reader_entry.local_header_offset, ::IO::SEEK_SET)

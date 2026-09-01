@@ -61,7 +61,7 @@ module Omnizip
           # @param password [String, nil] Optional password
           # @raise [RuntimeError] if extraction fails
           def extract(archive_path, output_dir, password: nil)
-            raise "RAR extraction not available" unless available?
+            raise Omnizip::RarNotAvailableError, "RAR extraction not available" unless available?
 
             if gem_available?
               extract_with_gem(archive_path, output_dir, password)
@@ -78,7 +78,7 @@ module Omnizip
           # @return [Array<Hash>] Entry information
           # @raise [RuntimeError] if listing fails
           def list(archive_path)
-            raise "RAR extraction not available" unless available?
+            raise Omnizip::RarNotAvailableError, "RAR extraction not available" unless available?
 
             if gem_available?
               list_with_gem(archive_path)
@@ -97,7 +97,7 @@ module Omnizip
           # @param password [String, nil] Optional password
           def extract_entry(archive_path, entry_name, output_path,
                             password: nil)
-            raise "RAR extraction not available" unless available?
+            raise Omnizip::RarNotAvailableError, "RAR extraction not available" unless available?
 
             if gem_available?
               extract_entry_with_gem(archive_path, entry_name,
@@ -185,7 +185,7 @@ module Omnizip
             require "unrar"
             Unrar.extract(archive_path, output_dir, password: password)
           rescue StandardError => e
-            raise "Gem extraction failed: #{e.message}"
+            raise Omnizip::DecompressionError, "Gem extraction failed: #{e.message}"
           end
 
           # Extract with system command
@@ -193,7 +193,7 @@ module Omnizip
             cmd = build_extract_command(archive_path, output_dir, password)
             return if system(*cmd)
 
-            raise "Command extraction failed: #{archive_path}"
+            raise Omnizip::DecompressionError, "Command extraction failed: #{archive_path}"
           end
 
           # List with unrar gem
@@ -210,13 +210,13 @@ module Omnizip
               }
             end
           rescue StandardError => e
-            raise "Gem listing failed: #{e.message}"
+            raise Omnizip::DecompressionError, "Gem listing failed: #{e.message}"
           end
 
           # List with system command
           def list_with_command(archive_path)
             output = `"#{command_path}" vb "#{archive_path}" 2>&1`
-            raise "Command listing failed" unless $CHILD_STATUS.success?
+            raise Omnizip::DecompressionError, "Command listing failed" unless $CHILD_STATUS.success?
 
             output.split("\n").map do |line|
               { name: line.strip, size: 0, compressed_size: 0,

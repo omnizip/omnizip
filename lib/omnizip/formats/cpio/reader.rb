@@ -64,7 +64,7 @@ module Omnizip
         # @raise [RuntimeError] if entry not found
         def extract_entry(entry_name, output_path)
           entry = @entries.find { |e| e.name == entry_name }
-          raise "Entry not found: #{entry_name}" unless entry
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
 
           extract_single_entry(entry, output_path)
         end

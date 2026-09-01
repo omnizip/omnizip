@@ -59,12 +59,19 @@ RSpec.describe Omnizip::Models::FilterConfig do
     end
   end
 
-  describe "#to_h" do
-    it "converts to hash" do
-      hash = config.to_h
-      expect(hash[:name]).to eq(:bcj_x86)
-      expect(hash[:architecture]).to eq(:x86)
-      expect(hash[:properties]).to eq("".b)
+  describe "#to_hash" do
+    it "serializes name, architecture, and properties" do
+      config.properties = "\x01\x02".b
+      hash = config.to_hash
+      expect(hash["name"]).to eq(:bcj_x86)
+      expect(hash["architecture"]).to eq(:x86)
+      expect(hash["properties"]).to eq("\x01\x02".b)
+    end
+
+    it "defaults properties to an empty binary string" do
+      # lutaml-model 0.8.x omits empty-string values from to_hash;
+      # the default lives on the reader.
+      expect(config.properties).to eq("".b)
     end
   end
 

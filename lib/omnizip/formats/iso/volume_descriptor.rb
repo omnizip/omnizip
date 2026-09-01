@@ -29,7 +29,7 @@ module Omnizip
         #
         # @param data [String] Binary data
         def parse(data)
-          raise "Invalid volume descriptor size" unless data.bytesize >= 2048
+          raise Omnizip::InvalidArchiveError, "Invalid volume descriptor size" unless data.bytesize >= 2048
 
           # Byte 0: Volume descriptor type
           @type = data.getbyte(0)
@@ -37,7 +37,7 @@ module Omnizip
           # Bytes 1-5: Standard identifier "CD001"
           @identifier = data[1, 5]
           unless @identifier == ISO_IDENTIFIER
-            raise "Invalid ISO identifier: expected #{ISO_IDENTIFIER}, got #{@identifier}"
+            raise Omnizip::InvalidArchiveError, "Invalid ISO identifier: expected #{ISO_IDENTIFIER}, got #{@identifier}"
           end
 
           # Byte 6: Version (should be 1)

@@ -151,19 +151,94 @@ dereference_links: false)
           read_entry_data(entry)
         end
 
+        # Stream a single entry's decompressed content in +chunk_size+
+        # chunks, yielding each. STORE copies raw bytes and DEFLATE
+        # feeds an incremental inflater, so memory stays bounded by
+        # the chunk size; methods without an incremental decoder fall
+        # back to the whole-entry read (yielded as one chunk). The
+        # streamed path verifies the entry CRC after the last chunk.
+        #
+        # @param entry_name [String] Name of the entry to stream
+        # @param chunk_size [Integer] Read granularity in bytes
+        # @yield [chunk] Decompressed chunk
+        # @return [void]
+        def read_entry_stream(entry_name, chunk_size: 64 * 1024, &block)
+          ensure_read
+          entry = @entries.find { |e| e.filename == entry_name }
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
+          return if entry.directory? || entry.symlink?
+
+          crc = Omnizip::Checksums::Crc32.new
+          streamed =
+            File.open(file_path, "rb") do |io|
+              io.seek(entry_data_offset(io, entry), ::IO::SEEK_SET)
+
+              # Bound reads by the entry payload — what follows it in
+              # the file is the central directory, not entry data
+              remaining = entry.compressed_size
+
+              case entry.compression_method
+              when COMPRESSION_STORE
+                stream_raw(io, chunk_size, crc, remaining, &block)
+              when COMPRESSION_DEFLATE
+                stream_deflate(io, chunk_size, crc, remaining, &block)
+              else
+                yield(read_entry_data(entry))
+                false
+              end
+            end
+
+          return unless streamed
+
+          if crc.finalize != entry.crc32
+            raise Omnizip::ChecksumError,
+                  "CRC mismatch for #{entry.filename}"
+          end
+        end
+
         private
+
+        def stream_raw(io, chunk_size, crc, remaining)
+          while remaining.positive? &&
+              (chunk = io.read([chunk_size, remaining].min))
+            break if chunk.empty?
+
+            remaining -= chunk.bytesize
+            crc.update(chunk)
+            yield chunk
+          end
+          true
+        end
+
+        def stream_deflate(io, chunk_size, crc, remaining, &block)
+          require "zlib"
+          inflater = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+          begin
+            while remaining.positive? &&
+                (chunk = io.read([chunk_size, remaining].min))
+              break if chunk.empty?
+
+              remaining -= chunk.bytesize
+              emit_inflated(inflater.inflate(chunk), crc, &block)
+            end
+            emit_inflated(inflater.finish, crc, &block)
+          ensure
+            inflater.close
+          end
+          true
+        end
+
+        def emit_inflated(out, crc)
+          return if out.nil? || out.empty?
+
+          crc.update(out)
+          yield out
+        end
 
         # Decompress and CRC-verify a single entry's data
         def read_entry_data(entry)
           File.open(file_path, "rb") do |io|
-            io.seek(entry.local_header_offset, ::IO::SEEK_SET)
-
-            fixed_header = io.read(30)
-            _signature, _version, _flags, _method, _time, _date, _crc32,
-            _comp_size, _uncomp_size, filename_length, extra_length = fixed_header.unpack("VvvvvvVVVvv")
-
-            variable_data = io.read(filename_length + extra_length)
-            LocalFileHeader.from_binary(fixed_header + variable_data)
+            io.seek(entry_data_offset(io, entry), ::IO::SEEK_SET)
 
             compressed_data = io.read(entry.compressed_size)
             decompressed_data = decompress_data(
@@ -182,6 +257,19 @@ dereference_links: false)
 
             decompressed_data
           end
+        end
+
+        # File offset of an entry's compressed payload: the local
+        # header's fixed 30 bytes plus its filename/extra fields.
+        def entry_data_offset(io, entry)
+          io.seek(entry.local_header_offset, ::IO::SEEK_SET)
+
+          fixed_header = io.read(30)
+          _signature, _version, _flags, _method, _time, _date, _crc32,
+          _comp_size, _uncomp_size, filename_length, extra_length = fixed_header.unpack("VvvvvvVVVvv")
+
+          io.read(filename_length + extra_length)
+          io.pos
         end
 
         # Parse the central directory once, on demand

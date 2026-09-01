@@ -16,12 +16,16 @@
 # See the COPYING file for the complete text of the license.
 #
 
+require "lutaml/model"
+
 module Omnizip
   module Models
     # Configuration model for a filter in a compression pipeline.
     #
     # This class replaces hash-based filter configuration with a proper
     # model class. It provides format-aware ID resolution and validation.
+    #
+    # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
     #
     # @example Create a BCJ filter configuration
     #   config = FilterConfig.new(name: :bcj_x86, architecture: :x86)
@@ -31,42 +35,39 @@ module Omnizip
     # @example Create a Delta filter configuration
     #   config = FilterConfig.new(name: :delta)
     #   config.delta?  # => true
-    class FilterConfig
-      # @return [Symbol] Filter name (:bcj_x86, :delta, etc.)
-      attr_reader :name_sym
+    class FilterConfig < Lutaml::Model::Serializable
+      attribute :name, :symbol
+      attribute :properties, :string, default: ""
+      attribute :architecture, :symbol
 
-      # @return [String] Binary properties data for filter configuration
-      attr_accessor :properties
+      key_value do
+        map "name", to: :name, render_default: true, render_nil: true
+        map "properties", to: :properties,
+                          render_default: true, render_nil: true
+        map "architecture", to: :architecture,
+                            render_default: true, render_nil: true
+      end
 
-      # @return [Symbol] Target architecture for BCJ filters
-      attr_accessor :architecture
-
-      # Initialize filter configuration.
+      # Initialize filter configuration. The legacy +name_sym+ key is
+      # accepted as an alias for +name+.
       #
       # @param attributes [Hash] Initialization attributes
       # @option attributes [Symbol] :name Filter name
-      # @option attributes [Symbol] :name_sym Filter name (alternative key)
+      # @option attributes [Symbol] :name_sym Filter name (alias)
       # @option attributes [String] :properties Binary properties data
       # @option attributes [Symbol] :architecture Target architecture
       def initialize(attributes = {})
-        @name_sym = attributes[:name] || attributes[:name_sym]
-        @properties = attributes[:properties] || "".b
-        @architecture = attributes[:architecture]
+        attrs = attributes.dup
+        attrs[:name] ||= attrs.delete(:name_sym)
+        attrs[:properties] ||= "" # empty-string defaults do not render
+        super(attrs)
       end
 
-      # Set filter name.
-      #
-      # @param value [Symbol] Filter name
-      # @return [void]
-      def name=(value)
-        @name_sym = value
-      end
-
-      # Get filter name as symbol.
+      # Get filter name as symbol (legacy alias for #name).
       #
       # @return [Symbol] Filter name
       def name_sym
-        @name_sym
+        name
       end
 
       # Get filter instance from registry.
@@ -74,11 +75,11 @@ module Omnizip
       # @return [Object] Filter instance from FilterRegistry
       # @raise [KeyError] If filter not found in registry
       def filter_instance
-        filter = Omnizip::FilterRegistry.get(@name_sym)
+        filter = Omnizip::FilterRegistry.get(name)
 
         # Handle architecture parameter if needed
-        if @architecture && requires_initialize_kwargs?(filter)
-          filter.new(architecture: @architecture)
+        if architecture && requires_initialize_kwargs?(filter)
+          filter.new(architecture: architecture)
         else
           filter.new
         end
@@ -100,7 +101,7 @@ module Omnizip
           filter.id_for_format(format)
         else
           raise NotImplementedError,
-                "Filter #{@name_sym} doesn't support format-aware IDs. " \
+                "Filter #{name} doesn't support format-aware IDs. " \
                 "Use the newer BCJ filter instead."
         end
       end
@@ -109,14 +110,14 @@ module Omnizip
       #
       # @return [Boolean] True if BCJ filter variant
       def bcj?
-        @name_sym.to_s.start_with?("bcj_")
+        name.to_s.start_with?("bcj_")
       end
 
       # Check if this is a Delta filter.
       #
       # @return [Boolean] True if Delta filter
       def delta?
-        @name_sym == :delta
+        name == :delta
       end
 
       # Validate configuration.
@@ -124,24 +125,13 @@ module Omnizip
       # @return [Boolean] True if valid
       # @raise [ArgumentError] If filter name is nil or not registered
       def validate!
-        raise ArgumentError, "Filter name is required" if @name_sym.nil?
+        raise ArgumentError, "Filter name is required" if name.nil?
 
-        unless Omnizip::FilterRegistry.registered?(@name_sym)
-          raise ArgumentError, "Filter not registered: #{@name_sym}"
+        unless Omnizip::FilterRegistry.registered?(name)
+          raise ArgumentError, "Filter not registered: #{name}"
         end
 
         true
-      end
-
-      # Convert to hash representation.
-      #
-      # @return [Hash] Hash representation with :name, :properties, :architecture
-      def to_h
-        {
-          name: @name_sym,
-          properties: @properties,
-          architecture: @architecture,
-        }
       end
 
       private

@@ -107,27 +107,9 @@ module Omnizip
         extractor.extract_all
       end
 
-      # Create archive from Hash of filename => content
-      #
-      # @param hash [Hash<String, String>] Filename => content mapping
-      # @param format [Symbol] Archive format
-      # @param options [Hash] Format-specific options
-      # @return [StringIO] Complete archive in memory
-      #
-      # @example Create from Hash
-      #   data = {'file1.txt' => 'content1', 'file2.txt' => 'content2'}
-      #   zip = Omnizip::Buffer.create_from_hash(data, :zip)
-      def create_from_hash(hash, format = :zip, **options)
-        create(format, **options) do |archive|
-          hash.each do |name, content|
-            archive.add(name, content)
-          end
-        end
-      end
-
-      private
-
-      # Detect archive format from magic bytes
+      # Detect archive format from magic bytes. THE buffer-side
+      # sniffer — in-memory data has no extension to route by, so
+      # every consumer delegates here.
       #
       # @param buffer [StringIO] Buffer containing archive data
       # @return [Symbol] Detected format
@@ -147,6 +129,26 @@ module Omnizip
                 "Unknown archive format (magic: #{magic.inspect})"
         end
       end
+
+      # Create archive from Hash of filename => content
+      #
+      # @param hash [Hash<String, String>] Filename => content mapping
+      # @param format [Symbol] Archive format
+      # @param options [Hash] Format-specific options
+      # @return [StringIO] Complete archive in memory
+      #
+      # @example Create from Hash
+      #   data = {'file1.txt' => 'content1', 'file2.txt' => 'content2'}
+      #   zip = Omnizip::Buffer.create_from_hash(data, :zip)
+      def create_from_hash(hash, format = :zip, **options)
+        create(format, **options) do |archive|
+          hash.each do |name, content|
+            archive.add(name, content)
+          end
+        end
+      end
+
+      private
 
       # Create ZIP archive in buffer
       #

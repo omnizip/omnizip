@@ -103,7 +103,7 @@ module Omnizip
           end
 
           entry = @entries.find { |e| e.name == entry_name }
-          raise "Entry not found: #{entry_name}" unless entry
+          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
 
           # Create directory if needed
           FileUtils.mkdir_p(File.dirname(output_path))
