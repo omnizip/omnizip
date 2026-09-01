@@ -36,6 +36,28 @@ RSpec.describe "Archive Commands" do
           output(/Creating archive/).to_stdout,
         )
       end
+
+      it "applies a named profile sampled from the inputs" do
+        cmd = described_class.new(profile: "fast")
+        cmd.run(archive_path, test_file)
+
+        entries = Omnizip.list_archive(archive_path)
+        expect(entries).to eq(["test.txt"])
+      end
+
+      it "applies the auto profile by sampling nested directories" do
+        nested_dir = File.join(test_dir, "nested")
+        FileUtils.mkdir_p(nested_dir)
+        nested_file = File.join(nested_dir, "deep.txt")
+        File.write(nested_file, "plain text " * 20)
+
+        cmd = described_class.new(profile: "auto")
+        cmd.run(archive_path, nested_dir)
+
+        expect(Omnizip.list_archive(archive_path)).to(
+          include("nested/deep.txt"),
+        )
+      end
     end
 
     context "with multiple files" do

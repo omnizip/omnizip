@@ -47,11 +47,7 @@ module Omnizip
         validate_inputs(output_file, inputs)
 
         # Apply profile settings if specified
-        opts = options.dup
-        if opts[:profile]
-          first_file = find_first_file(inputs)
-          opts = apply_profile(first_file, opts)
-        end
+        opts = Omnizip::Profile.apply(options, paths: inputs)
 
         format = (opts[:format] || detect_format(output_file)).to_sym
         handler_opts = handler_options(format, opts)
@@ -215,39 +211,6 @@ module Omnizip
         end
 
         format("%.2f %s", size, units[unit_idx])
-      end
-
-      def apply_profile(file_path, options)
-        profile_spec = options.delete(:profile)
-        return options unless profile_spec
-
-        # Get the profile
-        profile = case profile_spec
-                  when "auto"
-                    file_path ? Omnizip::Profile.detect(file_path) : Omnizip::Profile.get(:balanced)
-                  else
-                    Omnizip::Profile.get(profile_spec.to_sym) || Omnizip::Profile.get(:balanced)
-                  end
-
-        # Apply profile to options
-        profile.apply_to(options)
-      end
-
-      def find_first_file(inputs)
-        inputs.each do |input|
-          return input if File.file?(input)
-
-          # Check directories for first file
-          if File.directory?(input)
-            Dir.foreach(input) do |entry|
-              next if [".", ".."].include?(entry)
-
-              full_path = File.join(input, entry)
-              return full_path if File.file?(full_path)
-            end
-          end
-        end
-        nil
       end
 
       def parse_volume_size(size_str)

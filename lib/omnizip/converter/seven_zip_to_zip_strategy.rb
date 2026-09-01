@@ -11,20 +11,9 @@ module Omnizip
       def convert
         start_time = Time.now
 
-        reader = Omnizip::Formats::SevenZip::Reader.new(source_path)
-        reader.open
-        entry_count = reader.list_files.size
-
-        Dir.mktmpdir("omnizip_convert") do |tmp|
-          reader.extract_all(tmp)
-
-          writer = Omnizip::Formats::Zip::Writer.new(target_path)
-          Dir.glob(File.join(tmp, "**", "*")).each do |path|
-            next if File.directory?(path)
-
-            writer.add_file(path, path.delete_prefix("#{tmp}/"))
-          end
-          writer.write
+        entry_count = Dir.mktmpdir("omnizip_convert") do |tmp|
+          Omnizip.extract_archive(source_path, tmp)
+          repack_tree(tmp)
         end
 
         create_result(start_time, entry_count)

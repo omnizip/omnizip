@@ -108,6 +108,62 @@ module Omnizip
         detector.detect(file_path, options)
       end
 
+      # Resolve a profile specification into a concrete profile.
+      # +:auto+ (or "auto") samples +first_file+ through detection and
+      # falls back to +:balanced+ without one; a CompressionProfile
+      # passes through unchanged; anything else names a registered
+      # profile, falling back to +:balanced+ when unknown.
+      #
+      # @param spec [Symbol, String, CompressionProfile] Profile spec
+      # @param first_file [String, nil] Sampling file for :auto
+      # @return [CompressionProfile] Resolved profile
+      def resolve(spec, first_file: nil)
+        case spec
+        when :auto, "auto"
+          first_file ? detect(first_file) : registry.get(:balanced)
+        when CompressionProfile
+          spec
+        else
+          registry.get(spec.to_sym) || registry.get(:balanced)
+        end
+      end
+
+      # Resolve and apply the +:profile+ entry of +options+ into
+      # concrete compression settings. +:auto+ profiles sample the
+      # first readable file at or below +paths+. Returns a new
+      # options hash; +options+ itself is left untouched.
+      #
+      # @param options [Hash] Compression options carrying :profile
+      # @param paths [String, Array<String>] Inputs to sample
+      # @return [Hash] Options with the profile applied and removed
+      def apply(options, paths: [])
+        options = options.dup
+        spec = options.delete(:profile)
+        return options unless spec
+
+        resolve(spec, first_file: first_file_among(paths)).apply_to(options)
+      end
+
+      # The first regular file at or below any of +paths+ — the
+      # sampling target for +:auto+ profiles — or nil when nothing
+      # readable exists.
+      #
+      # @param paths [String, Array<String>] Files or directories
+      # @return [String, nil] Path of the first file found
+      def first_file_among(paths)
+        Array(paths).each do |path|
+          next unless ::File.exist?(path)
+
+          return path if ::File.file?(path)
+
+          if ::File.directory?(path)
+            found = first_file_within(path)
+            return found if found
+          end
+        end
+        nil
+      end
+
       # Get the profile detector
       #
       # @return [ProfileDetector] The detector instance
@@ -124,6 +180,22 @@ module Omnizip
       end
 
       private
+
+      # Depth-first search for the first regular file under +dir+.
+      def first_file_within(dir)
+        ::Dir.foreach(dir) do |entry|
+          next if [".", ".."].include?(entry)
+
+          full_path = ::File.join(dir, entry)
+          return full_path if ::File.file?(full_path)
+
+          if ::File.directory?(full_path)
+            found = first_file_within(full_path)
+            return found if found
+          end
+        end
+        nil
+      end
 
       # Register all built-in profiles
       #
