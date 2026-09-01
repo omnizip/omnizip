@@ -22,7 +22,11 @@ jobs:
           command -v 7zz >/dev/null 2>&1 || sudo ln -sf "$(command -v 7z)" /usr/local/bin/7zz
           echo "interop CLIs: 7zz=$(command -v 7zz) 7z=$(command -v 7z) lzip=$(command -v lzip) unrar=$(command -v unrar)"
         elif [ "$RUNNER_OS" = "macOS" ]; then
-          brew install rar 7-zip lzip
+          brew install 7-zip lzip
+          # Homebrew disabled the rar cask (Gatekeeper check) on
+          # 2026-09-01; RAR specs skip when unrar is absent, so never
+          # fail on it.
+          brew install rar || echo "rar unavailable (non-fatal)"
         elif [ "$RUNNER_OS" = "Windows" ]; then
           choco install 7zip
           # winrar downloads a versioned installer from rarlab.com that
