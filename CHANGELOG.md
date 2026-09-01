@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.55] - 2026-09-01
+
+### Changed
+- 36 codec-internal bare `raise "string"` sites become typed errors:
+  `DecompressionError` for corrupt LZMA/LZMA2 streams and headers
+  (dictionary overreads, bad property bytes, rep-distance faults),
+  `CompressionError` for range-encoder state misuse. These files
+  carry no class-scoped rescues, so error routing is unchanged.
+- `MetadataRegistry` becomes load-bearing: the `:seven_zip`
+  registration lists the handler detail contract's real fields
+  (name/size/directory/compressed_size/mtime/crc), and the metadata
+  command's 7z view gates its display on the registry instead of
+  bypassing it.
+
+### Fixed
+- The lzma compatibility specs no longer swallow regressions: their
+  "not yet implemented (expected)" skips lived in
+  `rescue StandardError` arms, so any future decode breakage would
+  have been silently skipped. All four tool round-trips pass today;
+  the failure paths now fail loudly with the tool's stderr attached.
+
 ## [0.3.54] - 2026-09-01
 
 ### Changed
