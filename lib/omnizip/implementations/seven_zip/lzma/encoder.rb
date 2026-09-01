@@ -309,7 +309,7 @@ module Omnizip
           # @return [void]
           def encode_match(match, data)
             # Defensive check: distance must be >= 1
-            raise "Invalid match distance: #{match.distance}" if match.distance < 1
+            raise Omnizip::CompressionError, "Invalid match distance: #{match.distance}" if match.distance < 1
 
             pos_state = @pos & ((1 << @pb) - 1)
 

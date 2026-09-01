@@ -136,19 +136,19 @@ module Omnizip
           # Parse LZMA header
           def parse_header
             props = @input.getbyte
-            raise "Invalid LZMA header: missing properties" unless props
+            raise Omnizip::DecompressionError, "Invalid LZMA header: missing properties" unless props
 
             @lc = props % 9
             rem = props / 9
             @lp = rem % 5
             @pb = rem / 5
 
-            raise "Invalid LZMA properties: pb=#{@pb} > 4" if @pb > 4
+            raise Omnizip::DecompressionError, "Invalid LZMA properties: pb=#{@pb} > 4" if @pb > 4
 
             @dict_size = 0
             4.times do |i|
               byte = @input.getbyte
-              raise "Invalid LZMA header: missing dictionary size" unless byte
+              raise Omnizip::DecompressionError, "Invalid LZMA header: missing dictionary size" unless byte
 
               @dict_size |= (byte << (i * 8))
             end
@@ -159,7 +159,7 @@ module Omnizip
             @uncompressed_size = 0
             8.times do |i|
               byte = @input.getbyte
-              raise "Invalid LZMA header: missing uncompressed size" unless byte
+              raise Omnizip::DecompressionError, "Invalid LZMA header: missing uncompressed size" unless byte
 
               @uncompressed_size |= (byte * (1 << (i * 8)))
             end
@@ -328,7 +328,7 @@ module Omnizip
               # Decoder returns distance before +1, so add 1 to get actual distance
               distance += 1
 
-              raise "Invalid distance: #{distance}" if distance >= @dict_size && @dict_full
+              raise Omnizip::DecompressionError, "Invalid distance: #{distance}" if distance >= @dict_size && @dict_full
 
               # Update reps
               @reps[3] = @reps[2]

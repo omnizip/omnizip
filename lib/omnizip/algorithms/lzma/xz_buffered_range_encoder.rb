@@ -97,7 +97,7 @@ module Omnizip
         # @param prob [BitModel] Probability model
         # @param bit [Integer] Bit value (0 or 1)
         def queue_bit(prob, bit)
-          raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+          raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
           @symbols[@count] = bit.zero? ? RC_BIT_0 : RC_BIT_1
           @probs[@count] = prob
@@ -111,7 +111,7 @@ module Omnizip
         def queue_direct_bits(value, num_bits)
           num_bits.downto(1) do |i|
             bit = (value >> (i - 1)) & 1
-            raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+            raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
             @symbols[@count] = bit.zero? ? RC_DIRECT_0 : RC_DIRECT_1
             @probs[@count] = nil
@@ -122,7 +122,7 @@ module Omnizip
         # Queue flush operation
         def queue_flush
           5.times do
-            raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+            raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
             @symbols[@count] = RC_FLUSH
             @probs[@count] = nil
@@ -237,7 +237,7 @@ module Omnizip
 
         # Forget queued symbols (e.g., when output limit reached)
         def forget
-          raise "Cannot forget with partial encoding" unless @pos.zero?
+          raise Omnizip::CompressionError, "Cannot forget with partial encoding" unless @pos.zero?
 
           @count = 0
         end

@@ -63,7 +63,7 @@ module Omnizip
 
         # Forget pending symbols (matches XZ Utils rc_forget)
         def forget
-          raise "Cannot forget while encoding" if @pos != 0
+          raise Omnizip::CompressionError, "Cannot forget while encoding" if @pos != 0
 
           @count = 0
         end
@@ -73,7 +73,7 @@ module Omnizip
         # @param prob [Probability] Probability model
         # @param bit [Integer] Bit value (0 or 1)
         def bit(prob, bit)
-          raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+          raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
           @symbols[@count] = bit
           @probs[@count] = prob
@@ -118,7 +118,7 @@ module Omnizip
         # @param bit_count [Integer] Number of bits
         def direct(value, bit_count)
           bit_count.times do
-            raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+            raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
             @symbols[@count] = RC_DIRECT_0 | ((value >> (bit_count -= 1)) & 1)
             @probs[@count] = nil
@@ -129,7 +129,7 @@ module Omnizip
         # Queue flush operation (matches XZ Utils rc_flush)
         def flush
           5.times do
-            raise "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
+            raise Omnizip::CompressionError, "Symbol buffer overflow" if @count >= RC_SYMBOLS_MAX
 
             @symbols[@count] = RC_FLUSH
             @probs[@count] = nil
@@ -159,7 +159,7 @@ module Omnizip
         # @param out_size [Integer] Output buffer size
         # @return [Boolean] True if output buffer filled before encoding complete
         def encode(out, out_pos, out_size)
-          raise "Symbol buffer overflow" if @count > RC_SYMBOLS_MAX
+          raise Omnizip::CompressionError, "Symbol buffer overflow" if @count > RC_SYMBOLS_MAX
 
           skip_increment = false
 
@@ -214,7 +214,7 @@ module Omnizip
               break
 
             else
-              raise "Unknown symbol type: #{@symbols[@pos]}"
+              raise Omnizip::CompressionError, "Unknown symbol type: #{@symbols[@pos]}"
             end
 
             @pos += 1 unless skip_increment
@@ -288,7 +288,7 @@ module Omnizip
 
         # Forget pending symbols (matches XZ Utils rc_forget)
         def forget
-          raise "Cannot forget while encoding" if @pos != 0
+          raise Omnizip::CompressionError, "Cannot forget while encoding" if @pos != 0
 
           @count = 0
         end

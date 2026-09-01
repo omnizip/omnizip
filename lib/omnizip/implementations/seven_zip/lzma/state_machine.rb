@@ -108,7 +108,7 @@ module Omnizip
             when 9
               CATEGORY_SHORT_REP
             else
-              raise "Invalid state: #{@index}"
+              raise Omnizip::CompressionError, "Invalid state: #{@index}"
             end
           end
 

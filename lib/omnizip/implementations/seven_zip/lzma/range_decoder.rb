@@ -158,7 +158,7 @@ module Omnizip
           def init_decoder
             # Read first byte (should be 0 for valid LZMA stream)
             first = read_byte
-            raise "Invalid LZMA stream: first byte not 0" unless first.zero?
+            raise Omnizip::DecompressionError, "Invalid LZMA stream: first byte not 0" unless first.zero?
 
             # Read 4 bytes for initial code value
             @code = 0

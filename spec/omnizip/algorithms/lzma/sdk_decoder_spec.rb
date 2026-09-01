@@ -88,7 +88,7 @@ RSpec.describe Omnizip::Implementations::SevenZip::LZMA::Decoder do
 
       expect do
         sdk_decoder.new(invalid)
-      end.to raise_error(RuntimeError, /pb/)
+      end.to raise_error(Omnizip::DecompressionError, /pb/)
     end
   end
 

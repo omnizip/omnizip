@@ -318,7 +318,7 @@ check_rc_finished: true)
 
           # Handle nil @pos or limit gracefully
           if limit && (@pos.nil? || limit.nil?)
-            raise "Invalid state: @pos=#{@pos.inspect}, limit=#{limit.inspect}"
+            raise Omnizip::DecompressionError, "Invalid state: @pos=#{@pos.inspect}, limit=#{limit.inspect}"
           end
 
           # Circular buffer: flush output before it can be overwritten.
@@ -757,7 +757,7 @@ check_rc_finished: true)
       def read_header
         # Property byte
         props = @input.getbyte
-        raise "Invalid LZMA header" if props.nil?
+        raise Omnizip::DecompressionError, "Invalid LZMA header" if props.nil?
 
         @lc = props % 9
         remainder = props / 9
@@ -768,7 +768,7 @@ check_rc_finished: true)
         @dict_size = 0
         4.times do |i|
           byte = @input.getbyte
-          raise "Incomplete header" if byte.nil?
+          raise Omnizip::DecompressionError, "Incomplete header" if byte.nil?
 
           @dict_size |= (byte << (i * 8))
         end
@@ -780,7 +780,7 @@ check_rc_finished: true)
         @uncompressed_size = 0
         8.times do |i|
           byte = @input.getbyte
-          raise "Incomplete header" if byte.nil?
+          raise Omnizip::DecompressionError, "Incomplete header" if byte.nil?
 
           @uncompressed_size |= (byte << (i * 8))
         end
@@ -791,9 +791,9 @@ check_rc_finished: true)
       # @return [void]
       # @raise [RuntimeError] If parameters are invalid
       def validate_parameters
-        raise "Invalid lc (#{@lc})" unless @lc.between?(0, 8)
-        raise "Invalid lp (#{@lp})" unless @lp.between?(0, 4)
-        raise "Invalid pb (#{@pb})" unless @pb.between?(0, 4)
+        raise Omnizip::DecompressionError, "Invalid lc (#{@lc})" unless @lc.between?(0, 8)
+        raise Omnizip::DecompressionError, "Invalid lp (#{@lp})" unless @lp.between?(0, 4)
+        raise Omnizip::DecompressionError, "Invalid pb (#{@pb})" unless @pb.between?(0, 4)
       end
 
       # Initialize probability models
@@ -1201,7 +1201,7 @@ check_rc_finished: true)
         # @dict_full is clamped at @dict_size. Use actual bytes written for validation.
         actual_bytes_written = @pos - LZ_DICT_INIT_POS
         unless actual_bytes_written > distance
-          raise "Invalid rep distance: #{distance} (bytes_written: #{actual_bytes_written})"
+          raise Omnizip::DecompressionError, "Invalid rep distance: #{distance} (bytes_written: #{actual_bytes_written})"
         end
 
         # IMPORTANT: Limit match length to not exceed uncompressed_size
