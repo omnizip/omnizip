@@ -122,13 +122,7 @@ module Omnizip
       end
 
       def format_size(bytes)
-        return "0 B" if bytes.zero?
-
-        units = %w[B KB MB GB TB]
-        exp = (Math.log(bytes) / Math.log(1024)).to_i
-        exp = [exp, units.size - 1].min
-
-        "%.1f %s" % [bytes.to_f / (1024**exp), units[exp]]
+        Omnizip::CliOutputFormatter.format_size(bytes)
       end
     end
   end

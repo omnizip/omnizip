@@ -135,17 +135,10 @@ module Omnizip
       end
 
       def extract_with_patterns(archive_file, output_dir, verbose)
-        # Determine archive type and open appropriately
-        archive = case File.extname(archive_file).downcase
-                  when ".zip"
-                    Omnizip::Zip::File.open(archive_file)
-                  when ".rar"
-                    Formats::Rar::Reader.new(archive_file).open
-                  when ".tar"
-                    Formats::Tar::Reader.new(archive_file).read
-                  else
-                    Formats::SevenZip::Reader.new(archive_file).open
-                  end
+        # Route through the facade: the extension routes pick each
+        # format's reader, and the reader session holds no open
+        # resources to close
+        archive = Omnizip::Archive.open(archive_file)
 
         # Build filter chain
         filter = Extraction::FilterChain.new
@@ -193,8 +186,6 @@ module Omnizip
         end
 
         extracted.size
-      ensure
-        archive.close if archive.is_a?(Omnizip::Zip::File)
       end
 
       def extract_gzip(archive_file, output_dir, verbose)

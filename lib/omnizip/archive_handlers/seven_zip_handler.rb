@@ -31,7 +31,7 @@ module Omnizip
             entries.map do |e|
               { name: e.name, size: e.size, directory: e.is_dir,
                 compressed_size: (e.compressed_size if e.compressed_size&.positive?),
-                mtime: e.mtime }
+                mtime: e.mtime, crc: e.crc }
             end
           else
             entries.map(&:name)

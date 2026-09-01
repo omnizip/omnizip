@@ -54,7 +54,8 @@ module Omnizip
         %i[comment set_mtime chmod set_attribute].none? { |key| options[key] }
       end
 
-      # Read-only view for 7z archives; the edit path is zip-only
+      # Read-only view for 7z archives through the handler registry;
+      # the edit path is zip-only
       def show_seven_zip_metadata(archive_path, pattern)
         if options[:comment] || options[:set_mtime] ||
             options[:chmod] || options[:set_attribute]
@@ -62,37 +63,37 @@ module Omnizip
                 "Metadata editing is only supported for ZIP archives"
         end
 
-        reader = Omnizip::Formats::SevenZip::Reader.new(archive_path)
-        reader.open
+        entries = Omnizip.list_archive(archive_path, details: true)
 
         if pattern
-          entries = reader.list_files.select do |e|
-            File.fnmatch(pattern, e.name)
+          entries = entries.select do |entry|
+            File.fnmatch(pattern, entry[:name])
           end
           if entries.empty?
             warn "No entries match pattern: #{pattern}"
             return
           end
 
-          entries.each do |entry|
-            puts "Entry: #{entry.name}"
-            puts "  Type: #{entry.is_dir ? 'Directory' : 'File'}"
-            puts "  Size: #{format_size(entry.size)}"
-            # Per-entry packed sizes are not tracked by the parser
-            if entry.compressed_size&.positive?
-              puts "  Compressed: #{format_size(entry.compressed_size)}"
-            end
-            puts "  Modified: #{entry.mtime}" if entry.mtime
-            puts "  CRC32: 0x#{entry.crc.to_s(16).upcase}" if entry.crc
-          end
+          entries.each { |entry| show_seven_zip_entry(entry) }
         else
-          entries = reader.list_files
-          files = entries.reject(&:is_dir)
+          files = entries.reject { |entry| entry[:directory] }
           puts "Archive: #{archive_path}"
           puts "Entries: #{entries.size} " \
                "(#{files.size} files, #{entries.size - files.size} dirs)"
-          puts "Total size: #{format_size(files.sum(&:size))}"
+          puts "Total size: #{format_size(files.sum { |entry| entry[:size] })}"
         end
+      end
+
+      def show_seven_zip_entry(entry)
+        puts "Entry: #{entry[:name]}"
+        puts "  Type: #{entry[:directory] ? 'Directory' : 'File'}"
+        puts "  Size: #{format_size(entry[:size])}"
+        # Per-entry packed sizes are not tracked by the parser
+        if entry[:compressed_size]&.positive?
+          puts "  Compressed: #{format_size(entry[:compressed_size])}"
+        end
+        puts "  Modified: #{entry[:mtime]}" if entry[:mtime]
+        puts "  CRC32: 0x#{entry[:crc].to_s(16).upcase}" if entry[:crc]
       end
 
       def show_metadata(archive, pattern)
@@ -199,13 +200,7 @@ module Omnizip
       end
 
       def format_size(bytes)
-        return "0 B" if bytes.zero?
-
-        units = %w[B KB MB GB TB]
-        exp = (Math.log(bytes) / Math.log(1024)).to_i
-        exp = [exp, units.size - 1].min
-
-        "%.1f %s" % [bytes.to_f / (1024**exp), units[exp]]
+        Omnizip::CliOutputFormatter.format_size(bytes)
       end
     end
   end

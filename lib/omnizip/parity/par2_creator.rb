@@ -161,40 +161,6 @@ progress: nil)
         Digest::MD5.digest("#{Time.now.to_f}#{rand}")
       end
 
-      # Analyze file and calculate hashes
-      #
-      # @param file_path [String] Path to file
-      # @return [FileInfo] File information
-      def analyze_file(file_path)
-        File.open(file_path, "rb") do |io|
-          file_size = io.size
-
-          # Calculate hash of first 16KB
-          first_16k = io.read(16384) || ""
-          hash_16k = Digest::MD5.digest(first_16k)
-
-          # Calculate full file hash
-          io.rewind
-          hash_full = Digest::MD5.file(file_path).digest
-
-          # Generate file ID
-          file_id = Digest::MD5.digest("#{File.basename(file_path)}#{file_size}")
-
-          # Read file blocks
-          io.rewind
-          blocks = read_file_blocks(io)
-
-          FileInfo.new(
-            path: file_path,
-            file_id: file_id,
-            hash_16k: hash_16k,
-            hash_full: hash_full,
-            size: file_size,
-            blocks: blocks,
-          )
-        end
-      end
-
       # Read file data into blocks
       #
       # @param io [IO] File IO object
