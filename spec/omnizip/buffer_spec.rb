@@ -136,6 +136,23 @@ RSpec.describe Omnizip::Buffer do
       files = described_class.extract_to_memory(buffer.string)
       expect(files["file.txt"]).to eq("Hello World")
     end
+
+    it "honors per-entry :store next to deflated entries" do
+      buffer = described_class.create(:zip) do |archive|
+        archive.add("stored.bin", "\x00\x01\x02".b, compression: :store)
+        archive.add("deflated.txt", "compressible " * 20)
+      end
+
+      Dir.mktmpdir("omnizip_buffer_store") do |tmp|
+        path = File.join(tmp, "b.zip")
+        File.binwrite(path, buffer.string)
+
+        methods = Omnizip::Formats::Zip::Reader.new(path)
+          .list_entries.to_h { |e| [e[:filename], e[:compression_method]] }
+        expect(methods["stored.bin"]).to eq("Store")
+        expect(methods["deflated.txt"]).to eq("Deflate")
+      end
+    end
   end
 
   describe ".open" do

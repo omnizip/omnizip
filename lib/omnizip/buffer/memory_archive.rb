@@ -9,27 +9,24 @@ module Omnizip
     # (for creating) and InputStream (for reading).
     #
     # @example Creating an archive
-    #   buffer = StringIO.new
-    #   Omnizip::Zip::OutputStream.open(buffer) do |zos|
-    #     archive = MemoryArchive.new(zos, :zip)
-    #     archive.add('file.txt', 'content')
-    #   end
+    #   writer = Formats::Zip::Writer.new(nil)
+    #   archive = MemoryArchive.new(writer, :zip)
+    #   archive.add('file.txt', 'content')
+    #   writer.write_to_io(buffer)
     #
     # @example Reading an archive
-    #   Omnizip::Zip::InputStream.open(buffer) do |zis|
-    #     archive = MemoryArchive.new(zis, :zip)
-    #     archive.each_entry do |entry|
-    #       puts entry.name
-    #     end
+    #   archive = MemoryArchive.new(Formats::Zip::Reader.new(path), :zip)
+    #   archive.each_entry do |entry|
+    #     puts entry.name
     #   end
     class MemoryArchive
       attr_reader :format, :stream
 
       # Initialize memory archive wrapper
       #
-      # @param stream [Omnizip::Zip::OutputStream, Omnizip::Zip::InputStream]
-      #   Underlying stream
-      # @param format [Symbol] Archive format (:zip, :seven_zip)
+      # @param stream [Formats::Zip::Writer, Formats::Zip::Reader]
+      #   Native writer (write mode) or reader (read mode)
+      # @param format [Symbol] Archive format (:zip)
       def initialize(stream, format)
         @stream = stream
         @format = format
@@ -57,13 +54,13 @@ module Omnizip
       def add(name, data, **options)
         ensure_write_mode!
 
-        case stream
-        when Omnizip::Zip::OutputStream
-          stream.put_next_entry(name, **options)
-          stream.write(data) unless name.end_with?("/")
+        if name.end_with?("/") && data.to_s.empty?
+          stream.add_directory(name)
         else
-          raise NotImplementedError,
-                "Unsupported stream type: #{stream.class}"
+          method = if options[:compression] == :store
+                     Formats::Zip::Constants::COMPRESSION_STORE
+                   end
+          stream.add_data(name, data, nil, compression_method: method)
         end
 
         self
@@ -101,15 +98,8 @@ module Omnizip
       def each_entry
         ensure_read_mode!
 
-        case stream
-        when Omnizip::Zip::InputStream
-          while (zip_entry = stream.get_next_entry)
-            entry = Entry.new(zip_entry, stream)
-            yield(entry)
-          end
-        else
-          raise NotImplementedError,
-                "Unsupported stream type: #{stream.class}"
+        stream.entries.each do |zip_entry|
+          yield(Entry.new(zip_entry, stream))
         end
       end
 
@@ -142,22 +132,10 @@ module Omnizip
       def to_s
         ensure_write_mode!
 
-        case stream
-        when Omnizip::Zip::OutputStream
-          # OutputStream wraps the IO, we need to get the underlying buffer
-          # This is only safe after close
-          unless stream.closed?
-            raise "Archive must be closed before accessing data"
-          end
-
-          # The buffer was passed in during creation, but we don't have
-          # direct access. This method should be called on the StringIO
-          # returned by Buffer.create instead.
-          raise NotImplementedError,
-                "Use Buffer.create return value instead"
-        else
-          raise "Cannot get string from read mode archive"
-        end
+        # The buffer is owned by Buffer.create; this method should be
+        # called on the StringIO it returns instead.
+        raise NotImplementedError,
+              "Use Buffer.create return value instead"
       end
 
       # Entry wrapper with read capability
@@ -169,17 +147,19 @@ module Omnizip
 
         # Initialize entry wrapper
         #
-        # @param entry [Omnizip::Zip::Entry] Underlying entry
-        # @param stream [Omnizip::Zip::InputStream] Stream to read from
-        def initialize(entry, stream)
+        # @param entry [Formats::Zip::CentralDirectoryHeader] entry
+        # @param reader [Formats::Zip::Reader] Native archive reader
+        def initialize(entry, reader)
           @entry = entry
-          @stream = stream
-          @name = entry.name
-          @size = entry.size
+          @reader = reader
+          @name = entry.filename
+          @size = entry.uncompressed_size
           @compressed_size = entry.compressed_size
           @time = entry.time
-          @comment = entry.comment
+          @comment = entry.comment.to_s
           @directory = entry.directory?
+          @content = nil
+          @pos = 0
         end
 
         # Read entry content
@@ -195,7 +175,20 @@ module Omnizip
         #     process_chunk(chunk)
         #   end
         def read(size = nil)
-          @stream.read(size)
+          # IO-like streaming semantics: successive reads return
+          # successive chunks, nil at end-of-content. Callers like
+          # Pipe::StreamDecompressor loop on this — a read that
+          # always returns data would loop forever.
+          @content ||= @reader.read_entry(@name)
+          return nil if @pos >= @content.bytesize
+
+          chunk = if size
+                    @content.byteslice(@pos, size)
+                  else
+                    @content.byteslice(@pos, @content.bytesize - @pos)
+                  end
+          @pos += chunk.bytesize
+          chunk
         end
 
         # Check if entry is a directory
@@ -229,22 +222,24 @@ module Omnizip
 
       private
 
-      # Ensure stream is in write mode (OutputStream)
+      # Ensure stream is in write mode (native Writer)
       #
-      # @raise [RuntimeError] If not in write mode
+      # @raise [Omnizip::IOError] If not in write mode
       def ensure_write_mode!
-        return if stream.is_a?(Omnizip::Zip::OutputStream)
+        return if stream.is_a?(Omnizip::Formats::Zip::Writer)
 
-        raise "Operation requires write mode (OutputStream)"
+        raise Omnizip::IOError,
+              "Operation requires write mode (Formats::Zip::Writer)"
       end
 
-      # Ensure stream is in read mode (InputStream)
+      # Ensure stream is in read mode (native Reader)
       #
-      # @raise [RuntimeError] If not in read mode
+      # @raise [Omnizip::IOError] If not in read mode
       def ensure_read_mode!
-        return if stream.is_a?(Omnizip::Zip::InputStream)
+        return if stream.is_a?(Omnizip::Formats::Zip::Reader)
 
-        raise "Operation requires read mode (InputStream)"
+        raise Omnizip::IOError,
+              "Operation requires read mode (Formats::Zip::Reader)"
       end
     end
   end

@@ -161,7 +161,7 @@ RSpec.describe "7z Header Encryption" do
         ) do |archive|
           archive.add_file(test_file)
         end
-      end.to raise_error(/Password required/)
+      end.to raise_error(Omnizip::PasswordError, /Password required/)
     end
   end
 
@@ -180,7 +180,7 @@ RSpec.describe "7z Header Encryption" do
     it "fails to open without password" do
       expect do
         Omnizip::Formats::SevenZip.open(archive_path, &:list_files)
-      end.to raise_error(/Password required/)
+      end.to raise_error(Omnizip::PasswordError, /Password required/)
     end
 
     it "opens and extracts with correct password" do
@@ -207,7 +207,7 @@ RSpec.describe "7z Header Encryption" do
           archive_path,
           password: "wrong_password", &:list_files
         )
-      end.to raise_error(/incorrect password/)
+      end.to raise_error(Omnizip::PasswordError, /incorrect password/)
     end
   end
 

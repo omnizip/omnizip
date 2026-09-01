@@ -57,7 +57,7 @@ module Omnizip
 
           # Get algorithm class
           algo_class = Omnizip::AlgorithmRegistry.get(algo_sym)
-          raise "Algorithm not found: #{algo_sym}" unless algo_class
+          raise Omnizip::AlgorithmNotFoundError, "Algorithm not found: #{algo_sym}" unless algo_class
 
           # Decompress
           input_io = StringIO.new(packed_data)
@@ -80,8 +80,8 @@ module Omnizip
 
               # BCJ2 requires special handling with multiple streams
               if filter_sym == :bcj2
-                raise "BCJ2 archives require multi-stream decompression which is not yet implemented. " \
-                      "Please use the 7z command-line tool for this archive."
+                raise Omnizip::UnsupportedFormatError, "BCJ2 archives require multi-stream decompression which is not yet implemented. " \
+                                                       "Please use the 7z command-line tool for this archive."
               end
 
               filter = filter_class.new
@@ -109,8 +109,8 @@ module Omnizip
             actual_crc = crc.value
 
             unless actual_crc == expected_crc
-              raise "CRC mismatch: expected 0x#{expected_crc.to_s(16)}, " \
-                    "got 0x#{actual_crc.to_s(16)}"
+              raise Omnizip::ChecksumError, "CRC mismatch: expected 0x#{expected_crc.to_s(16)}, " \
+                                            "got 0x#{actual_crc.to_s(16)}"
             end
           end
 

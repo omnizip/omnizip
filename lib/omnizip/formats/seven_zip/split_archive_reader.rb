@@ -167,7 +167,7 @@ module Omnizip
             volume_num += 1
           end
 
-          raise "No volumes found for #{@base_path}" if @volumes.empty?
+          raise Errno::ENOENT, "No volumes found for #{@base_path}" if @volumes.empty?
         end
 
         # Detect volumes with alpha naming (.aa, .ab, ...)
@@ -185,7 +185,7 @@ module Omnizip
             volume_num += 1
           end
 
-          raise "No volumes found for #{@base_path}" if @volumes.empty?
+          raise Errno::ENOENT, "No volumes found for #{@base_path}" if @volumes.empty?
         end
 
         # Open all volume files
@@ -293,7 +293,7 @@ module Omnizip
 
           # Read main header
           type = parser.read_byte
-          raise "Expected Header, got 0x#{type.to_s(16)}" unless
+          raise Omnizip::InvalidArchiveError, "Expected Header, got 0x#{type.to_s(16)}" unless
             type == PropertyId::HEADER
 
           # Parse header sections
@@ -372,7 +372,7 @@ module Omnizip
               parser.read_unpack_info(stream_info)
             end
           else
-            raise "Unexpected property in encoded header: 0x#{type.to_s(16)}"
+            raise Omnizip::InvalidArchiveError, "Unexpected property in encoded header: 0x#{type.to_s(16)}"
           end
 
           # Decompress the header using the stream info
@@ -491,7 +491,7 @@ module Omnizip
               crc = Omnizip::Checksums::Crc32.new
               crc.update(data)
               unless crc.value == entry.crc
-                raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+                raise Omnizip::ChecksumError, "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
               end
             end
 

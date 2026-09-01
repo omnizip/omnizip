@@ -83,9 +83,9 @@ module Omnizip
           begin
             decipher.update(encrypted_data) + decipher.final
           rescue OpenSSL::Cipher::CipherError => e
-            raise "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
+            raise Omnizip::PasswordError, "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
           rescue StandardError => e
-            raise "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
+            raise Omnizip::PasswordError, "Failed to decrypt header: incorrect password or corrupted data (#{e.message})"
           end
         end
 

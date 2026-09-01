@@ -92,14 +92,17 @@ module Omnizip
           @entries << entry
         end
 
-        # Add data directly to the archive
-        def add_data(archive_path, data, stat = nil)
+        # Add data directly to the archive. +compression_method+
+        # (a ZIP method code) overrides the archive-wide default for
+        # this entry alone.
+        def add_data(archive_path, data, stat = nil, compression_method: nil)
           entry = create_entry(
             filename: archive_path,
             uncompressed_data: data,
             stat: stat,
           )
 
+          entry[:compression_method] = compression_method
           @entries << entry
         end
 
@@ -188,13 +191,17 @@ module Omnizip
         def write_to_io(io, compression_method: COMPRESSION_DEFLATE, level: 6)
           local_header_offsets = []
 
-          # Write local file headers and data
+          # Write local file headers and data. An entry-level
+          # :compression_method overrides the archive-wide default
+          # (used by the buffer layer's per-entry :store option).
           entries.each do |entry|
             offset = io.pos
             local_header_offsets << offset
 
+            entry_method = entry[:compression_method] || compression_method
+
             # Create local file header
-            local_header = create_local_header(entry, compression_method)
+            local_header = create_local_header(entry, entry_method)
 
             # Compress data if not a directory
             if entry[:directory]
@@ -205,7 +212,7 @@ module Omnizip
             else
               compressed_data = compress_data(
                 entry[:uncompressed_data],
-                compression_method,
+                entry_method,
                 level,
               )
               entry[:compressed_size] = compressed_data.bytesize
@@ -232,7 +239,7 @@ module Omnizip
           entries.each_with_index do |entry, index|
             central_header = create_central_header(
               entry,
-              compression_method,
+              entry[:compression_method] || compression_method,
               local_header_offsets[index],
             )
             io.write(central_header.to_binary)

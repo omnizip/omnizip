@@ -51,20 +51,21 @@ module Omnizip
           archive_path = work.archive_path
           dest_dir = work.dest_dir
 
-          # Read and decompress entry data
+          # Read and decompress entry data (each worker opens the
+          # archive independently — separate file handle per thread)
           data = read_entry_data(archive_path, entry)
 
           # Determine destination path
-          dest_path = ::File.join(dest_dir, entry.name)
+          dest_path = ::File.join(dest_dir, entry.filename)
 
           # Return result
           Fractor::WorkResult.new(
             result: {
-              entry_name: entry.name,
+              entry_name: entry.filename,
               dest_path: dest_path,
               data: data,
               directory: entry.directory?,
-              unix_perms: safe_unix_perms(entry),
+              unix_perms: entry.unix_permissions.to_i,
             },
             work: work,
           )
@@ -80,39 +81,8 @@ module Omnizip
         def read_entry_data(archive_path, entry)
           return "" if entry.directory?
 
-          # Open archive and extract entry
-          reader = Omnizip::Formats::Zip::Reader.new(archive_path)
-          reader.read
-
-          ::File.open(archive_path, "rb") do |io|
-            # Find the entry in reader
-            reader_entry = reader.entries.find { |e| e.filename == entry.name }
-            raise Errno::ENOENT, "Entry not found in archive: #{entry.name}" unless reader_entry
-
-            # Seek to entry data
-            io.seek(reader_entry.local_header_offset, ::IO::SEEK_SET)
-
-            # Read and parse local file header
-            fixed_header = io.read(30)
-            return "" unless fixed_header && fixed_header.size == 30
-
-            _signature, _version, _flags, _method, _time, _date, _crc32,
-            _comp_size, _uncomp_size, filename_length, extra_length = fixed_header.unpack("VvvvvvVVVvv")
-
-            # Skip filename and extra field
-            io.read(filename_length + extra_length)
-
-            # Read compressed data
-            compressed_data = io.read(reader_entry.compressed_size)
-            return "" unless compressed_data
-
-            # Decompress
-            reader.decompress(
-              compressed_data,
-              reader_entry.compression_method,
-              reader_entry.uncompressed_size,
-            )
-          end
+          Omnizip::Formats::Zip::Reader.new(archive_path)
+            .read_entry(entry.filename)
         end
       end
 
@@ -182,7 +152,7 @@ module Omnizip
           file_size = safe_entry_size(entry)
 
           job_queue.push_with_size(
-            file: entry.name,
+            file: entry.filename,
             size: file_size,
             data: { entry: entry },
           )
@@ -212,7 +182,7 @@ module Omnizip
           error_msgs = errors.map do |e|
             "#{e.work&.entry&.name}: #{e.error}"
           end.join("\n")
-          raise Omnizip::ExtractionError, "Extraction errors:\n#{error_msgs}"
+          raise Omnizip::DecompressionError, "Extraction errors:\n#{error_msgs}"
         end
 
         # Write files to disk (thread-safe)
@@ -242,32 +212,16 @@ module Omnizip
 
       private
 
-      def safe_unix_perms(entry)
-        entry.unix_perms
-      rescue NoMethodError
-        0
-      end
-
       def safe_entry_size(entry)
-        entry.size
-      rescue NoMethodError
-        0
+        entry.uncompressed_size.to_i
       end
 
-      # Read archive entries
+      # Read archive entries through the native reader
       #
       # @param archive_path [String] archive path
-      # @return [Array<Entry>] array of entries
+      # @return [Array<CentralDirectoryHeader>] array of entries
       def read_archive_entries(archive_path)
-        entries = []
-
-        Omnizip::Zip::File.open(archive_path) do |zip|
-          zip.each do |entry|
-            entries << entry
-          end
-        end
-
-        entries
+        Omnizip::Formats::Zip::Reader.new(archive_path).entries
       end
 
       # Write extracted files to disk
@@ -286,25 +240,28 @@ module Omnizip
 
           # Thread-safe file writing
           @write_mutex.synchronize do
+            if result[:directory]
+              # mkdir_p is idempotent — a file entry may already have
+              # created this directory as its parent
+              FileUtils.mkdir_p(dest_path)
+              extracted_paths << dest_path
+              next
+            end
+
             # Check if file exists
             if ::File.exist?(dest_path) && !overwrite
               raise Errno::EEXIST, "File exists: #{dest_path}"
             end
 
-            # Write file or create directory
-            if result[:directory]
-              FileUtils.mkdir_p(dest_path)
-            else
-              FileUtils.mkdir_p(::File.dirname(dest_path))
-              ::File.binwrite(dest_path, result[:data])
+            FileUtils.mkdir_p(::File.dirname(dest_path))
+            ::File.binwrite(dest_path, result[:data])
 
-              # Set permissions if Unix
-              if result[:unix_perms].positive?
-                ::File.chmod(result[:unix_perms] & 0o777, dest_path)
-              end
-
-              @stats[:bytes_extracted] += result[:data].bytesize
+            # Set permissions if Unix
+            if result[:unix_perms].positive?
+              ::File.chmod(result[:unix_perms] & 0o777, dest_path)
             end
+
+            @stats[:bytes_extracted] += result[:data].bytesize
 
             extracted_paths << dest_path
           end

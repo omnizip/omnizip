@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "tmpdir"
 
 module Omnizip
   module Buffer
@@ -159,18 +160,28 @@ module Omnizip
         Omnizip::Buffer.detect_format(@buffer)
       end
 
-      # Extract all entries from ZIP
+      # The native ZIP reader parses from a path; spill the buffer to
+      # a temporary file and yield a reader over it.
+      def with_zip_reader
+        @buffer.rewind
+        Dir.mktmpdir("omnizip_extractor_zip") do |tmp|
+          path = File.join(tmp, "buffer.zip")
+          File.binwrite(path, @buffer.read)
+          yield Omnizip::Formats::Zip::Reader.new(path)
+        end
+      end
+
+      # Extract all entries from ZIP through the native reader
       #
       # @param result [Hash] Hash to populate with entries
       def extract_all_zip(result)
-        @buffer.rewind
-        Omnizip::Zip::InputStream.open(@buffer) do |zis|
-          while (entry = zis.get_next_entry)
+        with_zip_reader do |reader|
+          reader.entries.each do |entry|
             next if entry.directory?
 
-            content = zis.read
-            result[entry.name] = content
-            @extracted_cache[entry.name] = content
+            content = reader.read_entry(entry.filename)
+            result[entry.filename] = content
+            @extracted_cache[entry.filename] = content
           end
         end
       end
@@ -199,36 +210,23 @@ module Omnizip
         end
       end
 
-      # Extract single entry from ZIP
+      # Extract single entry from ZIP through the native reader
       #
       # @param name [String] Entry name
       # @return [String, nil] Entry content or nil if not found
       def extract_entry_zip(name)
-        @buffer.rewind
-        content = nil
-
-        Omnizip::Zip::InputStream.open(@buffer) do |zis|
-          while (entry = zis.get_next_entry)
-            if entry.name == name
-              content = zis.read unless entry.directory?
-              break
-            end
-          end
+        with_zip_reader do |reader|
+          entry = reader.entries.find { |e| e.filename == name }
+          reader.read_entry(name) if entry && !entry.directory?
         end
-
-        content
       end
 
-      # List all entry names from ZIP
+      # List all entry names from ZIP through the native reader
       #
       # @param names [Array] Array to populate with names
       def list_entries_zip(names)
-        @buffer.rewind
-
-        Omnizip::Zip::InputStream.open(@buffer) do |zis|
-          while (entry = zis.get_next_entry)
-            names << entry.name
-          end
+        with_zip_reader do |reader|
+          reader.entries.each { |entry| names << entry.filename }
         end
       end
     end

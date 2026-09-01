@@ -20,7 +20,7 @@ module Omnizip
           # Find the compression method (not a filter) among coders
           # Filters like BCJ, BCJ2 have specific method IDs
           main_coder = find_compression_coder(folder.coders)
-          raise "No compression method found in folder" unless main_coder
+          raise Omnizip::InvalidArchiveError, "No compression method found in folder" unless main_coder
 
           algorithm = algorithm_for_method(main_coder.method_id)
 
@@ -82,8 +82,8 @@ module Omnizip
           when MethodId::DEFLATE64
             :deflate64
           else
-            raise "Unsupported compression method: " \
-                  "0x#{method_id.to_s(16)}"
+            raise Omnizip::UnsupportedFormatError, "Unsupported compression method: " \
+                                                   "0x#{method_id.to_s(16)}"
           end
         end
 
@@ -126,7 +126,7 @@ module Omnizip
           # Get algorithm
           algo_class = AlgorithmRegistry.get(chain_config[:algorithm])
           unless algo_class
-            raise "Algorithm not found: #{chain_config[:algorithm]}"
+            raise Omnizip::AlgorithmNotFoundError, "Algorithm not found: #{chain_config[:algorithm]}"
           end
 
           # Create algorithm instance
@@ -143,7 +143,7 @@ module Omnizip
             pipeline = FilterPipeline.new
             chain_config[:filters].each do |filter_sym|
               filter_class = FilterRegistry.get(filter_sym)
-              raise "Filter not found: #{filter_sym}" unless filter_class
+              raise Omnizip::UnknownFilterError, "Filter not found: #{filter_sym}" unless filter_class
 
               pipeline.add_filter(filter_class.new)
             end

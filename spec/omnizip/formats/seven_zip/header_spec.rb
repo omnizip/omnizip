@@ -35,7 +35,7 @@ RSpec.describe Omnizip::Formats::SevenZip::Header do
 
         expect do
           described_class.read(f)
-        end.to raise_error(RuntimeError, /Invalid .7z signature/)
+        end.to raise_error(Omnizip::InvalidArchiveError, /Invalid .7z signature/)
       end
     end
 

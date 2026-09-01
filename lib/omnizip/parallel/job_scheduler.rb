@@ -38,6 +38,10 @@ module Omnizip
           schedule_dynamic(jobs, worker_count)
         when :static
           schedule_static(jobs, worker_count)
+        when :round_robin
+          schedule_round_robin(jobs, worker_count)
+        when :bin_packing
+          schedule_bin_packing(jobs, worker_count)
         end
       end
 
@@ -99,7 +103,7 @@ bytes_per_second: 10_000_000)
       #
       # @raise [ArgumentError] if strategy is invalid
       def validate_strategy!
-        valid_strategies = %i[dynamic static]
+        valid_strategies = %i[dynamic static round_robin bin_packing]
         return if valid_strategies.include?(@strategy)
 
         raise ArgumentError,
