@@ -33,7 +33,7 @@ module Omnizip
 
       # Generate a JSON report
       def generate_json_report
-        JSON.pretty_generate(report.to_h)
+        JSON.pretty_generate(report.to_hash)
       end
 
       # Save report to file

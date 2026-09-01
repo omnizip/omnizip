@@ -112,6 +112,19 @@ module Omnizip
           @reader.list_files
         end
 
+        # Content of a single named file entry, or nil when absent
+        # (directories carry no content). Extracts just that entry —
+        # not the whole archive.
+        #
+        # @param name [String] Entry name
+        # @return [String, nil]
+        def read_entry(name)
+          entry = raw_entries.find { |e| e.name == name && !e.is_dir }
+          return nil unless entry
+
+          Entry.new(entry, @reader, @tmp).read
+        end
+
         # Entry wrapper matching MemoryArchive::Entry's surface
         class Entry
           attr_reader :name, :size

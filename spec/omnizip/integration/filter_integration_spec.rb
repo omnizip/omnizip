@@ -244,17 +244,17 @@ RSpec.describe "Filter Integration" do
       expect(bcj_config.delta?).to be false
     end
 
-    it "converts to hash for backward compatibility" do
+    it "serializes to a hash" do
       config = Omnizip::Models::FilterConfig.new(
         name: :"bcj-x86",
         architecture: :x86,
         properties: "test_props".b,
       )
 
-      hash = config.to_h
-      expect(hash[:name]).to eq(:"bcj-x86")
-      expect(hash[:architecture]).to eq(:x86)
-      expect(hash[:properties]).to eq("test_props".b)
+      hash = config.to_hash
+      expect(hash["name"]).to eq(:"bcj-x86")
+      expect(hash["architecture"]).to eq(:x86)
+      expect(hash["properties"]).to eq("test_props".b)
     end
   end
 end

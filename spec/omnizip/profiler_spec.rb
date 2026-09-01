@@ -367,12 +367,12 @@ RSpec.describe Omnizip::Models::PerformanceResult do
     end
   end
 
-  describe "#to_h" do
+  describe "#to_hash" do
     it "converts to hash" do
-      hash = result.to_h
-      expect(hash[:operation_name]).to eq("test_op")
-      expect(hash[:total_time]).to eq(2.0)
-      expect(hash[:throughput_ops_per_second]).to eq(2.5)
+      hash = result.to_hash
+      expect(hash["operation_name"]).to eq("test_op")
+      expect(hash["total_time"]).to eq(2.0)
+      expect(hash["throughput_ops_per_second"]).to eq(2.5)
     end
   end
 end

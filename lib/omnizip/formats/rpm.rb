@@ -301,7 +301,7 @@ module Omnizip
         #
         # @param output_dir [String] Output directory
         def extract(output_dir)
-          raise "RPM not opened" unless @file
+          raise Omnizip::IOError, "RPM not opened" unless @file
 
           FileUtils.mkdir_p(output_dir)
 
@@ -322,7 +322,7 @@ module Omnizip
         #
         # @return [String] Raw compressed payload data
         def raw_payload
-          raise "RPM not opened" unless @file
+          raise Omnizip::IOError, "RPM not opened" unless @file
 
           payload_io = payload
           payload_io.read
@@ -370,7 +370,7 @@ module Omnizip
         end
 
         def payload
-          raise "RPM not opened" unless @file
+          raise Omnizip::IOError, "RPM not opened" unless @file
 
           # Calculate payload offset
           offset = @lead.length
@@ -434,7 +434,7 @@ module Omnizip
 
           output
         rescue StandardError => e
-          raise "Failed to decompress with #{cmd}: #{e.message}"
+          raise Omnizip::DecompressionError, "Failed to decompress with #{cmd}: #{e.message}"
         end
 
         def extract_cpio(source, output_dir)

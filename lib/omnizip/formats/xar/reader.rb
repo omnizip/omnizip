@@ -203,7 +203,7 @@ module Omnizip
           @file.seek(@header.header_size)
           compressed_toc = @file.read(@header.toc_compressed_size)
 
-          raise "Failed to read TOC" unless compressed_toc
+          raise Omnizip::InvalidArchiveError, "Failed to read TOC" unless compressed_toc
 
           # Parse TOC
           @toc = Toc.parse(compressed_toc, @header.toc_uncompressed_size)
@@ -272,7 +272,7 @@ module Omnizip
             inf.close
             result
           rescue Zlib::Error => e
-            raise "Failed to decompress data: #{e.message}"
+            raise Omnizip::DecompressionError, "Failed to decompress data: #{e.message}"
           end
         end
 

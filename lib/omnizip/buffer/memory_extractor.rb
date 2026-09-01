@@ -151,24 +151,12 @@ module Omnizip
 
       private
 
-      # Detect archive format from magic bytes
+      # Delegate to the shared buffer-side sniffer
       #
       # @return [Symbol] Detected format
       # @raise [Omnizip::FormatError] If format cannot be detected
       def detect_format
-        magic = @buffer.read(4).to_s.b
-        @buffer.rewind
-
-        case magic
-        when "PK\x03\x04".b, "PK\x05\x06".b, "PK\x07\x08".b
-          # ZIP signatures: local file header, EOCD, data descriptor
-          :zip
-        when "7z\xBC\xAF".b
-          :seven_zip
-        else
-          raise Omnizip::FormatError,
-                "Unknown archive format (magic: #{magic.inspect})"
-        end
+        Omnizip::Buffer.detect_format(@buffer)
       end
 
       # Extract all entries from ZIP
@@ -207,8 +195,7 @@ module Omnizip
       def extract_entry_seven_zip(name)
         @buffer.rewind
         SevenZipBridge.open(@buffer) do |archive|
-          entry = archive.raw_entries.find { |e| e.name == name }
-          archive.extract_all_to_memory[name] if entry
+          archive.read_entry(name)
         end
       end
 

@@ -219,9 +219,10 @@ RSpec.describe Omnizip::Converter do
     end
 
     it "converts to hash" do
-      hash = result.to_h
-      expect(hash).to include(:source_path, :target_path, :duration,
-                              :entry_count)
+      hash = result.to_hash
+      expect(hash).to include("source_path", "target_path", "duration",
+                              "entry_count", "size_reduction",
+                              "processing_speed")
     end
 
     it "formats as string" do

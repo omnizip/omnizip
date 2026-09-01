@@ -87,7 +87,7 @@ module Omnizip
           ::File.open(archive_path, "rb") do |io|
             # Find the entry in reader
             reader_entry = reader.entries.find { |e| e.filename == entry.name }
-            raise "Entry not found in archive: #{entry.name}" unless reader_entry
+            raise Errno::ENOENT, "Entry not found in archive: #{entry.name}" unless reader_entry
 
             # Seek to entry data
             io.seek(reader_entry.local_header_offset, ::IO::SEEK_SET)
@@ -288,7 +288,7 @@ module Omnizip
           @write_mutex.synchronize do
             # Check if file exists
             if ::File.exist?(dest_path) && !overwrite
-              raise "File exists: #{dest_path}"
+              raise Errno::EEXIST, "File exists: #{dest_path}"
             end
 
             # Write file or create directory

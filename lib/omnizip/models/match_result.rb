@@ -1,24 +1,46 @@
 # frozen_string_literal: true
 
+require "lutaml/model"
+
 module Omnizip
   module Models
-    # Represents the result of pattern matching against archive entries
+    # Represents the result of pattern matching against archive entries.
     #
-    # Contains matched entries with metadata about the matching process.
-    class MatchResult
+    # Serialized via lutaml-model — no hand-rolled +to_h+ / +to_json+.
+    # The serialized "matches" is the match COUNT (not the entry
+    # objects, which are arbitrary caller types); the live entry
+    # collection stays a plain reader.
+    class MatchResult < Lutaml::Model::Serializable
       include Enumerable
 
-      attr_reader :matches, :total_scanned, :pattern
+      attribute :total_scanned, :integer, default: 0
+
+      attribute :pattern_repr, :string, method: :pattern_to_s
+      attribute :match_count, :integer, method: :count
+      attribute :rate, :double, method: :match_rate
+
+      key_value do
+        map "pattern", to: :pattern_repr,
+                       render_default: true, render_nil: true
+        map "matches", to: :match_count,
+                       render_default: true, render_nil: true
+        map "scanned", to: :total_scanned,
+                       render_default: true, render_nil: true
+        map "match_rate", to: :rate,
+                          render_default: true, render_nil: true
+      end
+
+      attr_reader :matches, :pattern
 
       # Initialize a new match result
       #
       # @param pattern [Object] The pattern that was matched
       # @param matches [Array] Array of matched entries
       # @param total_scanned [Integer] Total entries scanned
-      def initialize(pattern, matches: [], total_scanned: 0)
+      def initialize(pattern = nil, matches: [], total_scanned: 0)
+        super(total_scanned: total_scanned)
         @pattern = pattern
         @matches = Array(matches)
-        @total_scanned = total_scanned
       end
 
       # Add a matched entry
@@ -35,7 +57,7 @@ module Omnizip
       # @param count [Integer] Number to increment by
       # @return [self]
       def increment_scanned(count = 1)
-        @total_scanned += count
+        self.total_scanned = total_scanned + count
         self
       end
 
@@ -64,9 +86,9 @@ module Omnizip
       #
       # @return [Float] Match rate between 0.0 and 1.0
       def match_rate
-        return 0.0 if @total_scanned.zero?
+        return 0.0 if total_scanned.zero?
 
-        count.to_f / @total_scanned
+        count.to_f / total_scanned
       end
 
       # Get match percentage
@@ -108,16 +130,11 @@ module Omnizip
         @matches.dup
       end
 
-      # Get summary hash
+      # Serialized pattern representation.
       #
-      # @return [Hash]
-      def to_h
-        {
-          pattern: @pattern.to_s,
-          matches: count,
-          scanned: @total_scanned,
-          match_rate: match_rate,
-        }
+      # @return [String] The pattern as a string
+      def pattern_to_s
+        @pattern.to_s
       end
     end
   end

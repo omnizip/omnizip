@@ -94,7 +94,7 @@ module Omnizip
         when CHECK_SHA256
           verify_sha256(data, expected)
         else
-          raise "Unknown check type: #{check_type}"
+          raise Omnizip::UnknownChecksumError, "Unknown check type: #{check_type}"
         end
       end
 
@@ -122,7 +122,7 @@ module Omnizip
         when CHECK_SHA256
           Digest::SHA256.digest(data)
         else
-          raise "Unknown check type: #{check_type}"
+          raise Omnizip::UnknownChecksumError, "Unknown check type: #{check_type}"
         end
       end
     end
