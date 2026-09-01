@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.51] - 2026-09-01
+
+### Changed
+- Profile resolution lives in one place: `Omnizip::Profile` gains
+  `resolve`, `apply`, and `first_file_among`, and the convenience
+  methods plus the `archive create` command collapse onto them. The
+  two prior copies had drifted — the command only accepted `"auto"`
+  strings and could not pass a `CompressionProfile` through.
+- Both direct converter strategies (ZIP↔7z) now extract through
+  `Omnizip.extract_archive` and write through a shared
+  `ConversionStrategy#repack_tree` on the Archive facade — they were
+  the last library code instantiating format readers/writers
+  directly, and the 7z→ZIP path required `#open` against the
+  reader-always-usable invariant.
+- `create_rar` routes through the RAR handler (unrar-verified) with
+  the generic writer block interface; its stale "requires RAR
+  license" docstring is gone. `decompress_file`'s three-arm case
+  with magic `:xz`/`:zstandard` markers becomes a
+  `SINGLE_FILE_DECOMPRESSORS` table mirroring the compressor table.
+
+### Fixed
+- macOS CI failed at setup from 2026-09-01: Homebrew disabled the
+  `rar` cask (Gatekeeper check), breaking `brew install rar`. The
+  workflow now installs it separately and non-fatally, like the
+  Windows branch already did for winrar; RAR interop specs skip
+  when unrar is absent.
+
 ## [0.3.50] - 2026-08-31
 
 ### Added
