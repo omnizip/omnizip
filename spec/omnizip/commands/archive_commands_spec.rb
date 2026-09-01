@@ -16,9 +16,9 @@ RSpec.describe "Archive Commands" do
   describe Omnizip::Commands::ArchiveExtractCommand do
     it "extracts matching entries from a cpio archive through the handler seam" do
       src = File.join(test_dir, "p.txt")
-      File.write(src, "patterned\n")
+      File.binwrite(src, "patterned\n")
       other = File.join(test_dir, "q.log")
-      File.write(other, "skipped\n")
+      File.binwrite(other, "skipped\n")
       cpio = File.join(test_dir, "a.cpio")
       Omnizip::Formats::Cpio.create(cpio) do |c|
         c.add_file(src)
