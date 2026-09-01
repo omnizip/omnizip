@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.54] - 2026-09-01
+
+### Changed
+- The 7z tree's 38 bare `raise "string"` sites gain their matching
+  classes: `PasswordError` for encrypted-header problems (with a
+  new autoload entry — the class lives at the top of password.rb,
+  so referencing it never loaded the file),
+  `InvalidArchiveError`/`UnsupportedFormatError` for parse and
+  structure failures, `ChecksumError` for CRC mismatches,
+  `AlgorithmNotFoundError`/`UnknownFilterError` in CoderChain, and
+  `Errno::ENOENT` for missing entries and volumes. The reader's
+  encrypted-header probe re-raises password errors by class instead
+  of matching message text.
+- In-memory ZIP leaves the rubyzip compat layer: `Buffer.create`
+  writes through the native Writer (which gains a per-entry
+  compression-method override so `:store` entries work beside
+  deflated ones), and `Buffer.open`/`MemoryExtractor` read through
+  the native Reader via a temporary-file spill.
+  `MemoryArchive::Entry#read` now has true IO streaming semantics —
+  successive chunks and nil at EOF (an always-returning read looped
+  forever in `Pipe::StreamDecompressor`).
+- The parallel subsystem is revived: Engine drives our own
+  WorkerPool instead of a phantom `Fractor::WorkerPool`,
+  ParallelExtractor reads through the native ZIP reader and runs on
+  a bounded ThreadPool — Ractor workers cannot trigger Omnizip's
+  autoloads or cross into Proc-holding codec constants on
+  Ruby <= 3.3 — JobScheduler's implemented round_robin/bin_packing
+  strategies are reachable, directory entries extract idempotently,
+  and the subsystem gains specs.
+
+### Fixed
+- par2_compatibility_spec was missing `require "tmpdir"` and failed
+  9 of 15 examples whenever no earlier spec happened to load tmpdir
+  first.
+
 ## [0.3.53] - 2026-09-01
 
 ### Changed
