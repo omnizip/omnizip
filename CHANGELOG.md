@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.53] - 2026-09-01
+
+### Changed
+- The last six hand-rolled `to_h` serializers migrate onto
+  lutaml-model like their siblings: `ConversionResult`,
+  `PerformanceResult`, `ProfileReport` (with a nested Summary model
+  built from aggregates), `OptimizationSuggestion`, `MatchResult`,
+  and `FilterConfig`. Computed report fields (size_reduction,
+  throughput, priority_score, summary aggregates) serialize through
+  lutaml derived attributes keyed under their documented names.
+  Serialized hashes now use string keys (`to_hash`, matching the
+  other migrated models).
+- `Formats::Zip::Reader` gains `read_entry_stream`, yielding bounded
+  chunks (raw copy for STORE, incremental inflater for DEFLATE) with
+  a CRC check after the last chunk. `Chunked.decompress_file`
+  streams through it — the memory-efficient path no longer holds the
+  whole decompressed entry in memory to slice it. Extracting a
+  single 7z entry in memory (`MemoryExtractor`) extracts just that
+  entry instead of decompressing the entire archive.
+
+### Fixed
+- Boundary errors stop masquerading as bare RuntimeErrors:
+  `Checksums::Verifier` raises `UnknownChecksumError` (the class
+  existed unused), and thirty more `raise "string"` sites gained
+  their matching classes (`Errno::ENOENT` for missing entries
+  — matching the handler-registry convention — `Errno::EEXIST`,
+  `IOError`, `InvalidArchiveError`, `DecompressionError`,
+  `RarNotAvailableError`). The never-called placeholder
+  `decode_escape_code` in the RAR PPMd decoder is deleted.
+
 ## [0.3.52] - 2026-09-01
 
 ### Changed
