@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.52] - 2026-09-01
+
+### Changed
+- The extract command's pattern path opens archives through the
+  Archive facade instead of a hand-rolled extension `case` that
+  misrouted `.cpio`/`.iso`/`.rpm` files into the 7z reader — pattern
+  extraction now works for every routed format. The metadata
+  command's 7z view lists through the handler registry (the detail
+  contract gains `:crc`), and SafeExtract extracts through
+  `extract_archive`, so every routed format gets rollback and
+  verification instead of ZIP-only with a `NotImplementedError`
+  for 7z. SelectiveExtractor understands both entry contracts
+  (legacy `entry_name` and reader-session `name`) and skips
+  directory entries when extracting.
+- `CliOutputFormatter.format_size` is now the single byte formatter;
+  the nine private `format_bytes`/`format_size` copies (four
+  different shapes, two unit ceilings) become delegators.
+
+### Fixed
+- The long-deferred parity spec flake: `Par2Verifier` crashed five
+  frames deep on a nil PAR2 path (`File.exist?(nil)` → TypeError)
+  where the repairer already raised a clean ArgumentError; the
+  verifier now mirrors it, and the spec's `.verify` group gains the
+  nil-index fallback `.repair` already had. The dead shadowed
+  `analyze_file` definition in `Par2Creator` (silently overridden
+  by a second definition with a divergent file_id format) is
+  deleted. The tautological "LZMA2 is implicit" xz assertion became
+  a real block-header parse asserting the explicit 0x21 filter ID.
+
 ## [0.3.51] - 2026-09-01
 
 ### Changed
