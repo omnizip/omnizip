@@ -4,6 +4,7 @@ require "spec_helper"
 require "omnizip/parity/par2_verifier"
 require "omnizip/parity/par2_repairer"
 require "digest"
+require "tmpdir"
 
 RSpec.describe "PAR2 Compatibility Tests" do
   # Helper method to get fixture path

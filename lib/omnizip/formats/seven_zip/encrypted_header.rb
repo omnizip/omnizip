@@ -69,7 +69,7 @@ module Omnizip
         # @return [EncryptedHeader] Parsed header
         # @raise [RuntimeError] if data is invalid
         def self.from_binary(data)
-          raise "Invalid encrypted header: too short" if data.bytesize < 54
+          raise Omnizip::InvalidArchiveError, "Invalid encrypted header: too short" if data.bytesize < 54
 
           pos = 0
 
@@ -77,7 +77,7 @@ module Omnizip
           marker = data.getbyte(pos)
           pos += 1
           unless marker == PropertyId::ENCODED_HEADER
-            raise "Invalid encrypted header marker: expected #{PropertyId::ENCODED_HEADER}, got #{marker}"
+            raise Omnizip::InvalidArchiveError, "Invalid encrypted header marker: expected #{PropertyId::ENCODED_HEADER}, got #{marker}"
           end
 
           # Read encrypted data size

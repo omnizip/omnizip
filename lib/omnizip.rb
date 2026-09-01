@@ -85,6 +85,9 @@ module Omnizip
   autoload :ArchiveHandlers, "omnizip/archive_handlers"
   autoload :Archive, "omnizip/archive"
   autoload :Password, "omnizip/password"
+  # The class lives at the top level of omnizip/password.rb; without
+  # this entry, referencing it does not trigger the Password autoload
+  autoload :PasswordError, "omnizip/password"
   autoload :Convenience, "omnizip/convenience"
 end
 

@@ -23,7 +23,7 @@ module Omnizip
         # @param recursive [Boolean] Recursively add directories
         def add_path(path, archive_path: nil, recursive: true)
           path = File.expand_path(path)
-          raise "Path not found: #{path}" unless File.exist?(path)
+          raise Errno::ENOENT, "Path not found: #{path}" unless File.exist?(path)
 
           @base_path ||= File.dirname(path)
 

@@ -82,7 +82,7 @@ module Omnizip
           end
 
           value = read_number
-          raise "Unsupported 32-bit value" if value >= 0x80000000
+          raise Omnizip::InvalidArchiveError, "Unsupported 32-bit value" if value >= 0x80000000
 
           value
         end
@@ -233,7 +233,7 @@ module Omnizip
           end
 
           # Verify required SIZE property was present
-          raise "Missing SIZE property in pack info" unless sizes_read
+          raise Omnizip::InvalidArchiveError, "Missing SIZE property in pack info" unless sizes_read
 
           # K_END is optional in some 7-Zip versions
           read_byte if !eof? && peek_byte == PropertyId::K_END
@@ -259,7 +259,7 @@ module Omnizip
             end
           else
             # External folders not supported
-            raise "External folders not supported"
+            raise Omnizip::UnsupportedFormatError, "External folders not supported"
           end
         end
 
@@ -268,7 +268,7 @@ module Omnizip
         # @param folder [Models::Folder] Folder to populate
         def read_folder(folder)
           num_coders = read_number
-          raise "Too many coders" if num_coders > Constants::MAX_NUM_CODERS
+          raise Omnizip::InvalidArchiveError, "Too many coders" if num_coders > Constants::MAX_NUM_CODERS
 
           num_in_streams = 0
           num_out_streams = 0
@@ -386,8 +386,8 @@ module Omnizip
           end
 
           # Verify required properties were present
-          raise "Missing FOLDER property in unpack info" unless folders_read
-          raise "Missing CODERS_UNPACK_SIZE property in unpack info" unless unpack_sizes_read
+          raise Omnizip::InvalidArchiveError, "Missing FOLDER property in unpack info" unless folders_read
+          raise Omnizip::InvalidArchiveError, "Missing CODERS_UNPACK_SIZE property in unpack info" unless unpack_sizes_read
 
           # K_END is optional in some 7-Zip versions
           read_byte if !eof? && peek_byte == PropertyId::K_END
@@ -611,8 +611,8 @@ module Omnizip
           actual = read_byte
           return if actual == expected
 
-          raise "Expected property 0x#{expected.to_s(16)}, " \
-                "got 0x#{actual.to_s(16)}"
+          raise Omnizip::InvalidArchiveError, "Expected property 0x#{expected.to_s(16)}, " \
+                                              "got 0x#{actual.to_s(16)}"
         end
 
         # Skip size field

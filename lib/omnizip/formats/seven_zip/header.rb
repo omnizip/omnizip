@@ -29,14 +29,14 @@ module Omnizip
         def parse(io)
           # Read complete start header (32 bytes)
           header_data = io.read(START_HEADER_SIZE)
-          raise "Invalid .7z file: too short" if header_data.nil? ||
+          raise Omnizip::InvalidArchiveError, "Invalid .7z file: too short" if header_data.nil? ||
             header_data.bytesize < START_HEADER_SIZE
 
           # Validate signature
           signature = header_data[0, SIGNATURE_SIZE]
           unless signature == SIGNATURE
-            raise "Invalid .7z signature: expected #{SIGNATURE.inspect}, " \
-                  "got #{signature.inspect}"
+            raise Omnizip::InvalidArchiveError, "Invalid .7z signature: expected #{SIGNATURE.inspect}, " \
+                                                "got #{signature.inspect}"
           end
 
           # Parse version
@@ -44,7 +44,7 @@ module Omnizip
           @minor_version = header_data.getbyte(7)
 
           unless @major_version == MAJOR_VERSION
-            raise "Unsupported .7z version: #{@major_version}.#{@minor_version}"
+            raise Omnizip::UnsupportedFormatError, "Unsupported .7z version: #{@major_version}.#{@minor_version}"
           end
 
           # Parse start header CRC (bytes 8-11)

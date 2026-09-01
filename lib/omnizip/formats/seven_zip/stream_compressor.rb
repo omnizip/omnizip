@@ -44,7 +44,7 @@ module Omnizip
           # Apply compression algorithm
           if @algorithm && @algorithm != :copy
             algo_class = Omnizip::AlgorithmRegistry.get(@algorithm)
-            raise "Algorithm not found: #{@algorithm}" unless algo_class
+            raise Omnizip::AlgorithmNotFoundError, "Algorithm not found: #{@algorithm}" unless algo_class
 
             encoder = algo_class.new
             input_io = StringIO.new(result)

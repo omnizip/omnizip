@@ -223,18 +223,13 @@ module Omnizip
                 EncryptedHeader.from_binary(next_header_data)
                 # If we got here, it's encrypted - try to decrypt
                 next_header_data = decrypt_header(next_header_data)
-              rescue RuntimeError => e
-                # Re-raise password-related errors
-                if e.message.include?("Password required") || e.message.include?("incorrect password")
-                  raise
-                end
-
-                # Not encrypted - it's a compressed header
-                # Decompress it using the encoded stream info
-                next_header_data = decompress_encoded_header(io,
-                                                             next_header_data)
+              rescue Omnizip::PasswordError
+                # Decryption refused or failed — a password problem,
+                # never a compressed header
+                raise
               rescue StandardError
-                # Parsing error - not an encrypted header, try decompression
+                # Not an encrypted header — it's a compressed header;
+                # decompress it using the encoded stream info
                 next_header_data = decompress_encoded_header(io,
                                                              next_header_data)
               end
@@ -250,8 +245,8 @@ module Omnizip
             @stream_info, @entries = parse_metadata(parser)
           rescue StandardError => e
             if @headers_decrypted
-              raise "Failed to decrypt headers: incorrect password " \
-                    "or corrupted data (#{e.message})"
+              raise Omnizip::PasswordError, "Failed to decrypt headers: incorrect password " \
+                                            "or corrupted data (#{e.message})"
             end
 
             raise
@@ -271,7 +266,7 @@ module Omnizip
           @encrypted_header = EncryptedHeader.from_binary(encrypted_data)
 
           unless @password
-            raise "Archive headers are encrypted. Password required to access."
+            raise Omnizip::PasswordError, "Archive headers are encrypted. Password required to access."
           end
 
           # Decrypt using password
@@ -287,7 +282,7 @@ module Omnizip
           @headers_decrypted = true
           decrypted
         rescue OpenSSL::Cipher::CipherError => e
-          raise "Failed to decrypt headers: incorrect password (#{e.message})"
+          raise Omnizip::PasswordError, "Failed to decrypt headers: incorrect password (#{e.message})"
         end
 
         # Decompress encoded (compressed) header
@@ -317,7 +312,7 @@ module Omnizip
               parser.read_unpack_info(stream_info)
             end
           else
-            raise "Unexpected property in encoded header: 0x#{type.to_s(16)}"
+            raise Omnizip::InvalidArchiveError, "Unexpected property in encoded header: 0x#{type.to_s(16)}"
           end
 
           # Decompress the header using the stream info
@@ -341,7 +336,7 @@ module Omnizip
 
           # Read main header
           type = parser.read_byte
-          raise "Expected Header, got 0x#{type.to_s(16)}" unless
+          raise Omnizip::InvalidArchiveError, "Expected Header, got 0x#{type.to_s(16)}" unless
             type == PropertyId::HEADER
 
           # Parse header sections
@@ -529,7 +524,7 @@ module Omnizip
             crc = Omnizip::Checksums::Crc32.new
             crc.update(data)
             unless crc.value == entry.crc
-              raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+              raise Omnizip::ChecksumError, "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
             end
           end
 
@@ -589,7 +584,7 @@ module Omnizip
               crc = Omnizip::Checksums::Crc32.new
               crc.update(data)
               unless crc.value == entry.crc
-                raise "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
+                raise Omnizip::ChecksumError, "CRC mismatch for #{entry.name}: expected 0x#{entry.crc.to_s(16)}, got 0x#{crc.value.to_s(16)}"
               end
             end
 

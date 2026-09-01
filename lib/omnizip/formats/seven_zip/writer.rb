@@ -299,7 +299,7 @@ module Omnizip
         # @return [String] Encrypted header with metadata
         def encrypt_header(header_data)
           unless @options[:password]
-            raise "Password required for header encryption"
+            raise Omnizip::PasswordError, "Password required for header encryption"
           end
 
           encryptor = HeaderEncryptor.new(@options[:password])

@@ -154,7 +154,7 @@ RSpec.describe "Filter Integration" do
 
       expect do
         chain.algorithm_for_method(0x99999999)
-      end.to raise_error(RuntimeError, /Unsupported compression method/)
+      end.to raise_error(Omnizip::UnsupportedFormatError, /Unsupported compression method/)
     end
   end
 

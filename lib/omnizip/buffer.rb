@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "tmpdir"
 
 module Omnizip
   # In-memory archive operations without filesystem I/O
@@ -150,27 +151,33 @@ module Omnizip
 
       private
 
-      # Create ZIP archive in buffer
+      # Create ZIP archive in buffer through the native writer
       #
       # @param buffer [StringIO] Buffer to write to
       # @param options [Hash] ZIP-specific options
       # @yield [archive] Block to populate archive
       def create_zip(buffer, _options, &block)
-        Omnizip::Zip::OutputStream.open(buffer) do |zos|
-          archive = Buffer::MemoryArchive.new(zos, :zip)
-          block&.call(archive)
-        end
+        writer = Formats::Zip::Writer.new(nil)
+        archive = Buffer::MemoryArchive.new(writer, :zip)
+        block&.call(archive)
+        writer.write_to_io(buffer)
       end
 
-      # Open ZIP archive from buffer
+      # Open ZIP archive from buffer through the native reader.
+      # The reader parses from a path, so the buffer spills to a
+      # temporary file (same pattern as the 7z bridge).
       #
       # @param buffer [StringIO] Buffer containing ZIP data
       # @yield [archive] Block to read from archive
       # @return [MemoryArchive, Object] Archive or block return value
       def open_zip(buffer, &block)
         result = nil
-        Omnizip::Zip::InputStream.open(buffer) do |zis|
-          archive = Buffer::MemoryArchive.new(zis, :zip)
+        Dir.mktmpdir("omnizip_buffer_zip") do |tmp|
+          path = File.join(tmp, "buffer.zip")
+          File.binwrite(path, buffer.string)
+
+          archive = Buffer::MemoryArchive.new(Formats::Zip::Reader.new(path),
+                                              :zip)
           result = block ? yield(archive) : archive
         end
         result

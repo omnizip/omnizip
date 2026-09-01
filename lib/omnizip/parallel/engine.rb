@@ -31,17 +31,21 @@ module Omnizip
       # @return [Array<Fractor::WorkResult>] the failed results, for
       #   the caller to decide how to surface.
       def run(work_items)
-        pool = Fractor::WorkerPool.new(
+        pool = WorkerPool.new(
           worker_class: @worker_class,
           num_workers: @threads,
           continuous: false,
         )
         pool.start
-        pool.submit_batch(work_items)
-        pool.run
+        begin
+          pool.submit_batch(work_items)
+          pool.run
 
-        pool.successful_results.each { |r| yield r if block_given? }
-        pool.failed_results
+          pool.successful_results.each { |r| yield r if block_given? }
+          pool.failed_results
+        ensure
+          pool.shutdown
+        end
       end
     end
   end

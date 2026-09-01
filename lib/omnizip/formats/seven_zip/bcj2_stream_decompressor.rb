@@ -46,7 +46,7 @@ module Omnizip
           bcj2_coder = @folder.coders.find { |c| c.method_id == FilterId::BCJ2 }
           compression_coder = find_compression_coder
 
-          raise "BCJ2 coder not found" unless bcj2_coder
+          raise Omnizip::InvalidArchiveError, "BCJ2 coder not found" unless bcj2_coder
 
           # Determine stream layout based on folder structure
           # BCJ2 has 4 input streams: main, call, jump, rc
@@ -217,7 +217,7 @@ module Omnizip
           return packed_data unless algo_sym
 
           algo_class = Omnizip::AlgorithmRegistry.get(algo_sym)
-          raise "Algorithm not found: #{algo_sym}" unless algo_class
+          raise Omnizip::AlgorithmNotFoundError, "Algorithm not found: #{algo_sym}" unless algo_class
 
           # Build decoder options
           options = build_decoder_options(coder, algo_sym)

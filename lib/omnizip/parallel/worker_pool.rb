@@ -132,8 +132,12 @@ module Omnizip
       def shutdown(timeout: 30)
         return unless @running
 
+        # Stop in BOTH modes: batch worker Ractors otherwise linger
+        # in Ractor.receive for the life of the process, burning CPU
+        # after the batch completes
+        @supervisor&.stop
+
         if @continuous
-          @supervisor.stop
           @supervisor_thread&.join(timeout)
         end
 
