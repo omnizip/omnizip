@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "fractor"
 require "fileutils"
 
 module Omnizip
@@ -21,72 +20,6 @@ module Omnizip
     #   extractor = Omnizip::Parallel::ParallelExtractor.new(options)
     #   extractor.extract('backup.zip', 'output/')
     class ParallelExtractor
-      # Fractor Work class for extraction jobs. Carries only the
-      # entry NAME (plus paths): work crosses into worker Ractors,
-      # and mutable model objects may not survive the crossing on
-      # every supported Ruby.
-      class ExtractionWork < Fractor::Work
-        def initialize(entry_name:, archive_path:, dest_dir:)
-          super({
-            entry_name: entry_name,
-            archive_path: archive_path,
-            dest_dir: dest_dir,
-          })
-        end
-
-        def entry_name
-          input[:entry_name]
-        end
-
-        def archive_path
-          input[:archive_path]
-        end
-
-        def dest_dir
-          input[:dest_dir]
-        end
-      end
-
-      # Fractor Worker class for extraction
-      class ExtractionWorker < Fractor::Worker
-        def process(work)
-          entry_name = work.entry_name
-          archive_path = work.archive_path
-          dest_dir = work.dest_dir
-
-          # Each worker opens the archive independently (its own
-          # file handle) and looks the entry up by name
-          entry = Omnizip::Formats::Zip::Reader.new(archive_path)
-            .entries.find { |e| e.filename == entry_name }
-          raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
-
-          data = entry.directory? ? "" : read_entry_data(archive_path, entry_name)
-
-          Fractor::WorkResult.new(
-            result: {
-              entry_name: entry_name,
-              dest_path: ::File.join(dest_dir, entry_name),
-              data: data,
-              directory: entry.directory?,
-              unix_perms: entry.unix_permissions.to_i,
-            },
-            work: work,
-          )
-        rescue StandardError => e
-          Fractor::WorkResult.new(
-            error: e,
-            work: work,
-          )
-        end
-
-        private
-
-        def read_entry_data(archive_path, entry_name)
-          Omnizip::Formats::Zip::Reader.new(archive_path)
-            .read_entry(entry_name)
-        end
-      end
-
       # @return [Omnizip::Models::ParallelOptions] parallel options
       attr_reader :options
 
@@ -157,32 +90,34 @@ module Omnizip
           )
         end
 
-        # Create work items from jobs
+        # Create work items from jobs, largest first
         work_items = []
         until job_queue.empty?
           job = job_queue.pop(timeout: 0.1)
           break unless job
 
-          work_items << ExtractionWork.new(
-            entry_name: job.data[:entry_name],
-            archive_path: archive,
-            dest_dir: dest,
-          )
+          work_items << job.data[:entry_name]
         end
 
-        # Run the worker pool through the shared engine.
-        engine = Engine.new(worker_class: ExtractionWorker,
-                            threads: @options.threads)
-        results = []
-        errors = engine.run(work_items) { |r| results << r }
+        # Threads, not Ractors: Omnizip's autoloads and Proc-holding
+        # codec constants cannot cross Ractor boundaries on Ruby <= 3.3
+        pool = ThreadPool.new(size: @options.threads)
+        raw_results, raw_errors = pool.map(work_items) do |entry_name|
+          process_entry(archive, dest, entry_name)
+        end
 
-        # Handle errors
-        unless errors.empty?
-          error_msgs = errors.map do |e|
-            "#{e.work&.entry_name}: #{e.error}"
-          end.join("\n")
+        # Handle errors (raw_errors holds nil for every item that
+        # succeeded — zip+compact would keep those pairs)
+        failure_pairs = raw_errors.each_with_index.filter_map do |error, index|
+          [work_items[index], error] if error
+        end
+        unless failure_pairs.empty?
+          error_msgs = failure_pairs.map { |name, e| "#{name}: #{e.message}" }
+            .join("\n")
           raise Omnizip::DecompressionError, "Extraction errors:\n#{error_msgs}"
         end
+
+        results = raw_results
 
         # Write files to disk (thread-safe)
         extracted_paths = write_extracted_files(results, overwrite: overwrite)
@@ -211,6 +146,27 @@ module Omnizip
 
       private
 
+      # Decompress one entry in a worker thread. Each worker opens
+      # the archive independently — its own file handle per thread.
+      def process_entry(archive_path, dest_dir, entry_name)
+        entry = Omnizip::Formats::Zip::Reader.new(archive_path)
+          .entries.find { |e| e.filename == entry_name }
+        raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry
+
+        {
+          entry_name: entry_name,
+          dest_path: ::File.join(dest_dir, entry_name),
+          data: entry.directory? ? "" : read_entry_data(archive_path, entry_name),
+          directory: entry.directory?,
+          unix_perms: entry.unix_permissions.to_i,
+        }
+      end
+
+      def read_entry_data(archive_path, entry_name)
+        Omnizip::Formats::Zip::Reader.new(archive_path)
+          .read_entry(entry_name)
+      end
+
       def safe_entry_size(entry)
         entry.uncompressed_size.to_i
       end
@@ -231,8 +187,7 @@ module Omnizip
       def write_extracted_files(results, overwrite: false)
         extracted_paths = []
 
-        results.each do |work_result|
-          result = work_result.result
+        results.each do |result|
           next unless result
 
           dest_path = result[:dest_path]
