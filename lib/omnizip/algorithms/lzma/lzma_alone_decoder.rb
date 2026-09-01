@@ -118,12 +118,12 @@ module Omnizip
           # Step 1: Parse properties byte (SEQ_PROPERTIES)
           # Reference: alone_decoder.c:64-68
           props = @input.getbyte
-          raise "Invalid .lzma header: missing properties byte" if props.nil?
+          raise Omnizip::DecompressionError, "Invalid .lzma header: missing properties byte" if props.nil?
 
           # Use XZ Utils property byte parsing
           # Reference: /Users/mulgogi/src/external/xz/src/liblzma/lzma/lzma_decoder.c:1216-1228
           if props > MAX_PROPERTY_BYTE
-            raise "Invalid .lzma header: properties byte #{props} exceeds maximum #{MAX_PROPERTY_BYTE}"
+            raise Omnizip::DecompressionError, "Invalid .lzma header: properties byte #{props} exceeds maximum #{MAX_PROPERTY_BYTE}"
           end
 
           # Parse lc, lp, pb from properties byte
@@ -136,7 +136,7 @@ module Omnizip
           # Validate lc + lp <= 4 (LZMA_LCLP_MAX)
           # Reference: lzma_decoder.c:1227
           if @lc + @lp > 4
-            raise "Invalid .lzma header: lc (#{@lc}) + lp (#{@lp}) exceeds maximum 4"
+            raise Omnizip::DecompressionError, "Invalid .lzma header: lc (#{@lc}) + lp (#{@lp}) exceeds maximum 4"
           end
 
           # Step 2: Parse dictionary size (SEQ_DICTIONARY_SIZE)
@@ -144,7 +144,7 @@ module Omnizip
           @dict_size = 0
           4.times do |i|
             byte = @input.getbyte
-            raise "Incomplete .lzma header: missing dictionary size byte" if byte.nil?
+            raise Omnizip::DecompressionError, "Incomplete .lzma header: missing dictionary size byte" if byte.nil?
 
             @dict_size |= (byte << (i * 8))
           end
@@ -163,7 +163,7 @@ module Omnizip
             d += 1
 
             if d != @dict_size
-              raise "Invalid .lzma header: dictionary size #{@dict_size} is not 2^n or 2^n + 2^(n-1)"
+              raise Omnizip::DecompressionError, "Invalid .lzma header: dictionary size #{@dict_size} is not 2^n or 2^n + 2^(n-1)"
             end
           end
 
@@ -172,7 +172,7 @@ module Omnizip
           @uncompressed_size = 0
           8.times do |i|
             byte = @input.getbyte
-            raise "Incomplete .lzma header: missing uncompressed size byte" if byte.nil?
+            raise Omnizip::DecompressionError, "Incomplete .lzma header: missing uncompressed size byte" if byte.nil?
 
             @uncompressed_size |= (byte << (i * 8))
           end
@@ -182,7 +182,7 @@ module Omnizip
           # Reference: alone_decoder.c:116-120
           if @picky && @uncompressed_size != 0xFFFFFFFFFFFFFFFF &&
               @uncompressed_size >= MAX_UNCOMPRESSED_SIZE
-            raise "Invalid .lzma header: uncompressed size #{@uncompressed_size} exceeds maximum #{MAX_UNCOMPRESSED_SIZE}"
+            raise Omnizip::DecompressionError, "Invalid .lzma header: uncompressed size #{@uncompressed_size} exceeds maximum #{MAX_UNCOMPRESSED_SIZE}"
           end
 
           # Note: XZ Utils uses UINT64_MAX (0xFFFFFFFFFFFFFFFF) for unknown size

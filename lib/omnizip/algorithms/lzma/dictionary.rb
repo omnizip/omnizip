@@ -31,7 +31,7 @@ module Omnizip
 
         # Read bytes from dictionary at a distance back
         def read_bytes(distance, length)
-          raise "Invalid distance: #{distance}" if distance > @buffer.bytesize
+          raise Omnizip::DecompressionError, "Invalid distance: #{distance}" if distance > @buffer.bytesize
 
           result = String.new(encoding: Encoding::BINARY)
           src_pos = @buffer.bytesize - distance
@@ -46,7 +46,7 @@ module Omnizip
 
         # Get byte at distance back
         def get_byte(distance)
-          raise "Invalid distance: #{distance}" if distance > @buffer.bytesize
+          raise Omnizip::DecompressionError, "Invalid distance: #{distance}" if distance > @buffer.bytesize
 
           @buffer.getbyte(@buffer.bytesize - distance)
         end

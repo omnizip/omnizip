@@ -55,10 +55,17 @@ module Omnizip
                                 extra_field
                               ])
 
-    # Register 7z format metadata support (limited)
+    # Register 7z format metadata support: the readable fields the
+    # handler detail contract carries (name/size/directory always
+    # present; compressed_size when tracked, mtime/crc when stored).
+    # Editing is ZIP-only — the metadata command raises truthfully.
     MetadataRegistry.register(:seven_zip, %i[
+                                name
+                                size
+                                directory
+                                compressed_size
                                 mtime
-                                attributes
+                                crc
                               ])
   end
 end

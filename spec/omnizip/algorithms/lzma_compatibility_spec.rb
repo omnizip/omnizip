@@ -47,8 +47,8 @@ RSpec.describe "LZMA Official Tool Compatibility" do
         header = File.read(lzma_file, 13, mode: "rb")
         puts "Header (hex): #{header.bytes.map { |b| '%02X' % b }.join(' ')}"
 
-        # This is expected to fail initially - we're testing to see why
-        skip "xz compatibility not yet implemented (expected)"
+        fail "xz can no longer decode our .lzma output — regression. " \
+             "stderr: #{stderr}"
       end
     end
 
@@ -66,21 +66,9 @@ RSpec.describe "LZMA Official Tool Compatibility" do
       compressed = File.read(lzma_file, mode: "rb")
       decompressed = StringIO.new
 
-      begin
-        Omnizip::Algorithms::LZMA.new.decompress(StringIO.new(compressed),
-                                                 decompressed)
-        expect(decompressed.string).to eq(test_data)
-      rescue StandardError => e
-        puts "\nOmnizip failed to decode xz-created LZMA file:"
-        puts "Error: #{e.message}"
-        puts "Error class: #{e.class}"
-
-        # Inspect file header
-        header = compressed[0, 13]
-        puts "Header (hex): #{header.bytes.map { |b| '%02X' % b }.join(' ')}"
-
-        skip "xz LZMA format compatibility not yet implemented (expected)"
-      end
+      Omnizip::Algorithms::LZMA.new.decompress(StringIO.new(compressed),
+                                               decompressed)
+      expect(decompressed.string).to eq(test_data)
     end
   end
 
@@ -114,7 +102,8 @@ RSpec.describe "LZMA Official Tool Compatibility" do
         puts "STDOUT: #{stdout}"
         puts "STDERR: #{stderr}"
 
-        skip "7zz compatibility not yet implemented (expected)"
+        fail "7zz can no longer decode our .lzma output — regression. " \
+             "stderr: #{stderr}"
       end
     end
 
@@ -176,7 +165,8 @@ RSpec.describe "LZMA Official Tool Compatibility" do
         puts "STDOUT: #{stdout}"
         puts "STDERR: #{stderr}"
 
-        skip "7zz raw LZMA compatibility not yet implemented (expected)"
+        fail "7zz can no longer decode our raw LZMA output — regression. " \
+             "stderr: #{stderr}"
       end
     end
   end

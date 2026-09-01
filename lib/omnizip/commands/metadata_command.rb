@@ -84,16 +84,24 @@ module Omnizip
         end
       end
 
+      # The display is driven by the registry's field contract for
+      # :seven_zip — optional lines print only for registered fields.
       def show_seven_zip_entry(entry)
-        puts "Entry: #{entry[:name]}"
-        puts "  Type: #{entry[:directory] ? 'Directory' : 'File'}"
-        puts "  Size: #{format_size(entry[:size])}"
+        registry = Omnizip::Metadata::MetadataRegistry
+        puts "Entry: #{entry[:name]}" if registry.supports?(:seven_zip, :name)
+        puts "  Type: #{entry[:directory] ? 'Directory' : 'File'}" if registry.supports?(:seven_zip, :directory)
+        puts "  Size: #{format_size(entry[:size])}" if registry.supports?(:seven_zip, :size)
         # Per-entry packed sizes are not tracked by the parser
-        if entry[:compressed_size]&.positive?
+        if registry.supports?(:seven_zip, :compressed_size) &&
+            entry[:compressed_size]&.positive?
           puts "  Compressed: #{format_size(entry[:compressed_size])}"
         end
-        puts "  Modified: #{entry[:mtime]}" if entry[:mtime]
-        puts "  CRC32: 0x#{entry[:crc].to_s(16).upcase}" if entry[:crc]
+        if registry.supports?(:seven_zip, :mtime) && entry[:mtime]
+          puts "  Modified: #{entry[:mtime]}"
+        end
+        if registry.supports?(:seven_zip, :crc) && entry[:crc]
+          puts "  CRC32: 0x#{entry[:crc].to_s(16).upcase}"
+        end
       end
 
       def show_metadata(archive, pattern)

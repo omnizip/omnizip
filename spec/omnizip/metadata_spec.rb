@@ -231,5 +231,11 @@ RSpec.describe Omnizip::Metadata do
     it "returns all formats" do
       expect(described_class.formats).to include(:zip, :seven_zip)
     end
+
+    it "covers exactly the fields the 7z view displays" do
+      fields = described_class.supported_fields(:seven_zip)
+      expect(fields).to contain_exactly(:name, :size, :directory,
+                                        :compressed_size, :mtime, :crc)
+    end
   end
 end
