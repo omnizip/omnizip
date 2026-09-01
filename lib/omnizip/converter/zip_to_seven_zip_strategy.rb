@@ -10,22 +10,11 @@ module Omnizip
       # @return [ConversionResult] Conversion result
       def convert
         start_time = Time.now
-        entry_count = 0
 
-        Dir.mktmpdir("omnizip_convert_zip") do |tmp|
-          # Extract the ZIP through the native reader; directories are
-          # implied by extracted file paths
-          Omnizip::Formats::Zip.extract(source_path, tmp)
-
-          writer = Omnizip::Formats::SevenZip::Writer.new(target_path,
-                                                          writer_options)
-          Dir.glob(File.join(tmp, "**", "*")).each do |path|
-            next if File.directory?(path)
-
-            entry_count += 1
-            writer.add_file(path, path.delete_prefix("#{tmp}/"))
-          end
-          writer.write
+        entry_count = Dir.mktmpdir("omnizip_convert_zip") do |tmp|
+          # Directories are implied by extracted file paths
+          Omnizip.extract_archive(source_path, tmp)
+          repack_tree(tmp, **writer_options)
         end
 
         create_result(start_time, entry_count)

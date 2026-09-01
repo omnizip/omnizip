@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "tempfile"
+require "tmpdir"
 
 RSpec.describe Omnizip::Profile do
   before do
@@ -109,6 +110,114 @@ RSpec.describe Omnizip::Profile do
     it "handles archive symbol" do
       profile = described_class.for_file_type(:archive)
       expect(profile.name).to eq(:archive)
+    end
+  end
+
+  describe ".resolve" do
+    it "detects :auto against the sampling file" do
+      Dir.mktmpdir("omnizip_resolve") do |dir|
+        source = File.join(dir, "words.txt")
+        File.write(source, "filler content\n" * 200)
+        sample = File.join(dir, "sample.zip")
+        Omnizip.compress_file(source, sample)
+
+        profile = described_class.resolve(:auto, first_file: sample)
+        expect(profile.name).to eq(:archive)
+      end
+    end
+
+    it "resolves :auto to balanced without a sampling file" do
+      profile = described_class.resolve(:auto, first_file: nil)
+      expect(profile.name).to eq(:balanced)
+    end
+
+    it "accepts the auto spec as a string (CLI vocabulary)" do
+      expect(described_class.resolve("auto")).to eq(described_class.get(:balanced))
+    end
+
+    it "resolves registered names as symbols or strings" do
+      expect(described_class.resolve(:fast)).to eq(described_class.get(:fast))
+      expect(described_class.resolve("fast")).to eq(described_class.get(:fast))
+    end
+
+    it "passes profile instances through" do
+      profile = described_class.get(:maximum)
+      expect(described_class.resolve(profile)).to eq(profile)
+    end
+
+    it "falls back to balanced for unknown names" do
+      expect(described_class.resolve(:no_such_profile))
+        .to eq(described_class.get(:balanced))
+    end
+  end
+
+  describe ".apply" do
+    it "applies the resolved profile and removes the :profile key" do
+      options = described_class.apply({ profile: :fast },
+                                      paths: [])
+      expect(options).not_to have_key(:profile)
+      expect(options[:algorithm]).to eq(described_class.get(:fast).algorithm)
+    end
+
+    it "returns the options untouched without a :profile key" do
+      options = { level: 9 }
+      result = described_class.apply(options, paths: [])
+
+      expect(result).to eq(level: 9)
+      expect(options).to eq(level: 9)
+    end
+
+    it "samples the first file at or below the given paths" do
+      Dir.mktmpdir("omnizip_profile_apply") do |dir|
+        source = File.join(dir, "words.txt")
+        File.write(source, "filler content\n" * 200)
+        nested = File.join(dir, "sub")
+        Dir.mkdir(nested)
+        sample = File.join(nested, "sample.zip")
+        Omnizip.compress_file(source, sample)
+
+        options = described_class.apply({ profile: :auto }, paths: [dir])
+        expect(options[:algorithm])
+          .to eq(described_class.get(:archive).algorithm)
+      end
+    end
+  end
+
+  describe ".first_file_among" do
+    it "returns a plain file path" do
+      file = Tempfile.new("omnizip-first")
+      expect(described_class.first_file_among(file.path)).to eq(file.path)
+      file.close
+      file.unlink
+    end
+
+    it "finds the first file inside a directory tree" do
+      Dir.mktmpdir("omnizip_first") do |dir|
+        nested = File.join(dir, "nested")
+        Dir.mkdir(nested)
+        deep = File.join(nested, "deep.txt")
+        File.write(deep, "deep")
+
+        expect(described_class.first_file_among(dir)).to eq(deep)
+      end
+    end
+
+    it "walks an array mixing files and directories" do
+      Dir.mktmpdir("omnizip_first") do |dir|
+        empty_dir = File.join(dir, "empty")
+        Dir.mkdir(empty_dir)
+        file = File.join(dir, "b.txt")
+        File.write(file, "b")
+
+        expect(described_class.first_file_among([empty_dir, file])).to eq(file)
+      end
+    end
+
+    it "returns nil without readable files" do
+      Dir.mktmpdir("omnizip_first") do |dir|
+        expect(described_class.first_file_among(dir)).to be_nil
+      end
+      expect(described_class.first_file_among("/no/such/path")).to be_nil
     end
   end
 

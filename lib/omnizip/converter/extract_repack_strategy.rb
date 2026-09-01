@@ -34,18 +34,8 @@ module Omnizip
 
         Dir.mktmpdir("omnizip_convert_repack") do |tmp|
           extracted = Omnizip.extract_archive(source_path, tmp)
-
-          Omnizip::Archive.create(target_path,
-                                  format: self.class.target_format_for(target_path)) do |b|
-            Dir.glob(File.join(tmp, "**", "*")).each do |path|
-              next if File.directory?(path)
-
-              b.add_file(path, path.delete_prefix("#{tmp}/"))
-            end
-          end
-
-          entry_count = extracted.size
-          create_result(start_time, entry_count)
+          repack_tree(tmp)
+          create_result(start_time, extracted.size)
         end
       end
 

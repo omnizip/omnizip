@@ -60,19 +60,26 @@ module Omnizip
         @warnings
       end
 
-      # Detect format from file extension
-      # @param path [String] File path
-      # @return [Symbol] Format
-      def detect_format(path)
-        ext = File.extname(path).downcase
-        case ext
-        when ".zip"
-          :zip
-        when ".7z"
-          :seven_zip
-        else
-          raise ArgumentError, "Unknown format for file: #{path}"
+      # Repack the extracted tree under +extracted_dir+ into a new
+      # archive at +target_path+ through the Archive facade (the
+      # format is resolved from the target's extension). Directory
+      # entries are implied by file paths, matching every strategy's
+      # treatment. Returns the number of file entries written.
+      #
+      # @param extracted_dir [String] Directory of extracted entries
+      # @param write_options [Hash] Format writer options
+      # @return [Integer] Number of file entries written
+      def repack_tree(extracted_dir, **write_options)
+        count = 0
+        Omnizip::Archive.create(target_path, **write_options) do |archive|
+          Dir.glob(File.join(extracted_dir, "**", "*")).each do |path|
+            next if File.directory?(path)
+
+            archive.add_file(path, path.delete_prefix("#{extracted_dir}/"))
+            count += 1
+          end
         end
+        count
       end
 
       # Create conversion result
@@ -95,24 +102,6 @@ module Omnizip
           entry_count: entry_count,
           warnings: warnings,
         )
-      end
-
-      # Check if metadata is compatible between formats
-      # @param entry [Entry] Entry to check
-      # @return [Boolean] True if fully compatible
-      def metadata_compatible?(_entry)
-        # ZIP supports most metadata
-        # 7z has limited metadata support
-        case [source_format, target_format]
-        when %i[zip seven_zip]
-          # Some metadata loss (comments, extra fields)
-          false
-        when %i[seven_zip zip]
-          # Can preserve most 7z metadata in ZIP
-          true
-        else
-          true
-        end
       end
     end
   end

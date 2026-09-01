@@ -62,6 +62,30 @@ RSpec.describe Omnizip::Converter do
       expect(result).to be_a(Omnizip::Models::ConversionResult)
     end
 
+    it "preserves nested directory structure through the handler seam" do
+      Dir.mktmpdir("omnizip_conv_nested") do |tmp|
+        src_dir = File.join(tmp, "src")
+        Dir.mkdir(src_dir)
+        File.binwrite(File.join(src_dir, "top.txt"), "top\n")
+        Dir.mkdir(File.join(src_dir, "sub"))
+        File.binwrite(File.join(src_dir, "sub", "deep.txt"), "deep\n")
+
+        zip = File.join(tmp, "nested.zip")
+        Omnizip::Archive.create(zip) { |b| b.add_directory(src_dir) }
+
+        target = File.join(tmp, "nested.7z")
+        result = described_class.convert(zip, target)
+
+        expect(result.entry_count).to eq(2)
+
+        dest = File.join(tmp, "out")
+        Dir.mkdir(dest)
+        Omnizip.extract_archive(target, dest)
+        expect(File.binread(File.join(dest, "src", "sub", "deep.txt")))
+          .to eq("deep\n")
+      end
+    end
+
     it "raises for a mistyped option key instead of ignoring it" do
       expect do
         described_class.convert(test_zip.path, output_7z.path, level: 9)

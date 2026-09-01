@@ -201,6 +201,21 @@ RSpec.describe "Omnizip.compress_file single-format routing" do
       expect(Omnizip.list_archive(target)).to eq([File.basename(input.path)])
     end
 
+    it "routes create_rar through the handler registry's writer interface" do
+      target = File.join(outdir, "generic.rar")
+      Omnizip.create_rar(target) do |w|
+        w.add_data("hello.txt", "hello\n")
+        w.add_directory("sub/")
+        w.add_data("sub/nested.txt", "nested\n")
+      end
+
+      expect(Omnizip.list_archive(target)).to include("hello.txt", "sub/nested.txt")
+
+      if Omnizip::Formats::Rar::Decompressor.command_available?
+        expect(Omnizip.read_from_archive(target, "sub/nested.txt")).to eq("nested\n")
+      end
+    end
+
     it "compresses directories to .7z and .tar with nested paths" do
       Dir.mktmpdir("omnizip-sf-dir") do |src|
         File.binwrite(File.join(src, "a.txt"), "top-level\n")

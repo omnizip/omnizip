@@ -160,8 +160,6 @@ RSpec.describe "XZ Utils Tool Compatibility", :tool_integration do
           expect do
             Omnizip::Formats::LzmaAlone.decompress(file)
           end.not_to raise_error
-        rescue NameError
-          pending "LZMA_Alone format not yet implemented"
         end
       end
     end

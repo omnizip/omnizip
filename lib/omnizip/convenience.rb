@@ -25,7 +25,7 @@ module Omnizip
         raise ArgumentError, "Input is a directory: #{input_path}"
       end
 
-      options = apply_profile(input_path, options) if options[:profile]
+      options = Omnizip::Profile.apply(options, paths: input_path)
 
       if options[:chunked]
         return Omnizip::Chunked.compress_file(input_path, output_path, **options)
@@ -57,30 +57,14 @@ module Omnizip
     def decompress_file(compressed_path, output_path)
       require_archive!(compressed_path)
 
-      format_class = DECOMPRESSORS[::File.extname(compressed_path).downcase]
-      unless format_class
+      decompressor = SINGLE_FILE_DECOMPRESSORS[::File.extname(compressed_path).downcase]
+      unless decompressor
         raise Omnizip::UnsupportedFormatError,
-              "decompress_file supports #{DECOMPRESSORS.keys.join(', ')}; " \
+              "decompress_file supports #{SINGLE_FILE_DECOMPRESSORS.keys.join(', ')}; " \
               "use extract_archive for archive formats"
       end
 
-      case format_class
-      when :xz
-        ::File.binwrite(output_path, Formats::Xz.decompress(compressed_path))
-      when :zstandard
-        zstd = Algorithms::Zstandard.new
-        ::File.open(compressed_path, "rb") do |input_io|
-          ::File.open(output_path, "wb") do |output_io|
-            zstd.decompress(input_io, output_io)
-          end
-        end
-      else
-        ::File.open(compressed_path, "rb") do |input_io|
-          ::File.open(output_path, "wb") do |output_io|
-            format_class.decompress_stream(input_io, output_io)
-          end
-        end
-      end
+      decompressor.call(compressed_path, output_path)
       output_path
     end
 
@@ -112,10 +96,7 @@ module Omnizip
               "individually"
       end
 
-      if options[:profile]
-        first_file = find_first_file(input_dir)
-        apply_profile(first_file, options)
-      end
+      options = Omnizip::Profile.apply(options, paths: input_dir)
 
       Omnizip::ArchiveHandler.for(resolve_archive_format(output_path, format)).create(output_path, **options) do |archive|
         add_directory_contents(archive, input_dir, "", recursive: recursive)
@@ -212,11 +193,17 @@ module Omnizip
       archive_path
     end
 
-    # Create a RAR archive (requires RAR license — see NotLicensedError).
+    # Create a RAR archive through the RAR handler. RAR5 unless
+    # +version: 4+; the block yields the same generic writer
+    # interface as +Archive.create+ (+add+/+add_data+/+add_directory+).
+    #
+    # @param archive_path [String] Path to output archive
+    # @param options [Hash] RAR writer options
+    # @return [String, Array<String>] Path(s) of the created archive
     # rubocop:disable-next Naming/BlockForwarding, Style/ArgumentsForwarding -- Ruby 3.0 compatibility
     def create_rar(archive_path, **options, &block)
       options[:version] ||= 5
-      Omnizip::Formats::Rar.create(archive_path, options, &block)
+      Omnizip::ArchiveHandler.for(:rar).create(archive_path, **options, &block)
     end
 
     # Extension -> single-file compressor map. Each lambda takes
@@ -249,18 +236,50 @@ module Omnizip
       ".msi" => :ole,
     }.freeze
 
-    # Extension -> single-file decompressor (stream interface).
-    # The Gzip/Bzip2File/Xz classes take path or stream; use the
-    # ones exposing decompress_stream for symmetry.
-    # Xz exposes a path-based decompress rather than a stream one,
-    # so it is marked specially here.
-    DECOMPRESSORS = {
-      ".gz" => Formats::Gzip,
-      ".bz2" => Formats::Bzip2File,
-      ".xz" => :xz,
-      ".lzma" => Formats::LzmaAlone,
-      ".lz" => Formats::Lzip,
-      ".zst" => :zstandard,
+    # Extension -> single-file decompressor. Each lambda takes
+    # (compressed_path, output_path) and writes the decompressed
+    # bytes; these formats are streams, not archives, so they bypass
+    # ArchiveHandler (mirrors SINGLE_FILE_COMPRESSORS). Xz exposes a
+    # path-based decompress rather than a stream one.
+    SINGLE_FILE_DECOMPRESSORS = {
+      ".gz" => lambda do |compressed, output|
+        ::File.open(compressed, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::Gzip.decompress_stream(input_io, output_io)
+          end
+        end
+      end,
+      ".bz2" => lambda do |compressed, output|
+        ::File.open(compressed, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::Bzip2File.decompress_stream(input_io, output_io)
+          end
+        end
+      end,
+      ".xz" => lambda do |compressed, output|
+        ::File.binwrite(output, Omnizip::Formats::Xz.decompress(compressed))
+      end,
+      ".lzma" => lambda do |compressed, output|
+        ::File.open(compressed, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::LzmaAlone.decompress_stream(input_io, output_io)
+          end
+        end
+      end,
+      ".lz" => lambda do |compressed, output|
+        ::File.open(compressed, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Formats::Lzip.decompress_stream(input_io, output_io)
+          end
+        end
+      end,
+      ".zst" => lambda do |compressed, output|
+        ::File.open(compressed, "rb") do |input_io|
+          ::File.open(output, "wb") do |output_io|
+            Omnizip::Algorithms::Zstandard.new.decompress(input_io, output_io)
+          end
+        end
+      end,
     }.freeze
 
     SINGLE_FILE_COMPRESSORS = {
@@ -333,40 +352,6 @@ module Omnizip
       return if ::File.exist?(archive_path)
 
       raise Errno::ENOENT, "Archive not found: #{archive_path}"
-    end
-
-    # Apply compression profile to options.
-    def apply_profile(file_path, options)
-      profile_spec = options.delete(:profile)
-      return options unless profile_spec
-
-      profile = case profile_spec
-                when :auto
-                  file_path ? Omnizip::Profile.detect(file_path) : Omnizip::Profile.get(:balanced)
-                when Symbol
-                  Omnizip::Profile.get(profile_spec) || Omnizip::Profile.get(:balanced)
-                when Omnizip::Profile::CompressionProfile
-                  profile_spec
-                else
-                  Omnizip::Profile.get(:balanced)
-                end
-
-      profile.apply_to(options)
-    end
-
-    def find_first_file(dir_path)
-      Dir.foreach(dir_path) do |entry|
-        next if [".", ".."].include?(entry)
-
-        full_path = ::File.join(dir_path, entry)
-        return full_path if ::File.file?(full_path)
-
-        if ::File.directory?(full_path)
-          result = find_first_file(full_path)
-          return result if result
-        end
-      end
-      nil
     end
 
     # Recursively add directory contents to an archive. The +archive+
