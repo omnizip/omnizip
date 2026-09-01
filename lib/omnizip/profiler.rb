@@ -186,18 +186,7 @@ module Omnizip
     end
 
     def format_bytes(bytes)
-      return "0 B" if bytes.zero?
-
-      units = %w[B KB MB GB]
-      size = bytes.to_f
-      unit_index = 0
-
-      while size >= 1024.0 && unit_index < units.size - 1
-        size /= 1024.0
-        unit_index += 1
-      end
-
-      format("%.2f %s", size, units[unit_index])
+      Omnizip::CliOutputFormatter.format_size(bytes)
     end
   end
 end

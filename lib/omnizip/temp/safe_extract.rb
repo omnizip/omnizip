@@ -79,37 +79,9 @@ module Omnizip
       private
 
       def extract_to_temp(temp_dir)
-        # Detect archive format and extract
-        case detect_format
-        when :zip
-          extract_zip(temp_dir)
-        when :seven_zip
-          extract_7z(temp_dir)
-        else
-          raise Omnizip::UnsupportedFormatError,
-                "Unknown archive format: #{@archive_path}"
-        end
-      end
-
-      def extract_zip(dest)
-        Omnizip::Zip::File.open(@archive_path) do |zip|
-          zip.each do |entry|
-            entry_path = File.join(dest, entry.name)
-
-            if entry.directory?
-              FileUtils.mkdir_p(entry_path)
-            else
-              FileUtils.mkdir_p(File.dirname(entry_path))
-              zip.extract(entry, entry_path)
-            end
-          end
-        end
-      end
-
-      def extract_7z(dest)
-        # Placeholder for 7z extraction
-        # Would use Omnizip::SevenZip::File when available
-        raise NotImplementedError, "7z extraction not yet implemented"
+        # Every routed format extracts through the handler registry,
+        # same as the convenience API
+        Omnizip.extract_archive(@archive_path, temp_dir)
       end
 
       def move_to_destination(temp_dir)
@@ -146,18 +118,6 @@ module Omnizip
           count += 1 unless File.directory?(path)
         end
         count
-      end
-
-      def detect_format
-        File.open(@archive_path, "rb") do |f|
-          magic = f.read(4)
-          case magic
-          when "PK\x03\x04"
-            :zip
-          when "7z\xBC\xAF"
-            :seven_zip
-          end
-        end
       end
     end
   end

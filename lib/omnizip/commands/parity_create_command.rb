@@ -107,13 +107,7 @@ module Omnizip
       # @param bytes [Integer] Size in bytes
       # @return [String] Formatted size
       def format_size(bytes)
-        if bytes < 1024
-          "#{bytes} B"
-        elsif bytes < 1024 * 1024
-          "#{(bytes / 1024.0).round(1)} KB"
-        else
-          "#{(bytes / (1024.0 * 1024)).round(1)} MB"
-        end
+        Omnizip::CliOutputFormatter.format_size(bytes)
       end
     end
   end

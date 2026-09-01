@@ -44,19 +44,27 @@ module Omnizip
         ].join("\n")
       end
 
-      # Format file size in human-readable format.
+      # Format file size in human-readable format. This is THE byte
+      # formatter — commands, the CLI, and display-oriented models
+      # delegate here instead of carrying private copies.
       #
-      # @param bytes [Integer] Size in bytes
-      # @return [String] Formatted size
+      # @param bytes [Integer, nil] Size in bytes
+      # @return [String] Formatted size ("512 B", "1.5 KB", "2.0 MB")
       def format_size(bytes)
+        return "0 B" if bytes.nil? || bytes.zero?
+
         units = %w[B KB MB GB TB]
-        return "0 B" if bytes.zero?
+        size = bytes.to_f
+        unit_index = 0
 
-        exp = (Math.log(bytes) / Math.log(1024)).floor
-        exp = [exp, units.length - 1].min
+        while size >= 1024.0 && unit_index < units.size - 1
+          size /= 1024.0
+          unit_index += 1
+        end
 
-        size = (bytes.to_f / (1024**exp)).round(2)
-        "#{size} #{units[exp]}"
+        return format("%d B", bytes) if unit_index.zero?
+
+        format("%.1f %s", size, units[unit_index])
       end
 
       # Format error message for display.

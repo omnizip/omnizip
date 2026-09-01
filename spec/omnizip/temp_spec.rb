@@ -394,6 +394,21 @@ RSpec.describe Omnizip::Temp do
         expect(Dir.exist?(dest_dir)).to be true
       end
 
+      it "extracts 7z archives through the handler registry" do
+        Dir.mktmpdir("omnizip_safe_7z") do |tmp|
+          src = File.join(tmp, "in.txt")
+          File.binwrite(src, "safe extract " * 100)
+          archive = File.join(tmp, "safe.7z")
+          Omnizip.compress_file(src, archive)
+
+          dest = File.join(tmp, "out")
+          described_class.new(archive, dest).extract
+
+          expect(File.binread(File.join(dest, "in.txt")))
+            .to eq("safe extract " * 100)
+        end
+      end
+
       it "calls verification block" do
         skip "Test archive not available" unless File.exist?(test_zip)
 

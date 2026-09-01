@@ -3,6 +3,20 @@
 require "spec_helper"
 
 RSpec.describe "XZ Utils Filter Support" do
+  def decode_xz_vli(bytes, pos)
+    value = 0
+    shift = 0
+    loop do
+      byte = bytes.getbyte(pos)
+      pos += 1
+      value |= (byte & 0x7F) << shift
+      break if byte < 0x80
+
+      shift += 7
+    end
+    [value, pos]
+  end
+
   describe "LZMA2 variants" do
     %w[1 2 3 4 5].each do |n|
       it "decodes good-1-lzma2-#{n}.xz (baseline LZMA2)" do
@@ -161,11 +175,22 @@ RSpec.describe "XZ Utils Filter Support" do
                                           "Delta filter should have XZ filter ID 0x03"
     end
 
-    it "has correct XZ filter ID for LZMA2" do
-      # LZMA2 filter ID is 0x01 in XZ format
-      # (actually it's implicit - no filter ID means LZMA2 in XZ)
-      expect(true).to eq(true),
-                      "LZMA2 is implicit in XZ (no filter ID needed)"
+    it "writes the explicit LZMA2 filter ID into block headers" do
+      # XZ blocks always name LZMA2 (filter ID 0x21) as their filter;
+      # it is explicit in the format, never implicit.
+      data = "filter id probe " * 8
+      bytes = Omnizip::Formats::Xz.create(data)
+
+      block = 12 # past the 12-byte stream header
+      flags = bytes.getbyte(block + 1)
+      pos = block + 2
+      _compressed_size, pos = decode_xz_vli(bytes, pos)
+      _uncompressed_size, pos = decode_xz_vli(bytes, pos)
+
+      expect(flags & 0x03).to eq(0) # exactly one filter in the chain
+      expect(bytes.getbyte(pos))
+        .to eq(Omnizip::Formats::XzConst::FILTER_LZMA2)
+      expect(bytes.getbyte(pos + 1)).to eq(0x01) # one props byte follows
     end
   end
 

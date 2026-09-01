@@ -33,7 +33,10 @@ module Omnizip
         FileUtils.mkdir_p(dest)
         extracted = []
 
-        entries_to_extract = list_matches
+        # Directory entries carry no content to extract
+        entries_to_extract = list_matches.reject do |entry|
+          entry_filename(entry).end_with?("/")
+        end
         total = entries_to_extract.size
         current = 0
 
@@ -162,7 +165,7 @@ module Omnizip
           entry.get_input_stream.read
         # allowed: some archives read entry content from the archive
         elsif @archive.respond_to?(:read)
-          @archive.read(entry)
+          @archive.read(entry_filename(entry))
         else
           raise Error, "Cannot read entry content"
         end
@@ -191,10 +194,19 @@ module Omnizip
 
       # Get filename from entry
       #
-      # @param entry [#entry_name] Entry (Omnizip::Entry or compatible)
+      # @param entry [#entry_name, #name] Entry (legacy Omnizip::Entry,
+      #   Archive::Entry from a reader session, or compatible)
       # @return [String] Filename
       def entry_filename(entry)
-        entry.entry_name || entry.to_s
+        # allowed: entries come from a caller-supplied archive
+        if entry.respond_to?(:entry_name)
+          entry.entry_name
+        # allowed: reader-session entries expose name, not entry_name
+        elsif entry.respond_to?(:name)
+          entry.name
+        else
+          entry.to_s
+        end
       end
 
       # Update progress tracker

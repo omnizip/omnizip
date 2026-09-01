@@ -13,6 +13,27 @@ RSpec.describe "Archive Commands" do
     FileUtils.rm_rf(test_dir)
   end
 
+  describe Omnizip::Commands::ArchiveExtractCommand do
+    it "extracts matching entries from a cpio archive through the handler seam" do
+      src = File.join(test_dir, "p.txt")
+      File.write(src, "patterned\n")
+      other = File.join(test_dir, "q.log")
+      File.write(other, "skipped\n")
+      cpio = File.join(test_dir, "a.cpio")
+      Omnizip::Formats::Cpio.create(cpio) do |c|
+        c.add_file(src)
+        c.add_file(other)
+      end
+
+      out = File.join(test_dir, "pattern-out")
+      cmd = described_class.new(pattern: "p.txt")
+      cmd.run(cpio, out)
+
+      expect(File.binread(File.join(out, "p.txt"))).to eq("patterned\n")
+      expect(File.exist?(File.join(out, "q.log"))).to be false
+    end
+  end
+
   describe Omnizip::Commands::ArchiveCreateCommand do
     let(:command) { described_class.new }
 
