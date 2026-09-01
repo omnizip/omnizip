@@ -29,6 +29,7 @@ module Omnizip
     autoload :Engine, "omnizip/parallel/engine"
     autoload :ParallelCompressor, "omnizip/parallel/parallel_compressor"
     autoload :ParallelExtractor, "omnizip/parallel/parallel_extractor"
+    autoload :ThreadPool, "omnizip/parallel/thread_pool"
 
     class << self
       # Global configuration
