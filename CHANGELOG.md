@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.56] - 2026-09-02
+
+### Fixed
+- `FilterRegistry#entry_for` read its storage and lazy triggers
+  outside the mutex `register` writes under — a latent data race in
+  the 7z codec chain's filter resolution. Reads now hold the lock,
+  with the lazy trigger fired outside it (it re-enters through
+  register's own synchronize).
+- The progress lifecycle is complete: `ProgressTracker` gains
+  `#start` and `#finish`, firing the reporter start/finish hooks
+  every reporter class overrides but nothing ever called —
+  "operation started/finished" output could never appear. `#finish`
+  also forces a final report and is idempotent.
+
 ## [0.3.55] - 2026-09-01
 
 ### Changed
