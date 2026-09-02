@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.57] - 2026-09-02
+
+### Fixed
+- TAR archives no longer corrupt silently on long paths: the writer
+  now splits entry names over 99 bytes across the ustar prefix +
+  name fields at a "/" boundary, the reader joins them back for
+  consumers, and paths no ustar fields can represent raise
+  `FormatError` instead of truncating. Verified against system tar.
+- `:auto` profile sampling walked directories in the OS's
+  iteration order, resolving different files (and compression
+  settings) per platform; the walk is sorted and deterministic now.
+- The getting-started docs' 7z examples used a Reader API that
+  never shipped (`each_file`, `close`, `Reader.info`) — every
+  snippet raised NoMethodError verbatim. Rewritten against the real
+  surface and executed to verify.
+
+### Changed
+- The last 28 bare `raise "string"` sites (RAR tree, cpio entries,
+  parity internals, zip compat streams, two commands) gained their
+  matching error classes — `lib/` now contains zero bare raises.
+- The dead `--preserve-ntfs-streams` CLI flag is removed; nothing
+  read it and no code path implements NTFS stream preservation.
+
 ## [0.3.56] - 2026-09-02
 
 ### Fixed
