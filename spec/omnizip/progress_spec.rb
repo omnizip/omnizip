@@ -104,6 +104,53 @@ RSpec.describe Omnizip::Progress do
       )
     end
 
+    describe "#start and #finish lifecycle" do
+      it "fires reporter hooks in order: start, updates, finish" do
+        events = []
+
+        recorder = Class.new(Omnizip::Progress::ProgressReporter) do
+          define_method(:report) { |_progress| events << :report }
+          define_method(:start) { |_progress| events << :start }
+          define_method(:finish) { |_progress| events << :finish }
+        end.new
+
+        lifecycle_tracker = described_class.new(
+          total_files: 1,
+          total_bytes: 100,
+          reporters: [recorder],
+        )
+
+        lifecycle_tracker.start
+        lifecycle_tracker.update(files: 1, bytes: 100)
+        lifecycle_tracker.finish
+
+        expect(events.first).to eq(:start)
+        expect(events.last).to eq(:finish)
+        expect(events).to include(:report)
+      end
+
+      it "is idempotent — finish fires the hooks once" do
+        events = []
+
+        recorder = Class.new(Omnizip::Progress::ProgressReporter) do
+          define_method(:report) { |_progress| events << :report }
+          define_method(:start) { |_progress| events << :start }
+          define_method(:finish) { |_progress| events << :finish }
+        end.new
+
+        lifecycle_tracker = described_class.new(
+          total_files: 1,
+          total_bytes: 100,
+          reporters: [recorder],
+        )
+
+        lifecycle_tracker.start
+        3.times { lifecycle_tracker.finish }
+
+        expect(events.count(:finish)).to eq(1)
+      end
+    end
+
     it "updates progress" do
       tracker.update(files: 10, bytes: 1000, current_file: "test.txt")
 

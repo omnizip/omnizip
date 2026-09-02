@@ -35,6 +35,34 @@ module Omnizip
         @mutex = Mutex.new # Thread safety
       end
 
+      # Announce the operation to every reporter (#start hooks).
+      # Call once before the first #update.
+      #
+      # @return [self]
+      def start
+        @mutex.synchronize { @started = true }
+        reporters.each { |reporter| reporter.start(self) }
+        self
+      end
+
+      # Complete the operation: fire a final report and the #finish
+      # hooks. Idempotent — a second call is a no-op.
+      #
+      # @return [self]
+      def finish
+        @mutex.synchronize do
+          return self if @finished
+
+          @finished = true
+        end
+
+        reporters.each do |reporter|
+          reporter.report(self)
+          reporter.finish(self)
+        end
+        self
+      end
+
       # Update progress with new values
       #
       # @param files [Integer] Number of files completed

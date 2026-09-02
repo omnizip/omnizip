@@ -82,15 +82,17 @@ module Omnizip
       private
 
       def entry_for(name)
+        # Reads hold the same mutex register writes under. The lazy
+        # trigger runs OUTSIDE the lock — it re-enters through
+        # register's own synchronize.
         normalized = normalize_key(name)
-        entry = storage[normalized]
+        entry = synchronize { storage[normalized] }
         return entry if entry
 
-        trigger = lazy_triggers[normalized]
+        trigger = synchronize { lazy_triggers[normalized] }
         if trigger
-          trigger.call
-          entry = storage[normalized]
-          return entry if entry
+          trigger.call # outside the lock — it re-enters via register
+          return synchronize { storage[normalized] }
         end
 
         nil
