@@ -182,8 +182,6 @@ module Omnizip
                       desc: "Password for encryption (7z: header encryption, RAR5: AES-256-CBC)"
     option :encrypt_headers, type: :boolean, default: false,
                              desc: "Encrypt archive headers (7z only, hides filenames)"
-    option :preserve_ntfs_streams, type: :boolean, default: false,
-                                   desc: "Preserve NTFS alternate data streams (Windows only, 7z only)"
     option :rar_version, type: :numeric, default: 5,
                          desc: "RAR version (4 or 5, default: 5 for pure Ruby)"
     option :rar_compression, type: :string, default: "store",

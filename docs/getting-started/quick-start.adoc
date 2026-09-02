@@ -103,11 +103,9 @@ omnizip archive list backup.7z
 require 'omnizip'
 
 reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
-reader.open
-reader.each_file do |entry|
+reader.entries.each do |entry|
   puts "#{entry.name}: #{entry.size} bytes"
 end
-reader.close
 ----
 
 === Using Different Compression Algorithms

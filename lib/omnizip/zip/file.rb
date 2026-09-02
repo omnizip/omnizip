@@ -130,7 +130,7 @@ module Omnizip
             action = yield(entry, dest_path)
             return if action == false
           else
-            raise "Destination file already exists: #{dest_path}"
+            raise Errno::EEXIST, "Destination file already exists: #{dest_path}"
           end
         end
 

@@ -229,7 +229,7 @@ module Omnizip
 
           loop do
             byte = io.read(1)&.unpack1("C")
-            raise "Unexpected EOF" unless byte
+            raise Omnizip::InvalidArchiveError, "Unexpected EOF" unless byte
 
             result |= (byte & 0x7F) << shift
             break if byte.nobits?(0x80)

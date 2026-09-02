@@ -75,7 +75,7 @@ compression: :deflate, level: 6)
       # Write data to current entry
       # @param data [String] Data to write
       def write(data)
-        raise "No entry started. Call put_next_entry first" unless @current_entry
+        raise Omnizip::IOError, "No entry started. Call put_next_entry first" unless @current_entry
 
         @current_entry_data << data.b
         self

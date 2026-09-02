@@ -7,7 +7,7 @@ module Omnizip
   # Each format-specific entry class (Zip::Entry, Tar::Entry,
   # SevenZip::Models::FileEntry, Iso::DirectoryRecord, Ole::Dirent,
   # Xar::Entry, Rpm::Entry, Msi::Entry, Cpio::Entry, Rar3::Entry,
-  # Rar5::Entry, Xz::Entry, Metadata::EntryMetadata) includes this
+  # Rar5::Entry, Metadata::EntryMetadata) includes this
   # module so callers can rely on a single narrow interface instead
   # of duck-typing through `respond_to?(:name) / :path / :filename`
   # cascades.

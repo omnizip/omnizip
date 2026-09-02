@@ -232,7 +232,7 @@ module Omnizip
             archive.extract_to_file(entry_name, output_path,
                                     password: password)
           rescue StandardError => e
-            raise "Gem entry extraction failed: #{e.message}"
+            raise Omnizip::DecompressionError, "Gem entry extraction failed: #{e.message}"
           end
 
           # Extract entry with command
@@ -255,7 +255,7 @@ module Omnizip
               cmd = build_extract_command(archive_path, cached_dir, password)
               unless system(*cmd)
                 FileUtils.rm_rf(cached_dir)
-                raise "Command entry extraction failed: #{entry_name}"
+                raise Omnizip::DecompressionError, "Command entry extraction failed: #{entry_name}"
               end
               extract_cache[cache_key] = cached_dir
               install_exit_sweeper

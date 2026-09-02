@@ -180,12 +180,15 @@ writer.add_directory('/home/user/photos')
 writer.close
 
 # Get statistics
-info = Omnizip::Formats::SevenZip::Reader.info('backup.7z')
+entries = Omnizip.list_archive('backup.7z', details: true)
+files = entries.reject { |e| e[:directory] }
+uncompressed = files.sum { |e| e[:size] }
+compressed = File.size('backup.7z')
 puts "Archive created:"
-puts "  Files: #{info.entry_count}"
-puts "  Size: #{info.uncompressed_size} bytes"
-puts "  Compressed: #{info.compressed_size} bytes"
-puts "  Ratio: #{(info.compressed_size.to_f / info.uncompressed_size * 100).round(1)}%"
+puts "  Files: #{files.size}"
+puts "  Size: #{uncompressed} bytes"
+puts "  Compressed: #{compressed} bytes"
+puts "  Ratio: #{(compressed.to_f / uncompressed * 100).round(1)}%"
 ----
 
 === Verifying Your Archive
@@ -202,12 +205,10 @@ omnizip archive list backup.7z
 require 'omnizip'
 
 reader = Omnizip::Formats::SevenZip::Reader.new('backup.7z')
-reader.open
 puts "Archive contents:"
-reader.each_file do |entry|
+reader.entries.each do |entry|
   puts "  #{entry.name} (#{entry.size} bytes)"
 end
-reader.close
 ----
 
 === Next Steps

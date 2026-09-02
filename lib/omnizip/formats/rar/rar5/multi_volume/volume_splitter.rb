@@ -77,8 +77,8 @@ module Omnizip
             # @raise [RuntimeError] if no volume is active
             # @raise [RuntimeError] if data doesn't fit
             def write_to_current_volume(data)
-              raise "No active volume" if @current_volume_number.zero?
-              raise "Data doesn't fit in current volume" unless can_fit_in_current_volume?(data.bytesize)
+              raise Omnizip::CompressionError, "No active volume" if @current_volume_number.zero?
+              raise Omnizip::CompressionError, "Data doesn't fit in current volume" unless can_fit_in_current_volume?(data.bytesize)
 
               @current_volume_data << data
               @current_volume_bytes += data.bytesize

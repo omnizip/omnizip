@@ -244,7 +244,7 @@ module Omnizip
 
         # Ensure metadata is loaded
         if file_list.nil? || file_list.empty?
-          raise "Internal error: file_list not populated in verifier"
+          raise Omnizip::Error, "Internal error: file_list not populated in verifier"
         end
 
         block_idx = 0

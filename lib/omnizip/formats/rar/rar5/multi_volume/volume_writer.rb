@@ -80,7 +80,7 @@ module Omnizip
             #
             # @return [void]
             def write_signature
-              raise "Volume not open" unless @io
+              raise Omnizip::IOError, "Volume not open" unless @io
 
               # RAR5 signature: "Rar!\x1A\x07\x01\x00"
               signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01,
@@ -92,7 +92,7 @@ module Omnizip
             #
             # @return [void]
             def write_main_header
-              raise "Volume not open" unless @io
+              raise Omnizip::IOError, "Volume not open" unless @io
 
               # Archive flags: every volume declares 0x0001; volumes
               # after the first also carry the volume number field
@@ -114,7 +114,7 @@ module Omnizip
             # @param compressed_data [String] Compressed file data
             # @return [void]
             def write_file_data(file_header, compressed_data)
-              raise "Volume not open" unless @io
+              raise Omnizip::IOError, "Volume not open" unless @io
 
               @io.write(file_header.encode)
               @io.write(compressed_data)
@@ -124,7 +124,7 @@ module Omnizip
             #
             # @return [void]
             def write_end_header
-              raise "Volume not open" unless @io
+              raise Omnizip::IOError, "Volume not open" unless @io
 
               # End-of-archive flags: 0x0001 marks a volume with more
               # volumes following; the last volume ends with 0.

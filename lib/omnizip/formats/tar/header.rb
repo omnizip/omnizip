@@ -47,6 +47,11 @@ module Omnizip
             entry.prefix = extract_string(
               header_data, PREFIX_OFFSET, PREFIX_SIZE
             )
+            # ustar stores long paths split across prefix + name;
+            # consumers see the joined path
+            unless entry.prefix.empty?
+              entry.name = "#{entry.prefix}/#{entry.name}"
+            end
           end
 
           # Verify checksum
@@ -69,7 +74,8 @@ module Omnizip
           header = "\0" * HEADER_SIZE
 
           # Write fields to header
-          write_string(header, entry.name, NAME_OFFSET, NAME_SIZE)
+          name, prefix = split_long_name(entry.name, entry.prefix)
+          write_string(header, name, NAME_OFFSET, NAME_SIZE)
           write_octal(header, entry.mode, MODE_OFFSET, MODE_SIZE)
           write_octal(header, entry.uid, UID_OFFSET, UID_SIZE)
           write_octal(header, entry.gid, GID_OFFSET, GID_SIZE)
@@ -87,7 +93,7 @@ module Omnizip
           write_string(header, entry.gname, GNAME_OFFSET, GNAME_SIZE)
           write_octal(header, entry.devmajor, DEVMAJOR_OFFSET, DEVMAJOR_SIZE)
           write_octal(header, entry.devminor, DEVMINOR_OFFSET, DEVMINOR_SIZE)
-          write_string(header, entry.prefix, PREFIX_OFFSET, PREFIX_SIZE)
+          write_string(header, prefix, PREFIX_OFFSET, PREFIX_SIZE)
 
           # Calculate and write checksum
           checksum = Entry.calculate_checksum(header)
@@ -128,6 +134,41 @@ module Omnizip
         def self.extract_octal(header, offset, size)
           field = extract_string(header, offset, size)
           field.strip.to_i(8)
+        end
+
+        # Split a path for the ustar name (100) + prefix (155)
+        # fields. Paths under 100 bytes pass through; longer paths
+        # split at a "/" boundary, preferring the longest prefix
+        # that keeps both halves in bounds. Raises when no ustar
+        # representation exists — silent truncation corrupts
+        # archives.
+        #
+        # @param path [String] Full entry path
+        # @param prefix [String] Explicit prefix (wins when given)
+        # @return [Array<String>] [name, prefix] pair
+        def self.split_long_name(path, prefix = nil)
+          path = path.to_s
+          prefix = prefix.to_s
+          return [path, prefix] if !prefix.empty? || path.bytesize < NAME_SIZE
+
+          best = nil
+          offset = -1
+          while (slash = path.index("/", offset + 1))
+            candidate_prefix = path[0...slash]
+            candidate_name = path[(slash + 1)..]
+            offset = slash
+
+            next if candidate_prefix.bytesize >= PREFIX_SIZE
+            next if candidate_name.bytesize >= NAME_SIZE
+
+            best = [candidate_name, candidate_prefix]
+          end
+
+          return best if best
+
+          raise Omnizip::FormatError,
+                "Path too long for the ustar name+prefix fields " \
+                "(no PAX/GNU long-name support): #{path}"
         end
 
         # Write a string to header

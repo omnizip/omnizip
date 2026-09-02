@@ -151,7 +151,7 @@ progress: nil)
       #
       # @raise [StandardError] if no files added
       def validate_files!
-        raise "No files added to PAR2 set" if @files.empty?
+        raise ArgumentError, "No files added to PAR2 set" if @files.empty?
       end
 
       # Generate unique set ID for this PAR2 set
