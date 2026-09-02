@@ -35,7 +35,7 @@ module Omnizip
           # Find next logbase where gcd(65535, logbase) == 1
           logbase += 1 while gcd(limit, logbase) != 1
 
-          raise "Too many input blocks" if logbase >= limit
+          raise ArgumentError, "Too many input blocks" if logbase >= limit
 
           # Use antilog to convert logbase to base value
           # This is the key: base = antilog[logbase]

@@ -232,7 +232,7 @@ module Omnizip
           when :odc
             parse_odc(io)
           else
-            raise "Unknown CPIO format"
+            raise Omnizip::InvalidArchiveError, "Unknown CPIO format"
           end
         end
 
@@ -258,7 +258,7 @@ module Omnizip
         # @return [Entry] Parsed entry
         def self.parse_newc(io)
           header = io.read(NEWC_HEADER_SIZE)
-          raise "Truncated CPIO header" unless header && header.bytesize == NEWC_HEADER_SIZE
+          raise Omnizip::InvalidArchiveError, "Truncated CPIO header" unless header && header.bytesize == NEWC_HEADER_SIZE
 
           # Parse ASCII hex fields
           magic = header[0, 6]
@@ -318,7 +318,7 @@ module Omnizip
         # @return [Entry] Parsed entry
         def self.parse_odc(io)
           header = io.read(76)
-          raise "Truncated CPIO header" unless header && header.bytesize == 76
+          raise Omnizip::InvalidArchiveError, "Truncated CPIO header" unless header && header.bytesize == 76
 
           # Parse octal fields
           magic = header[0, 6]

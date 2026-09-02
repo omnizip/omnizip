@@ -109,7 +109,7 @@ recovery_exponents, bases)
         num_rows.times do |pivot_row|
           # Get pivot value from right matrix diagonal
           pivot = right_matrix[pivot_row][pivot_row]
-          raise "Singular matrix at row #{pivot_row}" if pivot.zero?
+          raise Omnizip::Error, "Singular matrix at row #{pivot_row}" if pivot.zero?
 
           # Scale pivot row to make pivot = 1
           unless pivot == 1

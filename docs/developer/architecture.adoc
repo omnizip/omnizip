@@ -120,8 +120,8 @@ module Omnizip
           # Open archive
         end
 
-        def each_file
-          # Yield archive entries
+        def entries
+          # Enumerate archive entries
         end
 
         def extract_all(output_dir)

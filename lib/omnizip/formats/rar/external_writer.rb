@@ -138,7 +138,7 @@ module Omnizip
           stdout, stderr, status = Open3.capture3(*cmd)
 
           unless status.success?
-            raise "RAR creation failed: #{stderr}\n#{stdout}"
+            raise Omnizip::CompressionError, "RAR creation failed: #{stderr}\n#{stdout}"
           end
 
           # Test archive if requested
@@ -257,7 +257,7 @@ module Omnizip
 
           return if status.success?
 
-          raise "Archive test failed: #{stderr}\n#{stdout}"
+          raise Omnizip::CompressionError, "Archive test failed: #{stderr}\n#{stdout}"
         end
 
         # Get RAR executable path

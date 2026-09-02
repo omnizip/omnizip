@@ -52,10 +52,10 @@ module Omnizip
               @version = 5
               parse_rar5_header(io)
             else
-              raise "Invalid RAR signature: #{(sig_bytes + (extra_byte&.bytes || [])).inspect}"
+              raise Omnizip::InvalidArchiveError, "Invalid RAR signature: #{(sig_bytes + (extra_byte&.bytes || [])).inspect}"
             end
           else
-            raise "Invalid RAR signature: #{sig_bytes.inspect}"
+            raise Omnizip::InvalidArchiveError, "Invalid RAR signature: #{sig_bytes.inspect}"
           end
         end
 
@@ -103,7 +103,7 @@ module Omnizip
           end
 
           unless head_type == BLOCK_ARCHIVE
-            raise "Expected archive block, got 0x#{head_type.to_s(16)}"
+            raise Omnizip::InvalidArchiveError, "Expected archive block, got 0x#{head_type.to_s(16)}"
           end
 
           @flags = head_flags
@@ -140,7 +140,7 @@ module Omnizip
           end
 
           unless header_type == RAR5_HEADER_MAIN
-            raise "Expected main header, got #{header_type}"
+            raise Omnizip::InvalidArchiveError, "Expected main header, got #{header_type}"
           end
 
           @flags = header_flags

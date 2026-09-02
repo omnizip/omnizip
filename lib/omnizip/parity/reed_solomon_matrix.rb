@@ -117,7 +117,7 @@ total_inputs, block_size)
       # @param recovery_idx [Integer] Recovery block index (0..recovery_count-1)
       # @return [Integer] Galois field coefficient
       def coefficient(output_idx, recovery_idx)
-        raise "Matrix not computed - call compute! first" unless @matrix
+        raise Omnizip::Error, "Matrix not computed - call compute! first" unless @matrix
 
         # After transpose, indices are swapped: @matrix[recovery_idx][output_idx]
         @matrix[recovery_idx][output_idx]
@@ -200,7 +200,7 @@ output_offset: 0)
 
         num_rows.times do |pivot_row|
           pivot = left_matrix[pivot_row][pivot_row]
-          raise "Singular matrix at row #{pivot_row}" if pivot.zero?
+          raise Omnizip::Error, "Singular matrix at row #{pivot_row}" if pivot.zero?
 
           # Scale pivot row to make pivot = 1
           unless pivot == 1
