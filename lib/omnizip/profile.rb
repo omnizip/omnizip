@@ -181,11 +181,11 @@ module Omnizip
 
       private
 
-      # Depth-first search for the first regular file under +dir+.
+      # Depth-first search for the first regular file under +dir+,
+      # in sorted child order — :auto sampling must not depend on
+      # the OS's directory iteration order.
       def first_file_within(dir)
-        ::Dir.foreach(dir) do |entry|
-          next if [".", ".."].include?(entry)
-
+        ::Dir.children(dir).sort.each do |entry|
           full_path = ::File.join(dir, entry)
           return full_path if ::File.file?(full_path)
 
