@@ -11,6 +11,21 @@ RSpec.describe Omnizip::Formats::Zip::Writer do
     FileUtils.rm_f(output_path)
   end
 
+  describe "#write_to_io classic ZIP limits" do
+    it "raises a typed error past the 65,535-entry limit instead of a bare RangeError" do
+      Dir.mktmpdir("omnizip_zip_limit") do |tmp|
+        limit_writer = described_class.new(File.join(tmp, "many.zip"))
+        65_536.times { |i| limit_writer.add_data("e#{i}.txt", "x") }
+
+        expect do
+          File.open(File.join(tmp, "many.zip"), "wb") do |io|
+            limit_writer.write_to_io(io)
+          end
+        end.to raise_error(Omnizip::UnsupportedFormatError, /exceed the classic ZIP limit/)
+      end
+    end
+  end
+
   describe "#initialize" do
     it "creates a new writer with file path" do
       expect(writer.file_path).to eq(output_path)
