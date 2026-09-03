@@ -80,7 +80,10 @@ module Omnizip
         end
       end
 
-      ARCHIVE_EXTENSIONS = %w[.zip .7z .tar .rar .cpio .iso .rpm .xar .msi].freeze
+      # Archive-vs-stream routing derives from the registry's
+      # extension routes so new formats route here automatically
+      ARCHIVE_EXTENSIONS = (Convenience::ARCHIVE_FORMAT_EXTENSIONS.keys +
+                            Convenience::READ_ARCHIVE_FORMAT_EXTENSIONS.keys).freeze
 
       private
 

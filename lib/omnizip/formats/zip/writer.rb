@@ -152,6 +152,8 @@ module Omnizip
         end
 
         def write_precompressed_to_io(io, compression_method: COMPRESSION_DEFLATE)
+          check_classic_entry_count!
+          entries.each { |entry| check_classic_size_limit!(entry) }
           local_header_offsets = []
 
           entries.each do |entry|
@@ -189,6 +191,7 @@ module Omnizip
 
         # Write to an IO object
         def write_to_io(io, compression_method: COMPRESSION_DEFLATE, level: 6)
+          check_classic_entry_count!
           local_header_offsets = []
 
           # Write local file headers and data. An entry-level
@@ -220,6 +223,8 @@ module Omnizip
               entry[:crc32] = calculate_crc32(entry[:uncompressed_data])
             end
 
+            check_classic_size_limit!(entry)
+
             # Update local header with compressed sizes
             local_header.compressed_size = entry[:compressed_size]
             local_header.uncompressed_size = entry[:uncompressed_size]
@@ -234,6 +239,7 @@ module Omnizip
 
           # Record start of central directory
           central_directory_offset = io.pos
+          check_classic_offset_limit!(central_directory_offset)
 
           # Write central directory headers
           entries.each_with_index do |entry, index|
@@ -257,7 +263,41 @@ module Omnizip
           io.write(eocd.to_binary)
         end
 
+        # Classic (non-ZIP64) ZIP headers pack sizes and offsets as
+        # 32-bit values and entry counts as 16-bit; exceeding them
+        # raises instead of letting Array#pack fail with a bare
+        # RangeError. ZIP64 writing is not supported.
+        MAX_CLASSIC_SIZE = 0xFFFFFFFF
+        MAX_CLASSIC_ENTRIES = 0xFFFF
+        private_constant :MAX_CLASSIC_SIZE, :MAX_CLASSIC_ENTRIES
+
         private
+
+        def check_classic_entry_count!
+          return if entries.size <= MAX_CLASSIC_ENTRIES
+
+          raise Omnizip::UnsupportedFormatError,
+                "#{entries.size} entries exceed the classic ZIP " \
+                "limit of #{MAX_CLASSIC_ENTRIES} (ZIP64 writing is " \
+                "not supported)"
+        end
+
+        def check_classic_size_limit!(entry)
+          return if entry[:compressed_size].to_i <= MAX_CLASSIC_SIZE &&
+            entry[:uncompressed_size].to_i <= MAX_CLASSIC_SIZE
+
+          raise Omnizip::UnsupportedFormatError,
+                "entry #{entry[:filename].inspect} exceeds the 4 GiB " \
+                "classic ZIP size limit (ZIP64 writing is not supported)"
+        end
+
+        def check_classic_offset_limit!(offset)
+          return if offset <= MAX_CLASSIC_SIZE
+
+          raise Omnizip::UnsupportedFormatError,
+                "archive layout exceeds the 4 GiB classic ZIP " \
+                "offset limit (ZIP64 writing is not supported)"
+        end
 
         # Create an entry hash
         def create_entry(

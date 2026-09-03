@@ -76,7 +76,7 @@ writer.write
 
 IMPORTANT: RAR5 CRC32 checksums only work with STORE compression. When LZMA is used, CRC32 is automatically disabled. Use BLAKE2sp (always present) for compressed file integrity.
 
-=== RAR5 Multi-Volume Archives (v0.5.0)
+=== RAR5 Multi-Volume Archives
 
 Split large archives across multiple volumes:
 
@@ -110,36 +110,30 @@ volumes = writer.write
 # Minimum volume size: 64 KB
 ----
 
-=== RAR5 Solid Compression (v0.5.0)
+=== RAR5 Solid Archives
 
-Achieve 10-30% better compression ratios for similar files:
+`solid: true` requests a shared solid block, but the RAR-compatible
+LZSS encoder is not implemented yet — the writer warns and writes
+independent STORE entries instead, so the archive stays extractable
+by official unrar:
 
 [source,ruby]
 ----
 require 'omnizip/formats/rar/rar5/writer'
 
-# Enable solid compression
 writer = Omnizip::Formats::Rar::Rar5::Writer.new('project.rar',
-  compression: :lzma,
-  level: 5,
-  solid: true  # Shared dictionary across files
+  solid: true  # warns: falls back to independent STORE entries
 )
 writer.add_directory('source_code/')
 writer.write
-
-# Best for:
-# - Source code repositories
-# - Log files
-# - Text documents
-# - Similar structured data
-
-# Trade-offs:
-# - Cannot extract individual files without decompressing entire block
-# - Corruption may affect multiple files
-# - Slightly longer extraction time for single files
 ----
 
-=== RAR5 AES-256 Encryption (v0.5.0)
+Solid compression (shared dictionary across files, better ratios
+for similar content) arrives when the RAR-compatible LZSS encoder
+lands.
+----
+
+=== RAR5 AES-256 Encryption
 
 Password-protect archives with industry-standard encryption:
 
@@ -177,7 +171,7 @@ writer.write
 # - Password verification before decryption
 ----
 
-=== RAR5 PAR2 Recovery Records (v0.5.0)
+=== RAR5 PAR2 Recovery Records
 
 Add error correction for archive recovery:
 
@@ -216,7 +210,7 @@ files = writer.write
 # - Works with multi-volume, solid, and encrypted archives
 ----
 
-=== RAR5 Combined Features (v0.5.0)
+=== RAR5 Combined Features
 
 Use all features together for comprehensive protection:
 
@@ -262,13 +256,13 @@ puts "  Total size: #{files.sum { |f| File.size(f) } / 1024 / 1024}MB"
 
 === RAR5 Best Practices
 
-**For Maximum Compression:**
+**For Maximum Compatibility:**
 [source,ruby]
 ----
 writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
   compression: :lzma,
-  level: 5,        # Best compression
-  solid: true,     # 10-30% better ratios
+  level: 5,        # Honored by the 7z-style writers; RAR5 entries
+                   # are STORE until the LZSS encoder lands
   include_mtime: true
 )
 ----

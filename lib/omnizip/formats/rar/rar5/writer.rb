@@ -199,6 +199,11 @@ module Omnizip
               if @options[:solid] && Compression::Lzss.available?
                 write_solid_block(f, @files)
               else
+                if @options[:solid]
+                  warn "omnizip: solid: true requested but the " \
+                       "RAR-compatible LZSS encoder is not available " \
+                       "— writing independent STORE entries instead"
+                end
                 @files.each do |file|
                   write_file_entry(f, file)
                 end
