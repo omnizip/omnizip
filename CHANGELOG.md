@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.58] - 2026-09-03
+
+### Fixed
+- `solid: true` on the RAR5 writer silently fell back to
+  independent STORE entries (the RAR-compatible LZSS encoder is not
+  available); the writer now warns about the fallback. The
+  creating-archives guide's solid section stops advertising
+  compression ratios the option cannot deliver and the stale
+  `(v0.5.0)` version-gate labels are gone from shipped features.
+- The ZIP writer never emits ZIP64 structures; past the classic
+  limits `Array#pack` failed with a bare `RangeError` that named no
+  limit. Both write paths now raise `UnsupportedFormatError` naming
+  the 65,535-entry / 4 GiB size / 4 GiB offset classic-ZIP limits
+  (ZIP64 writing is not supported).
+
+### Changed
+- The decompress command's archive-vs-stream routing derives from
+  the registry's extension routes instead of a private table, so
+  formats added to the registry route correctly instead of silently
+  falling into the single-file stream path.
+
 ## [0.3.57] - 2026-09-02
 
 ### Fixed
