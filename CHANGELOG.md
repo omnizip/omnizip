@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `rake rust:build` — one command to build and vendor the Rust
+  backend's cdylib (clones omnizip-rs or reuses a checkout via
+  REPO=); the loader gains the `vendor/` resolution tier behind
+  `OMNIZIP_FFI_DYLIB`. No toolchain, no failure: the gem stays
+  pure Ruby. docs/rust-backend.md documents the tier policy,
+  resolution order, and CI pinning.
+
+
+### Added
 - Rust-accelerated backend tier: `Omnizip::Backends` is the single
   tier switch between the pure-Ruby cores and the `omnizip-ffi`
   cdylib (stdlib Fiddle — no compiled extension). Under the default
