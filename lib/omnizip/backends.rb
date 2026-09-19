@@ -56,7 +56,7 @@ module Omnizip
       # the accelerated path never pays for it.
       def compress(codec, data, level, &ruby_core)
         backend = Backends.for(codec, :encode)
-        return ruby_core.call if backend == RubyBackend
+        return yield if backend == RubyBackend
 
         backend.compress(codec, data, level)
       end
@@ -65,7 +65,7 @@ module Omnizip
       # invariant: :auto prefers Rust whenever loadable).
       def decompress(codec, data, expected_len, &ruby_core)
         backend = Backends.for(codec, :decode)
-        return ruby_core.call if backend == RubyBackend
+        return yield if backend == RubyBackend
 
         backend.decompress(codec, data, expected_len)
       end
@@ -81,18 +81,18 @@ module Omnizip
       end
     end
 
-      # The pure-Ruby path: a no-op backend — callers fall back to
-      # their own in-tree cores, which ARE the reference. Kept as an
-      # object for symmetry with the Rust side.
+    # The pure-Ruby path: a no-op backend — callers fall back to
+    # their own in-tree cores, which ARE the reference. Kept as an
+    # object for symmetry with the Rust side.
     module RubyBackend
       module_function
 
       # :nocov:
-      def compress(codec, data, level)
+      def compress(codec, _data, _level)
         raise Error, "#{codec}: ruby core not wired through Backends (call it directly)"
       end
 
-      def decompress(codec, data, expected_len)
+      def decompress(codec, _data, _expected_len)
         raise Error, "#{codec}: ruby core not wired through Backends (call it directly)"
       end
       # :nocov:
