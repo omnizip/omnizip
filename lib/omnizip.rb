@@ -18,6 +18,7 @@
 
 module Omnizip
   autoload :VERSION, "omnizip/version"
+  autoload :Backends, "omnizip/backends"
 
   autoload :Error, "omnizip/error"
   autoload :CompressionError, "omnizip/error"
@@ -120,6 +121,7 @@ module Omnizip
   module Implementations
     autoload :SevenZip, "omnizip/implementations/seven_zip"
     autoload :XZUtils, "omnizip/implementations/xz_utils"
+    autoload :Rust, "omnizip/implementations/rust"
 
     module SevenZip
       module LZMA
