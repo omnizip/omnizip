@@ -15,21 +15,6 @@ module Omnizip
       # after initialization (Fiddle::Function is immutable once
       # built; compress/decompress are pure C calls).
       class Library
-        NAMES = {
-          last_error: ["ozip_last_error", [], Fiddle::TYPE_VOIDP],
-          free: ["ozip_free", %i[voidp size_t], Fiddle::TYPE_VOID],
-          compress: [
-            "ozip_compress",
-            %i[voidp voidp size_t int voidp],
-            Fiddle::TYPE_VOIDP,
-          ],
-          decompress: [
-            "ozip_decompress",
-            %i[voidp voidp size_t size_t voidp],
-            Fiddle::TYPE_VOIDP,
-          ],
-        }.freeze
-
         # Codecs the cdylib dispatches by name.
         CODECS = %w[bzip2 zstd lzma xz].freeze
 
