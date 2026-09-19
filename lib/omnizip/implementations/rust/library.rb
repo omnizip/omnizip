@@ -57,7 +57,7 @@ module Omnizip
               h[key] = Fiddle::Function.new(handle[name], args, ret)
             end
             new(funcs)
-          rescue StandardError, Fiddle::DLError => e
+          rescue StandardError => e # includes Fiddle::DLError
             warn "omnizip: rust backend unavailable (#{e.message}); using pure Ruby" if ENV["OMNIZIP_BACKEND"] == "rust"
             nil
           end
@@ -71,7 +71,7 @@ module Omnizip
               sibling_checkout,
             ].compact.flatten
 
-            %w[.dylib .so].each do |ext|
+            %w[.dylib .so .dll].each do |ext|
               candidates.each do |dir|
                 path = dir.join("libomnizip_ffi#{ext}")
                 return path if path.file?
