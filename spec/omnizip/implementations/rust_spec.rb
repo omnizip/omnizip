@@ -94,38 +94,44 @@ RSpec.describe "cross-tier differential" do
   end
 
   describe "backends tier policy" do
-    it "auto prefers rust decode and ruby encode" do
-      skip "omnizip-ffi cdylib not built" if library.nil?
-
-      old = ENV.fetch("OMNIZIP_BACKEND", nil)
+    # One sequential example: the tier switch reads process-global
+    # state (cached handle + ENV), so split examples race under
+    # random ordering.
+    it "resolves auto/ruby/absence deterministically" do
+      backend = ENV.fetch("OMNIZIP_BACKEND", nil)
+      dylib = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
       begin
-        ENV["OMNIZIP_BACKEND"] = "auto"
-        expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RustBackend)
-        expect(Omnizip::Backends.for("bzip2", :encode)).to eq(Omnizip::Backends::RubyBackend)
-      ensure
-        ENV["OMNIZIP_BACKEND"] = old
-      end
-    end
+        Omnizip::Implementations::Rust::Library.forget!
+        ENV["OMNIZIP_FFI_DYLIB"] = "/nonexistent/libomnizip_ffi.dylib"
+        # A stale explicit path must not shadow a REAL source: the
+        # sibling-checkout discovery takes over when one exists
+        # (local dev); on a standalone checkout nothing resolves and
+        # the tier falls back to Ruby. Both are correct.
+        # Same computation the loader uses (four ups reach the
+        # source root that holds the omnizip-rs sibling).
+        # Standalone checkout (CI): nothing resolves, tier = Ruby.
+        # With a sibling checkout the later `auto` block proves the
+        # load positively, so this branch only asserts absence.
+        sibling = File.expand_path("../../../../omnizip-rs/target/release", __dir__)
+        unless File.directory?(sibling)
+          expect(Omnizip::Implementations::Rust::Library.instance).to be_nil
+          expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RubyBackend)
+        end
 
-    it "ruby mode forces the pure path" do
-      old = ENV.fetch("OMNIZIP_BACKEND", nil)
-      begin
         ENV["OMNIZIP_BACKEND"] = "ruby"
         expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RubyBackend)
-      ensure
-        ENV["OMNIZIP_BACKEND"] = old
-      end
-    end
 
-    it "falls back to ruby when the cdylib is absent" do
-      old = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
-      begin
-        ENV["OMNIZIP_FFI_DYLIB"] = "/nonexistent/libomnizip_ffi.dylib"
-        # Resolution is cached per process; this asserts the
-        # availability API shape (the nil-instance path).
-        expect(Omnizip::Implementations::Rust::Library).to respond_to(:available?)
+        ENV["OMNIZIP_FFI_DYLIB"] = dylib if library
+        if library
+          Omnizip::Implementations::Rust::Library.forget!
+          ENV["OMNIZIP_BACKEND"] = "auto"
+          expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RustBackend)
+          expect(Omnizip::Backends.for("bzip2", :encode)).to eq(Omnizip::Backends::RubyBackend)
+        end
       ensure
-        ENV["OMNIZIP_FFI_DYLIB"] = old
+        ENV["OMNIZIP_BACKEND"] = backend
+        ENV["OMNIZIP_FFI_DYLIB"] = dylib
+        Omnizip::Implementations::Rust::Library.forget!
       end
     end
   end

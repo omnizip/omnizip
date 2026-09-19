@@ -3,6 +3,7 @@
 begin
   # Ruby 4.0 moved fiddle out of the default gems.
   require "fiddle"
+  require "pathname"
 rescue LoadError
   # :nocov:
 end
@@ -46,6 +47,34 @@ module Omnizip
             !instance.nil?
           end
 
+          # Drop the cached handle so resolution reruns (test seam:
+          # specs exercising fallback/absence paths need a clean
+          # slate; production never calls this).
+          def forget!
+            @instance = nil if defined?(@instance)
+            nil
+          end
+
+          # Built lazily: the Fiddle::TYPE_* constants only resolve
+          # after a successful require; environments without fiddle
+          # (Ruby 4.0 without the gem) never touch this table.
+          def function_table
+            {
+              last_error: ["ozip_last_error", [], Fiddle::TYPE_VOIDP],
+              free: ["ozip_free", %i[voidp size_t], Fiddle::TYPE_VOID],
+              compress: [
+                "ozip_compress",
+                %i[voidp voidp size_t int voidp],
+                Fiddle::TYPE_VOIDP,
+              ],
+              decompress: [
+                "ozip_decompress",
+                %i[voidp voidp size_t size_t voidp],
+                Fiddle::TYPE_VOIDP,
+              ],
+            }
+          end
+
           private
 
           def open
@@ -53,7 +82,7 @@ module Omnizip
             return nil if path.nil?
 
             handle = Fiddle.dlopen(path.to_s)
-            funcs = NAMES.each_with_object({}) do |(key, (name, args, ret)), h|
+            funcs = function_table.each_with_object({}) do |(key, (name, args, ret)), h|
               h[key] = Fiddle::Function.new(handle[name], args, ret)
             end
             new(funcs)
