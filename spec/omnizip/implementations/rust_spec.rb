@@ -1,7 +1,14 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "fiddle"
+
+# Ruby 4.0 moved fiddle out of the default gems — require lazily
+# and skip the differential when it is unavailable.
+begin
+  require "fiddle"
+rescue LoadError
+  # :nocov:
+end
 
 # Cross-tier differential: pure-Ruby cores vs the omnizip-ffi Rust
 # cdylib (TODO.ref-parity/62). Owner guidance 2026-09-19: some Ruby

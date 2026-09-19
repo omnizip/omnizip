@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
-require "fiddle"
+begin
+  # Ruby 4.0 moved fiddle out of the default gems.
+  require "fiddle"
+rescue LoadError
+  # :nocov:
+end
 
 module Omnizip
   module Implementations
