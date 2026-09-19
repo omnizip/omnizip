@@ -67,7 +67,10 @@ module Omnizip
       # @return [void]
       def compress(input_stream, output_stream, options = nil)
         level = level_from(options)
-        output_stream.write(Bz2.compress(input_stream.read, level))
+        data = input_stream.read
+        output_stream.write(
+          Backends.compress("bzip2", data, level) { Bz2.compress(data, level) }
+        )
       end
 
       # Decompress BZip2-compressed data
@@ -78,7 +81,11 @@ module Omnizip
       # @return [void]
       def decompress(input_stream, output_stream, _options = nil)
         output_stream.set_encoding(Encoding::BINARY)
-        output_stream.write(Bz2.decompress(input_stream.read))
+        compressed = input_stream.read
+        plain = Backends.decompress("bzip2", compressed, Backends::UNKNOWN_LENGTH) do
+          Bz2.decompress(compressed)
+        end
+        output_stream.write(plain)
       end
 
       private
