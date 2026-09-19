@@ -56,3 +56,5 @@ lib/omnizip/algorithms/lzma/xz_utils_decoder.rb.bak6
 
 CLAUDE.md
 
+/build
+/lib/tasks/build
