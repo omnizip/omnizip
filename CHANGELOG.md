@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Rust-accelerated backend tier: `Omnizip::Backends` is the single
+  tier switch between the pure-Ruby cores and the `omnizip-ffi`
+  cdylib (stdlib Fiddle — no compiled extension). Under the default
+  `auto` policy decode prefers the Rust decoders (output-invariant
+  and carrying fixes the Ruby cores lack); encode stays pure-Ruby
+  so frame bytes never depend on the tier (content addressing
+  stability). `OMNIZIP_BACKEND=rust|ruby` forces a tier; load
+  failures fall back to pure Ruby silently. A cross-tier
+  differential spec pins decode agreement in both encode
+  directions.
+- BZip2 routes its byte core through the backend seam (both paths
+  share the algorithm class's IO plumbing).
+
+### Fixed
+- Ruby 4.0 compatibility for the tier loader: fiddle moved out of
+  the default gems and is now required lazily with a fallback;
+  library resolution no longer references Fiddle constants when
+  fiddle is absent and considers `.dll` candidates on Windows.
+
 ## [0.3.58] - 2026-09-03
 
 ### Fixed
