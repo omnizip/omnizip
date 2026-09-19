@@ -69,7 +69,7 @@ module Omnizip
         level = level_from(options)
         data = input_stream.read
         output_stream.write(
-          Backends.compress("bzip2", data, level) { Bz2.compress(data, level) }
+          Backends.compress("bzip2", data, level) { Bz2.compress(data, level) },
         )
       end
 

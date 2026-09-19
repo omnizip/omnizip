@@ -15,13 +15,13 @@ module Omnizip
           compress: [
             "ozip_compress",
             %i[voidp voidp size_t int voidp],
-            Fiddle::TYPE_VOIDP
+            Fiddle::TYPE_VOIDP,
           ],
           decompress: [
             "ozip_decompress",
             %i[voidp voidp size_t size_t voidp],
-            Fiddle::TYPE_VOIDP
-          ]
+            Fiddle::TYPE_VOIDP,
+          ],
         }.freeze
 
         # Codecs the cdylib dispatches by name.
@@ -58,12 +58,12 @@ module Omnizip
           end
 
           def resolve_path
-            explicit = ENV["OMNIZIP_FFI_DYLIB"]
+            explicit = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
             return Pathname.new(explicit) if explicit && File.file?(explicit)
 
             candidates = [
               Pathname.new(__dir__).join("../../../../ext/libomnizip_ffi"),
-              sibling_checkout
+              sibling_checkout,
             ].compact.flatten
 
             %w[.dylib .so].each do |ext|

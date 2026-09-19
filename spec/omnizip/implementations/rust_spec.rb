@@ -14,18 +14,18 @@ require "fiddle"
 RSpec.describe "cross-tier differential" do
   let(:library) do
     path = ENV["OMNIZIP_FFI_DYLIB"] ||
-           File.expand_path("../../../omnizip-rs/target/release/libomnizip_ffi.dylib", __dir__)
+      File.expand_path("../../../omnizip-rs/target/release/libomnizip_ffi.dylib", __dir__)
     return nil unless File.file?(path)
 
     handle = Fiddle.dlopen(path)
     compress = Fiddle::Function.new(handle["ozip_compress"],
-      [Fiddle::TYPE_VOIDP, Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T,
-       Fiddle::TYPE_INT, Fiddle::TYPE_VOIDP], Fiddle::TYPE_VOIDP)
+                                    [Fiddle::TYPE_VOIDP, Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T,
+                                     Fiddle::TYPE_INT, Fiddle::TYPE_VOIDP], Fiddle::TYPE_VOIDP)
     decompress = Fiddle::Function.new(handle["ozip_decompress"],
-      [Fiddle::TYPE_VOIDP, Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T,
-       Fiddle::TYPE_SIZE_T, Fiddle::TYPE_VOIDP], Fiddle::TYPE_VOIDP)
+                                      [Fiddle::TYPE_VOIDP, Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T,
+                                       Fiddle::TYPE_SIZE_T, Fiddle::TYPE_VOIDP], Fiddle::TYPE_VOIDP)
     free = Fiddle::Function.new(handle["ozip_free"],
-      [Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T], Fiddle::TYPE_VOID)
+                                [Fiddle::TYPE_VOIDP, Fiddle::TYPE_SIZE_T], Fiddle::TYPE_VOID)
     { compress: compress, decompress: decompress, free: free }
   end
 
@@ -90,7 +90,7 @@ RSpec.describe "cross-tier differential" do
     it "auto prefers rust decode and ruby encode" do
       skip "omnizip-ffi cdylib not built" if library.nil?
 
-      old = ENV["OMNIZIP_BACKEND"]
+      old = ENV.fetch("OMNIZIP_BACKEND", nil)
       begin
         ENV["OMNIZIP_BACKEND"] = "auto"
         expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RustBackend)
@@ -101,7 +101,7 @@ RSpec.describe "cross-tier differential" do
     end
 
     it "ruby mode forces the pure path" do
-      old = ENV["OMNIZIP_BACKEND"]
+      old = ENV.fetch("OMNIZIP_BACKEND", nil)
       begin
         ENV["OMNIZIP_BACKEND"] = "ruby"
         expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RubyBackend)
@@ -111,7 +111,7 @@ RSpec.describe "cross-tier differential" do
     end
 
     it "falls back to ruby when the cdylib is absent" do
-      old = ENV["OMNIZIP_FFI_DYLIB"]
+      old = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
       begin
         ENV["OMNIZIP_FFI_DYLIB"] = "/nonexistent/libomnizip_ffi.dylib"
         # Resolution is cached per process; this asserts the
