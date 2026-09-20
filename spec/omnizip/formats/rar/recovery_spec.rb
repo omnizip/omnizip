@@ -3,6 +3,7 @@
 require "spec_helper"
 require "omnizip/formats/rar"
 require "omnizip/formats/rar/recovery_record"
+require "tmpdir"
 require "omnizip/formats/rar/parity_handler"
 require "omnizip/formats/rar/archive_verifier"
 require "omnizip/formats/rar/archive_repairer"
