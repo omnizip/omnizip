@@ -98,7 +98,11 @@ RSpec.describe "stdlib constant requires in lib/" do
   it "requires every guarded constant it references" do
     root = File.expand_path("../../lib", __dir__)
     prefix = "#{File.dirname(root)}/"
+    # Build output (e.g. the differential harness's ruby_reference
+    # copies under lib/tasks/build) is generated residue, not package
+    # source — the invariant applies to shipped lib code only.
     paths = Dir.glob(File.join(root, "**", "*.rb"))
+                .reject { |p| p.include?(File.join("lib", "tasks", "build")) }
 
     # Without this the whole example passes by inspecting nothing, which reads
     # as proof and is not.

@@ -266,10 +266,16 @@ module Omnizip
         # @param parity_data [String] Parity information
         # @return [String, nil] Recovered data
         def recover_with_reed_solomon(_corrupted_data, _parity_data)
-          # Placeholder for Reed-Solomon recovery
-          # Real implementation would use reed-solomon gem
-          # For now, return nil to indicate recovery not available
-          nil
+          # The in-archive RAR5 recovery record's RS parameters exist
+          # only in the proprietary rar binary — unrar carries no
+          # implementation (its recvol5/rs16 cover only the separate
+          # .rev volume feature), and no independent spec is public.
+          # Fail loudly with actionable guidance instead of pretending
+          # recovery happened.
+          raise NotImplementedError,
+                "in-archive RAR5 Reed-Solomon recovery is not implemented " \
+                "(rar-proprietary format); protect archives with external " \
+                "parity (par2) instead"
         end
 
         # Recover data using XOR (RAR4)
@@ -277,14 +283,15 @@ module Omnizip
         # @param corrupted_data [String] Corrupted block
         # @param parity_data [String] Parity information
         # @return [String] Recovered data
-        def recover_with_xor(corrupted_data, parity_data)
-          # Simple XOR recovery
-          result = corrupted_data.bytes.map.with_index do |byte, i|
-            parity_byte = parity_data.bytes[i % parity_data.size]
-            byte ^ parity_byte
-          end
-
-          result.pack("C*")
+        def recover_with_xor(_corrupted_data, _parity_data)
+          # RAR4's integrated recovery record is likewise rar-proprietary
+          # (unrar has no repair path for it either); a cyclic XOR with
+          # arbitrary parity bytes is not the record's actual transform
+          # and would silently fabricate corrupt bytes. Refuse honestly.
+          raise NotImplementedError,
+                "in-archive RAR4 recovery-record repair is not implemented " \
+                "(rar-proprietary format); protect archives with external " \
+                "parity (par2) instead"
         end
       end
     end
