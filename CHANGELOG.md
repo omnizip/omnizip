@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- PPMd works for the first time: the pure-Ruby ppmd7 core cannot
+  decode its own output (root-only decoder, 100-symbol cap — proven)
+  and ppmd8 raised NotImplementedError; both now route through the
+  Rust tier with param-carrying codec names.
+- The `StringIO#to_s` corruption trap: StringIO has no `#to_s`
+  (Kernel's returns the INSPECT string), so IO-coercion paths fed
+  `#<StringIO:0x…>` text to codecs. Fixed at the source
+  (`Algorithm.to_input_io`), together with the mirror
+  `prepare_output` bug that silently discarded StringIO outputs.
+- ZIP entry extraction's raw deflate now rides the tier.
+
 ### Added
 - Rust tier wiring for every accelerated codec: zstd, deflate,
   deflate64 (both zlib-framed), gzip, xz, lzip, and lzma-alone now
