@@ -16,7 +16,13 @@ module Omnizip
       # built; compress/decompress are pure C calls).
       class Library
         # Codecs the cdylib dispatches by name.
-        CODECS = %w[bzip2 zstd lzma xz].freeze
+        # Names the cdylib dispatches: the codec-level acceleration surface
+        # (decode tier by default; encode only under forced rust mode —
+        # RUST_ENCODE_IDENTICAL gates the auto tier).
+        CODECS = %w[
+          bzip2 zstd lzma xz lzma-alone lzip
+          deflate deflate64 zlib gzip
+        ].freeze
 
         class << self
           # The shared handle, or nil when the cdylib cannot load.
@@ -36,7 +42,10 @@ module Omnizip
           # specs exercising fallback/absence paths need a clean
           # slate; production never calls this).
           def forget!
-            @instance = nil if defined?(@instance)
+            # Remove the ivar entirely: assigning nil would leave it
+            # defined, and `instance`'s `defined?` guard would return
+            # the nil forever without ever re-opening the library.
+            remove_instance_variable(:@instance) if defined?(@instance)
             nil
           end
 

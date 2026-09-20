@@ -98,8 +98,10 @@ module Omnizip
       # @return [void]
       def decompress(input_stream, output_stream, _options = nil)
         output_stream.set_encoding(Encoding::BINARY)
-        decoder = Decoder.new(input_stream)
-        decompressed = decoder.decode_stream
+        compressed = input_stream.read
+        decompressed = Backends.decompress("zstd", compressed, Backends::UNKNOWN_LENGTH) do
+          Decoder.new(StringIO.new(compressed)).decode_stream
+        end
         output_stream.write(decompressed)
       end
 

@@ -91,17 +91,14 @@ module Omnizip
           # Write GZIP header
           write_header(output_io, mtime, original_name)
 
-          # Compress data with Deflate
-          deflate = Zlib::Deflate.new(
-            level,
-            Zlib::MAX_WBITS + 16, # Use GZIP wrapper
-          )
-          compressed = deflate.deflate(input_data, Zlib::FINISH)
+          # RFC 1952 member: header + RAW deflate + CRC32/ISIZE footer.
+          # The old implementation layered zlib's own GZIP wrapper
+          # under this header (a second 1F 8B magic) — the gem's
+          # reader tolerated it, but every standard gzip tool
+          # rejected the output. Raw-window mode emits bare DEFLATE.
+          deflate = Zlib::Deflate.new(level, -Zlib::MAX_WBITS)
+          output_io.write(deflate.deflate(input_data, Zlib::FINISH))
           deflate.close
-
-          # Extract just the compressed data (remove zlib's GZIP wrapper)
-          # We'll write our own footer
-          output_io.write(compressed[0...-8]) if compressed.bytesize > 8
 
           # Write GZIP footer
           write_footer(output_io, input_data)
@@ -113,15 +110,27 @@ module Omnizip
         # @param output_io [IO] Output stream
         # @return [Hash] Metadata (original_name, mtime)
         def decompress_stream(input_io, output_io)
-          # Read and parse header
-          metadata = read_header(input_io)
+          data = input_io.read
 
-          # Decompress with Deflate
-          inflate = Zlib::Inflate.new(Zlib::MAX_WBITS + 16)
-          decompressed = inflate.inflate(input_io.read)
-          inflate.close
+          # Metadata comes from the header either way (cheap parse).
+          metadata = read_header(StringIO.new(data))
 
-          # Write decompressed data
+          # The tier gets the WHOLE member (header + deflate + trailer)
+          # — the Rust "gzip" name decodes the container end-to-end.
+          decompressed = Backends.decompress("gzip", data, Backends::UNKNOWN_LENGTH) do
+            body = StringIO.new(data)
+            read_header(body) # skip past the header
+            # Legacy double-header members (written before the RFC
+            # 1952 fix) carry zlib's own 10-byte GZIP header here;
+            # standard members carry bare DEFLATE.
+            rest = body.read
+            rest = rest.byteslice(10..) if rest.byteslice(0, 2) == "\x1F\x8B".b
+            inflate = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+            result = inflate.inflate(rest)
+            inflate.close
+            result
+          end
+
           output_io.write(decompressed)
 
           metadata
