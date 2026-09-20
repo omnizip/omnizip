@@ -27,19 +27,23 @@ module Omnizip
   #     over frame stability.
   module Backends
     # Codecs whose Rust encoder is BYTE-IDENTICAL to the pure-Ruby
-    # encoder (empirical, differential-corpus-proven). 2026-09-19
-    # probe: bzip2 L6 on a 50 KB corpus => Ruby 906 B vs Rust 874 B —
-    # DIFFERENT valid streams. No codec qualifies; encode stays
-    # pure-Ruby under :auto so downstream content addressing never
-    # sees tier-dependent bytes. Force with OMNIZIP_BACKEND=rust.
-    RUST_ENCODE_IDENTICAL = {}.freeze
+    # 2026-09-20 policy flip (owner directive): RUST IS THE AUTHORITY
+    # — its encoders/decoders are the ports validated against the
+    # reference C/C++ implementations (bzip2, xz/liblzma, zstd,
+    # libdeflate), and they are determinism-contracted (same input +
+    # level => same bytes on every machine). :auto therefore routes
+    # BOTH directions through Rust whenever the cdylib loads; encode
+    # falls back to the Ruby core on any Rust error, so :auto is
+    # never worse than pure Ruby. The pure-Ruby cores remain the
+    # portable fallback and the OMNIZIP_BACKEND=ruby escape hatch.
+    RUST_AUTHORITATIVE = true
 
     # usize::MAX — the FFI's "caller does not know the plaintext
     # size" sentinel (streaming decode contract).
     UNKNOWN_LENGTH = 0xFFFF_FFFF_FFFF_FFFF
 
     class << self
-      def for(codec, direction)
+      def for(codec, _direction)
         mode = ENV.fetch("OMNIZIP_BACKEND", "auto")
 
         return backend_rust if mode == "rust"
@@ -48,17 +52,26 @@ module Omnizip
         return backend_ruby unless Implementations::Rust::Library.available?
         return backend_ruby unless Implementations::Rust::Library::CODECS.include?(codec)
 
-        direction == :encode && !RUST_ENCODE_IDENTICAL.fetch(codec, false) ? backend_ruby : backend_rust
+        backend_rust
       end
 
       # Compress through the tier-selected backend. The block is
       # the pure-Ruby core — evaluated ONLY on the Ruby path, so
-      # the accelerated path never pays for it.
+      # the accelerated path never pays for it. A Rust encode error
+      # falls back to the Ruby core (auto is never worse than pure
+      # Ruby); only the forced `rust` mode propagates.
       def compress(codec, data, level, &ruby_core)
         backend = Backends.for(codec, :encode)
         return yield if backend == RubyBackend
 
-        backend.compress(codec, data, level)
+        begin
+          backend.compress(codec, data, level)
+        rescue Implementations::Rust::Error => e
+          raise if ENV.fetch("OMNIZIP_BACKEND", "auto") == "rust"
+
+          warn "omnizip: rust #{codec} encode failed (#{e.message}); using ruby" if ENV["OMNIZIP_BACKEND_DEBUG"]
+          yield
+        end
       end
 
       # Decompress through the tier-selected backend (output-

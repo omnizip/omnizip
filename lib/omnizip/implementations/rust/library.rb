@@ -16,9 +16,9 @@ module Omnizip
       # built; compress/decompress are pure C calls).
       class Library
         # Codecs the cdylib dispatches by name.
-        # Names the cdylib dispatches: the codec-level acceleration surface
-        # (decode tier by default; encode only under forced rust mode —
-        # RUST_ENCODE_IDENTICAL gates the auto tier).
+        # Names the cdylib dispatches: the codec-level acceleration
+        # surface (both directions by default — Rust is the
+        # authority; Ruby is the fallback).
         CODECS = %w[
           bzip2 zstd lzma xz lzma-alone lzip
           deflate deflate64 zlib gzip

@@ -419,13 +419,21 @@ RSpec.describe Omnizip::Algorithms::Zstandard do
     it "beats the non-LDM ratio on repeated far-apart content" do
       # The same paragraph repeated with a block of random noise in
       # between: only long-distance matching can tie the copies
-      # together across the 128 KiB block boundary.
-      rng = Random.new(11)
-      paragraph = ("sed do eiusmod tempor incididunt " * 2_500)
-      data = paragraph + rng.bytes(70_000) + paragraph
-      low = described_class.compress(data, level: 3)
-      high = described_class.compress(data, level: 19)
-      expect(high.bytesize).to be < low.bytesize
+      # together across the 128 KiB block boundary. This pins the
+      # RUBY encoder's LDM tiering — force the pure-Ruby core so the
+      # Rust tier's fixed level mapping does not mask the options.
+      prev = ENV.fetch("OMNIZIP_BACKEND", nil)
+      ENV["OMNIZIP_BACKEND"] = "ruby"
+      begin
+        rng = Random.new(11)
+        paragraph = ("sed do eiusmod tempor incididunt " * 2_500)
+        data = paragraph + rng.bytes(70_000) + paragraph
+        low = described_class.compress(data, level: 3)
+        high = described_class.compress(data, level: 19)
+        expect(high.bytesize).to be < low.bytesize
+      ensure
+        ENV["OMNIZIP_BACKEND"] = prev
+      end
     end
   end
 

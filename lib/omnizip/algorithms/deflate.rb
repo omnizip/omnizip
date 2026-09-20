@@ -68,8 +68,13 @@ module Omnizip
       # @return [void]
       def compress(input_stream, output_stream, options = nil)
         input_data = input_stream.read
-        encoder = Encoder.new(output_stream, build_encoder_options(options))
-        encoder.encode_stream(input_data)
+        level = build_encoder_options(options)[:level] || 6
+        output_stream.write(
+          Backends.compress("zlib", input_data, level) do
+            encoder = Encoder.new(output_stream, build_encoder_options(options))
+            encoder.encode_stream(input_data)
+          end,
+        )
       end
 
       # Decompress Deflate-compressed data

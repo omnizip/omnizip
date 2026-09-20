@@ -125,8 +125,10 @@ RSpec.describe "cross-tier differential" do
         if library
           Omnizip::Implementations::Rust::Library.forget!
           ENV["OMNIZIP_BACKEND"] = "auto"
+          # Rust is the authority (2026-09-20 policy): BOTH directions
+          # route through Rust when the library loads.
           expect(Omnizip::Backends.for("bzip2", :decode)).to eq(Omnizip::Backends::RustBackend)
-          expect(Omnizip::Backends.for("bzip2", :encode)).to eq(Omnizip::Backends::RubyBackend)
+          expect(Omnizip::Backends.for("bzip2", :encode)).to eq(Omnizip::Backends::RustBackend)
         end
       ensure
         ENV["OMNIZIP_BACKEND"] = backend
