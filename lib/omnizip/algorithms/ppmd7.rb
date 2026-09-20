@@ -70,9 +70,22 @@ module Omnizip
       def compress(input, output, options = {})
         input = prepare_input(input)
         output = prepare_output(output)
+        data = input.read
+        order = options[:model_order] || PPMd7::Model::DEFAULT_ORDER
+        mem = options[:mem_size] || PPMd7::Model::DEFAULT_MEM_SIZE
 
-        encoder = PPMd7::Encoder.new(output, options)
-        encoder.encode_stream(input)
+        # The tier is the authority: Rust's PPMd (the reference-grade
+        # port) frames order/size in-band; params travel in the codec
+        # name. The pure-Ruby core cannot round-trip its own output
+        # beyond ~100 bytes (its decoder reads root-only) — it stays
+        # only as the no-dylib fallback.
+        output.write(
+          Backends.compress("ppmd7:o#{order}:m#{mem}", data, order) do
+            encoder = PPMd7::Encoder.new(output, options)
+            encoder.encode_stream(StringIO.new(data))
+            nil
+          end,
+        )
       end
 
       # Decompress data using PPMd7
@@ -86,10 +99,16 @@ module Omnizip
       def decompress(input, output, options = {})
         input = prepare_input(input)
         output = prepare_output(output)
+        compressed = input.read
+        order = options[:model_order] || PPMd7::Model::DEFAULT_ORDER
+        mem = options[:mem_size] || PPMd7::Model::DEFAULT_MEM_SIZE
 
-        decoder = PPMd7::Decoder.new(input, options)
-        result = decoder.decode_stream
-
+        result = Backends.decompress(
+          "ppmd7:o#{order}:m#{mem}", compressed, Backends::UNKNOWN_LENGTH
+        ) do
+          decoder = PPMd7::Decoder.new(StringIO.new(compressed), options)
+          decoder.decode_stream
+        end
         output.write(result)
       end
 
@@ -100,7 +119,9 @@ module Omnizip
       # @param input [IO, String] Input data
       # @return [IO] IO object ready for reading
       def prepare_input(input)
-        return input if input.is_a?(IO)
+        # StringIO is not an ::IO, and its #to_s is Kernel's (the
+        # INSPECT string) — pass anything readable straight through.
+        return input if input.respond_to?(:read) # allowed: IO-duck detection — StringIO must pass through (its #to_s is the INSPECT string)
 
         StringIO.new(input.to_s)
       end
@@ -110,7 +131,10 @@ module Omnizip
       # @param output [IO, String, nil] Output destination
       # @return [IO] IO object ready for writing
       def prepare_output(output)
-        return output if output.is_a?(IO)
+        # StringIO is NOT an ::IO subclass — the old check discarded
+        # it for a fresh buffer, silently dropping every class-level
+        # compress's output.
+        return output if output.is_a?(IO) || output.is_a?(StringIO)
 
         StringIO.new(String.new(encoding: Encoding::BINARY))
       end

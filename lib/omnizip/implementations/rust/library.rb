@@ -21,7 +21,7 @@ module Omnizip
         # authority; Ruby is the fallback).
         CODECS = %w[
           bzip2 zstd lzma xz lzma-alone lzip
-          deflate deflate64 zlib gzip
+          deflate deflate64 zlib gzip ppmd7 ppmd8
         ].freeze
 
         class << self
@@ -36,6 +36,13 @@ module Omnizip
 
           def available?
             !instance.nil?
+          end
+
+          # Whether the cdylib dispatches this codec name — exact, or
+          # a param-carrying prefix ("ppmd7:o6:m16777216" under
+          # "ppmd7").
+          def supports?(name)
+            CODECS.any? { |c| name == c || name.start_with?("#{c}:") }
           end
 
           # Drop the cached handle so resolution reruns (test seam:

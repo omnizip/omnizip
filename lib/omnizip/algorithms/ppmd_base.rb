@@ -119,7 +119,9 @@ module Omnizip
       # @param input [IO, String] Input data
       # @return [IO] IO object ready for reading
       def prepare_input(input)
-        return input if input.is_a?(IO)
+        # StringIO is not an ::IO, and its #to_s is Kernel's (the
+        # INSPECT string) — pass anything readable straight through.
+        return input if input.respond_to?(:read) # allowed: IO-duck detection — StringIO must pass through (its #to_s is the INSPECT string)
 
         StringIO.new(input.to_s)
       end
@@ -129,7 +131,9 @@ module Omnizip
       # @param output [IO, String, nil] Output destination
       # @return [IO] IO object ready for writing
       def prepare_output(output)
-        return output if output.is_a?(IO)
+        # StringIO is not an ::IO subclass — the old check discarded
+        # it for a fresh buffer, silently dropping the output.
+        return output if output.is_a?(IO) || output.is_a?(StringIO)
 
         StringIO.new(String.new(encoding: Encoding::BINARY))
       end

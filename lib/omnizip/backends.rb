@@ -50,7 +50,7 @@ module Omnizip
         return backend_ruby if mode == "ruby"
 
         return backend_ruby unless Implementations::Rust::Library.available?
-        return backend_ruby unless Implementations::Rust::Library::CODECS.include?(codec)
+        return backend_ruby unless Implementations::Rust::Library.supports?(codec)
 
         backend_rust
       end
