@@ -73,10 +73,15 @@ module Omnizip
         output.set_encoding(Encoding::BINARY)
         output.binmode
 
-        # Use Zlib::Inflate with maximum window size
-        inflater = Zlib::Inflate.new(Zlib::MAX_WBITS)
-        decompressed = inflater.inflate(compressed)
-        inflater.close
+        # The streams this algorithm produces/consumes are zlib
+        # containers (RFC 1950); the Rust "zlib" name speaks exactly
+        # that, so the tier swap is byte-transparent.
+        decompressed = Backends.decompress("zlib", compressed, Backends::UNKNOWN_LENGTH) do
+          inflater = Zlib::Inflate.new(Zlib::MAX_WBITS)
+          result = inflater.inflate(compressed)
+          inflater.close
+          result
+        end
 
         # Force binary encoding to match original data
         decompressed.force_encoding(Encoding::BINARY)

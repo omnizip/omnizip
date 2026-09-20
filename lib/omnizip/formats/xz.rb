@@ -89,11 +89,17 @@ module Omnizip
 
           case format
           when :lz
-            decode_lzip(data)
+            Backends.decompress("lzip", data, Backends::UNKNOWN_LENGTH) do
+              decode_lzip(data)
+            end
           when :lzma_alone
-            decode_lzma_alone(data)
+            Backends.decompress("lzma-alone", data, Backends::UNKNOWN_LENGTH) do
+              decode_lzma_alone(data)
+            end
           when :xz
-            decode_xz_stream(data)
+            Backends.decompress("xz", data, Backends::UNKNOWN_LENGTH) do
+              decode_xz_stream(data)
+            end
           else
             raise FormatError, "Unknown LZMA format: cannot detect valid format"
           end

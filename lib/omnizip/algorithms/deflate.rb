@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "stringio"
+
 # Copyright (C) 2025 Ribose Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
@@ -78,8 +80,12 @@ module Omnizip
       # @return [void]
       def decompress(input_stream, output_stream, _options = nil)
         output_stream.set_encoding(Encoding::BINARY)
-        decoder = Decoder.new(input_stream)
-        decompressed = decoder.decode_stream
+        compressed = input_stream.read
+        # The encoder's streams carry the zlib wrapper (RFC 1950) —
+        # the Rust "zlib" name speaks exactly that framing.
+        decompressed = Backends.decompress("zlib", compressed, Backends::UNKNOWN_LENGTH) do
+          Decoder.new(StringIO.new(compressed)).decode_stream
+        end
         output_stream.write(decompressed)
       end
 

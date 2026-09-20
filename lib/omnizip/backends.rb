@@ -62,12 +62,23 @@ module Omnizip
       end
 
       # Decompress through the tier-selected backend (output-
-      # invariant: :auto prefers Rust whenever loadable).
+      # invariant: :auto prefers Rust whenever loadable). A Rust
+      # failure falls back to the Ruby core — the Ruby readers are
+      # the tolerant superset (legacy container variants, malformed
+      # inputs they historically accept), so :auto must never be
+      # WORSE than pure Ruby. Only the forced `rust` mode propagates.
       def decompress(codec, data, expected_len, &ruby_core)
         backend = Backends.for(codec, :decode)
         return yield if backend == RubyBackend
 
-        backend.decompress(codec, data, expected_len)
+        begin
+          backend.decompress(codec, data, expected_len)
+        rescue Implementations::Rust::Error => e
+          raise if ENV.fetch("OMNIZIP_BACKEND", "auto") == "rust"
+
+          warn "omnizip: rust #{codec} decode failed (#{e.message}); using ruby" if ENV["OMNIZIP_BACKEND_DEBUG"]
+          yield
+        end
       end
 
       private
