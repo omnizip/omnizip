@@ -47,6 +47,27 @@ RSpec.describe "Rust tier codec coverage" do
     TFpJUAEMACQZSZhvBRUnJw12eNAqaBcV//91+AAAQ6OiFQ0AAAAAAAAAMgAAAAAAAAA=
   B64
 
+  describe "ppmd7 (param-carrying names)" do
+    it "round-trips through the tier where the pure-Ruby core cannot" do
+      skip "omnizip-ffi cdylib not built" if library.instance.nil?
+      data = "the pure-Ruby core cannot decode its own output " * 8
+      s = Omnizip::Algorithms::PPMd7.compress(data, model_order: 6, mem_size: 1 << 24)
+      d = Omnizip::Algorithms::PPMd7.decompress(s, model_order: 6, mem_size: 1 << 24)
+      expect(d).to eq(data)
+      expect(s.bytesize).to be < data.bytesize
+    end
+  end
+
+  describe "ppmd8 (implemented by the tier)" do
+    it "round-trips for the first time (pure-Ruby raises NotImplementedError)" do
+      skip "omnizip-ffi cdylib not built" if library.instance.nil?
+      data = "the pure-Ruby core never shipped " * 8
+      s = Omnizip::Algorithms::PPMd8.compress(data, model_order: 6, mem_size: 1 << 24)
+      d = Omnizip::Algorithms::PPMd8.decompress(s, model_order: 6, mem_size: 1 << 24)
+      expect(d).to eq(data)
+    end
+  end
+
   describe "lzip" do
     it "decodes the conformance member identically on both backends" do
       skip "omnizip-ffi cdylib not built" if library.instance.nil?

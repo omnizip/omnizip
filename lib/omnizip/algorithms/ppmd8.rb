@@ -32,6 +32,42 @@ module Omnizip
     #
     # This implementation follows the PPMd8 specification from 7-Zip.
     class PPMd8 < PPMdBase
+      # The tier is the authority: Rust's PPMd8 is the real
+      # implementation (the pure-Ruby core raises NotImplementedError
+      # for both directions — it never shipped). Parameters travel in
+      # the codec name.
+      def compress(input, output, options = {})
+        input = prepare_input(input)
+        output = prepare_output(output)
+        data = input.read
+        order = options[:model_order] || PPMd8::Model::DEFAULT_ORDER
+        mem = options[:mem_size] || PPMd8::Model::DEFAULT_MEM_SIZE
+
+        output.write(
+          Backends.compress("ppmd8:o#{order}:m#{mem}", data, order) do
+            super(input, output, options) if false
+            raise NotImplementedError,
+                  "PPMd8 compression is not yet fully implemented"
+          end,
+        )
+      end
+
+      def decompress(input, output, options = {})
+        input = prepare_input(input)
+        output = prepare_output(output)
+        compressed = input.read
+        order = options[:model_order] || PPMd8::Model::DEFAULT_ORDER
+        mem = options[:mem_size] || PPMd8::Model::DEFAULT_MEM_SIZE
+
+        result = Backends.decompress(
+          "ppmd8:o#{order}:m#{mem}", compressed, Backends::UNKNOWN_LENGTH
+        ) do
+          raise NotImplementedError,
+                "PPMd8 decompression is not yet fully implemented"
+        end
+        output.write(result)
+      end
+
       # Nested classes - autoloaded
       autoload :Constants, "omnizip/algorithms/ppmd8/constants"
       autoload :RestorationMethod, "omnizip/algorithms/ppmd8/restoration_method"

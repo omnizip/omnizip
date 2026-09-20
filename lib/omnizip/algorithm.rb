@@ -35,6 +35,19 @@ module Omnizip
       @filter = nil
     end
 
+    class << self
+      # Coerce arbitrary input to a binary readable IO. The trap this
+      # replaces: StringIO has no #to_s (Kernel#to_s returns the
+      # INSPECT string), so StringIO.new(io.to_s) fed "#<StringIO:...>"
+      # text to the codec. Anything readable passes through; Strings
+      # wrap directly.
+      def to_input_io(data)
+        return data if data.respond_to?(:read) # allowed: IO-duck detection — StringIO must pass through (its #to_s is the INSPECT string)
+
+        ::StringIO.new(data.to_s.b)
+      end
+    end
+
     # Set a preprocessing filter for this algorithm.
     #
     # The filter will be applied before compression and reversed after
@@ -95,7 +108,7 @@ module Omnizip
       # @return [String] Compressed bytes
       def compress(data, **options)
         instance = new(options)
-        input = data.is_a?(::IO) ? data : ::StringIO.new(data.to_s.b)
+        input = to_input_io(data)
         output = ::StringIO.new
         output.set_encoding(Encoding::BINARY)
         instance.compress(input, output, options)
@@ -110,7 +123,7 @@ module Omnizip
       # @return [String] Decompressed bytes
       def decompress(data, **options)
         instance = new(options)
-        input = data.is_a?(::IO) ? data : ::StringIO.new(data.to_s.b)
+        input = to_input_io(data)
         output = ::StringIO.new
         output.set_encoding(Encoding::BINARY)
         instance.decompress(input, output, options)

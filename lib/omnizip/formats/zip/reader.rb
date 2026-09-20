@@ -320,8 +320,13 @@ dereference_links: false)
         # Decompress using Deflate
         def decompress_deflate(data)
           require "zlib"
-          # ZIP uses raw deflate without zlib wrapper
-          Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(data)
+          # ZIP uses raw deflate without zlib wrapper — the Rust tier
+          # speaks exactly that ("deflate"); Zlib remains the fallback.
+          Omnizip::Backends.decompress(
+            "deflate", data, Omnizip::Backends::UNKNOWN_LENGTH
+          ) do
+            Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(data)
+          end
         rescue StandardError => e
           raise Omnizip::DecompressionError,
                 "Deflate decompression failed: #{e.message}"

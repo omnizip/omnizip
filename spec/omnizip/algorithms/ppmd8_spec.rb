@@ -18,6 +18,16 @@ RSpec.describe Omnizip::Algorithms::PPMd8 do
   describe "#compress and #decompress" do
     let(:input_data) { "Hello, PPMd8 compression test!" }
 
+    # The tier implements PPMd8 (Rust, the authority); the pure-Ruby
+    # core still raises NotImplementedError. Pin BOTH behaviors.
+    around do |example|
+      prev = ENV.fetch("OMNIZIP_BACKEND", nil)
+      ENV["OMNIZIP_BACKEND"] = "ruby"
+      example.run
+    ensure
+      ENV["OMNIZIP_BACKEND"] = prev
+    end
+
     it "raises NotImplementedError when compressing" do
       compressed = StringIO.new(String.new(encoding: Encoding::BINARY))
 
@@ -103,6 +113,26 @@ RSpec.describe Omnizip::Algorithms::PPMd8 do
       expect(model.restoration_method).to be_a(
         Omnizip::Algorithms::PPMd8::RestorationMethod,
       )
+    end
+  end
+
+  describe "through the tier" do
+    it "round-trips (Rust implements what the Ruby core never did)" do
+      skip "omnizip-ffi cdylib not built" if Omnizip::Implementations::Rust::Library.instance.nil?
+
+      prev = ENV.fetch("OMNIZIP_BACKEND", nil)
+      ENV["OMNIZIP_BACKEND"] = "auto"
+      begin
+        data = "Hello, PPMd8 compression test!"
+        compressed = Omnizip::Algorithms::PPMd8.compress(data, model_order: 6,
+                                                               mem_size: 1 << 24)
+        decompressed = Omnizip::Algorithms::PPMd8.decompress(
+          compressed, model_order: 6, mem_size: 1 << 24
+        )
+        expect(decompressed).to eq(data)
+      ensure
+        ENV["OMNIZIP_BACKEND"] = prev
+      end
     end
   end
 end
