@@ -102,7 +102,7 @@ RSpec.describe "stdlib constant requires in lib/" do
     # copies under lib/tasks/build) is generated residue, not package
     # source — the invariant applies to shipped lib code only.
     paths = Dir.glob(File.join(root, "**", "*.rb"))
-                .reject { |p| p.include?(File.join("lib", "tasks", "build")) }
+      .reject { |p| p.include?(File.join("lib", "tasks", "build")) }
 
     # Without this the whole example passes by inspecting nothing, which reads
     # as proof and is not.
