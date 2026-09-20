@@ -53,13 +53,6 @@ RSpec.describe "XZ Utils Reference Files" do
 
     bad_files.each do |file_path|
       it "rejects invalid file #{File.basename(file_path)}" do
-        # bad-1-lzma2-7 (EOPM beyond the declared chunk size) is the
-        # one corpus corruption the Rust backend does not yet detect;
-        # pending there, still enforced on the pure-Ruby path.
-        if File.basename(file_path) == "bad-1-lzma2-7.xz" &&
-            Omnizip::Backends.for("xz", :decode) == Omnizip::Backends::RustBackend
-          pending("rust backend residual: EOPM-tail detection")
-        end
         expect do
           Omnizip::Formats::Xz.decompress(file_path)
         end.to raise_error(Omnizip::Error)

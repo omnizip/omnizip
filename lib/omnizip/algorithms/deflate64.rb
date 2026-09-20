@@ -42,21 +42,22 @@ module Omnizip
       # @param options [Hash] Compression options
       # @option options [Integer] :level Compression level (1-9)
       def compress(input, output, options = {})
-        level = options[:level] || Zlib::DEFAULT_COMPRESSION
-
+        raw_level = options[:level] || Zlib::DEFAULT_COMPRESSION
         data = input.read
         return if data.nil? || data.empty?
 
-        # Use Zlib::Deflate with maximum window size
-        deflater = Zlib::Deflate.new(
-          level,
-          Zlib::MAX_WBITS, # Maximum window size
-          Zlib::MAX_MEM_LEVEL,
-        )
-
-        compressed = deflater.deflate(data, Zlib::FINISH)
-        deflater.close
-
+        # Zlib::DEFAULT_COMPRESSION (-1) maps to the FFI's 6.
+        level = raw_level.negative? ? 6 : raw_level.clamp(0, 9)
+        compressed = Backends.compress("zlib", data, level) do
+          deflater = Zlib::Deflate.new(
+            raw_level,
+            Zlib::MAX_WBITS,
+            Zlib::MAX_MEM_LEVEL,
+          )
+          result = deflater.deflate(data, Zlib::FINISH)
+          deflater.close
+          result
+        end
         output.write(compressed)
       end
 

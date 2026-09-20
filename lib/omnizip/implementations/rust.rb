@@ -13,11 +13,11 @@ module Omnizip
     #   1. ENV['OMNIZIP_FFI_DYLIB'] (explicit path)
     #   2. ../target/release/ inside a sibling omnizip-rs checkout
     #
-    # Tier policy (see Omnizip::Backends): decode is always
-    # output-invariant, so `auto` uses Rust for decode whenever
-    # available; encode uses Rust only when byte-identity with the
-    # pure-Ruby encoder has been verified for that codec
-    # (RUST_ENCODE_IDENTICAL), keeping content addressing stable.
+    # Tier policy (see Omnizip::Backends): Rust is the authority —
+    # validated against the reference C/C++ implementations and
+    # determinism-contracted — so `auto` routes BOTH directions
+    # through Rust whenever the library loads, with Ruby-core
+    # fallback on any Rust error.
     module Rust
       autoload :Library, "omnizip/implementations/rust/library"
     end
