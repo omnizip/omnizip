@@ -43,7 +43,7 @@ RSpec.describe "Rust tier codec coverage" do
 
   # good-1-v1.lz from the lzip conformance set (the same fixture
   # omnizip-lzma decodes) — decode-only format.
-  LZIP_FIXTURE = Base64.decode64(<<~B64).freeze
+  LZIP_FIXTURE = Base64.decode64(<<~B64).freeze # rubocop:disable Lint/ConstantDefinitionInBlock
     TFpJUAEMACQZSZhvBRUnJw12eNAqaBcV//91+AAAQ6OiFQ0AAAAAAAAAMgAAAAAAAAA=
   B64
 
@@ -59,7 +59,7 @@ RSpec.describe "Rust tier codec coverage" do
   # A member written by the pre-fix writer (custom header + zlib's own
   # gzip header under it). Standard tools reject these; the Ruby
   # reader must keep decoding them.
-  LEGACY_GZ = Base64.decode64(<<~B64).freeze
+  LEGACY_GZ = Base64.decode64(<<~B64).freeze # rubocop:disable Lint/ConstantDefinitionInBlock
     H4sIAAAAAAAAAx+LCAAAAAAAABPLSU1PTK5USMkvTcpJVchITUxJLVIoSKzMyU9MUcgZPpIAkvFC
     e+gAAAA=
   B64

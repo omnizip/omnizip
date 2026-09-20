@@ -36,7 +36,7 @@ RSpec.describe "XZ Utils Compatibility Test Suite" do
     # tail-marker class; pending until the range-coder drain semantics
     # land (the Ruby core still rejects it, so the PURE-Ruby path
     # covers the case).
-    KNOWN_RESIDUAL = %w[bad-1-lzma2-7.xz].freeze
+    known_residual = %w[bad-1-lzma2-7.xz].freeze
 
     bad_files = Dir["spec/fixtures/xz_utils/bad/*.{xz,lz,lzma}"]
 
@@ -44,7 +44,7 @@ RSpec.describe "XZ Utils Compatibility Test Suite" do
       filename = File.basename(file)
 
       it "rejects #{filename}" do
-        pending("rust backend residual: EOPM-tail detection") if KNOWN_RESIDUAL.include?(filename) &&
+        pending("rust backend residual: EOPM-tail detection") if known_residual.include?(filename) &&
           Omnizip::Backends.for("xz", :decode) == Omnizip::Backends::RustBackend
         data = File.binread(file)
 
