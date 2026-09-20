@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Rust tier wiring for every accelerated codec: zstd, deflate,
+  deflate64 (both zlib-framed), gzip, xz, lzip, and lzma-alone now
+  route decode through the Rust backend when it loads, each pinned by
+  a cross-implementation differential. A Rust failure falls back to
+  the Ruby core — auto mode is never worse than pure Ruby.
+
 ### Fixed
 - RAR recovery-record repair fails loudly instead of pretending:
   `recover_with_reed_solomon` returned nil and `recover_with_xor`
