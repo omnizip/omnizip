@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- RAR recovery-record repair fails loudly instead of pretending:
+  `recover_with_reed_solomon` returned nil and `recover_with_xor`
+  applied a transform the record does not use. Neither unrar (its
+  recvol5/rs16 cover only the separate .rev volumes) nor any public
+  spec carries the in-archive RAR5 RS parameters, so both paths now
+  raise `NotImplementedError` with par2 guidance, surfaced through
+  `ArchiveRepairer` results. The `ozip repair` counterpart (Rust)
+  ships in omnizip-rs with the same honest contract.
+
 ### Added
 - `rake rust:build` — one command to build and vendor the Rust
   backend's cdylib (clones omnizip-rs or reuses a checkout via
