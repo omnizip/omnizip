@@ -140,6 +140,7 @@ Metrics/BlockLength:
   Max: 81
   Exclude:
     - "lib/tasks/platform_gems.rake"
+    - "spec/omnizip/archive_handlers/rust_tier_handlers_spec.rb"
 
 # Offense count: 5
 # Configuration parameters: CountBlocks, CountModifierForms.

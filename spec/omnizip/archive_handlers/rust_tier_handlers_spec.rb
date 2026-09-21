@@ -11,7 +11,7 @@ require "omnizip/implementations/rust"
 # OLE is intentionally NOT wired: the Ruby reader lists top-level
 # entries while the Rust reader flattens the storage tree — wiring it
 # would change user-visible names, so the OLE handler stays pure-Ruby
-# (pinned below). RPM's tier assertions need dylib >= 0.21.111 (the
+# (pinned below). RPM's tier assertions need dylib >= 0.21.112 (the
 # './'-prefix normalization release); on older dylibs the rpm names
 # diverge and its specs skip.
 RSpec.describe "archive tier across handlers" do
@@ -100,8 +100,8 @@ RSpec.describe "archive tier across handlers" do
 
     Dir.mktmpdir do |tmp|
       cases(tmp).each do |name, (handler, make_path, password)|
-        if name == "rpm" && !dylib_at_least("0.21.111")
-          skip "rpm tier needs dylib >= 0.21.111 ('./'-prefix fix); loaded #{dylib_version.inspect}"
+        if name == "rpm" && !dylib_at_least("0.21.112")
+          skip "rpm tier needs dylib >= 0.21.112 ('./'-prefix fix); loaded #{dylib_version.inspect}"
         end
 
         path = make_path.call
