@@ -29,6 +29,9 @@ module Omnizip
       end
 
       def read_entry(path, entry_name, **_)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name)
+        return tier unless tier.nil?
+
         Dir.mktmpdir("omnizip-rpm-entry") do |dir|
           Omnizip::Formats::Rpm.extract(path, dir)
           dest = File.join(dir, entry_name)

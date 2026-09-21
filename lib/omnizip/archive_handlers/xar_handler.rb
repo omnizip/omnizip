@@ -21,6 +21,11 @@ module Omnizip
       end
 
       def list(path, details: false, **_)
+        unless details
+          tier_names = Omnizip::Backends.archive_entry_names(path)
+          return tier_names if tier_names
+        end
+
         entries = Omnizip::Formats::Xar.list(path)
         if details
           entries.map do |e|
@@ -33,6 +38,9 @@ module Omnizip
       end
 
       def read_entry(path, entry_name, **_)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name)
+        return tier unless tier.nil?
+
         Dir.mktmpdir("omnizip-xar-entry") do |dir|
           Omnizip::Formats::Xar.extract(path, dir)
           dest = File.join(dir, entry_name)

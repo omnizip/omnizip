@@ -96,15 +96,18 @@ module Omnizip
 
       # Whole-archive tier helpers: nil means "Rust unavailable or
       # entry not found — caller falls back to the Ruby reader".
-      def archive_entry_names(path)
-        Omnizip::Implementations::Rust::Archive.open(File.binread(path)) { |a| return a.entry_names }
+      # Encrypted formats (rar, 7z) pass password:.
+      def archive_entry_names(path, password: nil)
+        Omnizip::Implementations::Rust::Archive.open(File.binread(path), password: password) do |a|
+          return a.entry_names
+        end
       rescue Omnizip::Implementations::Rust::Archive::LibraryMissing, Omnizip::Implementations::Rust::Error, StandardError
         nil
       end
 
       # rubocop:disable-next Lint/ReturnInVoidContext
-      def archive_read_entry(path, entry_name)
-        Omnizip::Implementations::Rust::Archive.open(File.binread(path)) do |a|
+      def archive_read_entry(path, entry_name, password: nil)
+        Omnizip::Implementations::Rust::Archive.open(File.binread(path), password: password) do |a|
           idx = a.entry_names.index(entry_name)
           return nil if idx.nil?
 

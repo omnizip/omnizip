@@ -29,6 +29,11 @@ module Omnizip
       end
 
       def list(path, details: false, **_)
+        unless details
+          tier_names = Omnizip::Backends.archive_entry_names(path)
+          return tier_names if tier_names
+        end
+
         reader = Omnizip::Formats::Rar::Reader.new(path).open
         entries = reader.list_files
         if details
@@ -43,6 +48,9 @@ module Omnizip
       end
 
       def read_entry(path, entry_name, password: nil, **_)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name, password: password)
+        return tier unless tier.nil?
+
         Dir.mktmpdir("omnizip-rar-entry") do |dir|
           dest = File.join(dir, "entry")
           Omnizip::Formats::Rar::Decompressor.extract_entry(
