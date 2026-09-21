@@ -10,6 +10,12 @@ inherit_from:
 AllCops:
   NewCops: enable
   TargetRubyVersion: 3.0
+  # rake rust:build clones omnizip-rs under lib/tasks/build (and a
+  # build/ dir may exist at the root) — never lint the vendored
+  # checkout's Ruby files.
+  Exclude:
+    - "build/**/*"
+    - "lib/tasks/build/**/*"
 
 # 7-Zip SDK uses is_char_state? naming convention (IsCharState in C)
 # We keep this naming to match the SDK reference
