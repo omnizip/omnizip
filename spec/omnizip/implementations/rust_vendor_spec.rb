@@ -16,8 +16,8 @@ RSpec.describe "Omnizip::Implementations::Rust::Library cdylib resolution" do
   let(:dylib) { library.resolve_path&.to_s }
 
   around do |ex|
-    old_no_rust = ENV["OMNIZIP_NO_RUST"]
-    old_explicit = ENV["OMNIZIP_FFI_DYLIB"]
+    old_no_rust = ENV.fetch("OMNIZIP_NO_RUST", nil)
+    old_explicit = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
     ENV.delete("OMNIZIP_NO_RUST")
     ENV.delete("OMNIZIP_FFI_DYLIB")
     library.forget!
@@ -84,7 +84,7 @@ RSpec.describe "Omnizip::Implementations::Rust::Library cdylib resolution" do
         FileUtils.cp(dylib, explicit_dir.join("override.dylib"))
         ENV["OMNIZIP_FFI_DYLIB"] = explicit_dir.join("override.dylib").to_s
 
-        expect(library.resolve_path.to_s).to eq(ENV["OMNIZIP_FFI_DYLIB"])
+        expect(library.resolve_path.to_s).to eq(ENV.fetch("OMNIZIP_FFI_DYLIB", nil))
       end
     end
   end
@@ -94,7 +94,7 @@ RSpec.describe "Omnizip::Implementations::Rust::Library cdylib resolution" do
       skip "no cdylib available in this environment" unless dylib
 
       version = library.dylib_version
-      expect(version).to satisfy { |v| v.nil? || v.match?(/\A\d+\.\d+\.\d+\z/) }
+      expect(version).to(satisfy { |v| v.nil? || v.match?(/\A\d+\.\d+\.\d+\z/) })
     end
   end
 

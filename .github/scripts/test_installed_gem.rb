@@ -43,7 +43,7 @@ pure = system(
   RbConfig.ruby, "-e",
   'require "omnizip"; ' \
   'data = "pure ruby fallback " * 1000; ' \
-  'compressed = Omnizip::Algorithms::Deflate.compress(data); ' \
+  "compressed = Omnizip::Algorithms::Deflate.compress(data); " \
   'abort "FAIL: pure-ruby round-trip diverged" unless Omnizip::Algorithms::Deflate.decompress(compressed) == data; ' \
   'puts "pure-ruby path OK"'
 )
