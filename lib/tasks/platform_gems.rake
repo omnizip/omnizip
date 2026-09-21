@@ -13,28 +13,28 @@
 # land in pkg/. The plain `ruby` platform gem keeps shipping without
 # a binary (pure-Ruby core; OMNIZIP_NO_RUST=1 disables the tier).
 
-namespace :platform_gems do
-  # rust target → rubygems platform (keep in sync with
-  # omnizip-rs .github/workflows/release-binary.yml)
-  TARGETS = {
-    "x86_64-unknown-linux-gnu" => "x86_64-linux",
-    "aarch64-unknown-linux-gnu" => "aarch64-linux",
-    "arm-unknown-linux-gnueabihf" => "arm-linux",
-    "x86_64-unknown-linux-musl" => "x86_64-linux-musl",
-    "aarch64-unknown-linux-musl" => "aarch64-linux-musl",
-    "arm-unknown-linux-musleabihf" => "arm-linux-musl",
-    "aarch64-apple-darwin" => "arm64-darwin",
-    "x86_64-apple-darwin" => "x86_64-darwin",
-    "x86_64-pc-windows-msvc" => "x64-mingw-ucrt",
-    "aarch64-pc-windows-msvc" => "aarch64-mingw-ucrt",
-    "x86_64-pc-windows-gnu" => "x64-mingw32",
-  }.freeze
+# rust target → rubygems platform (keep in sync with
+# omnizip-rs .github/workflows/release-binary.yml)
+PLATFORM_GEM_TARGETS = {
+  "x86_64-unknown-linux-gnu" => "x86_64-linux",
+  "aarch64-unknown-linux-gnu" => "aarch64-linux",
+  "arm-unknown-linux-gnueabihf" => "arm-linux",
+  "x86_64-unknown-linux-musl" => "x86_64-linux-musl",
+  "aarch64-unknown-linux-musl" => "aarch64-linux-musl",
+  "arm-unknown-linux-musleabihf" => "arm-linux-musl",
+  "aarch64-apple-darwin" => "arm64-darwin",
+  "x86_64-apple-darwin" => "x86_64-darwin",
+  "x86_64-pc-windows-msvc" => "x64-mingw-ucrt",
+  "aarch64-pc-windows-msvc" => "aarch64-mingw-ucrt",
+  "x86_64-pc-windows-gnu" => "x64-mingw32",
+}.freeze
 
+namespace :platform_gems do
   desc "Build one platform gem: TARGET=<rust target> DYLIB=<cdylib path>"
   task :one do
     target = ENV.fetch("TARGET") { abort "TARGET=<rust target> required" }
     dylib = ENV.fetch("DYLIB") { abort "DYLIB=<cdylib path> required" }
-    platform = TARGETS[target] or abort "unknown target #{target} (see lib/tasks/platform_gems.rake)"
+    platform = PLATFORM_GEM_TARGETS[target] or abort "unknown target #{target} (see lib/tasks/platform_gems.rake)"
     out = build_platform_gem(platform, dylib)
     puts "built: #{out}"
   end
@@ -42,9 +42,9 @@ namespace :platform_gems do
   desc "Build platform gems for every tarball in DIR=libomnizip_ffi-<target>.tar.gz"
   task :build do
     dir = ENV.fetch("DIR") { abort "DIR=<artifacts dir> required" }
-    Dir.glob(File.join(dir, "libomnizip_ffi-*.tar.gz")).sort.each do |tarball|
-      target = File.basename(tarball, ".tar.gz").sub(/\Alibomnizip_ffi-/, "")
-      platform = TARGETS[target] or abort "no rubygems platform mapping for #{target}"
+    Dir.glob(File.join(dir, "libomnizip_ffi-*.tar.gz")).each do |tarball|
+      target = File.basename(tarball, ".tar.gz").delete_prefix("libomnizip_ffi-")
+      platform = PLATFORM_GEM_TARGETS[target] or abort "no rubygems platform mapping for #{target}"
       require "tmpdir"
       Dir.mktmpdir do |tmp|
         binary = extract_binary(tarball, tmp)
