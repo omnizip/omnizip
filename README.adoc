@@ -28,6 +28,28 @@ It provides both a command-line interface and a programmatic Ruby API, making it
 
 See link:readme-docs/compression-algorithms.adoc[Compression Algorithms Guide] for detailed information.
 
+==== Rust Acceleration (prebuilt, zero compilation)
+
+Where the platform gem exists, `gem install omnizip` ships a prebuilt
+`omnizip-ffi` cdylib and the codec + archive tiers route through it
+automatically — no Rust toolchain, no compilation:
+
+* x86_64-linux, aarch64-linux, arm-linux (glibc and musl)
+* arm64-darwin, x86_64-darwin
+* x64-mingw-ucrt, aarch64-mingw-ucrt, x64-mingw32
+
+Everywhere else — including JRuby/TruffleRuby and any platform without
+a binary — the gem stays fully functional on its pure-Ruby core (the
+acceleration is strictly optional). Three escape hatches:
+
+* `OMNIZIP_NO_RUST=1` — force the pure-Ruby core everywhere.
+* `OMNIZIP_FFI_DYLIB=/path/to/libomnizip_ffi` — load a specific build.
+* `rake rust:build` — build and vendor the cdylib yourself from a
+  checkout (developers).
+
+Any Rust-side failure also falls back to the Ruby core mid-operation,
+so `auto` mode is never worse than pure Ruby.
+
 ==== SDK-Compatible LZMA Mode (v0.2.0)
 
 Omnizip now provides SDK-compatible LZMA encoding and decoding for full XZ/LZMA tool compatibility.
