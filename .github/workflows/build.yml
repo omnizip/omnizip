@@ -69,11 +69,10 @@ jobs:
       - run: bundle exec rake
 
   smoke-jruby:
-    # JRuby ships no Fiddle — the ffi gem binding is its ONLY path to
-    # the tier. Install the ruby-platform gem, point
-    # OMNIZIP_FFI_DYLIB at the released cdylib, and require the smoke
-    # to report the ffi layer.
-    name: Smoke JRuby (ffi layer)
+    # JRuby's tier path: run the smoke twice — the default layer
+    # (JRuby 10 ships a Fiddle, so it may win) and the FORCED ffi
+    # layer, which proves the ffi binding works on a JVM engine.
+    name: Smoke JRuby (default + ffi)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -104,9 +103,16 @@ jobs:
             -p 'libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz' -D dylib
           tar -xzf dylib/libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz -C dylib
 
-      - name: Smoke through the ffi layer
+      - name: Smoke, default layer
         env:
           OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+        run: |
+          ruby .github/scripts/test_installed_gem.rb
+
+      - name: Smoke, forced ffi layer
+        env:
+          OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+          OMNIZIP_BINDING: ffi
         run: |
           out=$(ruby .github/scripts/test_installed_gem.rb 2>&1) || rc=$?
           echo "$out"
@@ -114,8 +120,9 @@ jobs:
           echo "$out" | grep -q "SMOKE OK (ffi layer)"
 
   smoke-musl:
-    # The musl platform gems are cross-built but this is where they
-    # get EXECUTED: real Alpine, host arch and arm64.
+    # The musl dylibs are cross-built; here they get EXECUTED on real
+    # Alpine (host arch and arm64): the musl tarball is passed to the
+    # container via OMNIZIP_FFI_DYLIB and a zlib round-trip runs.
     name: Smoke musl (${{ matrix.arch }})
     runs-on: ${{ matrix.host }}
     strategy:
@@ -123,29 +130,39 @@ jobs:
       matrix:
         include:
           - { arch: x86_64-musl, host: ubuntu-latest,
-              platform: "linux/amd64", image: "ruby:3.3-alpine" }
+              platform: "linux/amd64", image: "ruby:3.3-alpine",
+              target: "x86_64-unknown-linux-musl" }
           - { arch: aarch64-musl, host: ubuntu-24.04-arm,
-              platform: "linux/arm64", image: "ruby:3.3-alpine" }
+              platform: "linux/arm64", image: "ruby:3.3-alpine",
+              target: "aarch64-unknown-linux-musl" }
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build + install the ruby-platform gem, run the smoke
+      - name: Build the ruby-platform gem + fetch the musl cdylib
         env:
-          IMAGE: ${{ matrix.image }}
           GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
         run: |
           gem build omnizip.gemspec
           tag=$(gh release list -R omnizip/omnizip-rs --limit 50 \
             | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
           gh release download "$tag" -R omnizip/omnizip-rs \
-            -p "libomnizip_ffi-*-gnu.tar.gz" -D dylib || true
+            -p "libomnizip_ffi-${TARGET}.tar.gz" -D dylib
+          tar -xzf "dylib/libomnizip_ffi-${TARGET}.tar.gz" -C dylib
+
+      - name: Round-trip inside Alpine
+        env:
+          IMAGE: ${{ matrix.image }}
+          PLATFORM: ${{ matrix.platform }}
+          OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+        run: |
           docker run --rm \
-            --platform '${{ matrix.platform }}' \
+            --platform "$PLATFORM" \
             -v "$PWD:/work" -w /work \
-            "${IMAGE}" sh -c '
+            -e OMNIZIP_FFI_DYLIB=/work/dylib/libomnizip_ffi.so \
+            "$IMAGE" sh -c '
               set -eux
               gem install --no-document omnizip-*.gem
-              gem list omnizip -d | grep -q "default platform\|x86_64-linux\|aarch64-linux" || true
               ruby -e "
                 require \"omnizip\"
                 lib = Omnizip::Implementations::Rust::Library
@@ -159,11 +176,6 @@ jobs:
                 puts \"MUSL SMOKE OK\"
               "
             '
-      # NOTE: the gem built here is the ruby-platform variant — musl
-      # ruby resolves it as a fallback and the vendored dylib comes
-      # from the downloaded gnu tarball via OMNIZIP_FFI_DYLIB below
-      # when the platform gem does not match. The platform-gem musl
-      # variants are exercised by gem-build.yml's container smokes.
 
   smoke-armv7:
     # 32-bit ARM gnu dylib under qemu binfmt (no armv7 hosted runner).
