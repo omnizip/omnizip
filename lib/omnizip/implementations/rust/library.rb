@@ -11,23 +11,32 @@ end
 module Omnizip
   module Implementations
     module Rust
-      # The loaded cdylib: one handle, lazily opened, thread-safe
-      # after initialization (Fiddle::Function is immutable once
-      # built; compress/decompress are pure C calls).
+      # The loaded cdylib binding: one handle, lazily opened. The
+      # BINDING LAYER is chosen at load (leptris-ruby's model):
+      #
+      #   1. Fiddle (MRI stdlib — the zero-gem fast path)
+      #   2. the ffi gem (JRuby / TruffleRuby ship it bundled; MRI
+      #      without fiddle — Ruby 4.0 without the gem — uses it too)
+      #   3. unavailable (pure-Ruby core everywhere)
+      #
+      # OMNIZIP_BINDING=fiddle|ffi forces a layer (spec seam; also the
+      # way to prove the ffi path on MRI). `instance` returns a
+      # FiddleLibrary or FfiLibrary — both expose the identical
+      # surface (compress / decompress / last_error / take_buffer /
+      # dylib_version / arch_*), so callers are binding-agnostic.
       class Library
-        # Codecs the cdylib dispatches by name.
-        # Names the cdylib dispatches: the codec-level acceleration
-        # surface (both directions by default — Rust is the
-        # authority; Ruby is the fallback).
+        # Codecs the cdylib dispatches by name: the codec-level
+        # acceleration surface (both directions by default — Rust is
+        # the authority; Ruby is the fallback).
         CODECS = %w[
           bzip2 zstd lzma xz lzma-alone lzip
           deflate deflate64 zlib gzip ppmd7 ppmd8
         ].freeze
 
         class << self
-          # The shared handle, or nil when the cdylib cannot load.
-          # Load failures are cached: a missing library is a stable
-          # condition, not something to re-attempt per call.
+          # The shared binding, or nil when no layer can load. Load
+          # failures are cached per layer: a missing library is a
+          # stable condition, not something to re-attempt per call.
           def instance
             return @instance if defined?(@instance)
 
@@ -38,6 +47,13 @@ module Omnizip
             !instance.nil?
           end
 
+          # Which binding loaded: "fiddle", "ffi", or nil.
+          def binding_layer
+            return nil if instance.nil?
+
+            instance.class.name.end_with?("FfiLibrary") ? "ffi" : "fiddle"
+          end
+
           # Whether the cdylib dispatches this codec name — exact, or
           # a param-carrying prefix ("ppmd7:o6:m16777216" under
           # "ppmd7").
@@ -45,7 +61,7 @@ module Omnizip
             CODECS.any? { |c| name == c || name.start_with?("#{c}:") }
           end
 
-          # Drop the cached handle so resolution reruns (test seam:
+          # Drop the cached binding so resolution reruns (test seam:
           # specs exercising fallback/absence paths need a clean
           # slate; production never calls this).
           def forget!
@@ -56,39 +72,12 @@ module Omnizip
             nil
           end
 
-          # Built lazily: the Fiddle::TYPE_* constants only resolve
-          # after a successful require; environments without fiddle
-          # (Ruby 4.0 without the gem) never touch this table.
-          def function_table
-            {
-              last_error: ["ozip_last_error", [], Fiddle::TYPE_VOIDP],
-              free: ["ozip_free", %i[voidp size_t], Fiddle::TYPE_VOID],
-              compress: [
-                "ozip_compress",
-                %i[voidp voidp size_t int voidp],
-                Fiddle::TYPE_VOIDP,
-              ],
-              decompress: [
-                "ozip_decompress",
-                %i[voidp voidp size_t size_t voidp],
-                Fiddle::TYPE_VOIDP,
-              ],
-            }
-          end
-
           # The Rust release the loaded cdylib was built from (e.g.
-          # "0.21.108"), read through the ozip_version symbol — the
+          # "0.21.112"), read through the ozip_version symbol — the
           # platform-gem smoke gate asserts it matches. nil when the
           # library is absent or predates the symbol.
           def dylib_version
-            handle = instance&.instance_handle
-            return nil if handle.nil?
-
-            func = Fiddle::Function.new(handle["ozip_version"], [], Fiddle::TYPE_VOIDP)
-            ptr = func.call
-            ptr.null? ? nil : ptr.to_s
-          rescue StandardError
-            nil
+            instance&.dylib_version
           end
 
           # Resolve the cdylib path. Precedence:
@@ -133,12 +122,17 @@ module Omnizip
             path = resolve_path
             return nil if path.nil?
 
-            handle = Fiddle.dlopen(path.to_s)
-            funcs = function_table.each_with_object({}) do |(key, (name, args, ret)), h|
-              h[key] = Fiddle::Function.new(handle[name], args, ret)
+            forced = ENV.fetch("OMNIZIP_BINDING", nil)
+            if forced != "ffi" && defined?(Fiddle)
+              return FiddleLibrary.new(path)
             end
-            new(funcs, handle)
-          rescue StandardError => e # includes Fiddle::DLError
+
+            # The ffi path: JRuby/TruffleRuby bundle the gem; MRI
+            # needs it installed (it is a runtime dependency). A
+            # forced layer must not silently fall back to another.
+            require "ffi"
+            FfiLibrary.new(path)
+          rescue LoadError, StandardError => e # Fiddle::DLError, FFI::LoadError, ...
             warn "omnizip: rust backend unavailable (#{e.message}); using pure Ruby" if ENV["OMNIZIP_BACKEND"] == "rust"
             nil
           end
@@ -151,65 +145,6 @@ module Omnizip
               gem_root.join(rel, "target/release")
             end
           end
-        end
-
-        def initialize(functions, handle = nil)
-          @functions = functions.freeze
-          @handle = handle
-        end
-
-        def compress(codec, data, level)
-          out_len = [0].pack("Q")
-          ptr = call(:compress, codec, data, data.bytesize, level, out_len)
-          take(ptr, out_len.unpack1("Q"))
-        end
-
-        def decompress(codec, data, expected_len)
-          out_len = [0].pack("Q")
-          ptr = call(:decompress, codec, data, data.bytesize, expected_len, out_len)
-          take(ptr, out_len.unpack1("Q"))
-        end
-
-        # Bind one extra C symbol from the loaded cdylib (the archive
-        # surface uses this; Fiddle::Function is immutable once built).
-        def bind(symbol, args, ret)
-          handle = instance_handle
-          raise Error, "cdylib not loaded" if handle.nil?
-
-          Fiddle::Function.new(handle[symbol.to_s], args, ret)
-        end
-
-        def last_error
-          ptr = @functions[:last_error].call
-          ptr.null? ? "unknown error" : ptr.to_s
-        end
-
-        # The raw Fiddle::Handle (for extra symbol binds).
-        def instance_handle
-          @handle
-        end
-
-        # Copy out + free one returned buffer (public seam for the
-        # archive surface).
-        def take_buffer(ptr, len)
-          take(ptr, len)
-        end
-
-        private
-
-        def call(name, codec, input, input_len, a, out_len)
-          ptr = @functions[name].call(codec, input, input_len, a, out_len)
-          raise Error, last_error if ptr.null?
-
-          ptr
-        end
-
-        # Copy out + free in one breath: the buffer belongs to the
-        # Rust allocator and must never outlive ozip_free.
-        def take(ptr, len)
-          string = ptr.to_s(len)
-          @functions[:free].call(ptr, len)
-          string
         end
       end
 

@@ -38,9 +38,11 @@ automatically — no Rust toolchain, no compilation:
 * arm64-darwin, x86_64-darwin
 * x64-mingw-ucrt, aarch64-mingw-ucrt, x64-mingw32
 
-Everywhere else — including JRuby/TruffleRuby and any platform without
-a binary — the gem stays fully functional on its pure-Ruby core (the
-acceleration is strictly optional). Three escape hatches:
+Everywhere else — including any platform without a binary — the gem
+stays fully functional on its pure-Ruby core (the acceleration is
+strictly optional). JRuby and TruffleRuby get acceleration too
+whenever a cdylib is available: they bind through the bundled `ffi`
+gem (MRI uses stdlib Fiddle). Three escape hatches:
 
 * `OMNIZIP_NO_RUST=1` — force the pure-Ruby core everywhere.
 * `OMNIZIP_FFI_DYLIB=/path/to/libomnizip_ffi` — load a specific build.

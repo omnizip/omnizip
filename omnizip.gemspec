@@ -39,6 +39,11 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "base64", "~> 0.2"
+  # The ffi binding of the cdylib (JRuby/TruffleRuby ship no Fiddle;
+  # leptris-ruby precedent for the hard dep — those engines bundle
+  # ffi, and MRI uses it only when fiddle is absent or
+  # OMNIZIP_BINDING=ffi).
+  spec.add_dependency "ffi", "~> 1.15"
   spec.add_dependency "bindata", "~> 2.4"
   spec.add_dependency "cabriolet", "~> 0.2", ">= 0.2.4"
   # 0.8 is the floor, not a preference. Before it, the :symbol attribute type
