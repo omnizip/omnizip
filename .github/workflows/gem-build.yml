@@ -138,9 +138,11 @@ jobs:
     name: Smoke ${{ matrix.gem }} (${{ matrix.image }})
     needs: build
     runs-on: ${{ matrix.host }}
+    # experimental=true for the armv7 qemu legs (emulated, wobbly
+    # image manifests)
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
-      continue-on-error: ${{ matrix.experimental }}
       matrix:
         include:
           # x86_64 musl: real Alpine on the host arch
