@@ -43,18 +43,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # RuboCop's plugin loader auto-loads lint_roller-plugin gems
-      # visible to the process; runner images preinstall the standard
-      # family, whose sibling requires crash rubocop when half the
-      # family is missing. Remove them before running the suite.
-      - name: Remove preinstalled standard plugins
-        shell: bash
-        run: |
-          gem uninstall --all --force --executables \
-            standard standard-custom standard-performance \
-            standard-rubocop-lsp 2>/dev/null || true
-          gem list standard || true
-
       # Interop CLIs the tool-compatibility specs consume (carried
       # over from the cimas rake workflow this replaces). Specs skip
       # when a CLI is absent, so best-effort installs never fail.
@@ -77,6 +65,19 @@ jobs:
         with:
           bundler-cache: true
           ruby-version: ${{ matrix.ruby-version }}
+
+      # AFTER setup-ruby (the matrix ruby is where rubocop runs).
+      # RuboCop's plugin loader auto-loads lint_roller-plugin gems
+      # visible to it; runner images preinstall the standard family,
+      # whose sibling requires crash rubocop when half the family
+      # resolves. Remove the family before the suite.
+      - name: Remove preinstalled standard plugins
+        shell: bash
+        run: |
+          gem uninstall --all --force --executables \
+            standard standard-custom standard-performance \
+            standard-rubocop-lsp 2>/dev/null || true
+          gem list standard || true
 
       - run: bundle exec rake
 
