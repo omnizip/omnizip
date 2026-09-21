@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "fiddle"
-
 module Omnizip
   module Implementations
     module Rust
@@ -11,23 +9,19 @@ module Omnizip
       # fallback (the cdylib unavailable ⇒ these raise LibraryMissing
       # and callers fall back).
       class Archive
-        FUNCTIONS = {
-          arch_open: ["ozip_arch_open", %i[voidp size_t voidp], Fiddle::TYPE_VOIDP],
-          arch_count: ["ozip_arch_count", [:voidp], Fiddle::TYPE_SIZE_T],
-          arch_entry_name: ["ozip_arch_entry_name", %i[voidp size_t], Fiddle::TYPE_VOIDP],
-          arch_entry_size: ["ozip_arch_entry_size", %i[voidp size_t], Fiddle::TYPE_VOIDP],
-          arch_read_entry: ["ozip_arch_read_entry", %i[voidp size_t voidp], Fiddle::TYPE_VOIDP],
-          arch_close: ["ozip_arch_close", [:voidp], Fiddle::TYPE_VOID],
-        }.freeze
-
         class LibraryMissing < StandardError; end
 
+        # Built lazily inside #initialize: the Fiddle::TYPE_* constants
+        # only resolve after a successful require, and Ruby 4.0 moved
+        # fiddle out of the default gems (same reason
+        # Library.function_table is a method, not a constant).
         def initialize(data, password: nil)
           lib = Library.instance
           raise LibraryMissing, "omnizip-ffi cdylib not loaded" unless lib
 
           @lib = lib
-          @funcs = FUNCTIONS.each_with_object({}) do |(key, (name, args, ret)), h|
+          funcs = function_table
+          @funcs = funcs.each_with_object({}) do |(key, (name, args, ret)), h|
             h[key] = lib.bind(name, args, ret)
           end
 
@@ -79,6 +73,19 @@ module Omnizip
           yield archive
         ensure
           archive&.close
+        end
+
+        private
+
+        def function_table
+          {
+            arch_open: ["ozip_arch_open", %i[voidp size_t voidp], Fiddle::TYPE_VOIDP],
+            arch_count: ["ozip_arch_count", [:voidp], Fiddle::TYPE_SIZE_T],
+            arch_entry_name: ["ozip_arch_entry_name", %i[voidp size_t], Fiddle::TYPE_VOIDP],
+            arch_entry_size: ["ozip_arch_entry_size", %i[voidp size_t], Fiddle::TYPE_VOIDP],
+            arch_read_entry: ["ozip_arch_read_entry", %i[voidp size_t voidp], Fiddle::TYPE_VOIDP],
+            arch_close: ["ozip_arch_close", [:voidp], Fiddle::TYPE_VOID],
+          }
         end
       end
     end
