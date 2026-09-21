@@ -48,6 +48,14 @@ module Omnizip
       end
 
       def list(path, details: false, **_)
+        # Whole-archive tier (names-only path): the Rust archive
+        # surface lists any supported format; the Ruby reader stays
+        # the fallback and the details path's source.
+        unless details
+          tier_names = Omnizip::Backends.archive_entry_names(path)
+          return tier_names if tier_names
+        end
+
         reader = Formats::Zip::Reader.new(path)
         return reader.entries.map(&:filename) unless details
 
@@ -65,6 +73,9 @@ module Omnizip
       end
 
       def read_entry(path, entry_name)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name)
+        return tier unless tier.nil?
+
         Formats::Zip::Reader.new(path).read_entry(entry_name)
       end
 
