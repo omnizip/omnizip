@@ -9,7 +9,11 @@ gemspec
 gem "csv"
 gem "rake"
 gem "rspec"
-gem "rubocop"
+# Pinned: CI resolves dependencies fresh (no lockfile), and rubocop
+# 1.91 changed Metrics/BlockLength scoping + plugin loading, which
+# resurrected ~190 dormant spec offenses and crashes on the inherited
+# oss-guides `standard-custom` require. Re-pin after triage upstream.
+gem "rubocop", "1.90.0"
 gem "rubocop-performance"
 gem "rubocop-rake"
 gem "rubocop-rspec"
