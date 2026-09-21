@@ -81,6 +81,20 @@ jobs:
 
       - run: bundle exec rake
 
+      - name: RuboCop plugin diagnostics
+        if: runner.os == 'Linux' && matrix.ruby-version == '3.4'
+        run: |
+          echo "--- gems declaring default_lint_roller_plugin ---"
+          ruby -e 'Gem::Specification.find_all.to_a.each { |s| p = s.metadata["default_lint_roller_plugin"]; puts "#{s.name}-#{s.version} -> #{p}" if p }'
+          echo "--- resolved config require/plugins ---"
+          bundle exec ruby -e '
+            require "rubocop"
+            cfg = RuboCop::ConfigLoader.load_file(".rubocop.yml")
+            puts "plugins: #{Array(cfg["plugins"]).inspect}"
+            puts "require: #{Array(cfg["require"]).inspect}"
+            puts "rubocop: #{RuboCop::Version.version}"
+          '
+
   smoke-jruby:
     # JRuby's tier path: run the smoke twice — the default layer
     # (JRuby 10 ships a Fiddle, so it may win) and the FORCED ffi
