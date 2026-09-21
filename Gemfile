@@ -19,10 +19,10 @@ gem "rubocop", "1.90.0"
 # runners without it the require crashes rubocop outright. Ship it in
 # the bundle so the load always resolves (its plugin is inert without
 # a .standard.yml).
-gem "standard-custom"
 gem "rubocop-performance"
 gem "rubocop-rake"
 gem "rubocop-rspec"
+gem "standard-custom"
 gem "thor"
 
 # Parallel processing with Fractor
