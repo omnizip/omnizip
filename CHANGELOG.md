@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ffi tier — JRuby/TruffleRuby acceleration (leptris-ruby model):
+  the cdylib's C ABI is additionally bound through the `ffi` gem
+  (`FfiLibrary`, same surface as the Fiddle binding), with
+  `Library` dispatching Fiddle → ffi → pure Ruby and
+  `OMNIZIP_BINDING=fiddle|ffi` to force a layer. `ffi` becomes a
+  runtime dependency (JRuby/TruffleRuby bundle it).
+- Owned CI build matrix (windows-11-arm, musl containers, armv7
+  qemu, JRuby ffi gate) replacing the cimas rake job, whose fresh
+  dependency resolution made rubocop break with zero repo-side
+  diffs. The installed-gem smoke reports its binding layer.
+
 ### Fixed
+- `Zlib::RLE` is CRuby-only: `require "omnizip"` raised NameError on
+  JRuby (and any engine without CRuby's zlib extension) as soon as
+  the Deflate algorithm loaded. RLE/FIXED strategy constants are now
+  guarded with their spec-defined values (3 and 4). Found by the new
+  JRuby CI leg — the matrix found a bug on day one.
 - RPM archive-tier readiness: the dylib requirement is
   **0.21.112**, not 0.21.111 — 0.21.111's `./`-stripping was half the
   fix (the Ruby handler's names are ABSOLUTE, from the header's
