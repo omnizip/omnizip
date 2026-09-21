@@ -119,6 +119,8 @@ RSpec.describe "archive tier across handlers" do
   end
 
   it "a wrong rar5 password never yields plaintext bytes" do
+    skip "omnizip-ffi cdylib not built" if library.instance.nil?
+
     path = fixture("rar/libarchive_reference/test_read_format_rar5_solid_encrypted.rar")
     skip "encrypted rar fixture missing" unless File.file?(path)
 
