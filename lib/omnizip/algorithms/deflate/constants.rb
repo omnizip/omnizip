@@ -13,11 +13,13 @@ module Omnizip
         BEST_COMPRESSION = Zlib::BEST_COMPRESSION
         DEFAULT_COMPRESSION = Zlib::DEFAULT_COMPRESSION
 
-        # Compression strategies
+        # Compression strategies. RLE and FIXED are CRuby-only Zlib
+        # constants (JRuby's zlib omits them — found by the JRuby CI
+        # leg); the numeric values are fixed by the zlib spec.
         FILTERED = Zlib::FILTERED
         HUFFMAN_ONLY = Zlib::HUFFMAN_ONLY
-        RLE = Zlib::RLE
-        FIXED = Zlib::FIXED
+        RLE = Zlib.const_defined?(:RLE) ? Zlib::RLE : 3
+        FIXED = Zlib.const_defined?(:FIXED) ? Zlib::FIXED : 4
         DEFAULT_STRATEGY = Zlib::DEFAULT_STRATEGY
 
         # Buffer size for streaming operations
