@@ -1,0 +1,209 @@
+# Owned test matrix (leptris-ruby model): every platform the release
+# SHIPS gets its suite RUN here, not just built — x86_64 + aarch64
+# linux, arm64 + intel darwin, x64 + arm64 Windows — plus musl and
+# armv7 container legs, and a JRuby leg proving the ffi binding.
+# This replaces the cimas rake reusable: that workflow resolves
+# dependencies fresh (no lockfile), which made rubocop/plugin drift
+# break CI independent of repo changes.
+#
+# The vendored cdylib legs install the ruby-platform gem built from
+# this checkout, fetch the latest released omnizip-ffi cdylib, and
+# run the installed-gem smoke — the same gate the platform gems get.
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test on Ruby ${{ matrix.ruby-version }} ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        ruby-version: ["3.3", "3.4", "4.0"]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest,
+             macos-15-intel, windows-latest, windows-11-arm]
+        exclude:
+          # Ruby 3.3 is unavailable on the windows-arm runner
+          - os: windows-11-arm
+            ruby-version: "3.3"
+    steps:
+      - uses: actions/checkout@v4
+
+      # Interop CLIs the tool-compatibility specs consume (carried
+      # over from the cimas rake workflow this replaces). Specs skip
+      # when a CLI is absent, so best-effort installs never fail.
+      - name: Install interop CLIs
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y unrar 7zip p7zip-full lzip
+            command -v 7zz >/dev/null 2>&1 || sudo ln -sf "$(command -v 7z)" /usr/local/bin/7zz
+            echo "interop CLIs: 7zz=$(command -v 7zz) 7z=$(command -v 7z) lzip=$(command -v lzip) unrar=$(command -v unrar)"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install 7-zip lzip
+            brew install rar || echo "rar unavailable (non-fatal)"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            choco install 7zip
+            choco install winrar || echo "winrar unavailable (non-fatal)"
+          fi
+
+      - uses: ruby/setup-ruby@master
+        with:
+          bundler-cache: true
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - run: bundle exec rake
+
+  smoke-jruby:
+    # JRuby ships no Fiddle — the ffi gem binding is its ONLY path to
+    # the tier. Install the ruby-platform gem, point
+    # OMNIZIP_FFI_DYLIB at the released cdylib, and require the smoke
+    # to report the ffi layer.
+    name: Smoke JRuby (ffi layer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: ruby/setup-ruby@master
+        with:
+          ruby-version: jruby
+          bundler-cache: false
+
+      - name: Build + install the ruby-platform gem
+        run: |
+          gem build omnizip.gemspec
+          # no --local: runtime deps must resolve from rubygems.org
+          gem install --no-document omnizip-*.gem
+
+      - name: Fetch the released cdylib
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release list -R omnizip/omnizip-rs --limit 50 \
+            | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
+          gh release download "$tag" -R omnizip/omnizip-rs \
+            -p 'libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz' -D dylib
+          tar -xzf dylib/libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz -C dylib
+
+      - name: Smoke through the ffi layer
+        env:
+          OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+        run: |
+          out=$(ruby .github/scripts/test_installed_gem.rb 2>&1) || rc=$?
+          echo "$out"
+          if [ -n "${rc:-}" ]; then exit "$rc"; fi
+          echo "$out" | grep -q "SMOKE OK (ffi layer)"
+
+  smoke-musl:
+    # The musl platform gems are cross-built but this is where they
+    # get EXECUTED: real Alpine, host arch and arm64.
+    name: Smoke musl (${{ matrix.arch }})
+    runs-on: ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x86_64-musl, host: ubuntu-latest,
+              platform: "linux/amd64", image: "ruby:3.3-alpine" }
+          - { arch: aarch64-musl, host: ubuntu-24.04-arm,
+              platform: "linux/arm64", image: "ruby:3.3-alpine" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build + install the ruby-platform gem, run the smoke
+        env:
+          IMAGE: ${{ matrix.image }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gem build omnizip.gemspec
+          tag=$(gh release list -R omnizip/omnizip-rs --limit 50 \
+            | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
+          gh release download "$tag" -R omnizip/omnizip-rs \
+            -p "libomnizip_ffi-*-gnu.tar.gz" -D dylib || true
+          docker run --rm \
+            --platform '${{ matrix.platform }}' \
+            -v "$PWD:/work" -w /work \
+            "${IMAGE}" sh -c '
+              set -eux
+              gem install --no-document omnizip-*.gem
+              gem list omnizip -d | grep -q "default platform\|x86_64-linux\|aarch64-linux" || true
+              ruby -e "
+                require \"omnizip\"
+                lib = Omnizip::Implementations::Rust::Library
+                abort \"FAIL: tier unavailable\" if lib.instance.nil?
+                v = lib.dylib_version
+                abort \"FAIL: version symbol missing\" if v.nil?
+                puts \"musl smoke: cdylib #{v}\"
+                data = \"musl smoke \" * 5000
+                enc = lib.instance.compress(\"zlib\", data, 6)
+                abort \"FAIL: round-trip\" unless lib.instance.decompress(\"zlib\", enc, data.bytesize) == data
+                puts \"MUSL SMOKE OK\"
+              "
+            '
+      # NOTE: the gem built here is the ruby-platform variant — musl
+      # ruby resolves it as a fallback and the vendored dylib comes
+      # from the downloaded gnu tarball via OMNIZIP_FFI_DYLIB below
+      # when the platform gem does not match. The platform-gem musl
+      # variants are exercised by gem-build.yml's container smokes.
+
+  smoke-armv7:
+    # 32-bit ARM gnu dylib under qemu binfmt (no armv7 hosted runner).
+    # Experimental: emulated, slow, and the ruby image manifest for
+    # arm/v7 has historically wobbled.
+    name: Smoke armv7 (qemu, experimental)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - name: Install + smoke inside emulated Debian arm/v7
+        env:
+          IMAGE: "ruby:3.3-bookworm"
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gem build omnizip.gemspec
+          tag=$(gh release list -R omnizip/omnizip-rs --limit 50 \
+            | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
+          gh release download "$tag" -R omnizip/omnizip-rs \
+            -p 'libomnizip_ffi-arm-unknown-linux-gnueabihf.tar.gz' -D dylib
+          docker run --rm \
+            --platform 'linux/arm/v7' \
+            -v "$PWD:/work" -w /work \
+            -e OMNIZIP_FFI_DYLIB=/work/dylib/libomnizip_ffi.so \
+            "${IMAGE}" sh -c '
+              set -eux
+              gem install --no-document omnizip-*.gem
+              ruby -e "
+                require \"omnizip\"
+                lib = Omnizip::Implementations::Rust::Library
+                abort \"FAIL: tier unavailable\" if lib.instance.nil?
+                v = lib.dylib_version
+                abort \"FAIL: version symbol missing\" if v.nil?
+                puts \"armv7 smoke: cdylib #{v}\"
+                data = \"armv7 smoke \" * 5000
+                enc = lib.instance.compress(\"zlib\", data, 6)
+                abort \"FAIL: round-trip\" unless lib.instance.decompress(\"zlib\", enc, data.bytesize) == data
+                puts \"ARMV7 SMOKE OK\"
+              "
+            '
