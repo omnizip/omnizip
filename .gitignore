@@ -16,7 +16,6 @@
 *.log
 .DS_Store
 .rubocop-https*
-Gemfile.lock
 
 # IDE files
 .idea/
