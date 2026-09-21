@@ -14,6 +14,12 @@ gem "rspec"
 # resurrected ~190 dormant spec offenses and crashes on the inherited
 # oss-guides `standard-custom` require. Re-pin after triage upstream.
 gem "rubocop", "1.90.0"
+# rubocop's plugin loader auto-declares this via standard's
+# default_lint_roller_plugin metadata where the gem is present; on
+# runners without it the require crashes rubocop outright. Ship it in
+# the bundle so the load always resolves (its plugin is inert without
+# a .standard.yml).
+gem "standard-custom"
 gem "rubocop-performance"
 gem "rubocop-rake"
 gem "rubocop-rspec"
