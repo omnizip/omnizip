@@ -131,6 +131,9 @@ jobs:
     if: ${{ inputs.push }}
     needs: [build, smoke]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -141,10 +144,12 @@ jobs:
         with:
           ruby-version: "3.4"
 
+      # Trusted Publishing: exchange the workflow's OIDC token for a
+      # short-lived RubyGems API key (the only auth path that's
+      # available — the org has no OMNIZIP_CI_RUBYGEMS_API_KEY secret).
+      - uses: rubygems/configure-rubygems-credentials@v2.1.0
+
       - name: Push
-        env:
-          GEM_HOST_API_KEY: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
-          RUBYGEMS_API_KEY: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
         run: |
           shopt -s nullglob
           for g in pkg/omnizip-*.gem; do
