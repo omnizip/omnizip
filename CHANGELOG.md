@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Prebuilt-binary distribution (parsanol model): platform gems
+  (x86_64/aarch64/arm Linux glibc+musl, arm64/x86_64 macOS,
+  x64/aarch64-mingw-ucrt, x64-mingw32) now vendor the prebuilt
+  `omnizip-ffi` cdylib — `gem install omnizip` gives Rust
+  acceleration with zero compilation on those platforms. The plain
+  `ruby` gem and every platform without a binary (JRuby,
+  TruffleRuby, anything else) stay fully functional on the pure-Ruby
+  core. The cdylibs are cross-built by omnizip-rs's release-binary
+  workflow and attached to each `omnizip-ffi-v*` release;
+  `rake platform_gems:build` packages them and `gem-build.yml`
+  smoke-tests each installed gem (tier active + pure-Ruby path with
+  `OMNIZIP_NO_RUST=1`).
+- `OMNIZIP_NO_RUST=1` kill switch forces the pure-Ruby core
+  everywhere; `Library.resolve_path` (public now) prefers the
+  vendored cdylib over dev checkouts; `Library.dylib_version`
+  reports the Rust release a loaded cdylib was built from
+  (`ozip_version`, new in omnizip-rs 0.21.109).
+
 ### Fixed
 - PPMd works for the first time: the pure-Ruby ppmd7 core cannot
   decode its own output (root-only decoder, 100-symbol cap — proven)

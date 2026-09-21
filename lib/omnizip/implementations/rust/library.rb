@@ -76,6 +76,57 @@ module Omnizip
             }
           end
 
+          # The Rust release the loaded cdylib was built from (e.g.
+          # "0.21.108"), read through the ozip_version symbol — the
+          # platform-gem smoke gate asserts it matches. nil when the
+          # library is absent or predates the symbol.
+          def dylib_version
+            handle = instance&.instance_handle
+            return nil if handle.nil?
+
+            func = Fiddle::Function.new(handle["ozip_version"], [], Fiddle::TYPE_VOIDP)
+            ptr = func.call
+            ptr.null? ? nil : ptr.to_s
+          rescue StandardError
+            nil
+          end
+
+          # Resolve the cdylib path. Precedence:
+          #
+          #   1. OMNIZIP_NO_RUST=1 — hard kill switch (always nil, so
+          #      the pure-Ruby core handles everything; also the smoke
+          #      gate for "works without Rust").
+          #   2. OMNIZIP_FFI_DYLIB — explicit path (developer override).
+          #   3. vendor/ — the prebuilt cdylib. Platform gems ship it
+          #      here and `rake rust:build` writes here; rubygems
+          #      already matched the platform at install time, so no
+          #      runtime architecture probing is needed and the wrong
+          #      arch cannot be picked.
+          #   4. ext/ (legacy location).
+          #   5. A sibling omnizip-rs checkout.
+          #
+          # `dirs` overrides 3-5 (spec seam: staged candidate paths).
+          def resolve_path(dirs = nil)
+            return nil if ENV.fetch("OMNIZIP_NO_RUST", nil) == "1"
+
+            explicit = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
+            return Pathname.new(explicit) if explicit && File.file?(explicit)
+
+            candidates = dirs || [
+              Pathname.new(__dir__).join("../../../../vendor"),
+              Pathname.new(__dir__).join("../../../../ext/libomnizip_ffi"),
+              *sibling_checkout,
+            ]
+
+            %w[.dylib .so .dll].each do |ext|
+              candidates.each do |dir|
+                path = dir.join("libomnizip_ffi#{ext}")
+                return path if path.file?
+              end
+            end
+            nil
+          end
+
           private
 
           def open
@@ -89,24 +140,6 @@ module Omnizip
             new(funcs, handle)
           rescue StandardError => e # includes Fiddle::DLError
             warn "omnizip: rust backend unavailable (#{e.message}); using pure Ruby" if ENV["OMNIZIP_BACKEND"] == "rust"
-            nil
-          end
-
-          def resolve_path
-            explicit = ENV.fetch("OMNIZIP_FFI_DYLIB", nil)
-            return Pathname.new(explicit) if explicit && File.file?(explicit)
-
-            candidates = [
-              Pathname.new(__dir__).join("../../../../ext/libomnizip_ffi"),
-              sibling_checkout,
-            ].compact.flatten
-
-            %w[.dylib .so .dll].each do |ext|
-              candidates.each do |dir|
-                path = dir.join("libomnizip_ffi#{ext}")
-                return path if path.file?
-              end
-            end
             nil
           end
 

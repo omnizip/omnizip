@@ -1,0 +1,147 @@
+# Build per-platform gems that vendor the prebuilt omnizip-ffi cdylib
+# (parsanol distribution model): `gem install omnizip` gets Rust
+# acceleration with zero compilation on every platform we ship.
+#
+#   1. download the cdylib artifacts from the matching omnizip-rs
+#      release (built by release-binary.yml),
+#   2. rake platform_gems:build DIR=artifacts,
+#   3. smoke-test the gems on matching runners (installed-gem gate:
+#      tier active + pure-Ruby path with OMNIZIP_NO_RUST=1),
+#   4. optionally push (push=true) with the same rubygems credential
+#      the ruby-platform release uses.
+#
+# The plain `ruby` platform gem keeps shipping through the existing
+# cimas release workflow — this one only adds platform gems.
+name: Build gems
+
+on:
+  workflow_dispatch:
+    inputs:
+      rust_tag:
+        description: "omnizip-rs release tag holding the cdylib artifacts (default: latest omnizip-ffi-v*)"
+        required: false
+        type: string
+        default: ""
+      ref:
+        description: "git ref to build the gem from (default: the branch you dispatch on)"
+        required: false
+        type: string
+        default: ""
+      push:
+        description: "Push the built platform gems to rubygems (requires the version's ruby gem to exist)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build platform gems
+    runs-on: ubuntu-latest
+    outputs:
+      rust_tag: ${{ inputs.rust_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Resolve the rust release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.rust_tag }}
+        run: |
+          if [ -n "$INPUT_TAG" ]; then
+            t="$INPUT_TAG"
+          else
+            t=$(gh release list -R omnizip/omnizip-rs --limit 50 \
+              | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
+          fi
+          echo "tag=$t" >> "$GITHUB_OUTPUT"
+          test -n "$t"
+
+      - name: Download cdylib artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts
+          gh release download "${{ steps.tag.outputs.tag }}" \
+            -R omnizip/omnizip-rs --dir artifacts \
+            -p 'libomnizip_ffi-*.tar.gz'
+          ls -l artifacts/
+
+      - name: Build the gems
+        run: bundle exec rake platform_gems:build DIR=artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-gems
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  smoke:
+    name: Smoke ${{ matrix.gem }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { gem: "x86_64-linux", os: ubuntu-latest }
+          - { gem: "aarch64-linux", os: ubuntu-24.04-arm }
+          - { gem: "arm64-darwin", os: macos-14 }
+          - { gem: "x86_64-darwin", os: macos-15-intel }
+          - { gem: "x64-mingw-ucrt", os: windows-latest }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: platform-gems
+          path: pkg/
+
+      - name: Install and smoke the platform gem
+        shell: bash
+        run: |
+          gem install --local --no-document "pkg/omnizip-*-${{ matrix.gem }}.gem"
+          ruby .github/scripts/test_installed_gem.rb
+
+  push:
+    name: Push platform gems
+    if: ${{ inputs.push }}
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: platform-gems
+          path: pkg/
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - name: Push
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
+        run: |
+          shopt -s nullglob
+          for g in pkg/omnizip-*.gem; do
+            gem push "$g"
+          done
