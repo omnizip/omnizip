@@ -147,5 +147,7 @@ jobs:
         run: |
           shopt -s nullglob
           for g in pkg/omnizip-*.gem; do
+            echo "pushing $g"
             gem push "$g"
+            sleep 2
           done
