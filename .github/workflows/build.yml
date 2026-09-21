@@ -43,6 +43,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # RuboCop's plugin loader auto-loads lint_roller-plugin gems
+      # visible to the process; runner images preinstall the standard
+      # family, whose sibling requires crash rubocop when half the
+      # family is missing. Remove them before running the suite.
+      - name: Remove preinstalled standard plugins
+        shell: bash
+        run: |
+          gem uninstall --all --force --executables \
+            standard standard-custom standard-performance \
+            standard-rubocop-lsp 2>/dev/null || true
+          gem list standard || true
+
       # Interop CLIs the tool-compatibility specs consume (carried
       # over from the cimas rake workflow this replaces). Specs skip
       # when a CLI is absent, so best-effort installs never fail.
@@ -162,6 +174,8 @@ jobs:
             -e OMNIZIP_FFI_DYLIB=/work/dylib/libomnizip_ffi.so \
             "$IMAGE" sh -c '
               set -eux
+              # compiling deps (ffi on musl) needs a toolchain
+              apk add --no-cache build-base
               gem install --no-document omnizip-*.gem
               ruby -e "
                 require \"omnizip\"

@@ -24,13 +24,11 @@ abort "FAIL: ozip_version symbol missing — dylib predates the platform-gem con
 layer = lib.binding_layer
 abort "FAIL: unknown binding layer" if layer.nil?
 puts "omnizip #{Omnizip::VERSION} + rust cdylib #{version} (#{RUBY_PLATFORM}, #{layer} layer)"
-
-# JRuby/TruffleRuby have no Fiddle — the ffi layer is their ONLY path
-# to the tier. When the smoke runs on such an engine, the layer check
-# above is the assertion; on MRI both layers must work.
-if RUBY_PLATFORM.include?("java") && layer != "ffi"
-  abort "FAIL: expected the ffi layer on a JVM engine, got #{layer}"
-end
+# NOTE: no engine→layer assertion here — JRuby 10 ships a working
+# Fiddle, so the default layer on a JVM may legitimately be either.
+# CI proves the ffi binding separately with a forced
+# OMNIZIP_BINDING=ffi pass whose output must contain
+# "SMOKE OK (ffi layer)".
 
 data = "omnizip platform-gem smoke " * 2000
 enc = instance.compress("zlib", data, 6)
