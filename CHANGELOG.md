@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Archive-level tier for every handler: tar, cpio, iso, xar, 7z and
+  rar3/4/5 (with `password:` passthrough) route list(names) and
+  read_entry through the cdylib's whole-archive surface, falling back
+  to the Ruby readers on any Rust error or a missing library. rpm
+  rides the tier for read_entry once the dylib is ≥ 0.21.111 (which
+  strips the cpio `./` prefix so its entry names match the Ruby
+  handler's); rpm list and OLE stay pure-Ruby — OLE is a pinned model
+  divergence (Ruby lists top-level entries, Rust flattens the storage
+  tree), documented in the capability matrix and pinned by the new
+  cross-implementation differential spec.
+
+### Added
 - Prebuilt-binary distribution (parsanol model): platform gems
   (x86_64/aarch64/arm Linux glibc+musl, arm64/x86_64 macOS,
   x64/aarch64-mingw-ucrt, x64-mingw32) now vendor the prebuilt
