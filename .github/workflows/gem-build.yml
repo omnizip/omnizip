@@ -103,12 +103,16 @@ jobs:
           - { gem: "arm64-darwin", os: macos-14 }
           - { gem: "x86_64-darwin", os: macos-15-intel }
           - { gem: "x64-mingw-ucrt", os: windows-latest }
+          # aarch64 Windows ships untested no more (leptris-ruby's
+          # grid): the arm64 runner exists and Ruby 3.4+ installs
+          # there (3.3 does not).
+          - { gem: "aarch64-mingw-ucrt", os: windows-11-arm }
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@master
         with:
           ruby-version: "3.4"
 
@@ -126,10 +130,114 @@ jobs:
           gem install --no-document "pkg/omnizip-*-${{ matrix.gem }}.gem"
           ruby .github/scripts/test_installed_gem.rb
 
+  # The musl and 32-bit-arm platform gems were cross-built but the
+  # suite never RAN on those libcs/arches (leptris-ruby's doctrine:
+  # every platform the release ships gets its suite RUN, not just
+  # built). Alpine containers for musl, qemu binfmt for armv7.
+  smoke-container:
+    name: Smoke ${{ matrix.gem }} (${{ matrix.image }})
+    needs: build
+    runs-on: ${{ matrix.host }}
+    strategy:
+      fail-fast: false
+      continue-on-error: ${{ matrix.experimental }}
+      matrix:
+        include:
+          # x86_64 musl: real Alpine on the host arch
+          - { gem: "x86_64-linux-musl", host: ubuntu-latest,
+              platform: "linux/amd64", image: "ruby:3.3-alpine",
+              ruby: "image-ruby", experimental: false }
+          # aarch64 musl: Alpine arm64 image on the arm64 runner
+          - { gem: "aarch64-linux-musl", host: ubuntu-24.04-arm,
+              platform: "linux/arm64", image: "ruby:3.3-alpine",
+              ruby: "image-ruby", experimental: false }
+          # 32-bit ARM under qemu: Debian for the gnu dylib
+          - { gem: "arm-linux", host: ubuntu-latest,
+              platform: "linux/arm/v7", image: "ruby:3.3-bookworm",
+              ruby: "image-ruby", experimental: true }
+          # 32-bit ARM musl under qemu: Alpine's armv7 ruby
+          - { gem: "arm-linux-musl", host: ubuntu-latest,
+              platform: "linux/arm/v7", image: "alpine:3.20",
+              ruby: "alpine-ruby", experimental: true }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: platform-gems
+          path: pkg/
+
+      - name: Install and smoke inside the container
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          docker run --rm \
+            --platform '${{ matrix.platform }}' \
+            -v "$PWD:/work" -w /work \
+            -e OMNIZIP_GEM="pkg/omnizip-*-${{ matrix.gem }}.gem" \
+            "${IMAGE}" sh -c '
+              set -eux
+              if [ "${{ matrix.ruby }}" = "alpine-ruby" ]; then
+                apk add --no-cache ruby bash ca-certificates
+              fi
+              gem install --no-document "$OMNIZIP_GEM"
+              ruby .github/scripts/test_installed_gem.rb
+            '
+
+  # JRuby ships no Fiddle — the ffi gem binding is its ONLY path to
+  # the tier. Prove it: install the ruby-platform gem under JRuby,
+  # point OMNIZIP_FFI_DYLIB at the released cdylib, and require the
+  # smoke to report the ffi layer.
+  smoke-jruby:
+    name: Smoke JRuby (ffi layer)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: ruby/setup-ruby@master
+        with:
+          ruby-version: jruby
+          bundler-cache: false
+
+      - name: Build + install the ruby-platform gem
+        run: |
+          gem build omnizip.gemspec
+          # no --local: runtime deps must resolve from rubygems.org
+          gem install --no-document omnizip-*.gem
+
+      - name: Fetch the released cdylib
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh release list -R omnizip/omnizip-rs --limit 50 \
+            | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
+          gh release download "$tag" -R omnizip/omnizip-rs \
+            -p 'libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz' -D dylib
+          tar -xzf dylib/libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz -C dylib
+
+      - name: Smoke through the ffi layer
+        env:
+          OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+        run: |
+          out=$(ruby .github/scripts/test_installed_gem.rb 2>&1) || rc=$?
+          echo "$out"
+          if [ -n "${rc:-}" ]; then exit "$rc"; fi
+          echo "$out" | grep -q "SMOKE OK (ffi layer)"
+
   push:
     name: Push platform gems through trusted release workflow
     if: ${{ inputs.push }}
-    needs: [build, smoke]
+    needs: [build, smoke, smoke-container, smoke-jruby]
     runs-on: ubuntu-latest
     permissions:
       actions: write
