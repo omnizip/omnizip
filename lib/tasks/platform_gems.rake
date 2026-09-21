@@ -63,9 +63,43 @@ namespace :platform_gems do
     end
   end
 
+  desc "Push every already-built platform gem under pkg/ to rubygems (idempotent)"
+  task :release do
+    require "rake"
+    require "rubygems/package"
+    gem_root = File.expand_path("../..", __dir__)
+    pkg = File.join(gem_root, "pkg")
+    gems = Dir.glob(File.join(pkg, "omnizip-*.gem"))
+    abort "no platform gems under #{pkg} — run platform_gems:build first" if gems.empty?
+
+    # Pushes only what's already built in pkg/. Invoked by the
+    # platform-gem push job, which dispatches the trusted
+    # release.yml with next_version=skip + release_command override
+    # so the cimas reusable workflow authenticates via the
+    # already-trusted OIDC configuration and runs this task verbatim.
+    #
+    # Idempotent against re-push of an already-published version
+    # (cimas reusable handles "already been pushed" via the
+    # gem-idempotent-push-guard action).
+    gems.each do |path|
+      puts "pushing #{File.basename(path)}"
+      run_gem_push(path)
+    end
+  end
+
   def extract_binary(tarball, tmp)
     system("tar", "-xzf", tarball, "-C", tmp) or abort "tar failed for #{tarball}"
     Dir.glob(File.join(tmp, "*")).first or abort "empty tarball #{tarball}"
+  end
+
+  def run_gem_push(path)
+    require "rubygems/command/push_command"
+    cmd = Gem::Command::PushCommand.new
+    cmd.invoke("push", path)
+  rescue StandardError => e
+    raise if !/already been pushed|Repushing of gem versions is not allowed/i.match?(e.message)
+
+    warn "skip (already published): #{File.basename(path)}"
   end
 
   # Stage the tracked gem files plus the vendored cdylib, flip the

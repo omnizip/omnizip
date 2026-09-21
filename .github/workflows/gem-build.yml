@@ -127,33 +127,45 @@ jobs:
           ruby .github/scripts/test_installed_gem.rb
 
   push:
-    name: Push platform gems
+    name: Push platform gems through trusted release workflow
     if: ${{ inputs.push }}
     needs: [build, smoke]
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: read
-      id-token: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: platform-gems
-          path: pkg/
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.4"
-
-      # Trusted Publishing: exchange the workflow's OIDC token for a
-      # short-lived RubyGems API key (the only auth path that's
-      # available — the org has no OMNIZIP_CI_RUBYGEMS_API_KEY secret).
-      - uses: rubygems/configure-rubygems-credentials@v2.1.0
-
-      - name: Push
+      - name: Dispatch the trusted release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          shopt -s nullglob
-          for g in pkg/omnizip-*.gem; do
-            echo "pushing $g"
-            gem push "$g"
-            sleep 2
+          gh workflow run release.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f next_version=skip \
+            -f platform_push=true \
+            -f platform_run_id="$RUN_ID"
+
+      - name: Wait for trusted publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 40); do
+            run_id=$(gh run list --repo "${GITHUB_REPOSITORY}" \
+              --workflow release.yml --event workflow_dispatch --limit 10 \
+              --json databaseId,createdAt,status,headBranch \
+              --jq '[.[] | select(.headBranch == "main")] | sort_by(.createdAt) | last | .databaseId')
+            if [ -n "$run_id" ] && [ "$run_id" != "null" ]; then
+              status=$(gh run view "$run_id" --repo "${GITHUB_REPOSITORY}" --json status,conclusion \
+                --jq '.status + " " + (.conclusion // "")')
+              echo "trusted release $run_id: $status"
+              case "$status" in
+                "completed success") exit 0 ;;
+                "completed"*) exit 1 ;;
+              esac
+            fi
+            sleep 15
           done
+          echo "trusted release workflow did not complete in time"
+          exit 1

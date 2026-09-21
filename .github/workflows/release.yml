@@ -19,18 +19,70 @@ on:
         description: |
           Pass-through to the metanorma/ci guard override. Set to true ONLY
           when the patch-release breaking-change heuristic trip is a known
-          false-positive (e.g. methods DRY'd into a base class via inheritance,
-          or a rename that preserves API via aliases). See metanorma/ci#278.
+          false-positive. See metanorma/ci#278.
         required: false
         default: "false"
+      release_command:
+        description: |
+          Override the build+push command the cimas reusable runs (API-key
+          path only). Leave empty for the normal ruby-platform release.
+        required: false
+        default: ""
+      platform_push:
+        description: "Push already-built platform gems from a gem-build run"
+        required: false
+        type: boolean
+        default: false
+      platform_run_id:
+        description: "gem-build workflow run ID containing the platform-gems artifact"
+        required: false
+        type: string
+        default: ""
   repository_dispatch:
     types: [do-release]
 
 jobs:
   release:
+    if: ${{ !inputs.platform_push }}
     uses: metanorma/ci/.github/workflows/rubygems-release.yml@main
     with:
       next_version: ${{ github.event.inputs.next_version }}
+      release_command: ${{ github.event.inputs.release_command != '' && github.event.inputs.release_command || 'bundle exec rake release' }}
     secrets:
       rubygems-api-key: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
       pat_token: ${{ secrets.OMNIZIP_CI_PAT_TOKEN }}
+
+  platform-publish:
+    if: ${{ inputs.platform_push }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: platform-gems
+          path: pkg/
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.platform_run_id }}
+
+      - uses: rubygems/configure-rubygems-credentials@v2.1.0
+
+      - name: Push platform gems
+        run: |
+          shopt -s nullglob
+          gems=(pkg/omnizip-*.gem)
+          test "${#gems[@]}" -gt 0
+          for gem in "${gems[@]}"; do
+            echo "pushing $gem"
+            gem push "$gem"
+            sleep 2
+          done

@@ -138,6 +138,8 @@ Metrics/AbcSize:
 # AllowedMethods: refine
 Metrics/BlockLength:
   Max: 81
+  Exclude:
+    - "lib/tasks/platform_gems.rake"
 
 # Offense count: 5
 # Configuration parameters: CountBlocks, CountModifierForms.
