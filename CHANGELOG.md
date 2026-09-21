@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- RPM archive-tier readiness: the dylib requirement is
+  **0.21.112**, not 0.21.111 — 0.21.111's `./`-stripping was half the
+  fix (the Ruby handler's names are ABSOLUTE, from the header's
+  DIRNAMES/BASENAMES; 0.21.112 normalizes the cpio names to
+  `/usr/…`). The tier spec version-guards accordingly, and with
+  0.21.112 the rpm tier is fully active (list stays Ruby by design;
+  read_entry is accelerated). Ships with the rubocop exclusion for
+  the tier spec that a CI-skipped merge dropped.
+
 ### Added
 - Archive-level tier for every handler: tar, cpio, iso, xar, 7z and
   rar3/4/5 (with `password:` passthrough) route list(names) and
