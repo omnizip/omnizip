@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   route decode through the Rust backend when it loads, each pinned by
   a cross-implementation differential. A Rust failure falls back to
   the Ruby core — auto mode is never worse than pure Ruby.
+- Archive-level acceleration: `Implementations::Rust::Archive` binds
+  the cdylib's whole-archive surface (open, list entries, read entry)
+  over every multi-entry format — zip, tar, cpio, 7z, rar3/4/5, iso,
+  rpm, xar, ole, encrypted archives included. `ZipHandler#list` and
+  `#read_entry` route through it first (auto mode; any Rust error or
+  a missing cdylib falls back to the pure-Ruby path). The tier's
+  600-mutant fuzz gate also caught a Rust decompression bomb
+  (truncated deflate streams decoded an endless phantom bit-stream;
+  fixed upstream in omnizip 0.21.108).
+- `Library#bind` / `Library#take_buffer` seams the archive surface
+  rides (Fiddle symbol binding + copy-out-and-free).
 
 ### Fixed
 - RAR recovery-record repair fails loudly instead of pretending:
