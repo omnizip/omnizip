@@ -61,10 +61,17 @@ jobs:
             choco install winrar || echo "winrar unavailable (non-fatal)"
           fi
 
+      # No bundler-cache: restored vendor dirs can resurrect gems from
+      # older resolutions (the standard-family crash needed a stale
+      # standard-custom in vendor to reproduce). Fresh install from the
+      # committed Gemfile constraints on every leg.
       - uses: ruby/setup-ruby@master
         with:
-          bundler-cache: true
+          bundler-cache: false
           ruby-version: ${{ matrix.ruby-version }}
+
+      - name: Bundle install (fresh)
+        run: bundle install --jobs 4 --retry 3
 
       # AFTER setup-ruby (the matrix ruby is where rubocop runs).
       # RuboCop's plugin loader auto-loads lint_roller-plugin gems
