@@ -94,19 +94,29 @@ jobs:
     name: Smoke ${{ matrix.gem }}
     needs: build
     runs-on: ${{ matrix.os }}
+    # experimental=true for the aarch64-Windows leg: nokogiri (via
+    # lutaml-model → moxml) has no aarch64-mingw-ucrt prebuilt and its
+    # source build fails there — the same upstream limitation
+    # leptris-ruby annotated for their arm64-Windows legs.
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { gem: "x86_64-linux", os: ubuntu-latest }
-          - { gem: "aarch64-linux", os: ubuntu-24.04-arm }
-          - { gem: "arm64-darwin", os: macos-14 }
-          - { gem: "x86_64-darwin", os: macos-15-intel }
-          - { gem: "x64-mingw-ucrt", os: windows-latest }
+          - { gem: "x86_64-linux", os: ubuntu-latest,
+              experimental: false }
+          - { gem: "aarch64-linux", os: ubuntu-24.04-arm,
+              experimental: false }
+          - { gem: "arm64-darwin", os: macos-14, experimental: false }
+          - { gem: "x86_64-darwin", os: macos-15-intel,
+              experimental: false }
+          - { gem: "x64-mingw-ucrt", os: windows-latest,
+              experimental: false }
           # aarch64 Windows ships untested no more (leptris-ruby's
           # grid): the arm64 runner exists and Ruby 3.4+ installs
           # there (3.3 does not).
-          - { gem: "aarch64-mingw-ucrt", os: windows-11-arm }
+          - { gem: "aarch64-mingw-ucrt", os: windows-11-arm,
+              experimental: true }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -148,23 +158,27 @@ jobs:
           # x86_64 musl: real Alpine on the host arch
           - { gem: "x86_64-linux-musl", host: ubuntu-latest,
               platform: "linux/amd64", image: "ruby:3.3-alpine",
-              ruby: "image-ruby", experimental: false }
+              experimental: false }
           # aarch64 musl: Alpine arm64 image on the arm64 runner
           - { gem: "aarch64-linux-musl", host: ubuntu-24.04-arm,
               platform: "linux/arm64", image: "ruby:3.3-alpine",
-              ruby: "image-ruby", experimental: false }
+              experimental: false }
           # 32-bit ARM under qemu: Debian for the gnu dylib
           - { gem: "arm-linux", host: ubuntu-latest,
               platform: "linux/arm/v7", image: "ruby:3.3-bookworm",
-              ruby: "image-ruby", experimental: true }
+              experimental: true }
           # 32-bit ARM musl under qemu: Alpine's armv7 ruby
           - { gem: "arm-linux-musl", host: ubuntu-latest,
               platform: "linux/arm/v7", image: "alpine:3.20",
-              ruby: "alpine-ruby", experimental: true }
+              experimental: true }
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
+
+      # binfmt registration for the arm/v7 qemu legs; a no-op on
+      # native-arch hosts.
+      - uses: docker/setup-qemu-action@v3
 
       - uses: actions/download-artifact@v4
         with:
@@ -181,19 +195,25 @@ jobs:
             -e OMNIZIP_GEM="pkg/omnizip-*-${{ matrix.gem }}.gem" \
             "${IMAGE}" sh -c '
               set -eux
-              if [ "${{ matrix.ruby }}" = "alpine-ruby" ]; then
-                apk add --no-cache ruby bash ca-certificates
-              fi
+              # ffi is a hard runtime dep and has no musl prebuilt —
+              # it compiles at install time, so Alpine needs a
+              # toolchain (the Debian images ship build-essential).
+              case "${{ matrix.image }}" in
+                *alpine*)
+                  apk add --no-cache build-base ruby bash ca-certificates
+                  ;;
+              esac
               gem install --no-document "$OMNIZIP_GEM"
               ruby .github/scripts/test_installed_gem.rb
             '
 
-  # JRuby ships no Fiddle — the ffi gem binding is its ONLY path to
-  # the tier. Prove it: install the ruby-platform gem under JRuby,
-  # point OMNIZIP_FFI_DYLIB at the released cdylib, and require the
-  # smoke to report the ffi layer.
+  # JRuby 10 ships a working Fiddle, so the default tier layer on a
+  # JVM may legitimately be either — the smoke therefore runs twice:
+  # once on the default layer (any layer is fine, the tier must work)
+  # and once with OMNIZIP_BINDING=ffi FORCED, which proves the ffi
+  # gem binding actually functions under a JVM engine.
   smoke-jruby:
-    name: Smoke JRuby (ffi layer)
+    name: Smoke JRuby (default + ffi)
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -227,9 +247,16 @@ jobs:
             -p 'libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz' -D dylib
           tar -xzf dylib/libomnizip_ffi-x86_64-unknown-linux-gnu.tar.gz -C dylib
 
-      - name: Smoke through the ffi layer
+      - name: Smoke, default layer
         env:
           OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+        run: |
+          ruby .github/scripts/test_installed_gem.rb
+
+      - name: Smoke, forced ffi layer
+        env:
+          OMNIZIP_FFI_DYLIB: ${{ github.workspace }}/dylib/libomnizip_ffi.so
+          OMNIZIP_BINDING: ffi
         run: |
           out=$(ruby .github/scripts/test_installed_gem.rb 2>&1) || rc=$?
           echo "$out"
