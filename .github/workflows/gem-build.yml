@@ -120,7 +120,10 @@ jobs:
       - name: Install and smoke the platform gem
         shell: bash
         run: |
-          gem install --local --no-document "pkg/omnizip-*-${{ matrix.gem }}.gem"
+          # No --local: the platform gem carries runtime deps (marcel,
+          # lutaml-model, …) that must resolve from rubygems.org. The
+          # platform gem itself is the only local file.
+          gem install --no-document "pkg/omnizip-*-${{ matrix.gem }}.gem"
           ruby .github/scripts/test_installed_gem.rb
 
   push:
