@@ -144,6 +144,7 @@ jobs:
       - name: Push
         env:
           GEM_HOST_API_KEY: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
+          RUBYGEMS_API_KEY: ${{ secrets.OMNIZIP_CI_RUBYGEMS_API_KEY }}
         run: |
           shopt -s nullglob
           for g in pkg/omnizip-*.gem; do
