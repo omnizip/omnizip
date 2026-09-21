@@ -200,7 +200,9 @@ jobs:
               # toolchain (the Debian images ship build-essential).
               case "${{ matrix.image }}" in
                 *alpine*)
-                  apk add --no-cache build-base ruby bash ca-certificates
+                  # ruby-dev: mkmf needs the ruby headers (the runtime
+              # package alone is not enough to build ffi).
+              apk add --no-cache build-base ruby-dev ruby bash ca-certificates
                   ;;
               esac
               gem install --no-document "$OMNIZIP_GEM"
