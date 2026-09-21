@@ -42,13 +42,22 @@ namespace :platform_gems do
   desc "Build platform gems for every tarball in DIR=libomnizip_ffi-<target>.tar.gz"
   task :build do
     dir = ENV.fetch("DIR") { abort "DIR=<artifacts dir> required" }
+    # Snapshot the pristine file list once. Gem::Specification.load
+    # caches by path and returns the SAME object on every call, so a
+    # per-call load + files += would leak the previous platform's
+    # cdylib into the next gem.
+    gem_root = File.expand_path("../..", __dir__)
+    base_spec = Gem::Specification.load(File.join(gem_root, "omnizip.gemspec"))
+    abort "omnizip.gemspec failed to load" unless base_spec
+    base_files = base_spec.files.select { |rel| File.file?(File.join(gem_root, rel)) }.freeze
+
     Dir.glob(File.join(dir, "libomnizip_ffi-*.tar.gz")).each do |tarball|
       target = File.basename(tarball, ".tar.gz").delete_prefix("libomnizip_ffi-")
       platform = PLATFORM_GEM_TARGETS[target] or abort "no rubygems platform mapping for #{target}"
       require "tmpdir"
       Dir.mktmpdir do |tmp|
         binary = extract_binary(tarball, tmp)
-        out = build_platform_gem(platform, binary)
+        out = build_platform_gem(platform, binary, base_files)
         puts "built: #{out} (#{File.size(out)} bytes)"
       end
     end
@@ -60,8 +69,11 @@ namespace :platform_gems do
   end
 
   # Stage the tracked gem files plus the vendored cdylib, flip the
-  # gemspec platform, and build.
-  def build_platform_gem(platform, dylib)
+  # gemspec platform, and build. `base_files` is the pristine
+  # gemspec file list (frozen); we ASSIGN a fresh list every call
+  # rather than mutating via +=, because Gem::Specification.load
+  # hands back a cached object.
+  def build_platform_gem(platform, dylib, base_files = nil)
     require "fileutils"
     require "rubygems/package"
     require "tmpdir"
@@ -69,31 +81,25 @@ namespace :platform_gems do
     gem_root = File.expand_path("../..", __dir__)
     spec = Gem::Specification.load(File.join(gem_root, "omnizip.gemspec"))
     abort "omnizip.gemspec failed to load" unless spec
+    base_files ||= spec.files.select { |rel| File.file?(File.join(gem_root, rel)) }
 
     Dir.mktmpdir do |tmp|
       stage = File.join(tmp, "stage")
-      spec.files.each do |rel|
-        src = File.join(gem_root, rel)
-        next unless File.file?(src)
-
+      base_files.each do |rel|
         dst = File.join(stage, rel)
         FileUtils.mkdir_p(File.dirname(dst))
-        FileUtils.cp(src, dst)
+        FileUtils.cp(File.join(gem_root, rel), dst)
       end
 
       vendored = "vendor/libomnizip_ffi#{File.extname(dylib)}"
       FileUtils.mkdir_p(File.join(stage, "vendor"))
       FileUtils.cp(dylib, File.join(stage, vendored))
+      abort "staged cdylib missing: #{vendored}" unless File.file?(File.join(stage, vendored))
 
       spec.platform = Gem::Platform.new(platform)
-      spec.files += [vendored]
+      spec.files = base_files + [vendored]
       spec.test_files = []
 
-      gemspec_path = File.join(stage, "omnizip.gemspec")
-      File.write(gemspec_path, spec.to_ruby)
-
-      pkg = File.join(tmp, "pkg")
-      FileUtils.mkdir_p(pkg)
       Dir.chdir(stage) do
         Gem::Package.build(spec)
       end
