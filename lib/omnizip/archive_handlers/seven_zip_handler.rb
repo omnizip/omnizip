@@ -25,6 +25,11 @@ module Omnizip
       end
 
       def list(path, details: false, **options)
+        unless details
+          tier_names = Omnizip::Backends.archive_entry_names(path, password: options[:password])
+          return tier_names if tier_names
+        end
+
         with_reader(path, options) do |reader|
           entries = reader.list_files
           if details
@@ -40,6 +45,9 @@ module Omnizip
       end
 
       def read_entry(path, entry_name, **options)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name, password: options[:password])
+        return tier unless tier.nil?
+
         with_reader(path, options) do |reader|
           entry = reader.list_files.find { |e| e.name == entry_name }
           raise Errno::ENOENT, "Entry not found: #{entry_name}" unless entry

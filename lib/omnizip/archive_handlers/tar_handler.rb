@@ -22,6 +22,11 @@ module Omnizip
       end
 
       def list(path, details: false, **_)
+        unless details
+          tier_names = Omnizip::Backends.archive_entry_names(path)
+          return tier_names if tier_names
+        end
+
         entries = Omnizip::Formats::Tar.list(path)
         if details
           entries.map do |entry|
@@ -58,7 +63,10 @@ module Omnizip
         end
       end
 
-      def read_entry(path, entry_name)
+      def read_entry(path, entry_name, **_)
+        tier = Omnizip::Backends.archive_read_entry(path, entry_name)
+        return tier unless tier.nil?
+
         data = nil
         Omnizip::Formats::Tar.open(path) do |reader|
           entry = reader.entries.find { |e| e.name == entry_name }
