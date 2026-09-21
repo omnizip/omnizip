@@ -79,8 +79,6 @@ jobs:
             standard-rubocop-lsp 2>/dev/null || true
           gem list standard || true
 
-      - run: bundle exec rake
-
       - name: RuboCop plugin diagnostics
         if: runner.os == 'Linux' && matrix.ruby-version == '3.4'
         run: |
@@ -94,6 +92,8 @@ jobs:
             puts "require: #{Array(cfg["require"]).inspect}"
             puts "rubocop: #{RuboCop::Version.version}"
           '
+
+      - run: bundle exec rake
 
   smoke-jruby:
     # JRuby's tier path: run the smoke twice — the default layer
