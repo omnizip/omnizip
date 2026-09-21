@@ -62,3 +62,4 @@ CLAUDE.md
 # rust tier: vendored cdylib + rust:build checkout (never commit binaries)
 /vendor/
 /build/
+/lib/tasks/build/
