@@ -20,6 +20,7 @@ module Omnizip
     # fallback on any Rust error.
     module Rust
       autoload :Library, "omnizip/implementations/rust/library"
+      autoload :Archive, "omnizip/implementations/rust/archive"
     end
   end
 end

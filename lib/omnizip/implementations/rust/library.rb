@@ -86,7 +86,7 @@ module Omnizip
             funcs = function_table.each_with_object({}) do |(key, (name, args, ret)), h|
               h[key] = Fiddle::Function.new(handle[name], args, ret)
             end
-            new(funcs)
+            new(funcs, handle)
           rescue StandardError => e # includes Fiddle::DLError
             warn "omnizip: rust backend unavailable (#{e.message}); using pure Ruby" if ENV["OMNIZIP_BACKEND"] == "rust"
             nil
@@ -120,8 +120,9 @@ module Omnizip
           end
         end
 
-        def initialize(functions)
+        def initialize(functions, handle = nil)
           @functions = functions.freeze
+          @handle = handle
         end
 
         def compress(codec, data, level)
@@ -136,9 +137,29 @@ module Omnizip
           take(ptr, out_len.unpack1("Q"))
         end
 
+        # Bind one extra C symbol from the loaded cdylib (the archive
+        # surface uses this; Fiddle::Function is immutable once built).
+        def bind(symbol, args, ret)
+          handle = instance_handle
+          raise Error, "cdylib not loaded" if handle.nil?
+
+          Fiddle::Function.new(handle[symbol.to_s], args, ret)
+        end
+
         def last_error
           ptr = @functions[:last_error].call
           ptr.null? ? "unknown error" : ptr.to_s
+        end
+
+        # The raw Fiddle::Handle (for extra symbol binds).
+        def instance_handle
+          @handle
+        end
+
+        # Copy out + free one returned buffer (public seam for the
+        # archive surface).
+        def take_buffer(ptr, len)
+          take(ptr, len)
         end
 
         private
