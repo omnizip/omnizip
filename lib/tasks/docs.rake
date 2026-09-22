@@ -35,7 +35,7 @@ DOCS_PAGES = %w[
   docs/xar_format.md
 ].freeze
 
-DOCS_SITE = File.expand_path("docs/site", __dir__ + "/../..")
+DOCS_SITE = File.expand_path("docs/site", "#{__dir__}/../..")
 
 def docs_render_page(src, dest, title)
   require "coradoc/asciidoc" # registers the :asciidoc parse format
