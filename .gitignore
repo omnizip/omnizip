@@ -63,3 +63,11 @@ CLAUDE.md
 /vendor/
 /build/
 /lib/tasks/build/
+
+# Task boards and bug reports are LOCAL working state only — never
+# committed or published. Real open work lives in GitHub issues.
+TODO*
+BUGREPORT-*
+
+# Coradoc docs build output
+docs/site/

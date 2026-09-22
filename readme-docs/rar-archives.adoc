@@ -1,0 +1,505 @@
+= RAR archives — RAR4 and RAR5
+
+Extracted from the README; covers reading, writing, compression methods,
+encryption, multi-volume, solid archives, and PAR2 recovery records.
+
+==== RAR Archives
+
+==== RAR4 Archives (v0.3.0)
+
+RAR4 reading and writing against the on-disk format unrar accepts:
+headers carry the low 16 bits of a CRC32, HEAD_SIZE counts the whole
+block, and the dictionary mask 0xE0 marks directory entries. STORE
+archives round-trip through official unrar byte-identically.
+
+====== Reading RAR4 Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+reader = Omnizip::Formats::Rar::Reader.new('archive.rar')
+reader.open
+
+reader.list_files.each do |entry|
+  puts "#{entry.name}: #{entry.size} bytes (#{entry.compressed_size} compressed)"
+  puts "  Directory: #{entry.is_dir}"
+  puts "  Modified: #{entry.mtime}"
+end
+
+# STORE data decodes natively; WinRAR-compressed entries fall back to
+# the unrar command after a CRC check rejects foreign streams
+reader.extract_entry('test.txt', 'output/test.txt')
+reader.extract_all('output/')
+----
+
+**RAR4 Reader Features:**
+
+* ✅ Block header parsing (MAIN/FILE/ENDARC), directories, empty files
+* ✅ Native STORE decompression with stored-CRC32 verification
+* ✅ unrar fallback for real WinRAR-compressed entries (byte-exact)
+* ✅ DOS-style backslash name normalization to forward slashes
+* ✅ Multi-volume archive detection
+* ✅ Parsing verified against libarchive WinRAR fixtures
+
+====== Writing RAR4 Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# STORE output is verified interoperable with unrar
+writer = Omnizip::Formats::Rar::Writer.new('archive.rar',
+  compression: :store
+)
+writer.add_file('document.txt')
+writer.add_file('image.png')
+writer.add_directory('photos/')
+writer.write
+----
+
+Writer options: `compression:` (see below), `test_after_create: true`
+(reads the archive back and verifies every file). RAR4 encryption is
+not implemented — `password:` raises `NotImplementedError`. The
+`solid:`/`recovery:`/`volume_size:` options are accepted but not
+implemented; they are ignored with a warning and never advertised in
+header flags.
+
+====== RAR4 Compression Methods
+
+[cols="2,2,2,4",options="header"]
+|===
+|Method |Speed |unrar interop |Notes
+|`:store` |Instant |✅ verified |Byte-identical round-trip incl. directories
+|`:fastest` |Very Fast |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:normal` (default) |Fast |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:good` |Medium |❌ Omnizip-only |LZ77+Huffman, readable by Omnizip
+|`:best` |Slow |❌ Omnizip-only |PPMd, readable by Omnizip
+|===
+
+Official RAR LZ/PPMd streams are proprietary; methods above `:store`
+produce archives Omnizip can read back but unrar reports as checksum
+errors. Use `:store` for interoperability.
+
+===== RAR5 Archives (v0.3.0)
+
+Read/write support for RAR5 archives with STORE compression,
+AES-256 encryption, and multi-volume archives — all verified against
+official unrar.
+
+====== Reading RAR5 Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+reader = Omnizip::Formats::Rar5::Reader.new
+File.open('archive.rar', 'rb') do |io|
+  entries = reader.read_archive(io)
+
+  entries.each do |entry|
+    puts "#{entry.name}: #{entry.uncompressed_size} bytes"
+    puts "  CRC32: #{entry.crc32.to_s(16)}" if entry.crc32
+    puts "  Modified: #{entry.modified_time}" if entry.modified_time
+  end
+end
+----
+
+**RAR5 Reader Features:**
+
+* ✅ STORE file data, header CRC32 verification
+* ✅ 32-bit Unix mtime decoding (matches unrar; nil when absent)
+* ✅ Unicode filenames (UTF-8)
+* ✅ Multi-file archives
+* ✅ VInt (variable-length integer) parsing
+* ✅ Graceful error handling for truncated/invalid files
+* ✅ libarchive compatibility fixtures
+
+====== Writing RAR5 Archives
+
+[source,ruby]
+----
+require 'omnizip'
+
+# STORE compression (default) — unrar-verified
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar')
+writer.add_file('document.txt')
+writer.add_file('image.png')
+writer.write
+
+# AES-256 encryption
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  password: 'secret'
+)
+writer.add_file('data.json')
+writer.write
+
+# Multi-volume archives split at 64 KB boundaries
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  multi_volume: true,
+  volume_size: 65536
+)
+writer.add_file('big1.bin')
+writer.add_file('big2.bin')
+writer.write   # writes archive.part1.rar, archive.part2.rar, ...
+----
+
+====== RAR5 Compression Methods
+
+[cols="2,2,4",options="header"]
+|===
+|Method |Interop |Notes
+|`:store` (default) |✅ unrar-verified |Uncompressed passthrough
+|`:lzss` / `:lzma` |falls back to STORE |Encoder is not official-RAR compatible; warns and stores
+|`:auto` |STORE |Size-based selection
+|===
+
+====== RAR5 Optional Fields
+
+The writer can embed metadata that readers use without decompressing:
+
+[source,ruby]
+----
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  include_mtime: true,   # 32-bit Unix mtime per file header
+  include_crc32: true    # CRC32 per file header
+)
+----
+
+====== RAR5 Optional Fields
+
+RAR5 supports optional metadata fields for enhanced archive information:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Include modification time in archive
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  include_mtime: true  # Preserves file modification timestamps
+)
+writer.add_file('document.txt')
+writer.write
+
+# Include CRC32 checksums (STORE compression only)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :store,
+  include_crc32: true  # Only works with STORE compression
+)
+writer.add_file('data.bin')
+writer.write
+
+# IMPORTANT: CRC32 with LZMA is automatically disabled
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5,
+  include_crc32: true  # Will be auto-disabled, no error
+)
+writer.add_file('document.txt')
+writer.write
+# CRC32 will be silently disabled - archive uses BLAKE2sp only
+----
+
+**CRC32 Limitation Explained:**
+
+RAR5's optional CRC32 field is incompatible with compression algorithms. The RAR5 format specification requires that when compression is used (LZMA, LZMA2), only the BLAKE2sp checksum (always present in the main file header) should be used for integrity verification. The optional CRC32 field is designed for uncompressed (STORE) files only.
+
+When you request `include_crc32: true` with LZMA compression, Omnizip automatically disables CRC32 to ensure format compliance and compatibility with official unrar tools.
+
+====== RAR5 Multi-Volume Archives
+
+Create split archives when file size exceeds volume limit. Volumes are automatically created and numbered according to the chosen naming pattern.
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Create multi-volume archive with default settings
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  multi_volume: true,
+  volume_size: '10M'  # Human-readable size
+)
+writer.add_directory('data/')
+volumes = writer.write  # Returns array of volume paths
+# => ['archive.part1.rar', 'archive.part2.rar', ...]
+
+# Custom volume naming pattern
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  multi_volume: true,
+  volume_size: '100M',
+  volume_naming: 'volume'  # backup.volume1.rar, backup.volume2.rar
+)
+writer.add_directory('large_dataset/')
+volumes = writer.write
+
+# Numeric naming pattern
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('data.rar',
+  multi_volume: true,
+  volume_size: '50M',
+  volume_naming: 'numeric'  # data.001.rar, data.002.rar
+)
+writer.add_file('huge_file.bin')
+volumes = writer.write
+----
+
+**Volume Naming Patterns:**
+
+* `part` (default): archive.part1.rar, archive.part2.rar, ...
+* `volume`: archive.volume1.rar, archive.volume2.rar, ...
+* `numeric`: archive.001.rar, archive.002.rar, ...
+
+**Human-Readable Sizes:**
+
+* Bytes: `1024`, `2048`
+* Kilobytes: `10K`, `100KB`
+* Megabytes: `10M`, `100MB`
+* Gigabytes: `1G`, `5GB`
+
+**Minimum volume size:** 64 KB (65,536 bytes)
+
+====== RAR5 Solid Compression
+
+Compress multiple files with a shared dictionary for significantly better compression ratios. Ideal for similar files such as source code, logs, or document collections.
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Enable solid compression (default: 10-30% better ratio)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  level: 5,
+  solid: true  # Enable solid mode
+)
+writer.add_directory('project/')
+writer.write
+
+# Combine with high compression level
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  compression: :lzma,
+  level: 5,      # Best compression
+  solid: true    # Shared dictionary
+)
+writer.add_file('log1.txt')
+writer.add_file('log2.txt')
+writer.add_file('log3.txt')
+writer.write
+----
+
+**Benefits:**
+
+* 10-30% better compression ratios for similar files
+* Larger LZMA dictionaries (16-64 MB vs 1-16 MB)
+* Particularly effective for:
+  - Source code repositories
+  - Log files and text documents
+  - Similar structured data
+
+**Trade-offs:**
+
+* Cannot extract individual files without decompressing entire solid block
+* Corruption in one file may affect subsequent files in the block
+* Slightly longer extraction time for single files
+* Best for archiving complete collections
+
+====== RAR5 AES-256 Encryption
+
+Protect archives with industry-standard AES-256-CBC encryption and PBKDF2-HMAC-SHA256 key derivation.
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Basic password protection
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  password: 'SecurePassword123!'
+)
+writer.add_file('confidential.pdf')
+writer.write
+
+# Custom key derivation iterations
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('secure.rar',
+  compression: :lzma,
+  level: 5,
+  password: 'VerySecurePassword2025!',
+  kdf_iterations: 524_288  # Higher = more secure, slower
+)
+writer.add_directory('sensitive_data/')
+writer.write
+
+# Minimum security (faster but less secure)
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('quick.rar',
+  password: 'FastPassword',
+  kdf_iterations: 65_536  # Minimum allowed
+)
+writer.add_file('temp.txt')
+writer.write
+----
+
+**Security Features:**
+
+* **AES-256-CBC encryption** with PKCS#7 padding
+* **PBKDF2-HMAC-SHA256** key derivation function
+* **Configurable KDF iterations:**
+  - Minimum: 65,536 (2^16) - fast but less secure
+  - Default: 262,144 (2^18) - balanced security/performance
+  - Maximum: 1,048,576 (2^20) - maximum security
+* **Per-file IV generation** for enhanced security
+* **Password verification** before decryption attempts
+
+**Performance Impact:**
+
+* Encryption overhead: < 2x slower than unencrypted
+* KDF computation time varies with iteration count:
+  - 65,536 iterations: ~50-100ms
+  - 262,144 iterations: ~200-400ms
+  - 1,048,576 iterations: ~800-1600ms
+
+====== RAR5 PAR2 Recovery Records
+
+Generate PAR2 parity files for archive recovery and error correction using Reed-Solomon codes.
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Enable recovery with default 5% redundancy
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('archive.rar',
+  compression: :lzma,
+  recovery: true
+)
+writer.add_directory('important_data/')
+files = writer.write
+# => ['archive.rar', 'archive.par2', 'archive.vol00+01.par2', ...]
+
+# Custom redundancy percentage
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup.rar',
+  compression: :lzma,
+  level: 5,
+  recovery: true,
+  recovery_percent: 10  # 10% redundancy (can recover up to 10% data loss)
+)
+writer.add_file('critical.db')
+files = writer.write
+
+# Maximum redundancy for critical data
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('critical.rar',
+  compression: :lzma,
+  recovery: true,
+  recovery_percent: 50  # 50% redundancy (maximum protection)
+)
+writer.add_directory('mission_critical/')
+files = writer.write
+----
+
+**Recovery Capabilities:**
+
+* **Detect corruption** at block level
+* **Repair damaged archives** automatically
+* **Recover from partial data loss** up to redundancy percentage
+* **Works with all features:**
+  - Multi-volume archives
+  - Solid compression
+  - Encrypted archives
+* **Reed-Solomon error correction** over GF(2^16)
+
+**Redundancy Guidelines:**
+
+* 5% (default): Suitable for general backups
+* 10%: Recommended for important data
+* 20-30%: High-value data requiring extra protection
+* 50-100%: Critical data with maximum recovery needs
+
+**PAR2 File Size:**
+
+PAR2 files add approximately the redundancy percentage to total archive size. For example, a 100MB archive with 10% redundancy will generate ~10MB of PAR2 files.
+
+====== RAR5 Combined Features
+
+All RAR5 features can be used together for comprehensive archive protection:
+
+[source,ruby]
+----
+require 'omnizip/formats/rar/rar5/writer'
+
+# Complete feature demonstration
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('complete.rar',
+  # Compression
+  compression: :lzma,
+  level: 5,           # Best compression
+  solid: true,        # Shared dictionary for better ratios
+
+  # Security
+  password: 'SecureBackup2025!',
+  kdf_iterations: 524_288,  # Enhanced security
+
+  # Multi-volume
+  multi_volume: true,
+  volume_size: '100M',
+  volume_naming: 'part',
+
+  # Recovery
+  recovery: true,
+  recovery_percent: 10,
+
+  # Optional fields
+  include_mtime: true
+)
+
+writer.add_directory('/critical/data')
+files = writer.write
+# => ['complete.part1.rar', 'complete.part2.rar', ...,
+#     'complete.par2', 'complete.vol00+01.par2', ...]
+----
+
+**Best Practices:**
+
+1. **Solid + LZMA level 5** for maximum compression on similar files
+2. **10-20% PAR2** for important data protection
+3. **262,144 KDF iterations** for balanced security/performance
+4. **Multi-volume** for large archives or optical media
+5. **Always include mtime** to preserve file timestamps
+
+**Example: Secure Backup Archive**
+
+[source,ruby]
+----
+# Production-ready backup configuration
+writer = Omnizip::Formats::Rar::Rar5::Writer.new('backup_2025-12-24.rar',
+  compression: :lzma,
+  level: 5,
+  solid: true,              # 10-30% better compression
+  password: ENV['BACKUP_PASSWORD'] || 'DefaultSecure123!',
+  kdf_iterations: 262_144,  # Balanced security
+  multi_volume: true,
+  volume_size: '4G',        # DVD-sized volumes
+  recovery: true,
+  recovery_percent: 15,     # 15% redundancy
+  include_mtime: true
+)
+
+writer.add_directory('/home/user/documents')
+writer.add_directory('/home/user/projects')
+files = writer.write
+
+puts "Backup created: #{files.size} files"
+puts "Total size: #{files.sum { |f| File.size(f) } / 1024 / 1024}MB"
+----
+
+**Important:**
+- Ensure you have set the `BACKUP_PASSWORD` environment variable before running the secure backup example.
+- This example assumes a Linux/Unix environment; file paths may need adjustments for Windows.
+
+**Security Note:**
+- Use a strong, complex password for `BACKUP_PASSWORD`.
+- Consider using a password manager to store and retrieve your backup password securely.
+- If using this code in production, review the security implications and adjust as needed.
+
+**Performance Note:**
+- Encryption and KDF computations can be CPU-intensive.
+- The `kdf_iterations` value affects security; higher values are more secure but slower.
+- The `volume_naming` option can impact the efficiency and naming of multi-volume archives.
+
+**Error Handling:**
+- Enhance this example by adding error handling for file operations and encryption failures.

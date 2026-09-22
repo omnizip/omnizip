@@ -26,3 +26,15 @@ gem "thor"
 
 # Parallel processing with Fractor
 gem "fractor"
+
+# Documentation pipeline (rake docs:build) — AsciiDoc/Markdown -> static
+# HTML via Coradoc; replaces the old Jekyll site. Pinned to the coradoc
+# fix for TocEntry#children (metanorma/coradoc#255, PR #256) until it
+# ships in a release — then switch to plain released gems.
+CORADOC_FIX_REF = "fe6a6a089a5d1408f835d7bcb3fbdcd53c4a387e".freeze
+gem "coradoc", git: "https://github.com/metanorma/coradoc.git",
+               ref: CORADOC_FIX_REF, glob: "coradoc/*.gemspec"
+gem "coradoc-adoc", git: "https://github.com/metanorma/coradoc.git",
+                    ref: CORADOC_FIX_REF, glob: "coradoc-adoc/*.gemspec"
+gem "coradoc-html", git: "https://github.com/metanorma/coradoc.git",
+                    ref: CORADOC_FIX_REF, glob: "coradoc-html/*.gemspec"
