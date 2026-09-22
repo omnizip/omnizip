@@ -254,6 +254,11 @@ jobs:
             | awk '{print $1}' | grep '^omnizip-ffi-v' | head -1)
           gh release download "$tag" -R omnizip/omnizip-rs \
             -p 'libomnizip_ffi-arm-unknown-linux-gnueabihf.tar.gz' -D dylib
+          # the download step fetches a TARBALL — extract it or the
+          # container's OMNIZIP_FFI_DYLIB points at a path that does
+          # not exist (the cause of every armv7 "tier unavailable"
+          # smoke failure to date)
+          tar -xzf dylib/libomnizip_ffi-arm-unknown-linux-gnueabihf.tar.gz -C dylib
           docker run --rm \
             --platform 'linux/arm/v7' \
             -v "$PWD:/work" -w /work \
