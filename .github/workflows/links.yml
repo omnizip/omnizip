@@ -6,9 +6,13 @@ on:
       - main
     paths:
       - 'docs/**'
+      - 'readme-docs/**'
+      - 'README.adoc'
   pull_request:
     paths:
       - 'docs/**'
+      - 'readme-docs/**'
+      - 'README.adoc'
   schedule:
     # Run weekly on Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
@@ -25,13 +29,10 @@ jobs:
         with:
           ruby-version: '3.4'
           bundler-cache: true
-          working-directory: docs
 
-      - name: Build site
-        env:
-          JEKYLL_ENV: production
-        run: bundle exec jekyll build --trace
-        working-directory: docs
+      - name: Build site (Coradoc, no Jekyll)
+        run: bundle exec rake docs:build
+
 
       - name: Restore lychee cache
         uses: actions/cache@v4
@@ -42,13 +43,12 @@ jobs:
 
       - name: Check if site was built
         run: |
-          if [ ! -d "_site" ]; then
-            echo "Error: _site directory not created"
+          if [ ! -d "docs/site" ]; then
+            echo "Error: docs/site directory not created"
             exit 1
           fi
           echo "Site built successfully"
-          ls -la _site/
-        working-directory: docs
+          ls -la docs/site/
 
       - name: Link Checker
         uses: lycheeverse/lychee-action@v2
@@ -57,9 +57,9 @@ jobs:
             --verbose
             --no-progress
             --config docs/lychee.toml
-            --root-dir "$(pwd)/docs/_site"
-            --base-url file://${{ github.workspace }}/docs/_site
-            'docs/_site/**/*.html'
+            --root-dir "$(pwd)/docs/site"
+            --base-url file://${{ github.workspace }}/docs/site
+            'docs/site/**/*.html'
           fail: true
           output: link-check-results.md
           format: markdown

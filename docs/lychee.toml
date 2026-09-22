@@ -14,7 +14,7 @@ recursive = true
 
 # File types to check
 include = [
-  "_site/**/*.html"
+  "site/**/*.html"
 ]
 
 # Excluded paths
