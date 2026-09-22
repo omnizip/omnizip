@@ -94,29 +94,20 @@ jobs:
     name: Smoke ${{ matrix.gem }}
     needs: build
     runs-on: ${{ matrix.os }}
-    # experimental=true for the aarch64-Windows leg: nokogiri (via
-    # lutaml-model → moxml) has no aarch64-mingw-ucrt prebuilt and its
-    # source build fails there — the same upstream limitation
-    # leptris-ruby annotated for their arm64-Windows legs.
-    continue-on-error: ${{ matrix.experimental }}
+    # aarch64-mingw-ucrt is a REQUIRED leg since canon 0.3.64 dropped
+    # nokogiri: the XML stack runs on leptris, which ships a native gem
+    # for every platform we do (previously this leg was experimental —
+    # nokogiri had no prebuilt and its source build failed here).
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { gem: "x86_64-linux", os: ubuntu-latest,
-              experimental: false }
-          - { gem: "aarch64-linux", os: ubuntu-24.04-arm,
-              experimental: false }
-          - { gem: "arm64-darwin", os: macos-14, experimental: false }
-          - { gem: "x86_64-darwin", os: macos-15-intel,
-              experimental: false }
-          - { gem: "x64-mingw-ucrt", os: windows-latest,
-              experimental: false }
-          # aarch64 Windows ships untested no more (leptris-ruby's
-          # grid): the arm64 runner exists and Ruby 3.4+ installs
-          # there (3.3 does not).
-          - { gem: "aarch64-mingw-ucrt", os: windows-11-arm,
-              experimental: true }
+          - { gem: "x86_64-linux", os: ubuntu-latest }
+          - { gem: "aarch64-linux", os: ubuntu-24.04-arm }
+          - { gem: "arm64-darwin", os: macos-14 }
+          - { gem: "x86_64-darwin", os: macos-15-intel }
+          - { gem: "x64-mingw-ucrt", os: windows-latest }
+          - { gem: "aarch64-mingw-ucrt", os: windows-11-arm }
     steps:
       - uses: actions/checkout@v4
         with:

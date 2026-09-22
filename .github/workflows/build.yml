@@ -29,9 +29,6 @@ jobs:
   test:
     name: Test on Ruby ${{ matrix.ruby-version }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # experimental=true for the windows-11-arm legs (nokogiri
-    # source-build limitation above)
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -43,31 +40,25 @@ jobs:
           # Ruby 3.3 is unavailable on the windows-arm runner
           - os: windows-11-arm
             ruby-version: "3.3"
-        # windows-11-arm legs stay non-blocking: nokogiri (via
-        # lutaml-model → moxml) has no aarch64-mingw-ucrt prebuilt and
-        # its source build fails there — the same upstream limitation
-        # leptris-ruby annotated for their aarch64-Windows legs.
         include:
-          - { os: windows-11-arm, ruby-version: "3.4",
-              experimental: true }
-          - { os: windows-11-arm, ruby-version: "4.0",
-              experimental: true }
-          - { os: ubuntu-latest, ruby-version: "3.3", experimental: false }
-          - { os: ubuntu-24.04-arm, ruby-version: "3.3", experimental: false }
-          - { os: macos-latest, ruby-version: "3.3", experimental: false }
-          - { os: macos-15-intel, ruby-version: "3.3", experimental: false }
-          - { os: windows-latest, ruby-version: "3.3", experimental: false }
-          - { os: ubuntu-latest, ruby-version: "3.4", experimental: false }
-          - { os: ubuntu-24.04-arm, ruby-version: "3.4", experimental: false }
-          - { os: macos-latest, ruby-version: "3.4", experimental: false }
-          - { os: macos-15-intel, ruby-version: "3.4", experimental: false }
-          - { os: windows-latest, ruby-version: "3.4", experimental: false }
-          - { os: ubuntu-latest, ruby-version: "4.0", experimental: false }
-          - { os: ubuntu-24.04-arm, ruby-version: "4.0", experimental: false }
-          - { os: macos-latest, ruby-version: "4.0", experimental: false }
-          - { os: macos-15-intel, ruby-version: "4.0", experimental: false }
-          - { os: windows-latest, ruby-version: "4.0", experimental: false }
-          - { os: windows-11-arm, ruby-version: "4.0", experimental: false }
+          - { os: windows-11-arm, ruby-version: "3.4" }
+          - { os: windows-11-arm, ruby-version: "4.0" }
+          - { os: ubuntu-latest, ruby-version: "3.3" }
+          - { os: ubuntu-24.04-arm, ruby-version: "3.3" }
+          - { os: macos-latest, ruby-version: "3.3" }
+          - { os: macos-15-intel, ruby-version: "3.3" }
+          - { os: windows-latest, ruby-version: "3.3" }
+          - { os: ubuntu-latest, ruby-version: "3.4" }
+          - { os: ubuntu-24.04-arm, ruby-version: "3.4" }
+          - { os: macos-latest, ruby-version: "3.4" }
+          - { os: macos-15-intel, ruby-version: "3.4" }
+          - { os: windows-latest, ruby-version: "3.4" }
+          - { os: ubuntu-latest, ruby-version: "4.0" }
+          - { os: ubuntu-24.04-arm, ruby-version: "4.0" }
+          - { os: macos-latest, ruby-version: "4.0" }
+          - { os: macos-15-intel, ruby-version: "4.0" }
+          - { os: windows-latest, ruby-version: "4.0" }
+          - { os: windows-11-arm, ruby-version: "4.0" }
     steps:
       - uses: actions/checkout@v4
 
