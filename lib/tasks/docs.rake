@@ -64,9 +64,9 @@ def docs_render_page(src, dest, title)
   # The repo README renders as the site root index.html.
   html = html.gsub(/href="([^"]+?)\.(?:adoc|md)(#[^"]*)?"/) do
     target = Regexp.last_match(1)
-    anchor = Regexp.last_match(2).to_s.sub(/\A#/, "")
+    anchor = Regexp.last_match(2).to_s.delete_prefix("#")
     anchor = "##{anchor}" unless anchor.empty?
-    if target.end_with?("/README", "README") && target !~ /docs\//
+    if target.end_with?("/README", "README") && !target.include?("docs/")
       %(href="#{target.sub(%r{/?(?:\.\./)?README\z}, '')}index.html#{anchor}")
     elsif File.exist?("#{DOCS_SITE}/#{target}.html")
       %(href="#{target}.html#{anchor}")
