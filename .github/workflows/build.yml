@@ -74,10 +74,8 @@ jobs:
             echo "interop CLIs: 7zz=$(command -v 7zz) 7z=$(command -v 7z) lzip=$(command -v lzip) unrar=$(command -v unrar)"
           elif [ "$RUNNER_OS" = "macOS" ]; then
             brew install 7-zip lzip
-            brew install rar || echo "rar unavailable (non-fatal)"
           elif [ "$RUNNER_OS" = "Windows" ]; then
             choco install 7zip
-            choco install winrar || echo "winrar unavailable (non-fatal)"
           fi
 
       # No bundler-cache: restored vendor dirs can resurrect gems from
