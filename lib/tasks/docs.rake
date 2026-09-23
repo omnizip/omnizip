@@ -13,6 +13,7 @@
 # decision (FEATURE-template-renderer: emitters live downstream).
 
 require "fileutils"
+require "pathname"
 
 DOCS_PAGES = %w[
   README.adoc
@@ -61,15 +62,23 @@ def docs_render_page(src, dest, title)
       )
     end
   # AsciiDoc sources cross-link *.adoc siblings; the site serves .html.
-  # The repo README renders as the site root index.html.
+  # The repo README renders as the site root index.html. Hrefs are emitted
+  # relative to each page's own directory (the depth prefix), which is what
+  # both browsers and lychee-without-base-url resolve against.
+  depth_prefix = Pathname.new(DOCS_SITE).relative_path_from(
+    Pathname.new(dest).dirname
+  ).to_s
+  depth_prefix = "" if depth_prefix == "."
+  depth_prefix = "#{depth_prefix}/" unless depth_prefix.empty?
   html = html.gsub(/href="([^"]+?)\.(?:adoc|md)(#[^"]*)?"/) do
     target = Regexp.last_match(1)
     anchor = Regexp.last_match(2).to_s.delete_prefix("#")
     anchor = "##{anchor}" unless anchor.empty?
-    if target.end_with?("/README", "README") && !target.include?("docs/")
-      %(href="#{target.sub(%r{/?(?:\.\./)?README\z}, '')}index.html#{anchor}")
-    elsif File.exist?("#{DOCS_SITE}/#{target}.html")
-      %(href="#{target}.html#{anchor}")
+    stripped = target.sub(%r{\A(?:\.\./)+}, "")
+    if stripped.end_with?("/README", "README") && !stripped.include?("docs/")
+      %(href="#{depth_prefix}index.html#{anchor}")
+    elsif File.exist?("#{DOCS_SITE}/#{stripped}.html")
+      %(href="#{depth_prefix}#{stripped}.html#{anchor}")
     else
       Regexp.last_match(0)
     end

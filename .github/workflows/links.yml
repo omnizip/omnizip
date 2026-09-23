@@ -53,12 +53,11 @@ jobs:
       - name: Link Checker
         uses: lycheeverse/lychee-action@v2
         with:
+          # No --base-url: hrefs are page-relative, so lychee must resolve
+          # them against each file's own directory (same as a browser).
           args: >-
-            --verbose
             --no-progress
             --config docs/lychee.toml
-            --root-dir "$(pwd)/docs/site"
-            --base-url file://${{ github.workspace }}/docs/site/
             'docs/site/**/*.html'
           fail: true
           output: link-check-results.md
