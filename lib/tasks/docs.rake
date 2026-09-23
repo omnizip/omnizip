@@ -62,9 +62,9 @@ def docs_render_page(src, dest, title)
     end
   # AsciiDoc sources cross-link *.adoc siblings; the site serves .html.
   # The repo README renders as the site root index.html.
-  html = html.gsub(/href="([^"]+?)\.(?:adoc|md)([#"][^"]*)?"/) do
+  html = html.gsub(/href="([^"]+?)\.(?:adoc|md)(#[^"]*)?"/) do
     target = Regexp.last_match(1)
-    anchor = Regexp.last_match(2).to_s.sub(/^["#]/, "")
+    anchor = Regexp.last_match(2).to_s.sub(/\A#/, "")
     anchor = "##{anchor}" unless anchor.empty?
     if target.end_with?("/README", "README") && target !~ /docs\//
       %(href="#{target.sub(%r{/?(?:\.\./)?README\z}, '')}index.html#{anchor}")
