@@ -60,6 +60,20 @@ def docs_render_page(src, dest, title)
         meta_tags: { title: title },
       )
     end
+  # AsciiDoc sources cross-link *.adoc siblings; the site serves .html.
+  # The repo README renders as the site root index.html.
+  html = html.gsub(/href="([^"]+?)\.(?:adoc|md)([#"][^"]*)?"/) do
+    target = Regexp.last_match(1)
+    anchor = Regexp.last_match(2).to_s.sub(/^["#]/, "")
+    anchor = "##{anchor}" unless anchor.empty?
+    if target.end_with?("/README", "README") && target !~ /docs\//
+      %(href="#{target.sub(%r{/?(?:\.\./)?README\z}, '')}index.html#{anchor}")
+    elsif File.exist?("#{DOCS_SITE}/#{target}.html")
+      %(href="#{target}.html#{anchor}")
+    else
+      Regexp.last_match(0)
+    end
+  end
   File.write(dest, html)
 end
 
@@ -74,6 +88,7 @@ end
 namespace :docs do
   desc "Render all documentation pages into docs/site/ (Coradoc, no Jekyll)"
   task :build do
+    FileUtils.rm_rf(DOCS_SITE)
     FileUtils.mkdir_p(DOCS_SITE)
 
     nav = []
@@ -85,7 +100,7 @@ namespace :docs do
       FileUtils.mkdir_p(File.dirname(out))
       title = docs_page_title(page)
       docs_render_page(page, out, title)
-      nav << [title, File.basename(out)]
+      nav << [title, out.delete_prefix("#{DOCS_SITE}/")]
       puts "rendered #{page} -> #{out}"
     end
 
@@ -96,7 +111,8 @@ namespace :docs do
   desc "Regenerate the site index page"
   task :index, [:nav] do |_t, args|
     nav = args[:nav] || DOCS_PAGES.map do |p|
-      [docs_page_title(p), "#{p.sub('.adoc', '').sub('.md', '')}.html"]
+      rel = p == "README.adoc" ? "index" : p.sub(".adoc", "").sub(".md", "")
+      [docs_page_title(p), "#{rel}.html"]
     end
     links = nav.map { |title, href| %(<li><a href="#{href}">#{title}</a></li>) }.join("\n")
     html = <<~HTML

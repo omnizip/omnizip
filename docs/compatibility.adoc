@@ -483,7 +483,7 @@ Zip::File.open('archive.zip') do |zip|
 end
 ----
 
-See link:guides/migration-rubyzip.html[Complete Migration Guide]
+See the migration notes in the Rubyzip compatibility sections of link:../readme-docs/api-usage.adoc[API usage]
 
 === From 7-Zip CLI to Omnizip API
 
@@ -574,6 +574,5 @@ This makes Omnizip ideal for Ruby applications needing advanced compression beyo
 == See Also
 
 * link:getting-started/installation.html[Installation Guide]
-* link:guides/migration-rubyzip.html[Migration from Rubyzip]
 * link:getting-started/quick-start.html[Quick Start Tutorial]
 * link:reference/index.html[API Reference]

@@ -9,9 +9,6 @@ max_cache_age = "1d"
 # Check both source files and built site
 include_verbatim = true
 
-# Recursively check all files
-recursive = true
-
 # File types to check
 include = [
   "site/**/*.html"
