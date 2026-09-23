@@ -58,7 +58,7 @@ jobs:
             --no-progress
             --config docs/lychee.toml
             --root-dir "$(pwd)/docs/site"
-            --base-url file://${{ github.workspace }}/docs/site
+            --base-url file://${{ github.workspace }}/docs/site/
             'docs/site/**/*.html'
           fail: true
           output: link-check-results.md
