@@ -21,6 +21,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads STORE method archive created by official rar" do
+      skip "external RAR decompressor unavailable (no unrar gem, no CLI)" unless Omnizip::Formats::Rar::Decompressor.available?
       archive = File.join(RAR_FIXTURES_DIR, "store_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -47,6 +48,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads FASTEST method archive created by official rar" do
+      skip "external RAR decompressor unavailable (no unrar gem, no CLI)" unless Omnizip::Formats::Rar::Decompressor.available?
       archive = File.join(RAR_FIXTURES_DIR, "fastest_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -72,6 +74,7 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads NORMAL method archive created by official rar" do
+      skip "external RAR decompressor unavailable (no unrar gem, no CLI)" unless Omnizip::Formats::Rar::Decompressor.available?
       archive = File.join(RAR_FIXTURES_DIR, "normal_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -136,12 +139,20 @@ RSpec.describe "Official RAR Tool Compatibility" do
     # frozen bytes and omnizip's own reader — no oracle at runtime.
     ORACLE = File.expand_path("../../../fixtures/rar/oracle", __dir__).freeze
 
-    def assert_matches_frozen(fixture_name)
+    # Byte-compare runs everywhere: the frozen bytes are the oracle record.
+    def bytes_match_frozen(fixture_name)
       frozen = File.join(ORACLE, fixture_name)
       skip "oracle fixtures missing" unless File.exist?(frozen)
       yield archive_path
 
       expect(File.binread(archive_path)).to eq(File.binread(frozen))
+      frozen
+    end
+
+    # RAR5 reader extraction routes through the external decompressor, so
+    # the decode leg can only run where one exists (unrar gem or CLI).
+    def decode_frozen(frozen)
+      skip "external RAR decompressor unavailable (no unrar gem, no CLI)" unless Omnizip::Formats::Rar::Decompressor.available?
 
       reader = Omnizip::Formats::Rar::Reader.new(frozen)
       reader.open
@@ -152,7 +163,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
         FileUtils.mkdir_p(File.dirname(out))
         reader.extract_entry(entry.name, out)
       end
-      reader
     end
 
     let(:archive_path) { File.join(temp_dir, "archive.rar") }
@@ -162,12 +172,13 @@ RSpec.describe "Official RAR Tool Compatibility" do
       test_content = "Test content for unrar"
       File.write(test_file, test_content)
 
-      assert_matches_frozen("rar5_store_omnizip.rar") do
+      frozen = bytes_match_frozen("rar5_store_omnizip.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
                                                          compression: :store)
         writer.add_file(test_file, "test.txt")
         writer.write
       end
+      decode_frozen(frozen)
 
       expect(File.read(File.join(temp_dir, "decoded", "test.txt"))).to eq(test_content)
     end
@@ -177,12 +188,13 @@ RSpec.describe "Official RAR Tool Compatibility" do
       test_content = "Test content for unrar"
       File.write(test_file, test_content)
 
-      assert_matches_frozen("rar5_lzss_fallback.rar") do
+      frozen = bytes_match_frozen("rar5_lzss_fallback.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
                                                          compression: :lzss, level: 3)
         writer.add_file(test_file, "test.txt")
         writer.write
       end
+      decode_frozen(frozen)
 
       expect(File.read(File.join(temp_dir, "decoded", "test.txt"))).to eq(test_content)
     end
@@ -193,13 +205,14 @@ RSpec.describe "Official RAR Tool Compatibility" do
       File.write(file1, "Content 1\n" * 10)
       File.write(file2, "Content 2\n" * 10)
 
-      assert_matches_frozen("rar5_multi_files.rar") do
+      frozen = bytes_match_frozen("rar5_multi_files.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
                                                          compression: :lzma, level: 3)
         writer.add_file(file1, "file1.txt")
         writer.add_file(file2, "file2.txt")
         writer.write
       end
+      decode_frozen(frozen)
 
       expect(File.read(File.join(temp_dir, "decoded", "file1.txt"))).to eq("Content 1\n" * 10)
       expect(File.read(File.join(temp_dir, "decoded", "file2.txt"))).to eq("Content 2\n" * 10)
