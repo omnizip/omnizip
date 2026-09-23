@@ -5,6 +5,8 @@ require "tempfile"
 require "fileutils"
 require_relative "../../../../../lib/omnizip/formats/rar/rar5/writer"
 
+ORACLE = File.expand_path("../../../../fixtures/rar/oracle", __dir__).freeze
+
 RSpec.describe "RAR5 Multi-Volume Archives Integration" do
   let(:temp_dir) { Dir.mktmpdir("rar5_multivolume_test") }
   let(:output_archive) { File.join(temp_dir, "test_archive.rar") }
@@ -205,81 +207,37 @@ RSpec.describe "RAR5 Multi-Volume Archives Integration" do
     end
   end
 
-  describe "compatibility with unrar",
-           if: system("which unrar > /dev/null 2>&1") do
-    it "extracts multi-volume archive with unrar" do
-      skip("unrar not available") unless system("which unrar > /dev/null 2>&1")
+  describe "oracle-frozen volume compatibility" do
+    # These volumes were split by the writer, validated once by the unrar
+    # CLI (test + extract) and frozen into spec/fixtures/rar/oracle by
+    # scripts/generate_rar_oracle_fixtures.rb — no oracle at runtime.
+    it "fresh volumes match the unrar-validated fixtures byte-for-byte" do
+      part1 = File.join(ORACLE, "rar5_mv.part1.rar")
+      skip "oracle fixtures missing" unless File.exist?(part1)
 
-      # Create test files - make them large enough to require splitting
-      2.times do |i|
-        path = File.join(temp_dir, "compat#{i}.txt")
-        File.write(path, "Compatible content #{i}\n" * 3000) # ~54 KB each = 108 KB total
+      %w[compat0.txt compat1.txt].each_with_index do |name, i|
+        File.write(File.join(temp_dir, name), "Compatible content #{i}\n" * 3000)
       end
 
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(output_archive,
-                                                       multi_volume: true,
-                                                       volume_size: 65_536, # 64 KB
-                                                       compression: :store)
-
+      archive = File.join(temp_dir, "rar5_mv.rar")
+      writer = Omnizip::Formats::Rar::Rar5::Writer.new(
+        archive, multi_volume: true, volume_size: 65_536, compression: :store
+      )
       writer.add_file(File.join(temp_dir, "compat0.txt"))
       writer.add_file(File.join(temp_dir, "compat1.txt"))
       volumes = writer.write
 
-      extract_dir = File.join(temp_dir, "extracted")
-      Dir.mkdir(extract_dir)
-
-      # Extract using unrar - note: may not work due to header format differences
-      # This is a known limitation tracked for v0.5.1
-      result = system("unrar x -y #{volumes.first.shellescape} #{extract_dir.shellescape} > /dev/null 2>&1")
-
-      # If unrar fails, it's expected (format compatibility issue for v0.5.1)
-      # Just verify volumes were created
-      expect(volumes.size).to be > 1
-      volumes.each { |vol| expect(File.exist?(vol)).to be true }
-
-      # The spec-correct volume flags (archive flags 0x0001/0x0002,
-      # end-of-archive 0x0001) make volumes genuinely extractable.
-      expect(result).to be true
-      extracted_file0 = File.join(extract_dir,
-                                  File.basename(File.join(temp_dir,
-                                                          "compat0.txt")))
-      extracted_file1 = File.join(extract_dir,
-                                  File.basename(File.join(temp_dir,
-                                                          "compat1.txt")))
-      expect(File.exist?(extracted_file0)).to be true
-      expect(File.exist?(extracted_file1)).to be true
+      expect(volumes.size).to eq(2)
+      volumes.each_with_index do |vol, i|
+        expect(File.binread(vol)).to eq(File.binread(File.join(ORACLE, "rar5_mv.part#{i + 1}.rar")))
+      end
     end
 
-    it "lists files in multi-volume archive with unrar" do
-      skip("unrar not available") unless system("which unrar > /dev/null 2>&1")
+    it "the frozen listing shows the oracle accepted the split" do
+      listing = File.read(File.join(ORACLE, "rar5_multivolume.unrar-l.txt"))
 
-      # Create multiple files that will require multiple volumes
-      # Current implementation uses atomic file placement
-      2.times do |i|
-        test_file = File.join(temp_dir, "file#{i}.txt")
-        File.write(test_file, "List test content #{i}\n" * 3000) # ~54 KB each
-      end
-
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(output_archive,
-                                                       multi_volume: true,
-                                                       volume_size: 65_536, # 64 KB
-                                                       compression: :store)
-
-      writer.add_file(File.join(temp_dir, "file0.txt"))
-      writer.add_file(File.join(temp_dir, "file1.txt"))
-      volumes = writer.write
-
-      # Verify volumes were created
-      expect(volumes.size).to be > 1
-      volumes.each { |vol| expect(File.exist?(vol)).to be true }
-
-      # Try to list with unrar - may not work due to format compatibility
-      # This is expected and tracked for v0.5.1
-      `unrar l #{volumes.first.shellescape} 2>&1`
-
-      # Main assertion: volumes were created successfully
-      # Unrar compatibility is nice-to-have for v0.5.0
-      expect(volumes).not_to be_empty
+      expect(listing).to include("compat0.txt") # part1 carries compat0 (atomic placement)
+      expect(listing).not_to match(/corrupt|ERROR/i)
     end
   end
 

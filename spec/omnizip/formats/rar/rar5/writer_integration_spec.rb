@@ -3,6 +3,8 @@
 require "spec_helper"
 require "tempfile"
 
+ORACLE = File.expand_path("../../../../fixtures/rar/oracle", __dir__).freeze
+
 RSpec.describe "RAR5 Writer Integration" do
   let(:output_file) { Tempfile.new(["test", ".rar"]) }
 
@@ -104,64 +106,36 @@ RSpec.describe "RAR5 Writer Integration" do
     end
   end
 
-  describe "unrar compatibility",
-           skip: !system("which unrar > /dev/null 2>&1") do
+  describe "oracle-frozen compatibility" do
+    # The archive these examples produce was validated once by the unrar
+    # CLI (list + extract) and frozen into spec/fixtures/rar/oracle by
+    # scripts/generate_rar_oracle_fixtures.rb — no oracle at runtime.
+    let(:frozen) { File.join(ORACLE, "rar5_single.rar") }
     let(:test_file) { Tempfile.new("input.txt") }
 
     before do
+      skip "oracle fixtures missing" unless File.exist?(frozen)
+
       test_file.write("Test content for unrar")
       test_file.close
     end
 
     after { test_file.unlink }
 
-    it "creates archive readable by unrar" do
+    it "matches the unrar-validated fixture byte-for-byte" do
       writer = Omnizip::Formats::Rar::Rar5::Writer.new(output_file.path)
       writer.add_file(test_file.path, "test.txt")
       writer.write
 
-      # Try to list with unrar
-      output = `unrar l #{output_file.path} 2>&1`
-
-      # Should not have errors
-      expect(output).not_to include("corrupt")
-      expect(output).not_to include("ERROR")
-      expect(output).not_to include("Unexpected end of archive")
-
-      # Should confirm RAR5 format
-      expect(output).to include("Details: RAR 5")
+      expect(File.binread(output_file.path)).to eq(File.binread(frozen))
     end
 
-    it "unrar can list file entries" do
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(output_file.path)
-      writer.add_file(test_file.path, "myfile.txt")
-      writer.write
+    it "the frozen listing shows a valid RAR 5 archive with the entry" do
+      listing = File.read(File.join(ORACLE, "rar5_single.unrar-l.txt"))
 
-      output = `unrar l #{output_file.path} 2>&1`
-
-      # Should list the file
-      expect(output).to include("myfile.txt")
-    end
-
-    it "unrar can extract files" do
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(output_file.path)
-      writer.add_file(test_file.path, "extract_test.txt")
-      writer.write
-
-      # Create temp extraction directory
-      extract_dir = Dir.mktmpdir
-      begin
-        # Extract with unrar
-        system("unrar x -o+ #{output_file.path} #{extract_dir}/ > /dev/null 2>&1")
-
-        extracted_file = File.join(extract_dir, "extract_test.txt")
-        expect(File).to exist(extracted_file)
-
-        content = File.read(extracted_file)
-        expect(content).to eq("Test content for unrar")
-      ensure
-        FileUtils.rm_rf(extract_dir)
-      end
+      expect(listing).to include("Details: RAR 5")
+      expect(listing).to include("test.txt")
+      expect(listing).not_to match(/corrupt|ERROR|Unexpected end of archive/)
     end
   end
 end

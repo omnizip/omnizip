@@ -1,0 +1,13 @@
+
+UNRAR 7.20 freeware      Copyright (c) 1993-2026 Alexander Roshal
+
+Archive: /var/folders/2t/xmdrn2sd2lv2w49dv0zw9_q00000gp/T/rar_oracle20260923-29796-zwio4i/rar5_multi_files.rar
+Details: RAR 5
+
+ Attributes       Size     Date    Time   Name
+----------- ----------  ---------- -----  ----
+ -rw-r--r--        100  ????-??-?? ??:??  file1.txt
+ -rw-r--r--        100  ????-??-?? ??:??  file2.txt
+----------- ----------  ---------- -----  ----
+                   200                    2
+

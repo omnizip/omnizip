@@ -21,7 +21,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads STORE method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "store_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -48,7 +47,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads FASTEST method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "fastest_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -74,7 +72,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads NORMAL method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "normal_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -100,7 +97,6 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
 
     it "reads BEST (PPMd) method archive created by official rar" do
-      skip "unrar not available" unless Omnizip::Formats::Rar::Decompressor.command_available?
       archive = File.join(RAR_FIXTURES_DIR, "best_method.rar")
       skip "Fixture not found: #{archive}" unless File.exist?(archive)
 
@@ -133,89 +129,80 @@ RSpec.describe "Official RAR Tool Compatibility" do
     end
   end
 
-  describe "Official tools reading Omnizip archives" do
-    it "creates STORE archive readable by official unrar" do
-      skip "unrar command not available" unless unrar_available?
+  describe "Archives previously validated by official unrar (frozen)" do
+    # These archives were written by Omnizip, extracted once by the
+    # official unrar CLI, and frozen into spec/fixtures/rar/oracle by
+    # scripts/generate_rar_oracle_fixtures.rb. CI asserts against the
+    # frozen bytes and omnizip's own reader — no oracle at runtime.
+    ORACLE = File.expand_path("../../../fixtures/rar/oracle", __dir__).freeze
 
+    def assert_matches_frozen(fixture_name)
+      frozen = File.join(ORACLE, fixture_name)
+      skip "oracle fixtures missing" unless File.exist?(frozen)
+      yield archive_path
+
+      expect(File.binread(archive_path)).to eq(File.binread(frozen))
+
+      reader = Omnizip::Formats::Rar::Reader.new(frozen)
+      reader.open
+      reader.list_files.each do |entry|
+        next if entry.directory?
+
+        out = File.join(temp_dir, "decoded", entry.name)
+        FileUtils.mkdir_p(File.dirname(out))
+        reader.extract_entry(entry.name, out)
+      end
+      reader
+    end
+
+    let(:archive_path) { File.join(temp_dir, "archive.rar") }
+
+    it "STORE archive decodes to the original content" do
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"
       File.write(test_file, test_content)
 
-      archive = File.join(temp_dir, "omnizip_store.rar")
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive,
-                                                       compression: :store)
-      writer.add_file(test_file, "test.txt")
-      writer.write
+      assert_matches_frozen("rar5_store_omnizip.rar") do
+        writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
+                                                         compression: :store)
+        writer.add_file(test_file, "test.txt")
+        writer.write
+      end
 
-      # Extract with official unrar
-      extract_dir = File.join(temp_dir, "extracted_store")
-      FileUtils.mkdir_p(extract_dir)
-      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
-
-      expect(result).to be true
-
-      extracted_file = File.join(extract_dir, "test.txt")
-      expect(File.exist?(extracted_file)).to be true
-
-      extracted = File.read(extracted_file)
-      expect(extracted).to eq(test_content)
+      expect(File.read(File.join(temp_dir, "decoded", "test.txt"))).to eq(test_content)
     end
 
-    it "creates NORMAL archive readable by official unrar" do
-      skip "unrar command not available" unless unrar_available?
-
-      # NOTE: RAR5 uses LZSS compression (methods 1-5), not LZMA.
-      # Until LZSS is implemented, :lzma/:lzss compression falls back to STORE.
-      # This test verifies that STORE fallback produces valid archives.
-
+    it "LZSS-requested archive (STORE fallback) decodes to the original content" do
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"
       File.write(test_file, test_content)
 
-      archive = File.join(temp_dir, "omnizip_normal.rar")
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive,
-                                                       compression: :lzss, level: 3)
-      writer.add_file(test_file, "test.txt")
-      writer.write
+      assert_matches_frozen("rar5_lzss_fallback.rar") do
+        writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
+                                                         compression: :lzss, level: 3)
+        writer.add_file(test_file, "test.txt")
+        writer.write
+      end
 
-      # Extract with official unrar
-      extract_dir = File.join(temp_dir, "extracted_normal")
-      FileUtils.mkdir_p(extract_dir)
-      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
-
-      expect(result).to be true
-
-      extracted_file = File.join(extract_dir, "test.txt")
-      expect(File.exist?(extracted_file)).to be true
-
-      extracted = File.read(extracted_file)
-      expect(extracted).to eq(test_content)
+      expect(File.read(File.join(temp_dir, "decoded", "test.txt"))).to eq(test_content)
     end
 
-    it "creates multi-file archive readable by official unrar" do
-      skip "unrar command not available" unless unrar_available?
-
+    it "multi-file archive decodes to the original contents" do
       file1 = File.join(temp_dir, "file1.txt")
       file2 = File.join(temp_dir, "file2.txt")
       File.write(file1, "Content 1\n" * 10)
       File.write(file2, "Content 2\n" * 10)
 
-      archive = File.join(temp_dir, "omnizip_multi.rar")
-      writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive,
-                                                       compression: :lzma, level: 3)
-      writer.add_file(file1, "file1.txt")
-      writer.add_file(file2, "file2.txt")
-      writer.write
+      assert_matches_frozen("rar5_multi_files.rar") do
+        writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
+                                                         compression: :lzma, level: 3)
+        writer.add_file(file1, "file1.txt")
+        writer.add_file(file2, "file2.txt")
+        writer.write
+      end
 
-      # Extract with official unrar
-      extract_dir = File.join(temp_dir, "extracted_multi")
-      FileUtils.mkdir_p(extract_dir)
-      result = system("#{unrar_command} x -y #{archive} #{extract_dir}/ > #{File::NULL} 2>&1")
-
-      expect(result).to be true
-
-      expect(File.exist?(File.join(extract_dir, "file1.txt"))).to be true
-      expect(File.exist?(File.join(extract_dir, "file2.txt"))).to be true
+      expect(File.read(File.join(temp_dir, "decoded", "file1.txt"))).to eq("Content 1\n" * 10)
+      expect(File.read(File.join(temp_dir, "decoded", "file2.txt"))).to eq("Content 2\n" * 10)
     end
   end
 

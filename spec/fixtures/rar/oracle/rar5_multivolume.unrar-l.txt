@@ -1,0 +1,12 @@
+
+UNRAR 7.20 freeware      Copyright (c) 1993-2026 Alexander Roshal
+
+Archive: /var/folders/2t/xmdrn2sd2lv2w49dv0zw9_q00000gp/T/rar_oracle20260923-29796-pd7vyj/rar5_mv.part1.rar
+Details: RAR 5, volume 1
+
+ Attributes       Size     Date    Time   Name
+----------- ----------  ---------- -----  ----
+ -rw-r--r--      63000  ????-??-?? ??:??  compat0.txt
+----------- ----------  ---------- -----  ----
+                 63000                    1
+

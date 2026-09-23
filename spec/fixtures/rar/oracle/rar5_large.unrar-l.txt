@@ -1,0 +1,12 @@
+
+UNRAR 7.20 freeware      Copyright (c) 1993-2026 Alexander Roshal
+
+Archive: /var/folders/2t/xmdrn2sd2lv2w49dv0zw9_q00000gp/T/rar_oracle20260923-29796-nho8v8/rar5_large.rar
+Details: RAR 5
+
+ Attributes       Size     Date    Time   Name
+----------- ----------  ---------- -----  ----
+ -rw-r--r--      10000  2023-11-15 06:13  large.txt
+----------- ----------  ---------- -----  ----
+                 10000                    1
+
