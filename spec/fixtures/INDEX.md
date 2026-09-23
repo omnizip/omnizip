@@ -46,6 +46,9 @@ See [`libarchive/README.adoc`](libarchive/README.adoc) for full attribution.
 - `cpio/` - CPIO formats (binary, newc, crc, odc)
 - `iso/` - ISO 9660 (basic, Rock Ridge, Joliet, UDF)
 - `rar/` - RAR v3 and RAR v5 test files
+  - `rar/oracle/` - writer outputs validated once by the official unrar CLI
+    (regenerate with `bundle exec ruby scripts/generate_rar_oracle_fixtures.rb`;
+    the RAR specs assert against these files, so CI needs no oracle)
 
 ### peazip/
 

@@ -1,0 +1,16 @@
+
+UNRAR 7.20 freeware      Copyright (c) 1993-2026 Alexander Roshal
+
+Archive: /var/folders/2t/xmdrn2sd2lv2w49dv0zw9_q00000gp/T/rar_oracle20260923-29796-ptwhwb/rar4_store_tree.rar
+Details: RAR 1.5
+
+ Attributes       Size     Date    Time   Name
+----------- ----------  ---------- -----  ----
+ -rw-r--r--          7  2026-09-23 18:20  README.md
+ -rw-r--r--          0  2026-09-23 18:20  empty.bin
+ drwxr-xr-x          0  2026-09-23 18:20  sub
+ -rw-r--r--         10  2026-09-23 18:20  sub/main.rb
+ -rw-r--r--      24000  2026-09-23 18:20  big.txt
+----------- ----------  ---------- -----  ----
+                 24017                    5
+

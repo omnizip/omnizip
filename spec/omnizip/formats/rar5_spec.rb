@@ -208,8 +208,11 @@ RSpec.describe "RAR v5 Format Support" do
 
       archive_io = StringIO.new
       large_data = "X" * 10_000
+      # fixed epoch — the legacy writer embeds mtime (RAR5 epoch seconds),
+      # so a constant keeps the output byte-reproducible against the frozen
+      # oracle fixture
       entries = [
-        { name: "large.txt", data: large_data, time: Time.now },
+        { name: "large.txt", data: large_data, time: Time.at(1_700_000_000) },
       ]
 
       writer.write_archive(archive_io, entries)
@@ -222,16 +225,13 @@ RSpec.describe "RAR v5 Format Support" do
       expect(entries_out.first.uncompressed_size).to eq(large_data.bytesize)
 
       # The legacy writer delegates to the primary spec-conformant
-      # writer, so the archive must test clean in unrar
-      if system("which unrar > /dev/null 2>&1")
-        Dir.mktmpdir("omnizip_rar5_spec") do |tmp|
-          path = File.join(tmp, "large.rar")
-          archive_io.rewind
-          File.binwrite(path, archive_io.read)
-          expect(system("unrar", "t", "-idq", path,
-                        out: File::NULL, err: File::NULL)).to be(true)
-        end
-      end
+      # writer; these exact bytes were validated once by unrar and frozen
+      # into spec/fixtures/rar/oracle (scripts/generate_rar_oracle_fixtures.rb).
+      frozen = File.expand_path("../../fixtures/rar/oracle/rar5_large.rar", __dir__)
+      skip "oracle fixtures missing" unless File.exist?(frozen)
+
+      archive_io.rewind
+      expect(archive_io.read.b).to eq(File.binread(frozen))
     end
   end
 
