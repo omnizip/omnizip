@@ -116,6 +116,7 @@ RSpec.describe "RAR5 Writer Integration" do
     before do
       skip "oracle fixtures missing" unless File.exist?(frozen)
 
+      test_file.binmode
       test_file.write("Test content for unrar")
       test_file.close
     end
