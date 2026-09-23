@@ -66,7 +66,7 @@ def docs_render_page(src, dest, title)
   # relative to each page's own directory (the depth prefix), which is what
   # both browsers and lychee-without-base-url resolve against.
   depth_prefix = Pathname.new(DOCS_SITE).relative_path_from(
-    Pathname.new(dest).dirname
+    Pathname.new(dest).dirname,
   ).to_s
   depth_prefix = "" if depth_prefix == "."
   depth_prefix = "#{depth_prefix}/" unless depth_prefix.empty?
