@@ -117,7 +117,8 @@ repair. See the guides below.
 * link:readme-docs/compression-algorithms.adoc[Compression algorithms] ·
   link:readme-docs/compression-profiles.adoc[Profiles] ·
   link:readme-docs/format-converter.adoc[Format converter] ·
-  link:readme-docs/advanced-features.adoc[Progress, ETA, parallel]
+  link:readme-docs/advanced-features.adoc[Progress, ETA, parallel] ·
+  link:readme-docs/performance-profiler.adoc[Performance profiler]
 * link:readme-docs/archive-formats.adoc[Archive formats] ·
   link:readme-docs/rar-archives.adoc[RAR4/RAR5 guide] ·
   link:readme-docs/par2-archives.adoc[PAR2 parity archives] ·

@@ -29,6 +29,7 @@ DOCS_PAGES = %w[
   readme-docs/encryption-checksums.adoc
   readme-docs/preprocessing-filters.adoc
   readme-docs/architecture.adoc
+  readme-docs/performance-profiler.adoc
   docs/compatibility.adoc
   docs/rust-backend.md
   docs/RAR_WRITE_SUPPORT.md
