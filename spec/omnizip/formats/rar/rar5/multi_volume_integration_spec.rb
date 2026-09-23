@@ -216,7 +216,7 @@ RSpec.describe "RAR5 Multi-Volume Archives Integration" do
       skip "oracle fixtures missing" unless File.exist?(part1)
 
       %w[compat0.txt compat1.txt].each_with_index do |name, i|
-        File.write(File.join(temp_dir, name), "Compatible content #{i}\n" * 3000)
+        File.binwrite(File.join(temp_dir, name), "Compatible content #{i}\n" * 3000)
       end
 
       archive = File.join(temp_dir, "rar5_mv.rar")

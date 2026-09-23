@@ -170,7 +170,9 @@ RSpec.describe "Official RAR Tool Compatibility" do
     it "STORE archive decodes to the original content" do
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"
-      File.write(test_file, test_content)
+      # binary: the writer embeds file bytes, and the frozen fixtures were
+      # built from LF-only input — text mode would CRLF-corrupt on Windows
+      File.binwrite(test_file, test_content)
 
       frozen = bytes_match_frozen("rar5_store_omnizip.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
@@ -186,7 +188,9 @@ RSpec.describe "Official RAR Tool Compatibility" do
     it "LZSS-requested archive (STORE fallback) decodes to the original content" do
       test_file = File.join(temp_dir, "test.txt")
       test_content = "Test content for unrar"
-      File.write(test_file, test_content)
+      # binary: the writer embeds file bytes, and the frozen fixtures were
+      # built from LF-only input — text mode would CRLF-corrupt on Windows
+      File.binwrite(test_file, test_content)
 
       frozen = bytes_match_frozen("rar5_lzss_fallback.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
@@ -202,8 +206,8 @@ RSpec.describe "Official RAR Tool Compatibility" do
     it "multi-file archive decodes to the original contents" do
       file1 = File.join(temp_dir, "file1.txt")
       file2 = File.join(temp_dir, "file2.txt")
-      File.write(file1, "Content 1\n" * 10)
-      File.write(file2, "Content 2\n" * 10)
+      File.binwrite(file1, "Content 1\n" * 10)
+      File.binwrite(file2, "Content 2\n" * 10)
 
       frozen = bytes_match_frozen("rar5_multi_files.rar") do
         writer = Omnizip::Formats::Rar::Rar5::Writer.new(archive_path,
