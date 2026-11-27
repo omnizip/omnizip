@@ -104,7 +104,7 @@ jobs:
         include:
           - { gem: "x86_64-linux", os: ubuntu-latest }
           - { gem: "aarch64-linux", os: ubuntu-24.04-arm }
-          - { gem: "arm64-darwin", os: macos-14 }
+          - { gem: "arm64-darwin", os: macos-15 }
           - { gem: "x86_64-darwin", os: macos-15-intel }
           - { gem: "x64-mingw-ucrt", os: windows-latest }
           - { gem: "aarch64-mingw-ucrt", os: windows-11-arm }
